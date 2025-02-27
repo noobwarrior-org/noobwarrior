@@ -1,0 +1,95 @@
+* {
+	background-color: rgb(46,46,46);
+	color: rgb(204, 204, 204);
+	font-family: "Source Sans Pro";
+}
+
+QToolTip {
+	background-color: rgb(55, 55, 55);
+	color: rgb(200, 200, 200);
+	border: 1px solid rgb(91, 91, 91);
+}
+
+QProgressBar {
+	background-color: rgb(60, 60, 60);
+	color: rgb(60, 60, 60);
+	border: 1px solid rgb(37, 37, 37);
+}
+
+QProgressBar::chunk {
+	background-color: rgb(0, 162, 255);
+}
+
+QLineEdit {
+	border: 1px solid rgb(120, 120, 120);
+}
+
+QTabWidget::pane {
+	border: 1px solid rgb(38, 38, 38);
+}
+
+QTabBar::tab {
+	background: rgb(62, 62, 62);
+	border: 1px solid rgb(38, 38, 38);
+	padding: 5px;
+}
+
+QTabBar::tab:selected, QTabBar::tab:hover {
+    background: rgb(41, 41, 41);	
+}
+
+QLabel[objectName^="title"]{
+	color: rgb(255, 255, 255);
+}
+
+QPushButton {
+	background-color: rgb(60, 60, 60);
+	border-style: solid;
+}
+
+QPushButton::hover {
+	background-color: rgb(66, 66, 66);
+}
+
+QPushButton::pressed {
+	background-color: rgb(41, 41, 41);
+}
+
+QPushButton::default {
+	color: rgb(255,255,255);
+	background-color: rgb(26, 159, 251);
+	border: 1px solid rgb(29, 127, 190);
+}
+
+QPushButton::default::hover {
+	color: rgb(255,255,255);
+	background-color: rgb(58, 178, 252);
+	border: 1px solid rgb(57, 140, 190);
+}
+
+QDialogButtonBox {
+	/* how do fix small butons */
+}
+
+QScrollBar {
+	background: rgb(45 , 45, 45);
+	border: 1px solid rgb(37, 37, 37);
+}
+
+QScrollBar::handle {
+	background: rgb(58, 58, 58);
+	border: 1px solid rgb(37, 37, 37);
+}
+
+QScrollBar::handle::hover {
+	background: rgb(71, 71, 71);
+}
+
+QScrollBar::up-arrow, QScrollBar::down-arrow, QScrollBar::left-arrow, QScrollBar::right-arrow {
+	background: rgb(58, 58, 58);
+    border: 1px solid rgb(37, 37, 37);
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+}

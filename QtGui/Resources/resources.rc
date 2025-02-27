@@ -1,0 +1,19 @@
+#include <NoobWarrior/NoobWarrior.h>
+
+IDI_ICON1 ICON "C:/Users/Hattozo/Documents/hat_development/noobWarrior/QtGui/resources/images/icon.ico"
+
+1 VERSIONINFO
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "Hattozo"
+            VALUE "LegalCopyright", "Hattozo"
+            VALUE "FileDescription", "noobWarrior"
+            VALUE "FileVersion", NOOBWARRIOR_VERSION
+            VALUE "ProductName", "noobWarrior"
+            VALUE "ProductVersion", NOOBWARRIOR_VERSION
+        END
+    END
+END
