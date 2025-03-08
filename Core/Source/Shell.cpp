@@ -40,13 +40,6 @@ static Shell::Command sCommands[] = {
     {(void(*))::RccService, "rccservice", "Control the behavior and operations of RCCService"},
     {(void(*))::DownloadAsset, "download-asset", "Downloads assets by supplying them their ID. If you want to sequentially download a list of assets, use a comma-separated list of IDs inside of quotes. Ex: download-asset --id \"5804349700, 12221333, 3697434836\" --out \"./downloads\""}
 };
-// static void* sCommands[][4] = {
-//     {(char*)"help", (void(*))Help, (char*)"Gives a list of all available commands."},
-//     {(char*)"exit", (void(*))Shell::Close, (char*)"Stops the shell."},
-//     {(char*)"login", (void(*))login, (char*)"Authenticates a Roblox account with noobWarrior."},
-//     {(char*)"rccservice", (void(*))::RccService, (char*)"Manage RCCService"},
-//     {(char*)"download-asset", (void(*))login, (char*)"Downloads a list of assets. Comma-separated string "}
-// };
 
 static const char* sAliases[][2] = {
     {"quit", "exit"},
@@ -170,17 +163,6 @@ void Shell::ParseCommand(char* cmd) {
         argv = (char**)realloc(argc == 0 ? NULL : argv, argc * sizeof(char*));
         argv[argc] = qtok(cmd, &cmd);
     }
-    
-    // int argc;
-    // char** argv;
-    // char* token = strtok(cmd, " ");
-    // for (argc = 0; token != NULL; argc++) {
-    //     fprintf(sOut, "%s\n", token);
-    //     argv = (char**)realloc(argc == 0 ? NULL : argv, argc * sizeof(char*));
-    //     argv[argc] = token;
-    //     token = strtok(NULL, " ");
-    // }
-
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(sCommands); i++) {
         if (strncmp(sCommands[i].Name, argv[0], strlen(sCommands[i].Name)) == 0) {
             ((void(*)(int, char**))(sCommands[i].Main))(argc, argv);
