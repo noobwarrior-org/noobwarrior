@@ -20,10 +20,8 @@ namespace NoobWarrior {
     public:
         Launcher(QWidget *parent = nullptr);
         ~Launcher();
-
+        ArchiveEditor *mArchiveEditor;
     private:
         Ui::Launcher *ui;
-
-        ArchiveEditor *mArchiveEditor;
     };
 }
