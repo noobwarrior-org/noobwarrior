@@ -265,12 +265,12 @@ R"(
 
 using namespace NoobWarrior;
 
-Archive::Archive(const std::string &mPath) :
-    mPath(mPath),
-    mInitialized(false)
+Archive::Archive() :
+    mDatabase(nullptr)
 {};
 
-int Archive::InitDatabase() {
+int Archive::Open(const std::string &path) {
+    mPath = path;
     int val = sqlite3_open_v2(mPath.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
     if (val != SQLITE_OK)
         return val;
@@ -326,14 +326,35 @@ int Archive::InitDatabase() {
             return execVal;
         }
     }
-
-    mInitialized = true;
     return SQLITE_OK;
 }
 
-int Archive::CloseDatabase() {
-    mInitialized = false;
-    return sqlite3_close_v2(mDatabase);
+int Archive::Close() {
+    return mDatabase != nullptr ? sqlite3_close_v2(mDatabase) : 0;
+}
+
+int Archive::SaveAs(const std::string &path) {
+    if (mDatabase == nullptr) return -1;
+    sqlite3 *newDb;
+    sqlite3_backup *backup;
+
+    FILE *file = fopen(path.c_str(), "w");
+    if (file == nullptr)
+        return -2;
+    fclose(file);
+
+    int val = sqlite3_open_v2(path.c_str(), &newDb, SQLITE_OPEN_READWRITE, nullptr);
+    if (val != SQLITE_OK)
+        goto cleanup;
+
+    backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
+    if (backup) {
+        sqlite3_backup_step(backup, -1);
+        sqlite3_backup_finish(backup);
+    }
+cleanup:
+    sqlite3_close_v2(newDb);
+    return val;
 }
 
 int Archive::GetDatabaseVersion() {
@@ -386,7 +407,7 @@ std::string Archive::GetTitle() {
 }
 
 int Archive::AddAsset(Asset *asset) {
-    if (!mInitialized) return -1;
+    if (mDatabase == nullptr) return -1;
 
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
 }

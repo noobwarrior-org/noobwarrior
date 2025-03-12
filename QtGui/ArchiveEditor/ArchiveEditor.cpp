@@ -33,7 +33,7 @@ ArchiveEditor::ArchiveEditor(QWidget *parent) : QMainWindow(parent), mCurrentArc
 
 ArchiveEditor::~ArchiveEditor() {
     if (mCurrentArchive) {
-        mCurrentArchive->CloseDatabase();
+        mCurrentArchive->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentArchive)
     }
 }
@@ -69,11 +69,11 @@ cleanup:
 }
 
 void ArchiveEditor::TryToOpenFile(const QString &path) {
-    mCurrentArchive = new Archive(path.toStdString());
-    int val = mCurrentArchive->InitDatabase();
+    mCurrentArchive = new Archive();
+    int val = mCurrentArchive->Open(path.toStdString());
     if (val != 0) {
         QMessageBox::critical(this, "Error", QString("Cannot open database of file \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentArchive->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", val))));
-        mCurrentArchive->CloseDatabase();
+        mCurrentArchive->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentArchive)
     }
 }
@@ -82,20 +82,24 @@ void ArchiveEditor::InitMenus() {
     QAction *newAct = new QAction("New Archive");
     QAction *openAct = new QAction("Open Archive");
     QAction *saveAct = new QAction("Save Archive");
+    QAction *saveAsAct = new QAction("Save Archive As");
 
     mFileMenu = menuBar()->addMenu(tr("&File"));
 
     newAct->setParent(mFileMenu);
     openAct->setParent(mFileMenu);
     saveAct->setParent(mFileMenu);
+    saveAsAct->setParent(mFileMenu);
 
     mFileMenu->addAction(newAct);
     mFileMenu->addAction(openAct);
     mFileMenu->addAction(saveAct);
+    mFileMenu->addAction(saveAsAct);
 
     connect(newAct, &QAction::triggered, [&]() {
-        QString filePath = QFileDialog::getSaveFileName(this, "New Archive", "./archives/", "noobWarrior Archive (*.nwa)");
-        if (!filePath.isEmpty()) TryToCreateFile(filePath);
+        // QString filePath = QFileDialog::getSaveFileName(this, "New Archive", "./archives/", "noobWarrior Archive (*.nwa)");
+        // if (!filePath.isEmpty()) TryToCreateFile(filePath);
+        TryToOpenFile();
     });
 
     connect(openAct, &QAction::triggered, [&]() {

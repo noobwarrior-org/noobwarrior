@@ -23,7 +23,7 @@ namespace NoobWarrior {
         ~ArchiveEditor();
 
         void TryToCreateFile(const QString &path);
-        void TryToOpenFile(const QString &path);
+        void TryToOpenFile(const QString &path = ":memory:");
     protected:
         void closeEvent(QCloseEvent *event) override;
     private:

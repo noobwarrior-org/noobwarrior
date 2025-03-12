@@ -54,20 +54,21 @@ namespace NoobWarrior {
 
     class Archive {
     public:
-        Archive(const std::string &path);
+        Archive();
 
-        int InitDatabase();
-        int CloseDatabase();
+        int Open(const std::string &path = ":memory:");
+        int Close();
+        int SaveAs(const std::string &path);
         int GetDatabaseVersion();
         int SetDatabaseVersion(int version);
 
         /**
-         * Commits the current SQLite transaction, which will write all changes to disk.
+         * @brief Commits the current SQLite transaction, which will write all changes to disk.
          */
         int WriteChangesToDisk();
 
         /**
-         * Returns true if this archive has unsaved changes.
+         * @brief Returns true if this archive has unsaved changes.
          */
         bool IsDirty();
         std::string GetSqliteErrorMsg();
@@ -77,6 +78,5 @@ namespace NoobWarrior {
     private:
         std::string mPath;
         sqlite3 *mDatabase;
-        bool mInitialized;
     };
 }
