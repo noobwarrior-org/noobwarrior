@@ -44,7 +44,7 @@ static void LaunchOfflineStudio(Launcher& launcher) {
 
 static const char* sCategoryNames[] = {
     "Tools",
-    "Roblox",
+    "Offline Roblox",
     "Application"
 };
 
@@ -52,15 +52,17 @@ static const void* sTools[][3] = {
     {"Archive Utility", (void*)&LaunchArchiveUtility, ":/images/silk/database_gear.png"},
     {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
     {"Download Asset(s)", nullptr, ":/images/silk/brick_add.png"},
-    {"Import Game As Archive", nullptr, ":/images/silk/folder_go.png"},
+    {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
+    // {"Import Game As Archive", nullptr, ":/images/silk/folder_go.png"}, // find this in the Archive Utility instead
+    {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
 };
 
 static const void* sRoblox[][3] = {
     {"Host Server", nullptr, ":/images/silk/server.png"},
     {"Join Server", nullptr, ":/images/silk/controller.png"},
     {"Play Solo", nullptr, ":/images/silk/status_offline.png"},
-    {"Launch Offline Studio", nullptr, ":/images/silk/application_side_tree.png"},
-    {"Manage Roblox Installations", nullptr, ":/images/silk/disk_multiple.png"},
+    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"},
+    {"Manage Installations", nullptr, ":/images/silk/disk_multiple.png"},
     {"Manage Servers", nullptr, ":/images/silk/drive_network.png"}
 };
 
@@ -85,11 +87,12 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher), mAr
     // frame->setStyleSheet("background-color: rgb(80, 80, 80);");
     grid->addWidget(frame);
     auto *frameGrid = new QGridLayout(frame);
+    frameGrid->setSpacing(8);
     frame->setLayout(frameGrid);
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(sCategoryNames); i++) {
         auto *label = new QLabel(this);
         label->setText(sCategoryNames[i]);
-        label->setMaximumHeight(20);
+        label->setMaximumHeight(24);
         frameGrid->addWidget(label);
 
         switch (i) {
