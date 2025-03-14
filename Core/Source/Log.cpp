@@ -21,17 +21,3 @@ static const char* MapLevelToString(Level lv) {
         return "Fatal";
     }
 }
-
-void NoobWarrior::Out(FILE *stream, const char* category, const char *fmt, ...) {
-    if (stream == stdout && !gLog_PrintToStdOut)
-        return;
-    int size = strlen(fmt) + strlen(category) + 18;
-    char* newFmt = (char*)malloc(size);
-    snprintf(newFmt, size, "[NoobWarrior::%s] %s\n", category, fmt);
-    va_list list;
-    va_start(list, newFmt);
-    vprintf(newFmt, list);
-    if (stream != stdout && gLog_PrintToStdOut)
-        vfprintf(stream, newFmt, list);
-    va_end(list);
-}
