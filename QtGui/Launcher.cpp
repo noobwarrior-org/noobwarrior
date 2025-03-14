@@ -6,6 +6,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include "Launcher.h"
+#include "Dialog/AssetDownloaderDialog.h"
 #include "Ui/ui_Launcher.h"
 
 #include <QLabel>
@@ -20,23 +21,22 @@
     frameGrid->addWidget(button); \
 }
 
+#define HANDLE_QDIALOG(ptr, qdialog) if (!ptr) { \
+    ptr = new qdialog(nullptr); \
+    ptr->setAttribute(Qt::WA_DeleteOnClose); /* Ensure deletion on close */ \
+    QObject::connect(ptr, &QWidget::destroyed, [&]() { \
+        ptr = nullptr; \
+    }); \
+    ptr->show(); \
+} else { \
+    ptr->raise(); /* Bring to front if already open */ \
+    ptr->activateWindow(); /* Make active */ \
+}
+
 using namespace NoobWarrior;
 
-static void LaunchArchiveUtility(Launcher& launcher) {
-    if (!launcher.mArchiveEditor) {
-        launcher.mArchiveEditor = new ArchiveEditor(nullptr);
-        launcher.mArchiveEditor->setAttribute(Qt::WA_DeleteOnClose); // Ensure deletion on close
-
-        QObject::connect(launcher.mArchiveEditor, &QWidget::destroyed, [&]() {
-            launcher.mArchiveEditor = nullptr;
-        });
-
-        launcher.mArchiveEditor->show();
-    } else {
-        launcher.mArchiveEditor->raise(); // Bring to front if already open
-        launcher.mArchiveEditor->activateWindow(); // Make active
-    }
-}
+static void LaunchArchiveUtility(Launcher& launcher) { HANDLE_QDIALOG(launcher.mArchiveEditor, ArchiveEditor) }
+static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloaderDialog) }
 
 static void LaunchOfflineStudio(Launcher& launcher) {
 
@@ -50,8 +50,8 @@ static const char* sCategoryNames[] = {
 
 static const void* sTools[][3] = {
     {"Archive Utility", (void*)&LaunchArchiveUtility, ":/images/silk/database_gear.png"},
+    {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
     {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
-    {"Download Asset(s)", nullptr, ":/images/silk/brick_add.png"},
     {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
     // {"Import Game As Archive", nullptr, ":/images/silk/folder_go.png"}, // find this in the Archive Utility instead
     {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
@@ -72,20 +72,31 @@ static const void* sApplication[][3] = {
     {"About", nullptr, ":/images/silk/help.png"}
 };
 
-Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher), mArchiveEditor(nullptr) {
+Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
+    mArchiveEditor(nullptr),
+    mAssetDownload(nullptr)
+{
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
+
     auto *grid = new QGridLayout(this);
     setLayout(grid);
+
     auto *logo = new QLabel(this);
     logo->setTextFormat(Qt::TextFormat::RichText);
     logo->setText("<h1><img src=\":/images/icon64.png\">noobWarrior</h1>");
     logo->setMaximumHeight(64);
     grid->addWidget(logo);
+
     auto *frame = new QFrame(this);
+    QPalette framePalette = frame->palette();
+    framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(125));
+    frame->setPalette(framePalette);
+    frame->setAutoFillBackground(true); // QFrames usually have invisible backgrounds, turn it on in this case.
     frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
-    // frame->setStyleSheet("background-color: rgb(80, 80, 80);");
+
     grid->addWidget(frame);
+
     auto *frameGrid = new QGridLayout(frame);
     frameGrid->setSpacing(8);
     frame->setLayout(frameGrid);
