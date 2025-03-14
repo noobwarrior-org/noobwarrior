@@ -938,6 +938,9 @@
     <file>css/style.css</file>
     <file>fonts/SourceSansPro-Regular.ttf</file>
     <file>fonts/SourceSansPro-Bold.ttf</file>
+    <file>fonts/FiraMono-Regular.ttf</file>
+    <file>fonts/FiraMono-Medium.ttf</file>
+    <file>fonts/FiraMono-Bold.ttf</file>
     <file>images/icon.ico</file>
     <file>images/icon64.png</file>
     <file>images/explorer.png</file>

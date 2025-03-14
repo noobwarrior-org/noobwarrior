@@ -6,6 +6,8 @@
 #include "Launcher.h"
 #include "ArchiveEditor/ArchiveEditor.h"
 
+#include <NoobWarrior/Config.h>
+
 #include <QApplication>
 #include <QFontDatabase>
 #include <QLabel>
@@ -24,9 +26,16 @@ int main(int argc, char *argv[]) {
         QMessageBox::critical(nullptr, "Error", "Could not initialize curl");
         return curlRet;
     }
+    if (NoobWarrior::Config_Open() != 0) {
+        QMessageBox::critical(nullptr, "Error", "Could not read config file");
+        return 0xC03F16DD; // Kind of reads out as "Config Dead Dead?"
+    }
     Q_INIT_RESOURCE(resources);
     QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Regular.ttf");
     QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/fonts/FiraMono-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/fonts/FiraMono-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/fonts/FiraMono-Bold.ttf");
     NoobWarrior::Launcher launcher;
 #if USE_CUSTOM_STYLESHEET
     QFile styleFile(":/css/style.css");
@@ -53,6 +62,7 @@ int main(int argc, char *argv[]) {
     launcher.show();
     ret = app.exec();
 cleanup:
+    NoobWarrior::Config_Close();
     curl_global_cleanup();
     return ret;
 }
