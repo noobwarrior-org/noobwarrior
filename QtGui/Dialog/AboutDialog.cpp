@@ -20,10 +20,11 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
     setLayout(grid);
 
     auto *logo = new QLabel(this);
+    logo->setWordWrap(true);
     logo->setTextFormat(Qt::TextFormat::RichText);
     logo->setStyleSheet("* { line-height: 0px; }");
-    logo->setText("<center><h1><img src=\":/images/icon64.png\">noobWarrior</h1><font color=\"gray\"><h3>v" NOOBWARRIOR_VERSION "</h3></font></center>");
-    logo->setMaximumHeight(128);
+    logo->setText("<center><h1><img src=\":/images/icon64.png\">noobWarrior</h1><font color=\"gray\"><h3>v" NOOBWARRIOR_VERSION "</h3></font><h3>All-in-one toolkit for archiving, viewing, editing, and playing Roblox content offline</h3></center>");
+    logo->setMaximumHeight(160);
 
     auto *text = new QTextEdit(this);
     text->setReadOnly(true);
