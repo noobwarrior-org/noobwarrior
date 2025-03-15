@@ -6,8 +6,7 @@
 #pragma once
 
 #include <string>
-#include <string_view>
-#include <future>
+#include <ostream>
 
 namespace NoobWarrior {
     enum class AssetFileNameStyle {
@@ -26,6 +25,7 @@ namespace NoobWarrior {
     typedef struct {
         int Flags;
         AssetFileNameStyle FileNameStyle;
+        std::ostream *OutStream;
         std::string OutDir;
         std::vector<int64_t> Id;
         std::vector<uint64_t> Version;

@@ -43,21 +43,21 @@ static size_t HeaderCallback(char* buffer, size_t size, size_t nitems, void* use
 int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
     curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
     if (!(vinfo->features & CURL_VERSION_SSL))
-        Out("AssetDownloader", "WARNING! SSL in curl library is not enabled. HTTPS links will be unsupported!", args.OutDir);
+        OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "WARNING! SSL in curl library is not enabled. HTTPS links will be unsupported!", args.OutDir);
     if (!std::filesystem::is_directory(args.OutDir)) {
-        Out("AssetDownloader", "Failed to download assets: Directory \"{}\" doesn't exist", args.OutDir);
+        OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Failed to download assets: Directory \"{}\" doesn't exist", args.OutDir);
         return -1;
     }
     CURL *handle = curl_easy_init();
     if (!handle) {
-        Out("AssetDownloader", "Failed to download assets: Failed to create curl handle");
+        OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Failed to download assets: Failed to create curl handle");
         return 0;
     }
     curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet"); // use the same user agent that the Roblox client uses.
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, HeaderCallback);
     for (int i = 0; i < args.Id.size(); i++) {
-        Out("AssetDownloader", "Downloading ID %i", args.Id.at(i));
+        OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Downloading ID %i", args.Id.at(i));
 
         // by default we create a placeholder file with the ID as its name.
         int64_t id = args.Id.at(i);
@@ -70,7 +70,7 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
 
         FILE* filePointer = fopen(fileDir.c_str(), "wb");
         if (filePointer == NULL) {
-            Out("AssetDownloader", "Failed to download ID %i: Failed to create file");
+            OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Failed to download ID %i: Failed to create file");
             continue;
         }
 
@@ -84,9 +84,9 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
             curl_easy_setopt(handle, CURLOPT_HEADERDATA, fileName);
 
         CURLcode res = curl_easy_perform(handle);
-        Out("AssetDownloader", "Code {}, {}", (int)res, curl_easy_strerror(res));
+        OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Code {}, {}", (int)res, curl_easy_strerror(res));
         if (res != CURLE_OK)
-            Out("AssetDownloader", "Failed to download ID {}: {}", (int)res, curl_easy_strerror(res));
+            OutEx(args.OutStream != nullptr ? args.OutStream : &std::cout, "AssetDownloader", "Failed to download ID {}: {}", (int)res, curl_easy_strerror(res));
         else if (args.FileNameStyle != AssetFileNameStyle::AssetId) { // because the file is already named with its corresponding asset id, so it's pointless to rename it to the same thing.
             std::string newFileDir = args.OutDir + "/" + fileName;
             rename(fileDir.c_str(), newFileDir.c_str());
