@@ -6,6 +6,7 @@
 #include "AssetDownloaderDialog.h"
 
 #include <NoobWarrior/AssetDownloader.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <QGroupBox>
 
@@ -58,6 +59,8 @@ AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     auto *outputBox = new QGroupBox("Output", this);
     outputBox->setLayout(outputLayout);
 
+    mOutStream = new VisualOutStream(mOutputWidget);
+
     // Options box
     auto *optionsLayout = new QGridLayout(this);
     INIT_OPT(mBox_DownloadAssetsInModel, "Download Asset Ids Inside Of Model/Place")
@@ -78,10 +81,38 @@ AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     InitControls();
 }
 
+AssetDownloaderDialog::~AssetDownloaderDialog() { delete mOutStream; }
+
 void AssetDownloaderDialog::InitControls() {
     connect(mDownloadButton, &QPushButton::clicked, [&]() {
         DownloadAssetArgs args;
         args.Flags |= mBox_DownloadAssetsInModel->checkState() ? DA_FIND_ASSET_IDS_IN_MODEL : 0;
+        args.OutStream = mOutStream;
         DownloadAssets(args);
     });
 }
+
+AssetDownloaderDialog::VisualStreamBuffer::VisualStreamBuffer(QPlainTextEdit *widget) :
+    mWidget(widget)
+{};
+
+auto AssetDownloaderDialog::VisualStreamBuffer::overflow(int_type c) -> int_type {
+    if (c != EOF) {
+        mBuffer += static_cast<char>(c);
+        sync();
+    }
+    return c;
+}
+
+int AssetDownloaderDialog::VisualStreamBuffer::sync() {
+    mWidget->setPlainText(mWidget->toPlainText() + QString::fromStdString(mBuffer));
+    mBuffer.clear();
+    return 0;
+}
+
+AssetDownloaderDialog::VisualOutStream::VisualOutStream(QPlainTextEdit *widget) :
+    std::ostream(new VisualStreamBuffer(widget)),
+    mBuffer(dynamic_cast<VisualStreamBuffer*>(rdbuf()))
+{}
+
+AssetDownloaderDialog::VisualOutStream::~VisualOutStream() { NOOBWARRIOR_FREE_PTR(mBuffer) }
