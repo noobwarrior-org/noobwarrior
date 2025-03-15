@@ -6,7 +6,7 @@
 #pragma once
 
 #include <filesystem>
-#include <string_view>
+#include <string>
 
 #define NOOBWARRIOR_CONFIG_VERSION 1
 
@@ -19,20 +19,21 @@
 #endif
 
 namespace NoobWarrior {
+    std::filesystem::path GetInstallationDir();
     std::filesystem::path GetUserDataDir();
 
     enum class Theme {
         Default = 0,
     };
-    typedef struct {
-        int Version;
-        std::string Api_AssetDownload;
-        std::string Api_AssetDetails;
-        std::string Roblox_WineExe; // only required on non-Windows systems
-        Theme Gui_Theme;
-    } config_t;
+    struct Config {
+        int Version { NOOBWARRIOR_CONFIG_VERSION };
+        std::string Api_AssetDownload { "https://assetdelivery.roblox.com/v1/asset/?id={}" };
+        std::string Api_AssetDetails { "https://economy.roblox.com/v2/assets/{}/details" };
+        std::string Roblox_WineExe { "wine" }; // only required on non-Windows systems
+        Theme Gui_Theme { Theme::Default };
+    };
 
-    extern config_t gConfig;
+    extern Config gConfig;
 
     // these require you to specify the paths yourself
     int Config_ReadFromFile(const std::filesystem::path &path);

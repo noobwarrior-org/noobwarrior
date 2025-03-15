@@ -13,8 +13,8 @@
 
 using namespace NoobWarrior;
 
-config_t NoobWarrior::gConfig {NOOBWARRIOR_CONFIG_VERSION, "https://assetdelivery.roblox.com/v1/asset/?id={}", "https://economy.roblox.com/v2/assets/%s/details", "wine"};
-static const config_t sDefaultConfig = NoobWarrior::gConfig; // create a copy of the config
+Config NoobWarrior::gConfig {};
+static const Config sDefaultConfig = NoobWarrior::gConfig; // create a copy of the config
 
 std::filesystem::path NoobWarrior::GetUserDataDir() {
 // #if !defined(__APPLE__)
