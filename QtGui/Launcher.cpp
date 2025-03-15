@@ -90,7 +90,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
 
     auto *frame = new QFrame(this);
     QPalette framePalette = frame->palette();
-    framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(125));
+    framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(110));
     frame->setPalette(framePalette);
     frame->setAutoFillBackground(true); // QFrames usually have invisible backgrounds, turn it on in this case.
     frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
