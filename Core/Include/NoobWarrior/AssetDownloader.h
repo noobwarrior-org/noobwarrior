@@ -22,14 +22,14 @@ namespace NoobWarrior {
         DA_FIND_ASSET_IDS_IN_MODEL = 1 << 3 // If the Asset is a Model or a Place, it parses the file and checks for any asset URLs/IDs located within scripts and any properties.
     };
 
-    typedef struct {
-        int Flags;
-        AssetFileNameStyle FileNameStyle;
-        std::ostream *OutStream;
-        std::string OutDir;
-        std::vector<int64_t> Id;
-        std::vector<uint64_t> Version;
-    } DownloadAssetArgs;
+    struct DownloadAssetArgs {
+        int Flags {};
+        AssetFileNameStyle FileNameStyle {};
+        std::ostream *OutStream {};
+        std::string OutDir {};
+        std::vector<int64_t> Id {};
+        std::vector<uint64_t> Version {};
+    };
 
     /**
      * Dead simple function that lets you download Roblox assets by passing a struct with a C++ vector array containing ID's
