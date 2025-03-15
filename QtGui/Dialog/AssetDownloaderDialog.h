@@ -13,6 +13,7 @@
 #include <QHeaderView>
 #include <QPlainTextEdit>
 #include <QProgressBar>
+#include <QLabel>
 #include <QCheckBox>
 
 #include <ostream>
@@ -55,6 +56,11 @@ private:
     QPlainTextEdit *mOutputWidget;
     QProgressBar *mDownloadProgress;
 
+    QHBoxLayout *mOpt_DirLayout;
+    QLabel *mOpt_DirLabel;
+    QLineEdit *mOpt_DirInput;
+    QPushButton *mOpt_DirBrowse;
+    
     QCheckBox *mBox_DownloadAssetsInModel;
     QCheckBox *mBox_PreserveAuthors;
     QCheckBox *mBox_PreserveDateCreated;

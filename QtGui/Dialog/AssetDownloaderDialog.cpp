@@ -9,6 +9,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <QGroupBox>
+#include <QFileDialog>
 
 #define INIT_OPT(var, str) var = new QCheckBox(this); var->setText(str); optionsLayout->addWidget(var);
 
@@ -17,60 +18,67 @@ using namespace NoobWarrior;
 AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     setWindowTitle("Download Asset(s)");
     mMainLayout = new QHBoxLayout(this);
-    mLeftSideLayout = new QVBoxLayout(this);
-    mRightSideLayout = new QVBoxLayout(this);
+    mLeftSideLayout = new QVBoxLayout();
+    mRightSideLayout = new QVBoxLayout();
 
     // Add Asset ID layout
-    auto *idAddLayout = new QHBoxLayout(this);
-    mIdInput = new QLineEdit(this);
+    auto *idAddLayout = new QHBoxLayout();
+    mIdInput = new QLineEdit();
     mIdInput->setPlaceholderText("Asset ID");
-    mQueueAdd = new QPushButton(this);
+    mQueueAdd = new QPushButton();
     mQueueAdd->setText("Add");
     idAddLayout->addWidget(mIdInput);
     idAddLayout->addWidget(mQueueAdd);
 
     // Download Queue box
-    auto *downloadQueueLayout = new QVBoxLayout(this);
-    mQueueList = new QTableWidget(this);
+    auto *downloadQueueBox = new QGroupBox("Download Queue");
+    auto *downloadQueueLayout = new QVBoxLayout(downloadQueueBox);
+    mQueueList = new QTableWidget();
     mQueueList->setColumnCount(5);
-    mQueueList->setHorizontalHeaderLabels({"Icon", "Id", "Name", "Description", "Author"});
+    mQueueList->setHorizontalHeaderLabels({"Id", "Icon", "Name", "Description", "Author"});
     mQueueList->setSortingEnabled(true);
     mQueueList->resizeColumnsToContents();
     mQueueList->setRowCount(0);
     mQueueList->verticalHeader()->setVisible(false);
-    mDownloadButton = new QPushButton(this);
+    mDownloadButton = new QPushButton();
     mDownloadButton->setText("Download");
 
     downloadQueueLayout->addLayout(idAddLayout);
     downloadQueueLayout->addWidget(mQueueList);
     downloadQueueLayout->addWidget(mDownloadButton);
 
-    auto *downloadQueueBox = new QGroupBox("Download Queue", this);
-    downloadQueueBox->setLayout(downloadQueueLayout);
-
-    // Output box
-    auto *outputLayout = new QVBoxLayout(this);
-    mOutputWidget = new QPlainTextEdit(this);
-    mOutputWidget->setReadOnly(true);
-    mOutputWidget->setFont(QFont("Fira Mono"));
-    mDownloadProgress = new QProgressBar(this);
-    outputLayout->addWidget(mOutputWidget);
-    outputLayout->addWidget(mDownloadProgress);
-    auto *outputBox = new QGroupBox("Output", this);
-    outputBox->setLayout(outputLayout);
-
-    mOutStream = new VisualOutStream(mOutputWidget);
-
     // Options box
-    auto *optionsLayout = new QGridLayout(this);
+    auto *optionsBox = new QGroupBox("Options");
+    auto *optionsLayout = new QGridLayout(optionsBox);
+
+    mOpt_DirLayout = new QHBoxLayout();
+    mOpt_DirLabel = new QLabel("Directory");
+    mOpt_DirInput = new QLineEdit("./downloads");
+    mOpt_DirBrowse = new QPushButton("Browse");
+    mOpt_DirLayout->addWidget(mOpt_DirLabel);
+    mOpt_DirLayout->addWidget(mOpt_DirInput);
+    mOpt_DirLayout->addWidget(mOpt_DirBrowse);
+
+    optionsLayout->addLayout(mOpt_DirLayout, 0, 0);
+
     INIT_OPT(mBox_DownloadAssetsInModel, "Download Asset Ids Inside Of Model/Place")
     INIT_OPT(mBox_PreserveAuthors, "Preserve Authors")
     INIT_OPT(mBox_PreserveDateCreated, "Preserve Date Created")
     INIT_OPT(mBox_PreserveDateModified, "Preserve Date Modified")
-    auto *optionsBox = new QGroupBox("Options", this);
-    optionsBox->setLayout(optionsLayout);
 
-    setLayout(mMainLayout);
+    // Output box
+    auto *outputBox = new QGroupBox("Output");
+    auto *outputLayout = new QVBoxLayout(outputBox);
+    mOutputWidget = new QPlainTextEdit();
+    mOutputWidget->setReadOnly(true);
+    mOutputWidget->setFont(QFont("Fira Mono", 12));
+    mDownloadProgress = new QProgressBar();
+    outputLayout->addWidget(mOutputWidget);
+    outputLayout->addWidget(mDownloadProgress);
+
+    mOutStream = new VisualOutStream(mOutputWidget);
+
+    // init
     mMainLayout->addLayout(mLeftSideLayout);
     mMainLayout->addLayout(mRightSideLayout);
 
@@ -78,17 +86,33 @@ AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     mRightSideLayout->addWidget(optionsBox);
     mRightSideLayout->addWidget(outputBox);
 
+    resize(mMainLayout->sizeHint() * 1.25 + QSize(128, 0));
+    mQueueList->resizeColumnsToContents();
+
     InitControls();
 }
 
 AssetDownloaderDialog::~AssetDownloaderDialog() { delete mOutStream; }
 
 void AssetDownloaderDialog::InitControls() {
+    connect(mQueueAdd, &QPushButton::clicked, [&]() {
+        auto *item = new QTableWidgetItem(mIdInput->text());
+        mQueueList->insertRow(mQueueList->rowCount());
+        mQueueList->setItem(mQueueList->rowCount() - 1, 0, item);
+    });
+
     connect(mDownloadButton, &QPushButton::clicked, [&]() {
-        DownloadAssetArgs args;
+        DownloadAssetArgs args {};
         args.Flags |= mBox_DownloadAssetsInModel->checkState() ? DA_FIND_ASSET_IDS_IN_MODEL : 0;
         args.OutStream = mOutStream;
+        args.OutDir = mOpt_DirInput->text().toStdString();
         DownloadAssets(args);
+    });
+
+    connect(mOpt_DirBrowse, &QPushButton::clicked, [&]() {
+        QString pathStr = QFileDialog::getExistingDirectory(this, "Select Directory", "", QFileDialog::ShowDirsOnly);
+        if (!pathStr.isEmpty())
+            mOpt_DirInput->setText(pathStr);
     });
 }
 
