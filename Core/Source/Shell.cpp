@@ -5,6 +5,7 @@
 // Description: Basic shell that's designed to run noobWarrior functions.
 #include <NoobWarrior/Shell.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/AssetDownloader.h>
 
 #include <cassert>
 
@@ -17,12 +18,23 @@ FILE* Shell::gOut = stdout;
 
 static void Help(int argc, char* argv[]); // forwards declare
 
-static void Login() {
+static void About() {
+    fputs("\x1b[33mnoobWarrior v" NOOBWARRIOR_VERSION "\x1b[0m\n", Shell::gOut);
+    fprintf(Shell::gOut, "\x1b[35m%s\x1b[0m\n", "Authors\n" NOOBWARRIOR_AUTHORS "\nContributors\n" NOOBWARRIOR_CONTRIBUTORS "\nAttributions\n" NOOBWARRIOR_ATTRIBUTIONS_BRIEF);
+}
+
+static void Auth() {
     fputs("Enter your Roblox username: ", Shell::gOut);
 }
 
 static void DownloadAsset(int argc, char** argv) {
-    fputs("Downloading Roblox stuff\n", Shell::gOut);
+    fputs("Downloading Roblox assets\n", Shell::gOut);
+    DownloadAssetArgs args;
+    args.FileNameStyle = NoobWarrior::AssetFileNameStyle::Raw;
+    args.Flags |= DA_FIND_ASSET_IDS_IN_MODEL;
+    args.OutDir = "./downloads";
+    args.Id = {1818};
+    NoobWarrior::DownloadAssets(args);
 }
 
 static void RccService(int argc, char** argv) {
@@ -35,8 +47,9 @@ static void RccService(int argc, char** argv) {
 
 static Shell::Command sCommands[] = {
     {(void(*))Help, "help", "Gives a list of all available commands."},
+    {(void(*))About, "about", "Shows the version number and the people who have worked on noobWarrior."},
     {(void(*))Shell::Close, "exit", "Stops the shell."},
-    {(void(*))Login, "login", "Authenticates a Roblox account with noobWarrior"},
+    {(void(*))::Auth, "auth", "Authenticates a Roblox account with noobWarrior"},
     {(void(*))::RccService, "rccservice", "Control the behavior and operations of RCCService"},
     {(void(*))::DownloadAsset, "download-asset", "Downloads assets by supplying them their ID. If you want to sequentially download a list of assets, use a comma-separated list of IDs inside of quotes. Ex: download-asset --id \"5804349700, 12221333, 3697434836\" --out \"./downloads\""}
 };
@@ -133,11 +146,13 @@ finalize:
 }
 
 int Shell::Open(FILE* out, FILE* in) {
+    // DownloadAsset(0, nullptr);
     if (sRunning) return 1;
     sRunning = true;
     Shell::gOut = out;
     char yeah[1024];
-    fputs("\x1b[33mnoobWarrior v" NOOBWARRIOR_VERSION " \x1b[35mShell\n\x1b[36mType \"help\" for commands. Type \"exit\" to quit.\x1b[0m\n", out);
+    fputs("\x1b[33mnoobWarrior v" NOOBWARRIOR_VERSION " \x1b[35mShell\n\x1b[36mType \"help\" for commands. Type \"about\" to see credits. Type \"exit\" to quit.\x1b[0m\n", Shell::gOut);
+    fputs("\x1b[31mYou currently do not have a Roblox account that is authenticated with noobWarrior. This can cause rate-limiting by the Roblox API when downloading assets, so it is advised that you use \"auth\" to authenticate your account.\x1b[0m\n", Shell::gOut);
     while (sRunning) {
         fputs("> ", out);
         if (fgets(yeah, sizeof(yeah), in) != nullptr) {
@@ -165,7 +180,7 @@ void Shell::ParseCommand(char* cmd) {
     }
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(sCommands); i++) {
         if (strncmp(sCommands[i].Name, argv[0], strlen(sCommands[i].Name)) == 0) {
-            ((void(*)(int, char**))(sCommands[i].Main))(argc, argv);
+            ((void(*)(int, char**))sCommands[i].Main)(argc, argv);
             return;
         }
     }
