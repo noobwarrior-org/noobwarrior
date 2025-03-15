@@ -7,6 +7,7 @@
 
 #include "ArchiveEditor/ArchiveEditor.h"
 #include "Dialog/AssetDownloaderDialog.h"
+#include "Dialog/AboutDialog.h"
 
 #include <QDialog>
 
@@ -21,6 +22,7 @@ namespace NoobWarrior {
     public:
         Launcher(QWidget *parent = nullptr);
         ~Launcher();
+        AboutDialog *mAboutDialog;
         ArchiveEditor *mArchiveEditor;
         AssetDownloaderDialog *mAssetDownload;
     private:

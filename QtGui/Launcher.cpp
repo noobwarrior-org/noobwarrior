@@ -6,6 +6,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include "Launcher.h"
+#include "Dialog/AboutDialog.h"
 #include "Dialog/AssetDownloaderDialog.h"
 #include "Ui/ui_Launcher.h"
 
@@ -35,12 +36,10 @@
 
 using namespace NoobWarrior;
 
+static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void LaunchArchiveUtility(Launcher& launcher) { HANDLE_QDIALOG(launcher.mArchiveEditor, ArchiveEditor) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloaderDialog) }
-
-static void LaunchOfflineStudio(Launcher& launcher) {
-
-}
+static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
     "Tools",
@@ -69,7 +68,7 @@ static const void* sRoblox[][3] = {
 static const void* sApplication[][3] = {
     {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
     {"Settings", nullptr, ":/images/silk/cog.png"},
-    {"About", nullptr, ":/images/silk/help.png"}
+    {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
 
 Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
