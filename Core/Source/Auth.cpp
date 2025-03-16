@@ -39,7 +39,7 @@ bool Auth::IsTokenValid(Account &account) {
 }
 
 Auth::AuthResponse Auth::TryAuthAccount(std::string& name, std::string& pass) {
-    NOOBWARRIOR_OUT("Auth", "Attempting to log into account %s", name.c_str())
+    Out("Auth", "Attempting to log into account {}", name);
     CURL *handle = curl_easy_init();
     if (handle == nullptr) return AuthResponse::Failed;
     curl_easy_setopt(handle, CURLOPT_URL, "http://example.com/");

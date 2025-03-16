@@ -5,7 +5,7 @@
 // Description: Basic shell that's designed to run noobWarrior functions.
 #include <NoobWarrior/Shell.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/AssetDownloader.h>
+#include <NoobWarrior/AssetRequest.h>
 
 #include <cassert>
 

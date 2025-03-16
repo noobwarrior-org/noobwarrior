@@ -5,8 +5,10 @@
 // Description:
 #pragma once
 
-namespace NoobWarrior {
+namespace NoobWarrior::RccService {
+    int Open();
     class RccServiceInvoker {
         
     };
+    extern RccServiceInvoker *gRccService;
 }

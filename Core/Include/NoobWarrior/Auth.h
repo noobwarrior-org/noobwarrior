@@ -6,6 +6,7 @@
 #pragma once
 
 #include <string>
+#include <filesystem>
 
 namespace NoobWarrior::Auth {
     enum class AuthResponse {
@@ -23,8 +24,8 @@ namespace NoobWarrior::Auth {
     extern std::vector<Account> gAccounts;
     extern Account* gActiveAccount;
 
-    int SetFile(std::string_view dir);
-    int Deserialize();
+    int ReadFromFile(const std::filesystem::path &path);
+    int WriteToFile(const std::filesystem::path &path);
     bool IsLoggedIn();
     bool IsTokenValid(Account&);
     void AddAccount(Account&);

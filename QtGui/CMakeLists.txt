@@ -11,6 +11,10 @@ set(SOURCES
     main.cpp
     Launcher.cpp
     Launcher.h
+    Dialog/AboutDialog.cpp
+    Dialog/AboutDialog.h
+    Dialog/AssetDownloaderDialog.cpp
+    Dialog/AssetDownloaderDialog.h
     ArchiveEditor/ArchiveEditor.cpp
     ArchiveEditor/ArchiveEditor.h
     ArchiveEditor/OutlineWidget.cpp

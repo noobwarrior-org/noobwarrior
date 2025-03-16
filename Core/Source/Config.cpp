@@ -53,7 +53,7 @@ int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
     } catch (std::exception ex) { return -1; }
     yamlConfig["meta"]["file-version"] = NOOBWARRIOR_CONFIG_VERSION;
     SERIALIZE_PROP(gConfig.Api_AssetDownload, yamlConfig["api"]["asset-download"])
-    SERIALIZE_PROP(gConfig.Api_AssetDownload, yamlConfig["api"]["asset-details"])
+    SERIALIZE_PROP(gConfig.Api_AssetDetails, yamlConfig["api"]["asset-details"])
     SERIALIZE_PROP(gConfig.Roblox_WineExe, yamlConfig["roblox"]["wine-executable"])
     // SERIALIZE_PROP(gConfig.Gui_Theme, yamlConfig["gui"]["theme"])
     fout << yamlConfig;

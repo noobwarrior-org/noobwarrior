@@ -5,7 +5,6 @@
 // Description: Contains global constants, commonly used headers, and useful macros
 #pragma once
 
-// Utility macros
 #define NOOBWARRIOR_VERSION "0.0.1"
 #define NOOBWARRIOR_AUTHORS \
 "Hattozo - Creator of the noobWarrior project and software\n"
@@ -16,6 +15,7 @@
 "curl (https://github.com/curl/curl), licensed under the curl license (https://curl.se/docs/copyright.html)\n" \
 "SQLite (https://github.com/sqlite/sqlite/tree/master) - No license, this is under the public domain.\n" \
 "yaml-cpp (https://github.com/jbeder/yaml-cpp), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"nlohmann/json (https://github.com/nlohmann/json), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "Roblox-File-Format (https://github.com/MaximumADHD/Roblox-File-Format), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n"
 
@@ -28,3 +28,4 @@
 #include "Auth.h"
 #include "Config.h"
 #include "RccServiceInvoker.h"
+#include "Roblox/DataModel/RobloxFile.h"
