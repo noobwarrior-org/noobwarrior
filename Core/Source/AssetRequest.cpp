@@ -3,14 +3,15 @@
 // Started by: Hattozo
 // Started on: 3/5/2025
 // Description: Handles functions that retrieve data about Roblox assets
-#include "NoobWarrior/Roblox/Api/Asset.h"
 #include <NoobWarrior/AssetRequest.h>
 #include <NoobWarrior/Config.h>
-#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/NoobWarrior.hpp>
+#include <NoobWarrior/Roblox/Api/Asset.h>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <iostream>
 #include <filesystem>
 #include <sstream>

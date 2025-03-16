@@ -9,6 +9,7 @@
 
 #include <string>
 #include <ostream>
+#include <vector>
 
 namespace NoobWarrior {
     enum class AssetFileNameStyle {

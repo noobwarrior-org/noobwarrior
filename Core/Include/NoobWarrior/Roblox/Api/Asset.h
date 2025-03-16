@@ -7,6 +7,7 @@
 
 #include <NoobWarrior/Roblox/Api/User.h>
 
+#include <cstdint>
 #include <string>
 
 namespace NoobWarrior::Roblox {

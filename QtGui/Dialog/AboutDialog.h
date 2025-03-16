@@ -12,5 +12,6 @@ namespace NoobWarrior {
         Q_OBJECT
     public:
         AboutDialog(QWidget *parent = nullptr);
+        ~AboutDialog();
     };
 }

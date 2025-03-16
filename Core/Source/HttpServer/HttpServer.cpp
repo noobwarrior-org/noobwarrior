@@ -6,8 +6,13 @@
 #include <NoobWarrior/HttpServer/HttpServer.h>
 #include <NoobWarrior/Log.h>
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
+#endif
 
 using namespace NoobWarrior::HttpServer;
 
@@ -22,7 +27,11 @@ int HttpServer::Open(int port, bool useipv6) {
 
     if (useipv6) {
         int optNoV6Only;
+#if defined(_WIN32)
+        setsockopt(mSocketFd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optNoV6Only, sizeof(optNoV6Only));
+#else
         setsockopt(mSocketFd, IPPROTO_IPV6, IPV6_V6ONLY, &optNoV6Only, sizeof(optNoV6Only));
+#endif
     }
 
     address.sin_family = useipv6 ? AF_INET6 : AF_INET;

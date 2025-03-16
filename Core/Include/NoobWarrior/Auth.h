@@ -7,6 +7,7 @@
 
 #include <string>
 #include <filesystem>
+#include <vector>
 
 namespace NoobWarrior::Auth {
     enum class AuthResponse {

@@ -8,6 +8,7 @@
 #include <NoobWarrior/AssetRequest.h>
 
 #include <cassert>
+#include <cstring>
 
 #define ERROR_MSG "\x1b[31mError:\x1b[0m "
 

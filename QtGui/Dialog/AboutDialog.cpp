@@ -36,3 +36,5 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
     grid->addWidget(logo);
     grid->addWidget(text);
 }
+
+AboutDialog::~AboutDialog() = default;

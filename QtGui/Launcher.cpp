@@ -72,6 +72,7 @@ static const void* sApplication[][3] = {
 };
 
 Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
+    mAboutDialog(nullptr),
     mArchiveEditor(nullptr),
     mAssetDownload(nullptr)
 {
