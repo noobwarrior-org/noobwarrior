@@ -1,9 +1,11 @@
 // === noobWarrior ===
-// File: AssetDownloader.h
+// File: AssetRequest.h
 // Started by: Hattozo
 // Started on: 3/5/2025
 // Description:
 #pragma once
+
+#include "Roblox/Api/Asset.h"
 
 #include <string>
 #include <ostream>
@@ -33,8 +35,10 @@ namespace NoobWarrior {
     };
 
     /**
-     * Dead simple function that lets you download Roblox assets by passing a struct with a C++ vector array containing ID's
+     * @brief Lets you download a batch of Roblox assets to a directory.
      */
     int DownloadAssets(DownloadAssetArgs args);
     // std::future<char*> DownloadAssetAsync(DownloadAssetArgs);
+
+    int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
 }
