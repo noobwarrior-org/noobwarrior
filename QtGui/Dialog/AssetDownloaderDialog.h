@@ -9,7 +9,8 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QTableWidget>
+#include <QStandardItemModel>
+#include <QTreeView>
 #include <QHeaderView>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -17,6 +18,7 @@
 #include <QCheckBox>
 
 #include <ostream>
+#include <vector>
 
 namespace NoobWarrior {
 class AssetDownloaderDialog : public QDialog {
@@ -25,6 +27,8 @@ public:
     AssetDownloaderDialog(QWidget *parent = nullptr);
     ~AssetDownloaderDialog();
 private:
+    std::vector<QList<QStandardItem*>> mQueueEntries;
+
     class VisualStreamBuffer : public std::streambuf {
     public:
         VisualStreamBuffer(QPlainTextEdit*);
@@ -50,7 +54,7 @@ private:
 
     QLineEdit *mIdInput;
     QPushButton *mQueueAdd;
-    QTableWidget *mQueueList;
+    QStandardItemModel *mQueueModel;
     QPushButton *mDownloadButton;
 
     QPlainTextEdit *mOutputWidget;
@@ -67,5 +71,6 @@ private:
     QCheckBox *mBox_PreserveDateModified;
 
     void InitControls();
+    void AddEntry(int64_t id);
 };
 }

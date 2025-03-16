@@ -5,7 +5,7 @@
 // Description: A Qt GUI dialog that invokes the noobWarrior API to download a Roblox asset
 #include "AssetDownloaderDialog.h"
 
-#include <NoobWarrior/AssetDownloader.h>
+#include <NoobWarrior/AssetRequest.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <QGroupBox>
@@ -33,18 +33,18 @@ AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     // Download Queue box
     auto *downloadQueueBox = new QGroupBox("Download Queue");
     auto *downloadQueueLayout = new QVBoxLayout(downloadQueueBox);
-    mQueueList = new QTableWidget();
-    mQueueList->setColumnCount(5);
-    mQueueList->setHorizontalHeaderLabels({"Id", "Icon", "Name", "Description", "Author"});
-    mQueueList->setSortingEnabled(true);
-    mQueueList->resizeColumnsToContents();
-    mQueueList->setRowCount(0);
-    mQueueList->verticalHeader()->setVisible(false);
+
+    mQueueModel = new QStandardItemModel(this);
+    mQueueModel->setColumnCount(5);
+    mQueueModel->setHorizontalHeaderLabels({"Id", "Icon", "Name", "Description", "Author"});
+    auto *queueView = new QTreeView();
+    queueView->setModel(mQueueModel);
+
     mDownloadButton = new QPushButton();
     mDownloadButton->setText("Download");
 
     downloadQueueLayout->addLayout(idAddLayout);
-    downloadQueueLayout->addWidget(mQueueList);
+    downloadQueueLayout->addWidget(queueView);
     downloadQueueLayout->addWidget(mDownloadButton);
 
     // Options box
@@ -86,8 +86,8 @@ AssetDownloaderDialog::AssetDownloaderDialog(QWidget *parent) {
     mRightSideLayout->addWidget(optionsBox);
     mRightSideLayout->addWidget(outputBox);
 
-    resize(mMainLayout->sizeHint() * 1.25 + QSize(128, 0));
-    mQueueList->resizeColumnsToContents();
+    resize(mMainLayout->sizeHint() * 1.25 + QSize(256, 64));
+    // mQueueList->resizeColumnsToContents();
 
     InitControls();
 }
@@ -96,9 +96,12 @@ AssetDownloaderDialog::~AssetDownloaderDialog() { delete mOutStream; }
 
 void AssetDownloaderDialog::InitControls() {
     connect(mQueueAdd, &QPushButton::clicked, [&]() {
-        auto *item = new QTableWidgetItem(mIdInput->text());
-        mQueueList->insertRow(mQueueList->rowCount());
-        mQueueList->setItem(mQueueList->rowCount() - 1, 0, item);
+        if (mIdInput->text().isEmpty())
+            return;
+        bool okay;
+        int64_t idConvert = mIdInput->text().toLongLong(&okay, 10);
+        if (okay)
+            AddEntry(idConvert);
     });
 
     connect(mDownloadButton, &QPushButton::clicked, [&]() {
@@ -114,6 +117,29 @@ void AssetDownloaderDialog::InitControls() {
         if (!pathStr.isEmpty())
             mOpt_DirInput->setText(pathStr);
     });
+}
+
+void AssetDownloaderDialog::AddEntry(int64_t id) {
+    Roblox::AssetDetails details {};
+    int ret = GetAssetDetails(id, &details);
+    switch (ret) {
+    case -1:
+        details.Name = "Failed to get metadata";
+        details.Description = "You are being rate-limited. Try logging in.";
+        break;
+    }
+    QList<QStandardItem*> entry;
+    auto *idColumn = new QStandardItem(QString::number(id));
+    auto *iconColumn = new QStandardItem("Icon");
+    // iconColumn->setData(QVariant(QPixmap::fromImage(image)), Qt::DecorationRole)
+    auto *nameColumn = new QStandardItem(QString::fromStdString(details.Name));
+    auto *descColumn = new QStandardItem(QString::fromStdString(details.Description));
+    entry.append(idColumn);
+    entry.append(iconColumn);
+    entry.append(nameColumn);
+    entry.append(descColumn);
+    mQueueEntries.push_back(entry);
+    mQueueModel->appendRow(entry);
 }
 
 AssetDownloaderDialog::VisualStreamBuffer::VisualStreamBuffer(QPlainTextEdit *widget) :
