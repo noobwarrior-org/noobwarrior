@@ -20,6 +20,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/DataModel/Tree/Instance.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_include_directories(NoobWarrior.Core PRIVATE sqlite3 curl yaml-cpp::yaml-cpp nlohmann_json)
-target_link_libraries(NoobWarrior.Core PRIVATE sqlite3 curl yaml-cpp::yaml-cpp nlohmann_json)
+target_include_directories(NoobWarrior.Core PRIVATE sqlite3 curl nlohmann_json)
+target_link_libraries(NoobWarrior.Core PRIVATE sqlite3 curl nlohmann_json)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_20)

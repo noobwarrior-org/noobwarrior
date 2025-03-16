@@ -4,7 +4,6 @@ project(NoobWarrior)
 set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/CPM")
 include(CMake/CPM.cmake)
 
-CPMAddPackage("gh:jbeder/yaml-cpp#0.8.0")
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 
 # I recommend that you just manually install these yourself using your package manager. if you're on windows then use msys2

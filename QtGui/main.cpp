@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         QMessageBox::critical(nullptr, "Error", "Could not initialize curl");
         return curlRet;
     }
-    if (NoobWarrior::Config_Open() != 0) {
+    if (!NoobWarrior::Config_Open()) {
         QMessageBox::critical(nullptr, "Error", "Could not read config file");
         return 0xC03F16DD; // Kind of reads out as "Config Dead Dead?"
     }
