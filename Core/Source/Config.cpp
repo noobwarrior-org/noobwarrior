@@ -69,7 +69,7 @@ int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
     if (!fout)
         return -3;
 
-    fout << data.dump(true);
+    fout << data.dump(4);
     fout.close();
 
     return 1;
