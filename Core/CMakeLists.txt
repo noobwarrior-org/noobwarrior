@@ -11,6 +11,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Config.cpp
     Source/Log.cpp
     Source/Shell.cpp
+    Source/Injector.cpp
     Source/RccServiceInvoker.cpp
     Source/AssetRequest.cpp
     Source/HttpServer/HttpServer.cpp
