@@ -9,6 +9,7 @@
 
 namespace NoobWarrior::RbxHttpServer {
     class RbxHttpServer : public HttpServer::HttpServer {
-        
+    public:
+        RbxHttpServer();
     };
 }

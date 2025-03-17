@@ -16,12 +16,16 @@
 
 using namespace NoobWarrior::HttpServer;
 
+HttpServer::HttpServer(std::string_view name) :
+    mName(name)
+{}
+
 int HttpServer::Open(int port, bool useipv6) {
     struct sockaddr_in address;
 
     mSocketFd = socket(useipv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
     if (mSocketFd < 0) {
-        Out("HttpServer", "Failed to open socket");
+        Out(mName, "Failed to open socket");
         return mSocketFd;
     }
 
@@ -40,17 +44,17 @@ int HttpServer::Open(int port, bool useipv6) {
 
     int bindRet = bind(mSocketFd, (struct sockaddr*)&address, sizeof(address));
     if (bindRet < 0) {
-        Out("HttpServer", "Failed to bind socket to port {}", port);
+        Out(mName, "Failed to bind socket to port {}", port);
         return bindRet;
     }
 
     int listenRet = listen(mSocketFd, 128);
     if (listenRet < 0) {
-        Out("HttpServer", "Server listen failed");
+        Out(mName, "Server listen failed");
         return listenRet;
     }
 
-    Out("HttpServer", "Server listening on port {}", port);
+    Out(mName, "Server listening on port {}", port);
 
     return 0;
 }
