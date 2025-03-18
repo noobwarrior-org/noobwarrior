@@ -77,11 +77,11 @@ int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
 
 int NoobWarrior::Config_Open() {
     // return Config_ReadFromFile(GetUserDataDir().append("config.yaml"));
-    return Config_ReadFromFile("config.json"); // placeholder since GetUserDataDir() currently does not work.
+    return Config_ReadFromFile("Config.json"); // placeholder since GetUserDataDir() currently does not work.
 }
 
 int NoobWarrior::Config_Close() {
     // std::filesystem::create_directory(GetUserDataDir());
     // return Config_WriteToFile(GetUserDataDir().append("config.yaml"));
-    return Config_WriteToFile("config.json");
+    return Config_WriteToFile("Config.json");
 }

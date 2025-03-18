@@ -103,7 +103,7 @@ void ArchiveEditor::InitMenus() {
     });
 
     connect(openAct, &QAction::triggered, [&]() {
-        QString filePath = QFileDialog::getOpenFileName(this, "Open Archive", "./archives/", "noobWarrior Archive (*.nwa)");
+        QString filePath = QFileDialog::getOpenFileName(this, "Open Archive", "./Archives/", "noobWarrior Archive (*.nwa)");
         if (!filePath.isEmpty()) TryToOpenFile(filePath);
     });
 }

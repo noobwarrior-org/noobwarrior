@@ -49,6 +49,7 @@ static std::string TableSchema[12] = {
     R"(
     "Id"	INTEGER NOT NULL,
 	"Recorded"	INTEGER DEFAULT (unixepoch()),
+    "Version"	INTEGER,
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -70,7 +71,7 @@ static std::string TableSchema[12] = {
     "Likes"	INTEGER,
 	"Dislikes"	INTEGER,
 	"Data"	BLOB,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Recorded","Version"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
@@ -266,7 +267,8 @@ R"(
 using namespace NoobWarrior;
 
 Archive::Archive() :
-    mDatabase(nullptr)
+    mDatabase(nullptr),
+    mInitialized(false)
 {};
 
 int Archive::Open(const std::string &path) {
@@ -276,14 +278,18 @@ int Archive::Open(const std::string &path) {
         return val;
     // disable auto-commit mode by explicitly initiating a transaction
     val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-    if (val != SQLITE_OK)
+    if (val != SQLITE_OK) {
+        sqlite3_close_v2(mDatabase);
         return val;
+    }
 
     switch (GetDatabaseVersion()) {
     case -1: // -1 indicates that something has went terribly wrong. how did that happen?
+        sqlite3_close_v2(mDatabase);
         return -5;
     case 0: // 0 indicates to us that we have a brand new SQLite database, as there is no noobWarrior version that starts at 0.
-        if (SetDatabaseVersion(NOOBWARRIOR_ARCHIVE_VERSION) != SQLITE_OK) return -6; // no migrating required
+        // no migrating required, just set the database version and go
+        if (SetDatabaseVersion(NOOBWARRIOR_ARCHIVE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return -6; }
         break;
     }
 
@@ -326,6 +332,7 @@ int Archive::Open(const std::string &path) {
             return execVal;
         }
     }
+    mInitialized = true;
     return SQLITE_OK;
 }
 
@@ -334,7 +341,7 @@ int Archive::Close() {
 }
 
 int Archive::SaveAs(const std::string &path) {
-    if (mDatabase == nullptr) return -1;
+    if (!mInitialized) return -1;
     sqlite3 *newDb;
     sqlite3_backup *backup;
 
@@ -395,7 +402,7 @@ fuck:
 bool Archive::IsDirty() {
     // Reasoning for this is because sqlite3_get_autocommit() returns zero if there is an on-going transaction in the database.
     // If there is an on-going transaction, shit is going on behind the scenes and you should be minding your business.
-    return mDatabase != nullptr ? !sqlite3_get_autocommit(mDatabase) : false;
+    return mInitialized ? !sqlite3_get_autocommit(mDatabase) : false;
 }
 
 std::string Archive::GetSqliteErrorMsg() {
@@ -407,7 +414,14 @@ std::string Archive::GetTitle() {
 }
 
 int Archive::AddAsset(Roblox::AssetDetails *asset) {
-    if (mDatabase == nullptr) return -1;
+    if (!mInitialized) return -1;
 
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
+}
+
+std::vector<unsigned char> Archive::RetrieveFile(int64_t id, IdType type) {
+    const char *tbl = IdTypeAsString(type);
+    if (*tbl == '\0' || !mInitialized) return {};
+    sqlite3_stmt *stmt;
+    sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, NULL);
 }
