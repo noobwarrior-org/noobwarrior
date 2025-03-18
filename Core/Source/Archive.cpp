@@ -406,7 +406,7 @@ std::string Archive::GetTitle() {
     return "Untitled";
 }
 
-int Archive::AddAsset(Asset *asset) {
+int Archive::AddAsset(Roblox::AssetDetails *asset) {
     if (mDatabase == nullptr) return -1;
 
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);

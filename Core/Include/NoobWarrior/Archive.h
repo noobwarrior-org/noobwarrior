@@ -4,38 +4,15 @@
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 #pragma once
+#include <NoobWarrior/Roblox/Api/Asset.h>
 
 #include <sqlite3.h>
 
 #include <string>
-#include <cstdint>
 
 #define NOOBWARRIOR_ARCHIVE_VERSION 1
 
 namespace NoobWarrior {
-    enum class CreatorType { User, Group };
-
-    typedef struct {
-        int             Id;
-        const char*     Name;
-        const char*     Description;
-        uint64_t        Created;
-        uint64_t        Updated;
-        int             Type;
-        CreatorType     CreatorType;
-        int64_t         CreatorId;
-        int             PriceInRobux;
-        int             ContentRatingTypeId;
-        int             MinimumMembershipLevel;
-        uint8_t         IsPublicDomain;
-        uint8_t         IsForSale;
-        uint8_t         IsLimitedUnique;
-        uint8_t         IsNew;
-        unsigned int    Remaining;
-        unsigned int    Sales;
-        void*           Data;
-    } Asset;
-
     class Archive {
     public:
         Archive();
@@ -58,7 +35,7 @@ namespace NoobWarrior {
         std::string GetSqliteErrorMsg();
         std::string GetTitle();
 
-        int AddAsset(Asset *asset);
+        int AddAsset(Roblox::AssetDetails *asset);
     private:
         std::string mPath;
         sqlite3 *mDatabase;
