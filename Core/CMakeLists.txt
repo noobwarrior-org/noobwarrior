@@ -7,6 +7,7 @@ find_package(CURL REQUIRED)
 add_library(NoobWarrior.Core STATIC)
 target_sources(NoobWarrior.Core PRIVATE
     Source/Archive.cpp
+    Source/ArchiveManager.cpp
     Source/Auth.cpp
     Source/Config.cpp
     Source/Log.cpp

@@ -273,7 +273,7 @@ Archive::Archive() :
 
 int Archive::Open(const std::string &path) {
     mPath = path;
-    int val = sqlite3_open_v2(mPath.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
+    int val = sqlite3_open_v2((char*)mPath.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
     if (val != SQLITE_OK)
         return val;
     // disable auto-commit mode by explicitly initiating a transaction
@@ -411,6 +411,16 @@ std::string Archive::GetSqliteErrorMsg() {
 
 std::string Archive::GetTitle() {
     return "Untitled";
+}
+
+std::string Archive::GetFileName() {
+
+}
+
+std::filesystem::path Archive::GetFilePath() {
+    if (mPath.compare(":memory:"))
+        return "";
+    return mPath;
 }
 
 int Archive::AddAsset(Roblox::AssetDetails *asset) {

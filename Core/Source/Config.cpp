@@ -4,6 +4,7 @@
 // Started on: 3/8/2025
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Config.h>
+#include <NoobWarrior/ArchiveManager.h>
 #include <nlohmann/json.hpp>
 
 #include <fstream>
@@ -40,10 +41,11 @@ int NoobWarrior::Config_ReadFromFile(const std::filesystem::path &path) {
     try {
         data = json::parse(fstream, nullptr, true, true);
     } catch (json::exception ex) { return -1; }
+    DESERIALIZE_PROP(gConfig.MountedArchives, data["MountedArchives"])
     DESERIALIZE_PROP(gConfig.Api_AssetDownload, data["Api"]["AssetDownload"])
     DESERIALIZE_PROP(gConfig.Api_AssetDetails, data["Api"]["AssetDetails"])
     DESERIALIZE_PROP(gConfig.Roblox_WineExe, data["Roblox"]["WineExe"])
-    // DESERIALIZE_PROP(gConfig.Gui_Theme, yamlConfig["gui"]["theme"], Theme)
+    DESERIALIZE_PROP(gConfig.Gui_Theme, data["Gui"]["Theme"])
     return 1;
 }
 
@@ -60,10 +62,14 @@ int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
     }
     
     data["Meta"]["FileVersion"] = NOOBWARRIOR_CONFIG_VERSION;
+    SERIALIZE_PROP(gConfig.MountedArchives, data["MountedArchives"])
     SERIALIZE_PROP(gConfig.Api_AssetDownload, data["Api"]["AssetDownload"])
     SERIALIZE_PROP(gConfig.Api_AssetDetails, data["Api"]["AssetDetails"])
     SERIALIZE_PROP(gConfig.Roblox_WineExe, data["Roblox"]["WineExe"])
-    // SERIALIZE_PROP(gConfig.Gui_Theme, yamlConfig["gui"]["theme"])
+    SERIALIZE_PROP(gConfig.Gui_Theme, data["Gui"]["Theme"])
+
+    for (int i = 0; i < gConfig.MountedArchives.size(); i++)
+        ArchiveManager::AddArchive(gConfig.MountedArchives.at(i), i);
 
     std::ofstream fout(path);
     if (!fout)

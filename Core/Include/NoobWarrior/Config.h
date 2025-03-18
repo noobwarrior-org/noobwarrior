@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #define NOOBWARRIOR_CONFIG_VERSION 1
 
@@ -19,14 +20,18 @@
 #endif
 
 namespace NoobWarrior {
+    class Archive;
+
     std::filesystem::path GetInstallationDir();
     std::filesystem::path GetUserDataDir();
 
     enum class Theme {
         Default = 0,
     };
+
     struct Config {
         int Version { NOOBWARRIOR_CONFIG_VERSION };
+        std::vector<std::filesystem::path> MountedArchives {};
         std::string Api_AssetDownload { "https://assetdelivery.roblox.com/v1/asset/?id={}" };
         std::string Api_AssetDetails { "https://economy.roblox.com/v2/assets/{}/details" };
         std::string Roblox_WineExe { "wine" }; // only required on non-Windows systems

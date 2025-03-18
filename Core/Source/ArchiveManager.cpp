@@ -7,6 +7,7 @@
 // but these archives may have conflicting IDs in them. In this case, a system to manage priority is required.
 #include <NoobWarrior/ArchiveManager.h>
 #include <NoobWarrior/Archive.h>
+#include <NoobWarrior/Config.h>
 
 #include <vector>
 
@@ -19,11 +20,13 @@ int ArchiveManager::AddArchive(const std::filesystem::path &filePath, unsigned i
     int ret = archive->Open(filePath.string());
     if (ret != 0) return ret;
     sMountedArchives.insert(sMountedArchives.begin() + priority, archive);
+    gConfig.MountedArchives.push_back(archive->GetFilePath());
     return 0;
 }
 
 void ArchiveManager::AddArchive(Archive *archive, unsigned int priority) {
     sMountedArchives.insert(sMountedArchives.begin() + priority, archive);
+    gConfig.MountedArchives.push_back(archive->GetFilePath());
 }
 
 std::vector<unsigned char> ArchiveManager::RetrieveFile(int64_t id, IdType type) {

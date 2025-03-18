@@ -9,6 +9,7 @@
 
 #include <sqlite3.h>
 
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -37,11 +38,19 @@ namespace NoobWarrior {
         bool IsDirty();
         std::string GetSqliteErrorMsg();
         std::string GetTitle();
+        /**
+         * @return Returns the file name of the Archive's currently loaded file.
+           If a file is currently not loaded or if the archive is stored in memory only it returns a blank string.
+           This does not return a file path, do not confuse this function with returning one.
+         */
+        std::string GetFileName();
+
+        std::filesystem::path GetFilePath();
 
         int AddAsset(Roblox::AssetDetails *asset);
         std::vector<unsigned char> RetrieveFile(int64_t id, IdType type);
     private:
-        std::string mPath;
+        std::filesystem::path mPath;
         sqlite3 *mDatabase;
         bool mInitialized;
     };
