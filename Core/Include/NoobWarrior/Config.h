@@ -10,6 +10,7 @@
 #include <vector>
 
 #define NOOBWARRIOR_CONFIG_VERSION 1
+#define NOOBWARRIOR_USERDATA_DIRNAME "noobWarrior"
 
 #if defined(_WIN32)
 #define NOOBWARRIOR_USERDATA_DIR "\%localappdata%/noobWarrior/"
@@ -22,7 +23,14 @@
 namespace NoobWarrior {
     class Archive;
 
+    void SetUserDataPortable(bool val);
+    void SetUserDataName(const char *name);
+
     std::filesystem::path GetInstallationDir();
+
+    /**
+     * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
+    */
     std::filesystem::path GetUserDataDir();
 
     enum class Theme {
@@ -40,11 +48,6 @@ namespace NoobWarrior {
 
     extern Config gConfig;
 
-    // these require you to specify the paths yourself
-    int Config_ReadFromFile(const std::filesystem::path &path);
-    int Config_WriteToFile(const std::filesystem::path &path);
-
-    // these automatically handle which directory to put the config file in for you.
-    int Config_Open();
-    int Config_Close();
+    int Config_Open(const std::filesystem::path &path = GetUserDataDir().append("Config.json"));
+    int Config_Close(const std::filesystem::path &path = GetUserDataDir().append("Config.json"));
 }

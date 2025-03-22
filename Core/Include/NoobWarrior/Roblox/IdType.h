@@ -5,7 +5,7 @@
 // Description:
 #pragma once
 
-namespace NoobWarrior {
+namespace NoobWarrior::Roblox {
 enum class IdType {
     Asset,
     Badge,

@@ -29,11 +29,12 @@ void ArchiveManager::AddArchive(Archive *archive, unsigned int priority) {
     gConfig.MountedArchives.push_back(archive->GetFilePath());
 }
 
-std::vector<unsigned char> ArchiveManager::RetrieveFile(int64_t id, IdType type) {
+std::vector<unsigned char> ArchiveManager::RetrieveFile(int64_t id, Roblox::IdType type) {
     for (int i = 0; i < sMountedArchives.size(); i++) {
         Archive *archive = sMountedArchives[i];
         auto data = archive->RetrieveFile(id, type);
         if (!data.empty())
             return data;
     }
+    return {};
 }

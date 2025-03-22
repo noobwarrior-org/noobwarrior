@@ -9,6 +9,11 @@
 
 #include <fstream>
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <shlobj.h>
+#endif
+
 #define DESERIALIZE_PROP(structProp, key) if (!key.is_null()) structProp = key;
 #define SERIALIZE_PROP(structProp, key) key = structProp;
 
@@ -18,7 +23,31 @@ using json = nlohmann::json;
 Config NoobWarrior::gConfig {};
 static const Config sDefaultConfig = NoobWarrior::gConfig; // create a copy of the config
 
+std::filesystem::path NoobWarrior::GetInstallationDir() {
+#if defined(_WIN32)
+    WCHAR buf[MAX_PATH];
+    GetModuleFileNameW(NULL, buf, MAX_PATH);
+    return std::filesystem::path(buf).parent_path();
+#endif
+}
+
 std::filesystem::path NoobWarrior::GetUserDataDir() {
+#if defined(_WIN32)
+    if (!std::filesystem::exists(GetInstallationDir().append("NW_PORTABLE"))) {
+        // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
+        // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
+        // Typically it won't actually do this and it will instead move it away to a Windows.old folder
+        // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
+        WCHAR *path;
+        SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
+        std::filesystem::path documentsDir(path);
+        std::filesystem::create_directory(documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME));
+        CoTaskMemFree(path);
+        return documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME);
+    } else {
+        return GetInstallationDir();
+    }
+#endif
 // #if !defined(__APPLE__)
 
 //     return ;
@@ -32,7 +61,7 @@ std::filesystem::path NoobWarrior::GetUserDataDir() {
 // #endif
 }
 
-int NoobWarrior::Config_ReadFromFile(const std::filesystem::path &path) {
+int NoobWarrior::Config_Open(const std::filesystem::path &path) {
     if (!std::filesystem::exists(path)) return 1; // this should still succeed even if it doesn't exist, because it's really not that important. we still have default values.
     std::ifstream fstream(path);
     if (!fstream)
@@ -49,7 +78,7 @@ int NoobWarrior::Config_ReadFromFile(const std::filesystem::path &path) {
     return 1;
 }
 
-int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
+int NoobWarrior::Config_Close(const std::filesystem::path &path) {
     json data;
 
     if (std::filesystem::exists(path)) {
@@ -79,15 +108,4 @@ int NoobWarrior::Config_WriteToFile(const std::filesystem::path &path) {
     fout.close();
 
     return 1;
-}
-
-int NoobWarrior::Config_Open() {
-    // return Config_ReadFromFile(GetUserDataDir().append("config.yaml"));
-    return Config_ReadFromFile("Config.json"); // placeholder since GetUserDataDir() currently does not work.
-}
-
-int NoobWarrior::Config_Close() {
-    // std::filesystem::create_directory(GetUserDataDir());
-    // return Config_WriteToFile(GetUserDataDir().append("config.yaml"));
-    return Config_WriteToFile("Config.json");
 }

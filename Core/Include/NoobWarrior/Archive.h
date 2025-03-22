@@ -5,7 +5,7 @@
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 #pragma once
 #include <NoobWarrior/Roblox/Api/Asset.h>
-#include <NoobWarrior/IdType.h>
+#include <NoobWarrior/Roblox/IdType.h>
 
 #include <sqlite3.h>
 
@@ -48,7 +48,7 @@ namespace NoobWarrior {
         std::filesystem::path GetFilePath();
 
         int AddAsset(Roblox::AssetDetails *asset);
-        std::vector<unsigned char> RetrieveFile(int64_t id, IdType type);
+        std::vector<unsigned char> RetrieveFile(int64_t id, Roblox::IdType type);
     private:
         std::filesystem::path mPath;
         sqlite3 *mDatabase;
