@@ -1,15 +1,6 @@
 cmake_minimum_required(VERSION 3.26)
 project(NoobWarrior)
 
-set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/CPM")
-include(CMake/CPM.cmake)
-
-CPMAddPackage("gh:nlohmann/json#v3.11.3")
-
-# I recommend that you just manually install these yourself using your package manager. if you're on windows then use msys2
-# CPMAddPackage("gh:sqlite/sqlite#version-3.49.0")
-# CPMAddPackage("gh:curl/curl#curl-8_12_1")
-
 if (WIN32)
     if (EXISTS "/msys64/mingw32/bin/g++.exe")
         set(SHOULD_TARGET_HOOK_BY_DEFAULT ON)
@@ -40,6 +31,7 @@ endif()
 
 option(TARGET_NOOBWARRIOR_NOGUI "Target noobWarrior NoGui" ON)
 option(TARGET_NOOBWARRIOR_QTGUI "Target noobWarrior QtGui" ON)
+option(TARGET_NOOBWARRIOR_GAMELAUNCHER "Target noobWarrior GameLauncher" ON)
 option(TARGET_NOOBWARRIOR_HOOK "Target noobWarrior Hook" ${SHOULD_TARGET_HOOK_BY_DEFAULT})
 option(TARGET_NOOBWARRIOR_WINELAUNCHER "Target noobWarrior WineLauncher" ${SHOULD_TARGET_WINELAUNCHER_BY_DEFAULT})
 
@@ -51,6 +43,10 @@ endif()
 
 if (TARGET_NOOBWARRIOR_QTGUI)
     add_subdirectory(QtGui)
+endif()
+
+if (TARGET_NOOBWARRIOR_GAMELAUNCHER)
+    add_subdirectory(GameLauncher)
 endif()
 
 if (TARGET_NOOBWARRIOR_HOOK)

@@ -53,7 +53,8 @@ int NoobWarrior::LaunchInjectProcess(const std::filesystem::path &filePath) {
     // RegisterWaitForSingleObject(&waitHandle, pi.hProcess, &ProcessExitCallback, NULL, INFINITE, WT_EXECUTEONLYONCE);
     CloseHandle(pi.hProcess);
     return 1;
-#else
+#elif defined(__unix__)
+    // where wine comes in
     return 0;
 #endif
 }
@@ -61,11 +62,11 @@ int NoobWarrior::LaunchInjectProcess(const std::filesystem::path &filePath) {
 int NoobWarrior::LaunchRoblox(Roblox::EngineType type, std::string version) {
     std::string dirName;
     switch (type) {
-    case Roblox::EngineType::Client: dirName = "Client"; break;
-    case Roblox::EngineType::Server: dirName = "Server"; break;
-    case Roblox::EngineType::Studio: dirName = "Studio"; break;
+    case Roblox::EngineType::Client: dirName = "client"; break;
+    case Roblox::EngineType::Server: dirName = "server"; break;
+    case Roblox::EngineType::Studio: dirName = "studio"; break;
     }
-    const std::filesystem::path dir = GetUserDataDir().append(std::format("Roblox/{}/{}", dirName, version));
+    const std::filesystem::path dir = GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
     if (!std::filesystem::exists(dir)) return -3;
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {

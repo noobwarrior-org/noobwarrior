@@ -1,4 +1,4 @@
-#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Macros.h>
 
 IDI_ICON1 ICON "C:/Users/Hattozo/Documents/hat_development/noobWarrior/QtGui/resources/images/icon.ico"
 

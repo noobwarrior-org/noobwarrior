@@ -1,4 +1,7 @@
 build/
 .cache/
 .vscode/
+.idea/
+.kdev4/
 .DS_Store
+*.kdev4

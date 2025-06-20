@@ -2,22 +2,34 @@
 // File: NoobWarrior.h
 // Started by: Hattozo
 // Started on: 12/15/2024
-// Description: Contains global constants and useful macros
+// Description: Core of the library
 #pragma once
 
-#define NOOBWARRIOR_VERSION "0.0.1"
-#define NOOBWARRIOR_AUTHORS \
-"Hattozo - Creator of the noobWarrior project and software\n"
-#define NOOBWARRIOR_CONTRIBUTORS \
-"Hattozo\n"
-#define NOOBWARRIOR_ATTRIBUTIONS_BRIEF \
-"noobWarrior (https://github.com/noobWarrior-org/noobWarrior), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
-"curl (https://github.com/curl/curl), licensed under the curl license (https://curl.se/docs/copyright.html)\n" \
-"SQLite (https://github.com/sqlite/sqlite/tree/master) - No license, this is under the public domain.\n" \
-"yaml-cpp (https://github.com/jbeder/yaml-cpp), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
-"nlohmann/json (https://github.com/nlohmann/json), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
-"Roblox-File-Format (https://github.com/MaximumADHD/Roblox-File-Format), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
-"famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n"
+#include "Macros.h"
+#include "Log.h"
+#include "Archive.h"
+#include "Auth.h"
+#include "Config.h"
+#include "RccServiceManager.h"
+#include "Roblox/DataModel/RobloxFile.h"
+#include "HttpServer/HttpServer.h"
 
-#define NOOBWARRIOR_FREE_PTR(ptr) delete ptr; ptr = nullptr;
-#define NOOBWARRIOR_ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])
+#include <vector>
+
+namespace NoobWarrior {
+typedef struct {
+    const char *ConfigFile;
+    const char *AuthFile;
+} Init;
+
+class Core {
+public:
+    Core(Init = {});
+
+    int StartHttpServer(uint16_t port = 8080);
+    int StopHttpServer();
+private:
+    HttpServer::HttpServer *mHttpServer;
+    std::vector<RccServiceManager*> RccServiceManagers;
+};
+}

@@ -2,59 +2,70 @@
 // File: HttpServer.cpp
 // Started by: Hattozo
 // Started on: 3/10/2025
-// Description: Simple implementation of HTTP/1.1 standard using BSD socket library
+// Description: A HTTP server that is responsible for mimicking the Roblox API and serving files from noobWarrior archives
 #include <NoobWarrior/HttpServer/HttpServer.h>
+#include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
-#if defined(_WIN32)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif
+#include <filesystem>
+#include <cassert>
+
+#define SET_URI(uri, handler)
+#define LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler, (void*)fileName);
 
 using namespace NoobWarrior::HttpServer;
 
-HttpServer::HttpServer(std::string_view name) :
-    mName(name)
-{}
+HttpServer::HttpServer(const std::filesystem::path &dir) : Server(nullptr), Directory(dir) {}
 
-int HttpServer::Open(int port, bool useipv6) {
-    struct sockaddr_in address;
+static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) {
+    auto arrayOfData = (void**)userdata;
+    auto handler = (Handler*)arrayOfData[0]; // handler should be the first thing passed to the void pointer array.
 
-    mSocketFd = socket(useipv6 ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
-    if (mSocketFd < 0) {
-        Out(mName, "Failed to open socket");
-        return mSocketFd;
+    typedef int (Handler::*classFunc_t)(mg_connection*, void*);
+    classFunc_t classFunc = &Handler::OnRequest;
+
+    void *userdataFromArray = arrayOfData[1]; // and also any extra userdata.
+
+    return (handler->*classFunc)(conn, userdataFromArray);
+}
+
+void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
+    // pass an array containing our handler object and user data so that it knows what the object is.
+    // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
+    void** userdataArray = new void*[2]{handler, userdata};
+    HandlerUserdata.push_back(userdataArray); // remember to push this to our vector array so that we know that we have to free it during cleanup
+    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, userdataArray);
+}
+
+int HttpServer::Start(uint16_t port) {
+    // yes i am aware civetweb has a c++ interface, i would rather just interact with the regular C interface instead.
+    char portStr[5];
+    snprintf(portStr, 5, "%i", port);
+
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").generic_string().c_str(), nullptr};
+    Server = mg_start(nullptr, 0, configOptions);
+
+    mWebHandler = new WebHandler(Directory);
+    mAssetHandler = new AssetHandler();
+
+    SetRequestHandler("/asset", mAssetHandler);
+    SetRequestHandler("/v1/asset", mAssetHandler);
+
+    // LINK_URI_TO_TEMPLATE("/", "home.jinja")
+    LINK_URI_TO_TEMPLATE("/home", "home.jinja")
+
+    Out("HttpServer", "Started server on port {}", port);
+    return 1;
+}
+
+int HttpServer::Stop() {
+    Out("HttpServer", "Stopping server...");
+    mg_stop(Server);
+    Server = nullptr;
+    NOOBWARRIOR_FREE_PTR(mAssetHandler)
+    NOOBWARRIOR_FREE_PTR(mWebHandler)
+    for (void** arr : HandlerUserdata) {
+        NOOBWARRIOR_FREE_PTR(arr)
     }
-
-    if (useipv6) {
-        int optNoV6Only;
-#if defined(_WIN32)
-        setsockopt(mSocketFd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optNoV6Only, sizeof(optNoV6Only));
-#else
-        setsockopt(mSocketFd, IPPROTO_IPV6, IPV6_V6ONLY, &optNoV6Only, sizeof(optNoV6Only));
-#endif
-    }
-
-    address.sin_family = useipv6 ? AF_INET6 : AF_INET;
-    address.sin_port = htons(port);
-    address.sin_addr.s_addr = INADDR_ANY;
-
-    int bindRet = bind(mSocketFd, (struct sockaddr*)&address, sizeof(address));
-    if (bindRet < 0) {
-        Out(mName, "Failed to bind socket to port {}", port);
-        return bindRet;
-    }
-
-    int listenRet = listen(mSocketFd, 128);
-    if (listenRet < 0) {
-        Out(mName, "Server listen failed");
-        return listenRet;
-    }
-
-    Out(mName, "Server listening on port {}", port);
-
-    return 0;
+    return 1;
 }

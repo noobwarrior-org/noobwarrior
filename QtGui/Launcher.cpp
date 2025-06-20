@@ -7,7 +7,7 @@
 
 #include "Launcher.h"
 #include "Dialog/AboutDialog.h"
-#include "Dialog/AssetDownloaderDialog.h"
+#include "AssetDownloader.h"
 #include "Ui/ui_Launcher.h"
 
 #include <QLabel>
@@ -37,8 +37,9 @@
 using namespace NoobWarrior;
 
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
+static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, Settings) }
 static void LaunchArchiveUtility(Launcher& launcher) { HANDLE_QDIALOG(launcher.mArchiveEditor, ArchiveEditor) }
-static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloaderDialog) }
+static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
@@ -67,12 +68,13 @@ static const void* sRoblox[][3] = {
 
 static const void* sApplication[][3] = {
     {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
-    {"Settings", nullptr, ":/images/silk/cog.png"},
+    {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
 
 Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
     mAboutDialog(nullptr),
+    mSettings(nullptr),
     mArchiveEditor(nullptr),
     mAssetDownload(nullptr)
 {

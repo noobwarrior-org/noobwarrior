@@ -9,12 +9,16 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
 set(SOURCES
     main.cpp
+    Application.cpp
+    Application.h
     Launcher.cpp
     Launcher.h
+    Settings.cpp
+    Settings.h
+    AssetDownloader.cpp
+    AssetDownloader.h
     Dialog/AboutDialog.cpp
     Dialog/AboutDialog.h
-    Dialog/AssetDownloaderDialog.cpp
-    Dialog/AssetDownloaderDialog.h
     ArchiveEditor/ArchiveEditor.cpp
     ArchiveEditor/ArchiveEditor.h
     ArchiveEditor/OutlineWidget.cpp
@@ -29,8 +33,8 @@ endif()
 
 qt_add_executable(NoobWarrior.QtGui ${SOURCES})
 set_target_properties(NoobWarrior.QtGui PROPERTIES
-    OUTPUT_NAME "noobWarrior"
-    WIN32_EXECUTABLE ON
+    OUTPUT_NAME "noobwarrior"
+#    WIN32_EXECUTABLE ON
 )
 target_include_directories(NoobWarrior.QtGui PRIVATE NoobWarrior.Core Qt6::Core Qt6::Widgets)
 target_link_libraries(NoobWarrior.QtGui PRIVATE NoobWarrior.Core Qt6::Core Qt6::Widgets)

@@ -5,7 +5,7 @@
 // Description: Handles functions that retrieve data about Roblox assets
 #include <NoobWarrior/AssetRequest.h>
 #include <NoobWarrior/Config.h>
-#include <NoobWarrior/NoobWarrior.hpp>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
 #include <curl/curl.h>
@@ -18,6 +18,25 @@
 
 using namespace NoobWarrior;
 using json = nlohmann::json;
+
+static const std::map<long, std::string> sHttpStatusMessages = {
+    {100, "Continue"},
+    {101, "Switching Protocols"},
+    {200, "OK"},
+    {201, "Created"},
+    {202, "Accepted"},
+    {204, "No Content"},
+    {301, "Moved Permanently"},
+    {302, "Found"},
+    {304, "Not Modified"},
+    {400, "Bad Request"},
+    {401, "Unauthorized"},
+    {403, "Forbidden"},
+    {404, "Not Found"},
+    {500, "Internal Server Error"},
+    {502, "Bad Gateway"},
+    {503, "Service Unavailable"}
+};
 
 static int CountDigits(int c) {
     if (c == 0)
@@ -81,7 +100,7 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToFile);
     curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, &HeaderCallback);
     for (int i = 0; i < args.Id.size(); i++) {
-        OutEx(args.OutStream, "AssetRequest", "Downloading ID %i", args.Id.at(i));
+        OutEx(args.OutStream, "AssetRequest", "Downloading ID {}", args.Id.at(i));
 
         // by default we create a placeholder file with the ID as its name.
         int64_t id = args.Id.at(i);
@@ -107,10 +126,14 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
         if (args.FileNameStyle == AssetFileNameStyle::Raw) // header callback makes the file name pointer point to content deposition's header value.
             curl_easy_setopt(handle, CURLOPT_HEADERDATA, fileName);
 
-        CURLcode res = curl_easy_perform(handle);
-        OutEx(args.OutStream, "AssetRequest", "Code {}, {}", (int)res, curl_easy_strerror(res));
-        if (res != CURLE_OK)
-            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: {}", (int)res, curl_easy_strerror(res));
+        CURLcode ret = curl_easy_perform(handle);
+        if (ret == CURLE_OK) {
+            long res;
+            curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &res);
+            if (res != 200) { OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: {} {}", id, res, sHttpStatusMessages.count(res) ? sHttpStatusMessages.at(res) : "Unknown"); }
+        }
+        if (ret != CURLE_OK)
+            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: Curl error {}, {}", id, (int)ret, curl_easy_strerror(ret));
         else if (args.FileNameStyle != AssetFileNameStyle::AssetId) { // because the file is already named with its corresponding asset id, so it's pointless to rename it to the same thing.
             std::string newFileDir = args.OutDir + "/" + fileName;
             rename(fileDir.c_str(), newFileDir.c_str());

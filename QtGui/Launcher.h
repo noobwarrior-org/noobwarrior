@@ -6,7 +6,8 @@
 #pragma once
 
 #include "ArchiveEditor/ArchiveEditor.h"
-#include "Dialog/AssetDownloaderDialog.h"
+#include "AssetDownloader.h"
+#include "Settings.h"
 #include "Dialog/AboutDialog.h"
 
 #include <QDialog>
@@ -23,8 +24,9 @@ namespace NoobWarrior {
         Launcher(QWidget *parent = nullptr);
         ~Launcher();
         AboutDialog *mAboutDialog;
+        Settings *mSettings;
         ArchiveEditor *mArchiveEditor;
-        AssetDownloaderDialog *mAssetDownload;
+        AssetDownloader *mAssetDownload;
     private:
         Ui::Launcher *ui;
     };
