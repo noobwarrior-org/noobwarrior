@@ -45,7 +45,7 @@ int NoobWarrior::LaunchInjectProcess(const std::filesystem::path &filePath) {
     si.cb = sizeof(STARTUPINFO);
     if (!CreateProcessA((LPCSTR)filePath.c_str(), NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
         return -2;
-    if (!Inject(GetProcessId(pi.hProcess), (char*)"./NoobWarriorHook.dll"))
+    if (!Inject(GetProcessId(pi.hProcess), (char*)"./noobwarrior-hook.dll"))
         return -1;
     if (ResumeThread(pi.hThread) == -1)
         return 0;

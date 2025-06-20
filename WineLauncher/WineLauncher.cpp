@@ -10,6 +10,6 @@
 #include <windows.h>
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int showCmd) {
-    NoobWarrior::Inject(HUGE_VAL, "./NoobWarriorHook.dll");
+    NoobWarrior::Inject(HUGE_VAL, "./noobwarrior-hook.dll");
     return 0;
 }

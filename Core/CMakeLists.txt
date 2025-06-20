@@ -22,6 +22,9 @@ find_package(SQLite3 REQUIRED)
 find_package(CURL REQUIRED)
 
 add_library(NoobWarrior.Core STATIC)
+set_target_properties(NoobWarrior.Core PROPERTIES
+    OUTPUT_NAME "noobwarrior"
+)
 target_sources(NoobWarrior.Core PRIVATE
     Source/NoobWarrior.cpp
     Source/Archive.cpp
