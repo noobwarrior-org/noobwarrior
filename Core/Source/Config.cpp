@@ -4,7 +4,7 @@
 // Started on: 3/8/2025
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Config.h>
-#include <NoobWarrior/ArchiveManager.h>
+#include <NoobWarrior/DatabaseManager.h>
 #include <nlohmann/json.hpp>
 
 #include <fstream>
@@ -97,8 +97,8 @@ int NoobWarrior::Config_Close(const std::filesystem::path &path) {
     SERIALIZE_PROP(gConfig.Roblox_WineExe, data["Roblox"]["WineExe"])
     SERIALIZE_PROP(gConfig.Gui_Theme, data["Gui"]["Theme"])
 
-    for (int i = 0; i < gConfig.MountedArchives.size(); i++)
-        ArchiveManager::AddArchive(gConfig.MountedArchives.at(i), i);
+    // for (int i = 0; i < gConfig.MountedArchives.size(); i++)
+        // ArchiveManager::AddArchive(gConfig.MountedArchives.at(i), i);
 
     std::ofstream fout(path);
     if (!fout)

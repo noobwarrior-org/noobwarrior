@@ -7,7 +7,7 @@
 
 #include "Macros.h"
 #include "Log.h"
-#include "Archive.h"
+#include "Database.h"
 #include "Auth.h"
 #include "Config.h"
 #include "RccServiceManager.h"

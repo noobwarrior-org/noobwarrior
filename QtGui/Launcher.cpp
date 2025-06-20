@@ -38,7 +38,7 @@ using namespace NoobWarrior;
 
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, Settings) }
-static void LaunchArchiveUtility(Launcher& launcher) { HANDLE_QDIALOG(launcher.mArchiveEditor, ArchiveEditor) }
+static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
@@ -49,11 +49,11 @@ static const char* sCategoryNames[] = {
 };
 
 static const void* sTools[][3] = {
-    {"Archive Utility", (void*)&LaunchArchiveUtility, ":/images/silk/database_gear.png"},
+    {"Database Editor", (void*)&LaunchDatabaseEditor, ":/images/silk/database_gear.png"},
     {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
     {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
     {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
-    // {"Import Game As Archive", nullptr, ":/images/silk/folder_go.png"}, // find this in the Archive Utility instead
+    // {"Import Game As Database", nullptr, ":/images/silk/folder_go.png"}, // find this in the Database Utility instead
     {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
 };
 
@@ -75,7 +75,7 @@ static const void* sApplication[][3] = {
 Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
     mAboutDialog(nullptr),
     mSettings(nullptr),
-    mArchiveEditor(nullptr),
+    mDatabaseEditor(nullptr),
     mAssetDownload(nullptr)
 {
     // ui->setupUi(this);

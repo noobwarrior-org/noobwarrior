@@ -21,7 +21,7 @@
 #endif
 
 namespace NoobWarrior {
-    class Archive;
+    class Database;
 
     void SetUserDataPortable(bool val);
     void SetUserDataName(const char *name);
