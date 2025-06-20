@@ -5,7 +5,7 @@
 // Description:
 #pragma once
 
-#include "ArchiveEditor/ArchiveEditor.h"
+#include "DatabaseEditor/DatabaseEditor.h"
 #include "AssetDownloader.h"
 #include "Settings.h"
 #include "Dialog/AboutDialog.h"
@@ -25,7 +25,7 @@ namespace NoobWarrior {
         ~Launcher();
         AboutDialog *mAboutDialog;
         Settings *mSettings;
-        ArchiveEditor *mArchiveEditor;
+        DatabaseEditor *mDatabaseEditor;
         AssetDownloader *mAssetDownload;
     private:
         Ui::Launcher *ui;

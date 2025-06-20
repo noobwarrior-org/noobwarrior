@@ -19,10 +19,10 @@ set(SOURCES
     AssetDownloader.h
     Dialog/AboutDialog.cpp
     Dialog/AboutDialog.h
-    ArchiveEditor/ArchiveEditor.cpp
-    ArchiveEditor/ArchiveEditor.h
-    ArchiveEditor/OutlineWidget.cpp
-    ArchiveEditor/OutlineWidget.h
+    DatabaseEditor/DatabaseEditor.cpp
+    DatabaseEditor/DatabaseEditor.h
+    DatabaseEditor/OutlineWidget.cpp
+    DatabaseEditor/OutlineWidget.h
     Ui/Launcher.ui
     Resources/resources.qrc
 )

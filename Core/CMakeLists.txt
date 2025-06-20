@@ -27,8 +27,8 @@ set_target_properties(NoobWarrior.Core PROPERTIES
 )
 target_sources(NoobWarrior.Core PRIVATE
     Source/NoobWarrior.cpp
-    Source/Archive.cpp
-    Source/ArchiveManager.cpp
+    Source/Database.cpp
+    Source/DatabaseManager.cpp
     Source/Auth.cpp
     Source/Config.cpp
     Source/Log.cpp
