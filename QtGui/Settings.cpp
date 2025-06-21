@@ -4,6 +4,7 @@
 // Started on: 3/22/2025
 // Description: Settings menu to configure user preferences
 #include "Settings.h"
+#include "Application.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -27,7 +28,7 @@ Settings::Settings(QWidget *parent) : QDialog(parent) {
     PAGE("General", ":/images/silk/cog.png")
     PAGE("Internet", ":/images/silk/world.png")
 
-    INPUT("Asset Delivery Api", gConfig.Api_AssetDownload, "Roblox API URLs", "Internet")
+    INPUT("Asset Delivery Api", gApp->GetCore()->GetConfig()->Api_AssetDownload, "Roblox API URLs", "Internet")
 
     mainLayout->addWidget(tab);
 }

@@ -12,7 +12,8 @@ int main(int argc, char* argv[]) {
     }
     if (startShell) {
         puts("\x1b[34mDon't want the CLI to open a shell? Start the program with the --no-shell flag.\x1b[0m");
-        ret = NoobWarrior::Shell::Open(stdout);
+        NoobWarrior::Core core;
+        ret = NoobWarrior::Shell::Open(&core, stdout);
     }
     return ret;
 }

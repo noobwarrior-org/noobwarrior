@@ -5,7 +5,6 @@
 // Description: Basic shell that's designed to run noobWarrior functions.
 #include <NoobWarrior/Shell.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/AssetRequest.h>
 
 #include <cassert>
 #include <cstring>
@@ -14,6 +13,7 @@
 
 using namespace NoobWarrior;
 
+static Core *sCore;
 static bool sRunning;
 FILE* Shell::gOut = stdout;
 
@@ -35,7 +35,7 @@ static void DownloadAsset(int argc, char** argv) {
     args.Flags |= DA_FIND_ASSET_IDS_IN_MODEL;
     args.OutDir = "./downloads";
     args.Id = {1818};
-    NoobWarrior::DownloadAssets(args);
+    sCore->DownloadAssets(args);
 }
 
 static void RccService(int argc, char** argv) {
@@ -146,10 +146,11 @@ finalize:
     return isQuoted ? unescapeToken(start) : start;
 }
 
-int Shell::Open(FILE* out, FILE* in) {
+int Shell::Open(Core *core, FILE* out, FILE* in) {
     // DownloadAsset(0, nullptr);
     if (sRunning) return 1;
     sRunning = true;
+    sCore = core;
     Shell::gOut = out;
     char yeah[1024];
     fputs("\x1b[33mnoobWarrior v" NOOBWARRIOR_VERSION " \x1b[35mShell\n\x1b[36mType \"help\" for commands. Type \"about\" to see credits. Type \"exit\" to quit.\x1b[0m\n", Shell::gOut);

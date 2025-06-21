@@ -9,9 +9,14 @@
 using namespace NoobWarrior;
 
 Core::Core(Init init) :
+    mConfig(init.Portable, init.ConfigFileName),
     mHttpServer(nullptr)
 {
     mg_init_library(0);
+}
+
+Config *Core::GetConfig() {
+    return &mConfig;
 }
 
 int Core::StartHttpServer(uint16_t port) {

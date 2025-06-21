@@ -21,33 +21,33 @@
 #endif
 
 namespace NoobWarrior {
-    class Database;
+class Database;
 
-    void SetUserDataPortable(bool val);
-    void SetUserDataName(const char *name);
+enum class Theme {
+    Default = 0,
+};
 
-    std::filesystem::path GetInstallationDir();
+class Config {
+public:
+    Config(bool portable = true, const std::string &fileName = "config.json");
+
+    static std::filesystem::path GetInstallationDir();
 
     /**
      * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
     */
     std::filesystem::path GetUserDataDir();
 
-    enum class Theme {
-        Default = 0,
-    };
+    int ReadFromFile();
+    int WriteToFile();
 
-    struct Config {
-        int Version { NOOBWARRIOR_CONFIG_VERSION };
-        std::vector<std::filesystem::path> MountedArchives {};
-        std::string Api_AssetDownload { "https://assetdelivery.roblox.com/v1/asset/?id={}" };
-        std::string Api_AssetDetails { "https://economy.roblox.com/v2/assets/{}/details" };
-        std::string Roblox_WineExe { "wine" }; // only required on non-Windows systems
-        Theme Gui_Theme { Theme::Default };
-    };
-
-    extern Config gConfig;
-
-    int Config_Open(const std::filesystem::path &path = GetUserDataDir().append("Config.json"));
-    int Config_Close(const std::filesystem::path &path = GetUserDataDir().append("Config.json"));
+    int         Version;
+    std::string Api_AssetDownload;
+    std::string Api_AssetDetails;
+    std::string Roblox_WineExe; // only required on non-Windows systems
+    Theme       Gui_Theme;
+private:
+    bool Portable;
+    std::string FileName;
+};
 }

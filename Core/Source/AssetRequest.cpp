@@ -3,7 +3,6 @@
 // Started by: Hattozo
 // Started on: 3/5/2025
 // Description: Handles functions that retrieve data about Roblox assets
-#include <NoobWarrior/AssetRequest.h>
 #include <NoobWarrior/Config.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
@@ -82,7 +81,7 @@ static size_t HeaderCallback(char* buffer, size_t size, size_t nitems, void* use
     return totalSize;
 }
 
-int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
+int Core::DownloadAssets(DownloadAssetArgs args) {
     if (args.OutStream == nullptr) args.OutStream = &std::cout;
     curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
     if (!(vinfo->features & CURL_VERSION_SSL))
@@ -108,7 +107,7 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
         char* fileName = (char*)malloc(idDigits + 1);
         snprintf(fileName, idDigits + 1, "%i", (int)id);
 
-        std::string fmtApiCall = std::vformat(gConfig.Api_AssetDownload, std::make_format_args(id));
+        std::string fmtApiCall = std::vformat(GetConfig()->Api_AssetDownload, std::make_format_args(id));
         std::string fileDir = args.OutDir + "/" + fileName;
 
         FILE* filePointer = fopen(fileDir.c_str(), "wb");
@@ -146,7 +145,7 @@ int NoobWarrior::DownloadAssets(DownloadAssetArgs args) {
     return 1;
 }
 
-int NoobWarrior::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
+int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     int ret = 0;
     std::vector<char> buffer;
     CURL *handle = curl_easy_init();
@@ -155,7 +154,7 @@ int NoobWarrior::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet");
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToBuf);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(gConfig.Api_AssetDetails, std::make_format_args(id)).c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(GetConfig()->Api_AssetDetails, std::make_format_args(id)).c_str());
     CURLcode res = curl_easy_perform(handle);
     if (res == CURLE_OK) {
         json data = json::parse(buffer, nullptr, false);

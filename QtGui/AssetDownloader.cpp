@@ -4,8 +4,8 @@
 // Started on: 3/13/2025
 // Description: A Qt GUI dialog that invokes the noobWarrior API to download a Roblox asset
 #include "AssetDownloader.h"
+#include "Application.h"
 
-#include <NoobWarrior/AssetRequest.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <QGroupBox>
@@ -125,7 +125,7 @@ void AssetDownloader::InitControls() {
             args.Id.push_back(item->data().value<int64_t>());
         }
 
-        DownloadAssets(args);
+        gApp->GetCore()->DownloadAssets(args);
     });
 
     connect(mOpt_DirBrowse, &QPushButton::clicked, [&]() {
@@ -137,7 +137,7 @@ void AssetDownloader::InitControls() {
 
 void AssetDownloader::AddEntry(int64_t id) {
     Roblox::AssetDetails details {};
-    int ret = GetAssetDetails(id, &details);
+    int ret = gApp->GetCore()->GetAssetDetails(id, &details);
     switch (ret) {
     case -1:
         details.Name = "Failed to get metadata";

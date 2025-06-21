@@ -20,10 +20,7 @@
 using namespace NoobWarrior;
 using json = nlohmann::json;
 
-Config NoobWarrior::gConfig {};
-static const Config sDefaultConfig = NoobWarrior::gConfig; // create a copy of the config
-
-std::filesystem::path NoobWarrior::GetInstallationDir() {
+std::filesystem::path Config::GetInstallationDir() {
 #if defined(_WIN32)
     WCHAR buf[MAX_PATH];
     GetModuleFileNameW(NULL, buf, MAX_PATH);
@@ -31,9 +28,20 @@ std::filesystem::path NoobWarrior::GetInstallationDir() {
 #endif
 }
 
-std::filesystem::path NoobWarrior::GetUserDataDir() {
+Config::Config(bool portable, const std::string &fileName) :
+    Version(NOOBWARRIOR_CONFIG_VERSION),
+    Api_AssetDownload("https://assetdelivery.roblox.com/v1/asset/?id={}"),
+    Api_AssetDetails("https://economy.roblox.com/v2/assets/{}/details"),
+    Roblox_WineExe("wine"),
+    Gui_Theme(Theme::Default),
+
+    Portable(portable),
+    FileName(fileName)
+{}
+
+std::filesystem::path Config::GetUserDataDir() {
 #if defined(_WIN32)
-    if (!std::filesystem::exists(GetInstallationDir().append("NW_PORTABLE"))) {
+    if (!Portable) {
         // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
         // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
         // Typically it won't actually do this and it will instead move it away to a Windows.old folder
@@ -44,45 +52,33 @@ std::filesystem::path NoobWarrior::GetUserDataDir() {
         std::filesystem::create_directory(documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME));
         CoTaskMemFree(path);
         return documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME);
-    } else {
-        return GetInstallationDir();
     }
 #endif
-// #if !defined(__APPLE__)
-
-//     return ;
-// #else
-//     char path[PATH_MAX];
-//     FSRef ref;
-//     OSType type = kApplicationSupportFolderType;
-//     OSStatus ret = FSFindFolder(kUserDomain, type, kCreateFolder, &ref); // Apparently this is deprecated, but it's the only way to do it without Objective-C so whatever.
-//     FSRefMakePath(&ref, (UInt8*)&path, PATH_MAX);
-//     return std::string(path) + "/noobWarrior"; // portable versions aren't allowed. cause, reasons.
-// #endif
+    return GetInstallationDir();
 }
 
-int NoobWarrior::Config_Open(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path)) return 1; // this should still succeed even if it doesn't exist, because it's really not that important. we still have default values.
-    std::ifstream fstream(path);
+int Config::ReadFromFile() {
+    if (!std::filesystem::exists(GetUserDataDir() / FileName)) return 1; // this should still succeed even if it doesn't exist, because it's really not that important. we still have default values.
+    std::ifstream fstream(GetUserDataDir() / FileName);
     if (!fstream)
         return -2;
     json data;
     try {
         data = json::parse(fstream, nullptr, true, true);
     } catch (json::exception ex) { return -1; }
-    DESERIALIZE_PROP(gConfig.MountedArchives, data["MountedArchives"])
-    DESERIALIZE_PROP(gConfig.Api_AssetDownload, data["Api"]["AssetDownload"])
-    DESERIALIZE_PROP(gConfig.Api_AssetDetails, data["Api"]["AssetDetails"])
-    DESERIALIZE_PROP(gConfig.Roblox_WineExe, data["Roblox"]["WineExe"])
-    DESERIALIZE_PROP(gConfig.Gui_Theme, data["Gui"]["Theme"])
+    // DESERIALIZE_PROP(MountedArchives, data["MountedArchives"])
+    DESERIALIZE_PROP(Api_AssetDownload, data["Api"]["AssetDownload"])
+    DESERIALIZE_PROP(Api_AssetDetails, data["Api"]["AssetDetails"])
+    DESERIALIZE_PROP(Roblox_WineExe, data["Roblox"]["WineExe"])
+    DESERIALIZE_PROP(Gui_Theme, data["Gui"]["Theme"])
     return 1;
 }
 
-int NoobWarrior::Config_Close(const std::filesystem::path &path) {
+int Config::WriteToFile() {
     json data;
 
-    if (std::filesystem::exists(path)) {
-        std::ifstream fstream(path);
+    if (std::filesystem::exists(GetUserDataDir() / FileName)) {
+        std::ifstream fstream(GetUserDataDir() / FileName);
         if (!fstream)
             return -2;
         try {
@@ -91,16 +87,16 @@ int NoobWarrior::Config_Close(const std::filesystem::path &path) {
     }
     
     data["Meta"]["FileVersion"] = NOOBWARRIOR_CONFIG_VERSION;
-    SERIALIZE_PROP(gConfig.MountedArchives, data["MountedArchives"])
-    SERIALIZE_PROP(gConfig.Api_AssetDownload, data["Api"]["AssetDownload"])
-    SERIALIZE_PROP(gConfig.Api_AssetDetails, data["Api"]["AssetDetails"])
-    SERIALIZE_PROP(gConfig.Roblox_WineExe, data["Roblox"]["WineExe"])
-    SERIALIZE_PROP(gConfig.Gui_Theme, data["Gui"]["Theme"])
+    // SERIALIZE_PROP(MountedArchives, data["MountedArchives"])
+    SERIALIZE_PROP(Api_AssetDownload, data["Api"]["AssetDownload"])
+    SERIALIZE_PROP(Api_AssetDetails, data["Api"]["AssetDetails"])
+    SERIALIZE_PROP(Roblox_WineExe, data["Roblox"]["WineExe"])
+    SERIALIZE_PROP(Gui_Theme, data["Gui"]["Theme"])
 
     // for (int i = 0; i < gConfig.MountedArchives.size(); i++)
         // ArchiveManager::AddArchive(gConfig.MountedArchives.at(i), i);
 
-    std::ofstream fout(path);
+    std::ofstream fout(GetUserDataDir() / FileName);
     if (!fout)
         return -3;
 

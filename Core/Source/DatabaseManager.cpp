@@ -18,13 +18,13 @@ int DatabaseManager::Mount(const std::filesystem::path &filePath, unsigned int p
     int ret = database->Open(filePath.string());
     if (ret != 0) return ret;
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
-    gConfig.MountedArchives.push_back(database->GetFilePath());
+    // gConfig.MountedArchives.push_back(database->GetFilePath());
     return 0;
 }
 
 void DatabaseManager::Mount(Database *database, unsigned int priority) {
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
-    gConfig.MountedArchives.push_back(database->GetFilePath());
+    // gConfig.MountedArchives.push_back(database->GetFilePath());
 }
 
 std::vector<unsigned char> DatabaseManager::RetrieveFile(int64_t id, Roblox::IdType type) {

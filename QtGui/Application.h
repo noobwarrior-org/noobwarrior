@@ -14,8 +14,10 @@ class Application : public QApplication {
 public:
     Application(int &argc, char **argv);
     int Run();
+    Core *GetCore();
 private:
     Core *mCore;
     Launcher *mLauncher;
 };
+extern Application *gApp;
 }

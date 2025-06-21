@@ -8,7 +8,6 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
 set(SOURCES
-    main.cpp
     Application.cpp
     Application.h
     Launcher.cpp

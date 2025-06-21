@@ -4,7 +4,7 @@
 // Started on: 3/7/2025
 // Description:
 #pragma once
-
+#include <NoobWarrior/NoobWarrior.h>
 #include <cstdio>
 
 namespace NoobWarrior::Shell {
@@ -15,7 +15,7 @@ namespace NoobWarrior::Shell {
     } Command;
 
     extern FILE* gOut;
-    int Open(FILE* out = stdout, FILE* in = stdin);
+    int Open(Core *core, FILE* out = stdout, FILE* in = stdin);
     void Close();
     void ParseCommand(char* cmd);
 }

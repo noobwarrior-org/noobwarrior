@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 3/16/2025
 // Description: A really basic DLL injector. Anyone could make this, it's not really impressive.
-#include <NoobWarrior/Injector.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Config.h>
 #include <filesystem>
 
@@ -15,7 +15,7 @@
 
 using namespace NoobWarrior;
 
-int NoobWarrior::Inject(unsigned long pid, char *dllPath) {
+int Core::Inject(unsigned long pid, char *dllPath) {
 #if defined(_WIN32)
     HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
     if (handle == NULL)
@@ -38,7 +38,7 @@ int NoobWarrior::Inject(unsigned long pid, char *dllPath) {
 // }
 // #endif
 
-int NoobWarrior::LaunchInjectProcess(const std::filesystem::path &filePath) {
+int Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
 #if defined(_WIN32)
     PROCESS_INFORMATION pi = { 0 };
     STARTUPINFO si = { 0 };
@@ -59,14 +59,14 @@ int NoobWarrior::LaunchInjectProcess(const std::filesystem::path &filePath) {
 #endif
 }
 
-int NoobWarrior::LaunchRoblox(Roblox::EngineType type, std::string version) {
+int Core::LaunchRoblox(Roblox::EngineType type, std::string version) {
     std::string dirName;
     switch (type) {
     case Roblox::EngineType::Client: dirName = "client"; break;
     case Roblox::EngineType::Server: dirName = "server"; break;
     case Roblox::EngineType::Studio: dirName = "studio"; break;
     }
-    const std::filesystem::path dir = GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
+    const std::filesystem::path dir = GetConfig()->GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
     if (!std::filesystem::exists(dir)) return -3;
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
