@@ -54,9 +54,9 @@ std::filesystem::path Config::GetUserDataDir() {
         WCHAR *path;
         SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
         std::filesystem::path documentsDir(path);
-        std::filesystem::create_directory(documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME));
+        std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
         CoTaskMemFree(path);
-        return documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME);
+        return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
     }
 #elif defined(__APPLE__)
     char path[PATH_MAX];
@@ -64,7 +64,9 @@ std::filesystem::path Config::GetUserDataDir() {
     OSType type = kApplicationSupportFolderType;
     OSStatus ret = FSFindFolder(kUserDomain, type, kCreateFolder, &ref); // Apparently this is deprecated, but it's the only way to do it without Objective-C so whatever.
     FSRefMakePath(&ref, (UInt8*)&path, PATH_MAX);
-    return std::filesystem::path(std::string(path)) / "noobWarrior"; // portable versions aren't allowed. cause, reasons.
+    std::filesystem::path appSupportDir(path);
+    std::filesystem::create_directory(appSupportDir / NOOBWARRIOR_USERDATA_DIRNAME);
+    return appSupportDir / NOOBWARRIOR_USERDATA_DIRNAME; // portable versions aren't allowed. cause, reasons.
 #endif
     return GetInstallationDir();
 }
