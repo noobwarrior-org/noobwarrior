@@ -10,13 +10,16 @@
 #include <cstring>
 
 static const char* MetaKv[][2] = {
+	//////////////// Metadata ////////////////
     {"Title", "Database"},
     {"Description", "No description available."},
     {"Author", "N/A"},
     {"Version", "v1.0"}, // Not to be confused with the version of the database format, this is meant for the author to set.
     // The table can only take strings, so we're encoding this in base64.
     // The base64 in this decodes to a default .png file.
-    {"Icon", "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"}
+    {"Icon", "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"},
+	//////////////// Booleans ////////////////
+	{"Mutable", "false"} // Should parts of the database be able to be modified by guests during runtime? (Ex: Adding records to friend table by friending someone in-game, liking/disliking a game, uploading UGC, etc.)
 };
 static const char* TableNames[] = {
     // Meta
@@ -26,7 +29,7 @@ static const char* TableNames[] = {
     // User-Related Tables
     "UserFriends", "UserFollowers", "UserFollowing", "UserInventory", "UserFavorites",
     // Group-Related Tables
-    "GroupAuditLog", "GroupAllies", "GroupEnemies"
+    "GroupWall", "GroupAuditLog", "GroupAllies", "GroupEnemies"
 };
 static const char* TableSchema[] = {
     // Meta (0)
@@ -38,9 +41,8 @@ static const char* TableSchema[] = {
     /**
      * Notes
      *
-     * The "Recorded" field specifies the date of when an item was archived by the creator of an archive.
-     * Alongside the id itself, it uniquely identifies a record in the database and is used for storing multiple versions of an item.
-     * There can be multiple records with the same Id, but with different "Recorded" dates.
+     * There can be multiple records with the same Id, but with different version numbers.
+     * It is used for storing multiple versions of an item.
      *
      * For the "UserId" and "GroupId" fields, either one of these two fields have to be null, and the other must not be null.
      * There cannot be a scenario where both the "UserId" and "GroupId" fields are filled in.
@@ -48,8 +50,9 @@ static const char* TableSchema[] = {
     // Asset (1)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
-    "Version"	INTEGER,
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -71,7 +74,7 @@ static const char* TableSchema[] = {
     "Likes"	INTEGER,
 	"Dislikes"	INTEGER,
 	"Data"	BLOB,
-	PRIMARY KEY("Id","Recorded","Version"),
+	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
@@ -79,7 +82,9 @@ static const char* TableSchema[] = {
     // Badge (2)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -90,7 +95,7 @@ static const char* TableSchema[] = {
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"UniverseId"	INTEGER NOT NULL,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
     FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
@@ -99,7 +104,9 @@ static const char* TableSchema[] = {
     // Bundle (3)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -118,7 +125,7 @@ static const char* TableSchema[] = {
 	"Sales"	INTEGER,
     "Favorites"	INTEGER,
 	"Items"	TEXT,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
@@ -126,7 +133,9 @@ static const char* TableSchema[] = {
     // DevProduct (4)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -136,7 +145,7 @@ static const char* TableSchema[] = {
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"UniverseId"	INTEGER NOT NULL,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
     FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
@@ -145,7 +154,9 @@ static const char* TableSchema[] = {
     // Group (5)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
     "Created"	INTEGER,
@@ -158,13 +169,15 @@ static const char* TableSchema[] = {
     "Shout"	TEXT,
     "ShoutUserId"	INTEGER,
     "ShoutTimestamp"	INTEGER,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("OwnerId") REFERENCES "User"("Id")
     )",
     // Pass (6)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	TEXT,
 	"Created"	INTEGER,
@@ -177,7 +190,7 @@ static const char* TableSchema[] = {
 	"IsForSale"	INTEGER,
     "Likes"	INTEGER,
 	"Dislikes"	INTEGER,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
@@ -186,7 +199,9 @@ static const char* TableSchema[] = {
     // Universe (7)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"Description"	INTEGER,
 	"Created"	INTEGER,
@@ -207,7 +222,7 @@ static const char* TableSchema[] = {
 	"Likes"	INTEGER,
 	"Dislikes"	INTEGER,
 	"Visits"	INTEGER,
-	PRIMARY KEY("Id","Recorded"),
+	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("GroupId") REFERENCES "User"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
@@ -215,7 +230,9 @@ static const char* TableSchema[] = {
     // User (8)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
 	"PreviousNames"	TEXT,
 	"Groups"	TEXT,
@@ -230,15 +247,17 @@ static const char* TableSchema[] = {
     "FriendCount"	INTEGER,
     "FollowersCount"	INTEGER,
 	"FollowingCount"	INTEGER,
-	PRIMARY KEY("Id","Recorded")
+	PRIMARY KEY("Id","Version")
     )",
     // UserFriends (9)
     R"(
     "UserId"	INTEGER NOT NULL,
 	"FriendId"	INTEGER NOT NULL,
-    "Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"FriendsSince"	INTEGER,
-	PRIMARY KEY("UserId","FriendId","Recorded"),
+	PRIMARY KEY("UserId","FriendId","Version"),
 	FOREIGN KEY("FriendId") REFERENCES "User"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id")
     )",
@@ -246,9 +265,11 @@ static const char* TableSchema[] = {
 R"(
     "UserId"	INTEGER NOT NULL,
     "FollowerId"	INTEGER NOT NULL,
-    "Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
     "FollowedSince"	INTEGER,
-    PRIMARY KEY("UserId","FollowerId","Recorded"),
+    PRIMARY KEY("UserId","FollowerId","Version"),
     FOREIGN KEY("FollowerId") REFERENCES "User"("Id"),
     FOREIGN KEY("UserId") REFERENCES "User"("Id")
     )",
@@ -256,11 +277,56 @@ R"(
 R"(
     "UserId"	INTEGER NOT NULL,
     "FollowingId"	INTEGER NOT NULL,
-    "Recorded"	INTEGER DEFAULT (unixepoch()),
+	"Version"	INTEGER NOT NULL,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
     "FollowingSince"	INTEGER,
-    PRIMARY KEY("UserId","FollowingId","Recorded"),
+    PRIMARY KEY("UserId","FollowingId","Version"),
     FOREIGN KEY("FollowingId") REFERENCES "User"("Id"),
     FOREIGN KEY("UserId") REFERENCES "User"("Id")
+    )",
+	// UserInventory (12)
+R"(
+    "UserId"	INTEGER NOT NULL,
+
+	"AssetId"	INTEGER,
+	"BadgeId"	INTEGER,
+	"BundleId"	INTEGER,
+"GroupId"	INTEGER,
+"PassId"	INTEGER,
+"GroupId"	INTEGER,
+
+	"Id"	INTEGER NOT NULL,
+	"IdType"	TEXT NOT NULL,
+	"Version"	INTEGER NOT NULL,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
+	PRIMARY KEY("UserId","Id","IdType","Version"),
+    FOREIGN KEY("UserId") REFERENCES "User"("Id")
+    )",
+	// UserFavorites (13)
+R"(
+    "UserId"	INTEGER NOT NULL,
+	"Id"	INTEGER NOT NULL,
+	"IdType"	TEXT NOT NULL,
+	"Version"	INTEGER NOT NULL,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
+	PRIMARY KEY("UserId","Id","IdType","Version"),
+    FOREIGN KEY("UserId") REFERENCES "User"("Id")
+    )",
+	// GroupWall (14)
+	R"(
+	"GroupId"	INTEGER NOT NULL,
+	"PostId"	INTEGER NOT NULL,
+    "UserId"	INTEGER,
+	"Message"	TEXT,
+	"Created"	INTEGER,
+    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
+	PRIMARY KEY("GroupId","PostId"),
+    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
     )"
 };
 
