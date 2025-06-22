@@ -31,7 +31,7 @@ endif()
 
 option(TARGET_NOOBWARRIOR_NOGUI "Target noobWarrior NoGui" ON)
 option(TARGET_NOOBWARRIOR_QTGUI "Target noobWarrior QtGui" ON)
-option(TARGET_NOOBWARRIOR_GAMELAUNCHER "Target noobWarrior GameLauncher" ON)
+option(TARGET_NOOBWARRIOR_GAMELAUNCHER "Target noobWarrior GameLauncher" OFF)
 option(TARGET_NOOBWARRIOR_HOOK "Target noobWarrior Hook" ${SHOULD_TARGET_HOOK_BY_DEFAULT})
 option(TARGET_NOOBWARRIOR_WINELAUNCHER "Target noobWarrior WineLauncher" ${SHOULD_TARGET_WINELAUNCHER_BY_DEFAULT})
 
