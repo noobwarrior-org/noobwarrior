@@ -8,10 +8,13 @@
 #include <nlohmann/json.hpp>
 
 #include <fstream>
+#include <unistd.h>
 
 #if defined(_WIN32)
 #include <windows.h>
 #include <shlobj.h>
+#elif defined(__APPLE__)
+#include <CoreServices/CoreServices.h>
 #endif
 
 #define DESERIALIZE_PROP(structProp, key) if (!key.is_null()) structProp = key;
@@ -25,6 +28,8 @@ std::filesystem::path Config::GetInstallationDir() {
     WCHAR buf[MAX_PATH];
     GetModuleFileNameW(NULL, buf, MAX_PATH);
     return std::filesystem::path(buf).parent_path();
+#else
+    return std::filesystem::current_path();
 #endif
 }
 
@@ -53,6 +58,13 @@ std::filesystem::path Config::GetUserDataDir() {
         CoTaskMemFree(path);
         return documentsDir.append(NOOBWARRIOR_USERDATA_DIRNAME);
     }
+#elif defined(__APPLE__)
+    char path[PATH_MAX];
+    FSRef ref;
+    OSType type = kApplicationSupportFolderType;
+    OSStatus ret = FSFindFolder(kUserDomain, type, kCreateFolder, &ref); // Apparently this is deprecated, but it's the only way to do it without Objective-C so whatever.
+    FSRefMakePath(&ref, (UInt8*)&path, PATH_MAX);
+    return std::filesystem::path(std::string(path)) / "noobWarrior"; // portable versions aren't allowed. cause, reasons.
 #endif
     return GetInstallationDir();
 }
