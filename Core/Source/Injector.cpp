@@ -53,7 +53,7 @@ int Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
     // RegisterWaitForSingleObject(&waitHandle, pi.hProcess, &ProcessExitCallback, NULL, INFINITE, WT_EXECUTEONLYONCE);
     CloseHandle(pi.hProcess);
     return 1;
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(__APPLE__)
     // where wine comes in
     return 0;
 #endif
