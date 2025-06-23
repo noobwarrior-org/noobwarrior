@@ -1,15 +1,41 @@
 # noobWarrior
-An all-in-one toolkit to help aid the preservation and archival of Roblox content, so that you can edit and play Roblox games in an untouched state; even if they entirely disappear off the Roblox website. It's invaluable for both developers and players (although it benefits mostly developers as of now)
+An all-in-one toolkit to help aid the preservation and archival of Roblox content, so that you can edit and play Roblox games in an untouched state, even if they entirely disappear off the Roblox website. It's invaluable for both developers and players.
 
-## Tools
-### Archive Utility
-The main part of the program. All noobWarrior archive files are edited and viewed using this tool, and it allows you to backup EVERYTHING. Entire Roblox games (thumbnails, places, visits, badges, etc), assets (models, clothing, gear, ...), user profiles (outfits, inventories), whatever the hell you can name. Of course, you must have the appropriate permissions for your account in order to back up any private data.
+It lets you play and host entirely offline Roblox games on your computer that do not rely on the official Roblox services by leveraging your backed up content.
 
-If you are backing up a game and you do not have edit access, it will not back up the place files and the assets within them, but it will still try to save all other publically available content.
+Content for a piece of media on Roblox is organized into databases, which can be mounted and layered on top of each other.
+A HTTP server is ran in the background, mimicking the Roblox API and serving files/metadata from these databases.
 
-All of this data is compiled into an archive database where it can be easily retrieved using the built-in archive utility.
+Users connect to these HTTP servers using the noobWarrior launcher, which is then set as a proxy (so that they can access asset files from the server hoster) and they are then coordinated to the right game servers.
+The Roblox client is patched on the fly to have all asset and API requests redirect to the HTTP server.
 
-There is also a built-in feature to convert your archives into human-readable folders, and then upload them to the Internet Archive.
+A master database is used to automatically store all user-generated actions/content that can occur from players interacting in your game servers, like friending each other.
+
+If this all sounds complicated to you, don't worry; the program handles most of this for you, this is merely describing the inner-workings of how everything works.
+
+## Features
+### Database Utility
+This is the main part of the program. All noobWarrior database files are edited and viewed using this tool, and it allows you to backup almost any form of user-generated content on the Roblox website, granted you have the appropriate permissions.
+
+This includes entire Roblox games (thumbnails, places, visits, badges, etc), assets (models, clothing, gear, ...), user profiles (outfits, inventories), whatever the hell you can name.
+
+If you are backing up an off-sale model or a copylocked game that you do not have edit access to, it will not back up the data files and the assets within them, but it will still try to save all other publically available content.
+
+All of this data is compiled into a database where it can be easily retrieved using the built-in database utility.
+
+There is also a built-in feature to convert your databases into human-readable folders, and then upload them to the Internet Archive.
+
+### HTTP Server
+The HTTP server plays several roles. It:
+- Serves all the asset files from the database so that you can retrieve them from the Roblox client
+- Mimics the Roblox API so that everything in-game can work as intended
+- Lets you view and administer the current state of the program remotely (adding new assets, starting/stopping game servers, etc.)
+- Lets your players be able to create user-generated content in your database from a web interface, if you allow them to.
+
+### Plugins
+Plugins extend the functionality of noobWarrior
+
+WIP
 
 ### Download Asset(s)
 Downloads an asset, or a list of assets, and saves it to disk. You can only download assets that your account is able to access.
@@ -60,4 +86,4 @@ All source code is viewable and compiled binaries have not been tampered with. I
 Also, if I ever added any malware to this program, then my reputation would be ruined by now.
 
 ## Disclaimer
-This was made to help prevent media from becoming lost; I do not condone the use of this project for nefarious activites, and would actively discourage you from doing so. Remember, it is a computer software that is indifferent to both good and bad actors.
+This was made to help prevent media from becoming lost, and to provide an alternative to the official Roblox services for people who do not wish to use them; I do not condone the use of this project for nefarious activites, and would actively discourage you from doing so. Remember, it is a computer software that is indifferent to both good and bad actors.
