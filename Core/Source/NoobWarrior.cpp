@@ -5,6 +5,7 @@
 // Description:
 #include <NoobWarrior/NoobWarrior.h>
 #include <civetweb.h>
+#include <sqlite3.h>
 
 using namespace NoobWarrior;
 
@@ -12,6 +13,7 @@ Core::Core(Init init) :
     mConfig(init.Portable, init.ConfigFileName),
     mHttpServer(nullptr)
 {
+    sqlite3_initialize();
     mg_init_library(0);
 }
 

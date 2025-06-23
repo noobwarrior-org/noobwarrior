@@ -5,6 +5,7 @@
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "DatabaseEditor.h"
 #include "OutlineWidget.h"
+#include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -21,6 +22,8 @@
 
 #include <format>
 #include <qnamespace.h>
+
+#define CREATE_NEW_DATABASES_IN_MEMORY 1
 
 using namespace NoobWarrior;
 
@@ -70,9 +73,9 @@ cleanup:
 
 void DatabaseEditor::TryToOpenFile(const QString &path) {
     mCurrentDatabase = new Database();
-    int val = mCurrentDatabase->Open(path.toStdString());
-    if (val != 0) {
-        QMessageBox::critical(this, "Error", QString("Cannot open database of file \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", val))));
+    DatabaseOpenResponse res = mCurrentDatabase->Open(path.toStdString());
+    if (res != DatabaseOpenResponse::Success) {
+        QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)res))));
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
     }
@@ -97,13 +100,26 @@ void DatabaseEditor::InitMenus() {
     mFileMenu->addAction(saveAsAct);
 
     connect(newAct, &QAction::triggered, [&]() {
-        // QString filePath = QFileDialog::getSaveFileName(this, "New Database", "./databases/", "noobWarrior Database (*.nwdb)");
-        // if (!filePath.isEmpty()) TryToCreateFile(filePath);
+#if CREATE_NEW_DATABASES_IN_MEMORY
         TryToOpenFile();
+#else
+        QString filePath = QFileDialog::getSaveFileName(
+            this,
+            "New Database",
+            QString::fromStdString(gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases"),
+            "noobWarrior Database (*.nwdb)"
+        );
+        if (!filePath.isEmpty()) TryToCreateFile(filePath);
+#endif
     });
 
     connect(openAct, &QAction::triggered, [&]() {
-        QString filePath = QFileDialog::getOpenFileName(this, "Open Database", "./databases/", "noobWarrior Database (*.nwdb)");
+        QString filePath = QFileDialog::getOpenFileName(
+            this,
+            "Open Database",
+            QString::fromStdString(gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases"),
+            "noobWarrior Database (*.nwdb)"
+        );
         if (!filePath.isEmpty()) TryToOpenFile(filePath);
     });
 }

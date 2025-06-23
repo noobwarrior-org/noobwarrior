@@ -17,11 +17,20 @@
 #define NOOBWARRIOR_DATABASE_VERSION 1
 
 namespace NoobWarrior {
+    enum class DatabaseOpenResponse {
+        Success,
+        Failed,
+        CouldNotOpenDatabase,
+        CouldNotGetVersion,
+        CouldNotSetVersion,
+        CouldNotCreateTable,
+        CouldNotSetKeyValues
+    };
     class Database {
     public:
         Database();
 
-        int Open(const std::string &path = ":memory:");
+        DatabaseOpenResponse Open(const std::string &path = ":memory:");
         int Close();
         int SaveAs(const std::string &path);
         int GetDatabaseVersion();

@@ -76,6 +76,10 @@ int Application::Run() {
     ret = exec();
 cleanup:
     Out("QtApplication", "Cleaning up!");
+
+    mLauncher->deleteLater();
+    mLauncher = nullptr;
+
     curl_global_cleanup();
     mCore->StopHttpServer();
     mCore->GetConfig()->WriteToFile();

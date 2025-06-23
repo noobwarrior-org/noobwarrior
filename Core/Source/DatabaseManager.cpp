@@ -13,13 +13,13 @@
 
 using namespace NoobWarrior;
 
-int DatabaseManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
-    Database *database = new Database();
-    int ret = database->Open(filePath.string());
-    if (ret != 0) return ret;
+DatabaseOpenResponse DatabaseManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
+    auto *database = new Database();
+    DatabaseOpenResponse res = database->Open(filePath.string());
+    if (res != DatabaseOpenResponse::Success) return res;
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
     // gConfig.MountedArchives.push_back(database->GetFilePath());
-    return 0;
+    return DatabaseOpenResponse::Success;
 }
 
 void DatabaseManager::Mount(Database *database, unsigned int priority) {

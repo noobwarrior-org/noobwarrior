@@ -20,10 +20,10 @@
 #include <vector>
 
 namespace NoobWarrior {
-typedef struct {
+struct Init {
     bool Portable { true };
     std::string ConfigFileName = { "config.json" };
-} Init;
+};
 
 enum class AssetFileNameStyle {
     Raw, // File name is retrieved from the server that is hosting the file. In this case you will get a MD5 hash, since that is how Roblox indexes files.
