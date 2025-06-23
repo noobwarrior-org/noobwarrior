@@ -17,34 +17,40 @@
 #define NOOBWARRIOR_DATABASE_VERSION 1
 
 namespace NoobWarrior {
-    enum class DatabaseOpenResponse {
-        Success,
+    enum class DatabaseResponse {
         Failed,
-        CouldNotOpenDatabase,
+        Success,
+        CouldNotOpen,
         CouldNotGetVersion,
         CouldNotSetVersion,
         CouldNotCreateTable,
-        CouldNotSetKeyValues
+        CouldNotSetKeyValues,
+        DidNothing,
+        NotInitialized
     };
+
     class Database {
     public:
-        Database();
+        Database(bool autocommit = true);
 
-        DatabaseOpenResponse Open(const std::string &path = ":memory:");
+        DatabaseResponse Open(const std::string &path = ":memory:");
         int Close();
-        int SaveAs(const std::string &path);
         int GetDatabaseVersion();
         int SetDatabaseVersion(int version);
+
+        DatabaseResponse SaveAs(const std::string &path);
 
         /**
          * @brief Commits the current SQLite transaction, which will write all changes to disk.
          */
-        int WriteChangesToDisk();
+        DatabaseResponse WriteChangesToDisk();
 
         /**
          * @brief Returns true if this database has unsaved changes.
          */
         bool IsDirty();
+        void MarkDirty();
+
         std::string GetSqliteErrorMsg();
         std::string GetTitle();
         /**
@@ -56,11 +62,13 @@ namespace NoobWarrior {
 
         std::filesystem::path GetFilePath();
 
-        int AddAsset(Roblox::AssetDetails *asset);
+        DatabaseResponse AddAsset(Roblox::AssetDetails *asset);
         std::vector<unsigned char> RetrieveFile(int64_t id, Roblox::IdType type);
     private:
         std::filesystem::path mPath;
         sqlite3 *mDatabase;
         bool mInitialized;
+        bool mAutoCommit;
+        bool mDirty;
     };
 }

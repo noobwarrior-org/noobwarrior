@@ -72,9 +72,9 @@ cleanup:
 }
 
 void DatabaseEditor::TryToOpenFile(const QString &path) {
-    mCurrentDatabase = new Database();
-    DatabaseOpenResponse res = mCurrentDatabase->Open(path.toStdString());
-    if (res != DatabaseOpenResponse::Success) {
+    mCurrentDatabase = new Database(false);
+    DatabaseResponse res = mCurrentDatabase->Open(path.toStdString());
+    if (res != DatabaseResponse::Success) {
         QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)res))));
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
@@ -117,7 +117,7 @@ void DatabaseEditor::InitMenus() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Open Database",
-            QString::fromStdString(gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases"),
+            QString::fromStdString((gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases").string()),
             "noobWarrior Database (*.nwdb)"
         );
         if (!filePath.isEmpty()) TryToOpenFile(filePath);

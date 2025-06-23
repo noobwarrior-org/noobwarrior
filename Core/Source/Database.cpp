@@ -522,30 +522,34 @@ R"(
 
 using namespace NoobWarrior;
 
-Database::Database() :
+Database::Database(bool autocommit) :
     mDatabase(nullptr),
-    mInitialized(false)
+    mInitialized(false),
+	mAutoCommit(autocommit),
+	mDirty(false)
 {};
 
-DatabaseOpenResponse Database::Open(const std::string &path) {
+DatabaseResponse Database::Open(const std::string &path) {
     mPath = path;
-    int val = sqlite3_open_v2(mPath.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
+    int val = sqlite3_open_v2(reinterpret_cast<const char *>(mPath.c_str()), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
     if (val != SQLITE_OK)
-        return DatabaseOpenResponse::CouldNotOpenDatabase;
-    // disable auto-commit mode by explicitly initiating a transaction
-    val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-    if (val != SQLITE_OK) {
-        sqlite3_close_v2(mDatabase);
-        return DatabaseOpenResponse::Failed;
-    }
+        return DatabaseResponse::CouldNotOpen;
+	if (!mAutoCommit) {
+		// disable auto-commit mode by explicitly initiating a transaction
+		val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+		if (val != SQLITE_OK) {
+			sqlite3_close_v2(mDatabase);
+			return DatabaseResponse::Failed;
+		}
+	}
 
     switch (GetDatabaseVersion()) {
     case -1: // -1 indicates that something has went terribly wrong. how did that happen?
         sqlite3_close_v2(mDatabase);
-        return DatabaseOpenResponse::CouldNotGetVersion;
+        return DatabaseResponse::CouldNotGetVersion;
     case 0: // 0 indicates to us that we have a brand new SQLite database, as there is no noobWarrior version that starts at 0.
         // no migrating required, just set the database version and go
-        if (SetDatabaseVersion(NOOBWARRIOR_DATABASE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return DatabaseOpenResponse::CouldNotSetVersion; }
+        if (SetDatabaseVersion(NOOBWARRIOR_DATABASE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return DatabaseResponse::CouldNotSetVersion; }
         break;
     }
 
@@ -555,7 +559,7 @@ DatabaseOpenResponse Database::Open(const std::string &path) {
         int execVal = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
         if (execVal != SQLITE_OK) {
             sqlite3_close_v2(mDatabase);
-            return DatabaseOpenResponse::CouldNotCreateTable;
+            return DatabaseResponse::CouldNotCreateTable;
         }
     }
 
@@ -566,47 +570,23 @@ DatabaseOpenResponse Database::Open(const std::string &path) {
         if (sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         	Out("Database", "Failed to prepare");
         	sqlite3_close_v2(mDatabase);
-	        return DatabaseOpenResponse::CouldNotSetKeyValues;
+	        return DatabaseResponse::CouldNotSetKeyValues;
         }
     	sqlite3_bind_text(stmt, 1, MetaKv[i][0], -1, nullptr);
     	sqlite3_bind_text(stmt, 2, MetaKv[i][1], -1, nullptr);
     	if (sqlite3_step(stmt) != SQLITE_DONE) {
     		sqlite3_close_v2(mDatabase);
     		sqlite3_finalize(stmt);
-    		return DatabaseOpenResponse::CouldNotSetKeyValues;
+    		return DatabaseResponse::CouldNotSetKeyValues;
     	}
     	sqlite3_finalize(stmt);
     }
     mInitialized = true;
-    return DatabaseOpenResponse::Success;
+    return DatabaseResponse::Success;
 }
 
 int Database::Close() {
     return mDatabase != nullptr ? sqlite3_close_v2(mDatabase) : 0;
-}
-
-int Database::SaveAs(const std::string &path) {
-    if (!mInitialized) return -1;
-    sqlite3 *newDb;
-    sqlite3_backup *backup;
-
-    FILE *file = fopen(path.c_str(), "w");
-    if (file == nullptr)
-        return -2;
-    fclose(file);
-
-    int val = sqlite3_open_v2(path.c_str(), &newDb, SQLITE_OPEN_READWRITE, nullptr);
-    if (val != SQLITE_OK)
-        goto cleanup;
-
-    backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
-    if (backup) {
-        sqlite3_backup_step(backup, -1);
-        sqlite3_backup_finish(backup);
-    }
-cleanup:
-    sqlite3_close_v2(newDb);
-    return val;
 }
 
 int Database::GetDatabaseVersion() {
@@ -626,20 +606,49 @@ int Database::SetDatabaseVersion(int version) {
     return sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
 }
 
-int Database::WriteChangesToDisk() {
-    int val = -1;
-    val = sqlite3_exec(mDatabase, "COMMIT;", nullptr, nullptr, nullptr);
-    if (val != SQLITE_OK)
-        goto fuck;
-    val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr); // and disable auto-commit mode again
+DatabaseResponse Database::SaveAs(const std::string &path) {
+	if (!mInitialized) return DatabaseResponse::NotInitialized;
+	sqlite3 *newDb;
+	sqlite3_backup *backup;
+
+	FILE *file = fopen(path.c_str(), "w");
+	if (file == nullptr)
+		return DatabaseResponse::CouldNotOpen;
+	fclose(file);
+
+	int val = sqlite3_open_v2(path.c_str(), &newDb, SQLITE_OPEN_READWRITE, nullptr);
+	if (val != SQLITE_OK)
+		goto cleanup;
+
+	backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
+	if (backup) {
+		sqlite3_backup_step(backup, -1);
+		sqlite3_backup_finish(backup);
+	}
+	cleanup:
+		sqlite3_close_v2(newDb);
+	return DatabaseResponse::Success;
+}
+
+DatabaseResponse Database::WriteChangesToDisk() {
+	if (mAutoCommit) return DatabaseResponse::DidNothing; // You don't have to save
+
+    if (sqlite3_exec(mDatabase, "COMMIT;", nullptr, nullptr, nullptr) != SQLITE_OK)
+    	return DatabaseResponse::Failed;
+	if (sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr) != SQLITE_OK) // and disable auto-commit mode again
+		return DatabaseResponse::Failed;
 fuck:
-    return val;
+    return DatabaseResponse::Success;
 }
 
 bool Database::IsDirty() {
-    // Reasoning for this is because sqlite3_get_autocommit() returns zero if there is an on-going transaction in the database.
-    // If there is an on-going transaction, shit is going on behind the scenes and you should be minding your business.
-    return mInitialized ? !sqlite3_get_autocommit(mDatabase) : false;
+	if (mAutoCommit) return false;
+    return mDirty;
+}
+
+void Database::MarkDirty() {
+	if (mAutoCommit) return; // every single thing is saved, it's never dirty
+	mDirty = true;
 }
 
 std::string Database::GetSqliteErrorMsg() {
@@ -660,8 +669,10 @@ std::filesystem::path Database::GetFilePath() {
     return mPath;
 }
 
-int Database::AddAsset(Roblox::AssetDetails *asset) {
-    if (!mInitialized) return -1;
+DatabaseResponse Database::AddAsset(Roblox::AssetDetails *asset) {
+    if (!mInitialized) return DatabaseResponse::NotInitialized;
+
+	MarkDirty();
 
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
 }
