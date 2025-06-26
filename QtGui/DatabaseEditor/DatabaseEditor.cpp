@@ -117,7 +117,7 @@ void DatabaseEditor::InitMenus() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Open Database",
-            QString::fromStdString((gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases").string()),
+            QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
             "noobWarrior Database (*.nwdb)"
         );
         if (!filePath.isEmpty()) TryToOpenFile(filePath);

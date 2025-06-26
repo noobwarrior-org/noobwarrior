@@ -4,6 +4,7 @@ project(NoobWarrior.Core)
 set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/CPM")
 include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
 
+CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:civetweb/civetweb#5864b55"
@@ -13,6 +14,17 @@ CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
 )
+
+#if (LuaJIT_ADDED)
+#    FILE(GLOB LuaJIT_sources ${LuaJIT_SOURCE_DIR}/src/*.c)
+#    list(REMOVE_ITEM LuaJIT_sources "${LuaJIT_SOURCE_DIR}/src/lua.c" "${LuaJIT_SOURCE_DIR}/src/luac.c")
+#    add_library(LuaJIT STATIC ${LuaJIT_sources})
+#
+#    target_include_directories(LuaJIT
+#            PUBLIC
+#            $<BUILD_INTERFACE:${LuaJIT_SOURCE_DIR}/src>
+#    )
+#endif()
 
 # I recommend that you just manually install these yourself using your package manager. if you're on windows then use msys2
 # CPMAddPackage("gh:sqlite/sqlite#version-3.49.0")
@@ -30,6 +42,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Database.cpp
     Source/DatabaseManager.cpp
     Source/Auth.cpp
+    Source/BaseConfig.cpp
     Source/Config.cpp
     Source/Log.cpp
     Source/Shell.cpp
@@ -37,6 +50,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/RccServiceManager.cpp
     Source/AssetRequest.cpp
     Source/HttpServer/HttpServer.cpp
+    Source/HttpServer/HttpServerConfig.cpp
     Source/HttpServer/Handler.cpp
     Source/HttpServer/WebHandler.cpp
     Source/HttpServer/Api/Roblox/AssetHandler.cpp
@@ -45,5 +59,5 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/DataModel/Tree/Instance.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl nlohmann_json civetweb-c-library inja)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_20)

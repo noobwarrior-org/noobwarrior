@@ -1,0 +1,1 @@
+print("Hello world from plugin using noobHook Lua API!")

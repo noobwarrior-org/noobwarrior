@@ -10,12 +10,18 @@
 #include <filesystem>
 #include <cassert>
 
+#include "NoobWarrior/NoobWarrior.h"
+
 #define SET_URI(uri, handler)
 #define LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler, (void*)fileName);
 
 using namespace NoobWarrior::HttpServer;
 
-HttpServer::HttpServer(const std::filesystem::path &dir) : Server(nullptr), Directory(dir) {}
+HttpServer::HttpServer(Core *core) :
+    Directory(core->GetInstallationDir() / "httpserver"),
+    Server(nullptr),
+    mConfig(new Config(core->GetUserDataDir() / "httpserver_config.lua", core->GetLuaState()))
+{}
 
 static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) {
     auto arrayOfData = (void**)userdata;
@@ -38,12 +44,15 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
 }
 
 int HttpServer::Start(uint16_t port) {
+    GetConfig()->ReadFromFile();
+    GetConfig()->Port = port;
+
     // yes i am aware civetweb has a c++ interface, i would rather just interact with the regular C interface instead.
     char portStr[5];
-    snprintf(portStr, 5, "%i", port);
+    snprintf(portStr, 5, "%i", GetConfig()->Port);
 
-    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").generic_string().c_str(), nullptr};
-    Server = mg_start(nullptr, 0, configOptions);
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").c_str(), nullptr};
+    Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);
     mAssetHandler = new AssetHandler();
@@ -60,12 +69,21 @@ int HttpServer::Start(uint16_t port) {
 
 int HttpServer::Stop() {
     Out("HttpServer", "Stopping server...");
+
+    GetConfig()->WriteToFile();
+    NOOBWARRIOR_FREE_PTR(mConfig)
+
     mg_stop(Server);
     Server = nullptr;
+
     NOOBWARRIOR_FREE_PTR(mAssetHandler)
     NOOBWARRIOR_FREE_PTR(mWebHandler)
     for (void** arr : HandlerUserdata) {
         NOOBWARRIOR_FREE_PTR(arr)
     }
     return 1;
+}
+
+NoobWarrior::HttpServer::Config *HttpServer::GetConfig() {
+    return mConfig;
 }

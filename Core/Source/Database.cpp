@@ -637,7 +637,6 @@ DatabaseResponse Database::WriteChangesToDisk() {
     	return DatabaseResponse::Failed;
 	if (sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr) != SQLITE_OK) // and disable auto-commit mode again
 		return DatabaseResponse::Failed;
-fuck:
     return DatabaseResponse::Success;
 }
 

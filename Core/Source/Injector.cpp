@@ -66,7 +66,7 @@ int Core::LaunchRoblox(Roblox::EngineType type, std::string version) {
     case Roblox::EngineType::Server: dirName = "server"; break;
     case Roblox::EngineType::Studio: dirName = "studio"; break;
     }
-    const std::filesystem::path dir = GetConfig()->GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
+    const std::filesystem::path dir = GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
     if (!std::filesystem::exists(dir)) return -3;
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {

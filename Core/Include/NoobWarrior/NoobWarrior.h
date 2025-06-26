@@ -17,6 +17,8 @@
 #include "Roblox/Api/Asset.h"
 #include "Roblox/EngineType.h"
 
+#include <lua.hpp>
+
 #include <vector>
 
 namespace NoobWarrior {
@@ -51,8 +53,17 @@ struct DownloadAssetArgs {
 class Core {
 public:
     Core(Init = {});
+    ~Core();
 
+    lua_State *GetLuaState();
     Config *GetConfig();
+
+    static std::filesystem::path GetInstallationDir();
+
+    /**
+     * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
+    */
+    std::filesystem::path GetUserDataDir();
 
     int StartHttpServer(uint16_t port = 8080);
     int StopHttpServer();
@@ -70,7 +81,8 @@ private:
     int Inject(unsigned long pid, char *dllPath);
     int LaunchInjectProcess(const std::filesystem::path &filePath);
 
-    Config                          mConfig;
+    lua_State*                      mLuaState;
+    Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;
     HttpServer::HttpServer*         mHttpServer;
     std::vector<RccServiceManager*> RccServiceManagers;
