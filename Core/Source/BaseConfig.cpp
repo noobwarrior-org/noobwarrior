@@ -53,6 +53,11 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::ReadFromFile() {
         return ConfigResponse::ReturningWrongType;
     }
 
+    lua_setglobal(mLuaState, "config");
+
+    // luaL_newmetatable(mLuaState, )
+    // lua_setmetatable(mLuaState, -2);
+
     /*for (const auto &[prop, keyAndComment] : mSerializedProperties) {
         bool failed = false;
         int stackSize = 0;
