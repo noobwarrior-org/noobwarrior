@@ -11,7 +11,7 @@
 
 using namespace NoobWarrior;
 
-Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig(filePath, luaState),
+Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig("config", filePath, luaState),
     Version(NOOBWARRIOR_CONFIG_VERSION),
     Api_AssetDownload("https://assetdelivery.roblox.com/v1/asset/?id={}"),
     Api_AssetDetails("https://economy.roblox.com/v2/assets/{}/details"),
@@ -20,13 +20,13 @@ Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : Bas
 {}
 
 void Config::OnDeserialize() {
-    DeserializeProperty<std::string>(&Api_AssetDownload, "api.asset_download");
-    DeserializeProperty<std::string>(&Api_AssetDetails, "api.asset_download");
+    // DeserializeProperty<std::string>(&Api_AssetDownload, "api.asset_download");
+    // DeserializeProperty<std::string>(&Api_AssetDetails, "api.asset_download");
 
-    DeserializeProperty<std::string>(&Binaries_WineExe, "binaries.wine_executable");
-    DeserializeProperty<Theme>(&Gui_Theme, "gui.theme");
+    // DeserializeProperty<std::string>(&Binaries_WineExe, "binaries.wine_executable");
+    // DeserializeProperty<Theme>(&Gui_Theme, "gui.theme");
 }
 
 void Config::OnSerialize() {
-    SerializeProperty<int>(NOOBWARRIOR_CONFIG_VERSION, "meta.version");
+    // SerializeProperty<int>(NOOBWARRIOR_CONFIG_VERSION, "meta.version");
 }

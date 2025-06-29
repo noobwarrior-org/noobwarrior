@@ -50,7 +50,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/RccServiceManager.cpp
     Source/AssetRequest.cpp
     Source/HttpServer/HttpServer.cpp
-    Source/HttpServer/HttpServerConfig.cpp
     Source/HttpServer/Handler.cpp
     Source/HttpServer/WebHandler.cpp
     Source/HttpServer/Api/Roblox/AssetHandler.cpp

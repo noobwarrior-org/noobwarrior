@@ -17,6 +17,13 @@
 #define NOOBWARRIOR_DATABASE_VERSION 1
 
 namespace NoobWarrior {
+    struct SearchOptions {
+        int Offset { 0 }; // Where do you want to start?
+        int Limit { 99 }; // How much do you want to go up to?
+
+        std::string Query;
+    };
+
     enum class DatabaseResponse {
         Failed,
         Success,
@@ -64,6 +71,8 @@ namespace NoobWarrior {
 
         DatabaseResponse AddAsset(Roblox::AssetDetails *asset);
         std::vector<unsigned char> RetrieveFile(int64_t id, Roblox::IdType type);
+
+        std::vector<Roblox::AssetDetails> GetAssets(SearchOptions opt);
     private:
         std::filesystem::path mPath;
         sqlite3 *mDatabase;

@@ -18,12 +18,13 @@
 using namespace NoobWarrior;
 
 Core::Core(Init init) :
-    mHttpServer(nullptr)
+    mLuaState(nullptr),
+    mHttpServer(nullptr),
+    mPortable(init.Portable)
 {
-    mLuaState = luaL_newstate();
-    luaL_openlibs(mLuaState);
+    InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
-    mConfig->ReadFromFile();
+    ConfigReturnCode = mConfig->Open();
     sqlite3_initialize();
     mg_init_library(0);
 }
@@ -31,9 +32,27 @@ Core::Core(Init init) :
 Core::~Core() {
     StopHttpServer();
     sqlite3_shutdown();
-    mConfig->WriteToFile();
+    ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
     lua_close(mLuaState);
+}
+
+static int printBS(lua_State *L) {
+    const char *str = luaL_checkstring(L, 1);
+    Out("Lua", str);
+    return 0;
+}
+
+int Core::InitLuaState() {
+    mLuaState = luaL_newstate();
+    luaL_openlibs(mLuaState);
+
+    lua_pushcfunction(mLuaState, printBS);
+    lua_setglobal(mLuaState, "print");
+
+    // lua_pushcfunction(mLuaState, printBS);
+    // lua_setglobal(mLuaState, "error");
+    return 1;
 }
 
 lua_State *Core::GetLuaState() {
@@ -56,7 +75,7 @@ std::filesystem::path Core::GetInstallationDir() {
 
 std::filesystem::path Core::GetUserDataDir() {
 #if defined(_WIN32)
-    if (!Portable) {
+    if (!mPortable) {
         // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
         // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
         // Typically it won't actually do this and it will instead move it away to a Windows.old folder

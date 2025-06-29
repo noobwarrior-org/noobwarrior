@@ -4,7 +4,6 @@
 // Started on: 3/10/2025
 // Description:
 #pragma once
-#include "HttpServerConfig.h"
 #include "Handler.h"
 #include "WebHandler.h"
 #include "Api/Roblox/AssetHandler.h"
@@ -24,12 +23,9 @@ namespace NoobWarrior::HttpServer {
         void SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
         int Start(uint16_t port);
         int Stop();
-
-        NoobWarrior::HttpServer::Config *GetConfig();
     private:
         std::filesystem::path Directory;
         mg_context *Server;
-        NoobWarrior::HttpServer::Config *mConfig;
 
         //////////////// Handlers ////////////////
         WebHandler *mWebHandler;

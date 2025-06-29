@@ -19,8 +19,7 @@ using namespace NoobWarrior::HttpServer;
 
 HttpServer::HttpServer(Core *core) :
     Directory(core->GetInstallationDir() / "httpserver"),
-    Server(nullptr),
-    mConfig(new Config(core->GetUserDataDir() / "httpserver_config.lua", core->GetLuaState()))
+    Server(nullptr)
 {}
 
 static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) {
@@ -44,14 +43,14 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
 }
 
 int HttpServer::Start(uint16_t port) {
-    GetConfig()->ReadFromFile();
-    GetConfig()->Port = port;
+    // GetConfig()->Open();
+    // GetConfig()->Port = port;
 
     // yes i am aware civetweb has a c++ interface, i would rather just interact with the regular C interface instead.
     char portStr[5];
-    snprintf(portStr, 5, "%i", GetConfig()->Port);
+    snprintf(portStr, 5, "%i", port);
 
-    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").c_str(), nullptr};
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").generic_string().c_str(), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);
@@ -70,8 +69,8 @@ int HttpServer::Start(uint16_t port) {
 int HttpServer::Stop() {
     Out("HttpServer", "Stopping server...");
 
-    GetConfig()->WriteToFile();
-    NOOBWARRIOR_FREE_PTR(mConfig)
+    // GetConfig()->Close();
+    // NOOBWARRIOR_FREE_PTR(mConfig)
 
     mg_stop(Server);
     Server = nullptr;
@@ -82,8 +81,4 @@ int HttpServer::Stop() {
         NOOBWARRIOR_FREE_PTR(arr)
     }
     return 1;
-}
-
-NoobWarrior::HttpServer::Config *HttpServer::GetConfig() {
-    return mConfig;
 }

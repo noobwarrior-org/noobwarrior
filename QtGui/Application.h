@@ -15,6 +15,7 @@ public:
     Application(int &argc, char **argv);
     int Run();
     Core *GetCore();
+    bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
 private:
     Core *mCore;
     Launcher *mLauncher;

@@ -55,6 +55,8 @@ public:
     Core(Init = {});
     ~Core();
 
+    ConfigResponse ConfigReturnCode;
+
     lua_State *GetLuaState();
     Config *GetConfig();
 
@@ -78,6 +80,7 @@ public:
 
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
 private:
+    int InitLuaState();
     int Inject(unsigned long pid, char *dllPath);
     int LaunchInjectProcess(const std::filesystem::path &filePath);
 
@@ -85,6 +88,7 @@ private:
     Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;
     HttpServer::HttpServer*         mHttpServer;
-    std::vector<RccServiceManager*> RccServiceManagers;
+    std::vector<RccServiceManager*> mRccServiceManagers;
+    bool                            mPortable;
 };
 }

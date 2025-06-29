@@ -680,5 +680,21 @@ std::vector<unsigned char> Database::RetrieveFile(int64_t id, Roblox::IdType typ
     const char *tbl = IdTypeAsString(type);
     if (*tbl == '\0' || !mInitialized) return {};
     sqlite3_stmt *stmt;
-    sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, NULL);
+    sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
+}
+
+std::vector<Roblox::AssetDetails> Database::GetAssets(SearchOptions opt) {
+	if (!mInitialized) return {};
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
+	sqlite3_bind_int(stmt, 1, opt.Limit);
+	sqlite3_bind_int(stmt, 2, opt.Offset);
+
+	sqlite3_step(stmt);
+	static_cast<int64_t>(sqlite3_column_int64(stmt, 0)); // Id
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		sqlite3_step(stmt);
+	}
+
+	sqlite3_finalize(stmt);
 }
