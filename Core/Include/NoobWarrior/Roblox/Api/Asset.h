@@ -1,8 +1,8 @@
 // === noobWarrior ===
-// File: Asset.h
+// File: Asset.h (Roblox API)
 // Started by: Hattozo
 // Started on: 3/15/2025
-// Description:
+// Description: A C-struct representation of what the Roblox API would give you when you ask it for an asset.
 #pragma once
 
 #include <NoobWarrior/Roblox/Api/User.h>

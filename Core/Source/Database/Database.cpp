@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
-#include <NoobWarrior/Database.h>
+#include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <cstdio>
@@ -74,6 +74,7 @@ static const char* TableSchema[] = {
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"PriceInRobux"	INTEGER,
+	"PriceInTickets"	INTEGER,
 	"ContentRatingTypeId"	INTEGER,
 	"MinimumMembershipLevel"	INTEGER,
 	"IsPublicDomain"	INTEGER,

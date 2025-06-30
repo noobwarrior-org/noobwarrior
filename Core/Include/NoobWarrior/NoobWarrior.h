@@ -7,10 +7,10 @@
 
 #include "Macros.h"
 #include "Log.h"
-#include "Database.h"
+#include "Database/Database.h"
 #include "Auth.h"
 #include "Config.h"
-#include "DatabaseManager.h"
+#include "Database/DatabaseManager.h"
 #include "RccServiceManager.h"
 #include "HttpServer/HttpServer.h"
 #include "Roblox/DataModel/RobloxFile.h"

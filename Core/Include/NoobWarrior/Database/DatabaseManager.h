@@ -5,7 +5,7 @@
 // Description:
 #pragma once
 
-#include <NoobWarrior/Database.h>
+#include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/Roblox/IdType.h>
 
 #include <filesystem>

@@ -5,7 +5,7 @@
 // Description: Qt window that lets users view and edit a noobWarrior database
 #pragma once
 
-#include <NoobWarrior/Database.h>
+#include <NoobWarrior/Database/Database.h>
 
 #include "OutlineWidget.h"
 
