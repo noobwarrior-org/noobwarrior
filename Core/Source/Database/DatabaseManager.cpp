@@ -5,8 +5,8 @@
 // Description: Loads in multiple databases with different priorities over one another.
 // This is used in situations where you want to have multiple databases loaded at the same time for different reasons,
 // but these databases may have conflicting IDs in them. In this case, a system to manage priority is required.
-#include <../../Include/NoobWarrior/Database/DatabaseManager.h>
-#include <../../Include/NoobWarrior/Database/Database.h>
+#include <NoobWarrior/Database/DatabaseManager.h>
+#include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/Config.h>
 
 #include <vector>
