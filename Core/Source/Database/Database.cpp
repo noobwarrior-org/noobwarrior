@@ -71,6 +71,7 @@ static const char* TableSchema[] = {
 	"Created"	INTEGER,
 	"Updated"	INTEGER,
 	"Type"	INTEGER,
+	"Icon"	INTEGER,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"PriceInRobux"	INTEGER,
@@ -79,9 +80,8 @@ static const char* TableSchema[] = {
 	"MinimumMembershipLevel"	INTEGER,
 	"IsPublicDomain"	INTEGER,
 	"IsForSale"	INTEGER,
-	"IsLimited"	INTEGER,
-	"IsLimitedUnique"	INTEGER,
 	"IsNew"	INTEGER,
+	"LimitedType"	INTEGER,
 	"Remaining"	INTEGER,
 	"Sales"	INTEGER,
     "Favorites"	INTEGER,
@@ -669,7 +669,7 @@ std::filesystem::path Database::GetFilePath() {
     return mPath;
 }
 
-DatabaseResponse Database::AddAsset(Roblox::AssetDetails *asset) {
+DatabaseResponse Database::AddAsset(Asset *asset) {
     if (!mInitialized) return DatabaseResponse::NotInitialized;
 
 	MarkDirty();
@@ -677,24 +677,56 @@ DatabaseResponse Database::AddAsset(Roblox::AssetDetails *asset) {
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
 }
 
-std::vector<unsigned char> Database::RetrieveFile(int64_t id, Roblox::IdType type) {
+std::vector<unsigned char> Database::RetrieveContent(int64_t id, Roblox::IdType type) {
     const char *tbl = IdTypeAsString(type);
     if (*tbl == '\0' || !mInitialized) return {};
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
 }
 
-std::vector<Roblox::AssetDetails> Database::GetAssets(SearchOptions opt) {
+std::vector<Asset> Database::GetAssets(const SearchOptions &opt) {
 	if (!mInitialized) return {};
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
 	sqlite3_bind_int(stmt, 1, opt.Limit);
 	sqlite3_bind_int(stmt, 2, opt.Offset);
 
-	sqlite3_step(stmt);
-	static_cast<int64_t>(sqlite3_column_int64(stmt, 0)); // Id
 	while (sqlite3_step(stmt) == SQLITE_ROW) {
-		sqlite3_step(stmt);
+		Asset asset;
+		asset.Id = sqlite3_column_int(stmt, 0);
+		asset.Version = sqlite3_column_int(stmt, 1);
+		asset.FirstRecorded = sqlite3_column_int(stmt, 2);
+		asset.LastRecorded = sqlite3_column_int(stmt, 3);
+		asset.Name = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+		asset.Description = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+		asset.Created = sqlite3_column_int(stmt, 6);
+		asset.Updated = sqlite3_column_int(stmt, 7);
+		asset.Type = static_cast<Roblox::AssetType>(sqlite3_column_int(stmt, 8));
+		asset.Icon = sqlite3_column_int(stmt, 9);
+		{
+			// The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
+			asset.CreatorType = sqlite3_column_type(stmt, 10) != SQLITE_NULL
+									? Roblox::CreatorType::User
+									: Roblox::CreatorType::Group;
+			asset.CreatorId = sqlite3_column_type(stmt, 10) != SQLITE_NULL
+								  ? sqlite3_column_int(stmt, 10)
+								  : sqlite3_column_int(stmt, 11);
+		}
+		asset.PriceInRobux = sqlite3_column_int(stmt, 12);
+		asset.PriceInTickets = sqlite3_column_int(stmt, 13);
+		asset.ContentRatingTypeId = sqlite3_column_int(stmt, 14);
+		asset.MinimumMembershipLevel = sqlite3_column_int(stmt, 15);
+		asset.IsPublicDomain = sqlite3_column_int(stmt, 16);
+		asset.IsForSale = sqlite3_column_int(stmt, 17);
+		asset.IsNew = sqlite3_column_int(stmt, 18);
+		asset.LimitedType = static_cast<Roblox::LimitedType>(sqlite3_column_int(stmt, 19));
+		asset.Remaining = sqlite3_column_int(stmt, 20);
+
+		// Historical data
+		asset.Sales = sqlite3_column_int(stmt, 21);
+		asset.Favorites = sqlite3_column_int(stmt, 22);
+		asset.Likes = sqlite3_column_int(stmt, 23);
+		asset.Dislikes = sqlite3_column_int(stmt, 24);
 	}
 
 	sqlite3_finalize(stmt);

@@ -11,7 +11,8 @@
 #include <string>
 
 namespace NoobWarrior::Roblox {
-    enum class AssetType { Image = 1, TShirt = 2, Audio = 3, Mesh = 4, Lua = 5,
+    // Note: "None" is a fallback if the asset does not have a type. It's not a real value in the Roblox API
+    enum class AssetType { None = 0, Image = 1, TShirt = 2, Audio = 3, Mesh = 4, Lua = 5,
         Hat = 8, Place = 9, Model = 10, Shirt = 11, Pants = 12,
         Decal = 13, Head = 17, Face = 18, Gear = 19, Badge = 21,
         Animation = 24, Torso = 27, RightArm = 28, LeftArm = 29,
@@ -33,6 +34,12 @@ namespace NoobWarrior::Roblox {
         None,
         UserProduct,
         CollectibleItem
+    };
+
+    enum class LimitedType {
+        None,
+        Limited,
+        LimitedUnique
     };
     
     struct AssetDetails {
