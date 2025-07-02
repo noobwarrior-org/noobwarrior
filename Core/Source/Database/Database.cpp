@@ -677,15 +677,43 @@ DatabaseResponse Database::AddAsset(Asset *asset) {
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
 }
 
-std::vector<unsigned char> Database::RetrieveContent(int64_t id, Roblox::IdType type) {
+std::vector<unsigned char> Database::RetrieveContentData(int64_t id, Roblox::IdType type) {
     const char *tbl = IdTypeAsString(type);
     if (*tbl == '\0' || !mInitialized) return {};
     sqlite3_stmt *stmt;
-    sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDatabase, "SELECT * FROM ? WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
+	sqlite3_bind_text(stmt, 1, tbl, -1, nullptr);
+	sqlite3_bind_int64(stmt, 2, id);
+
+	if (sqlite3_step(stmt) == SQLITE_DONE) {
+		for (int i = 0; i < sqlite3_column_count(stmt); i++) {
+			if (strncmp(sqlite3_column_name(stmt, i), "Data", 4) == 0) {
+				std::vector<unsigned char> data;
+				unsigned char *buf = (unsigned char*)sqlite3_column_blob(stmt, i);
+				data.assign(buf, buf + sqlite3_column_bytes(stmt, i));
+				return data;
+			}
+		}
+	}
+
+	return {};
 }
 
-std::vector<Asset> Database::GetAssets(const SearchOptions &opt) {
+Asset Database::GetAsset(int64_t id) {
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+
+	}
+}
+
+std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
 	if (!mInitialized) return {};
+
+	std::vector<Asset> assets;
+
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
 	sqlite3_bind_int(stmt, 1, opt.Limit);
@@ -727,7 +755,10 @@ std::vector<Asset> Database::GetAssets(const SearchOptions &opt) {
 		asset.Favorites = sqlite3_column_int(stmt, 22);
 		asset.Likes = sqlite3_column_int(stmt, 23);
 		asset.Dislikes = sqlite3_column_int(stmt, 24);
+
+		assets.push_back(asset);
 	}
 
 	sqlite3_finalize(stmt);
+	return assets;
 }

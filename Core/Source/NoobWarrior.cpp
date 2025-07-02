@@ -63,6 +63,10 @@ Config *Core::GetConfig() {
     return mConfig;
 }
 
+DatabaseManager *Core::GetDatabaseManager() {
+    return &mDatabaseManager;
+}
+
 std::filesystem::path Core::GetInstallationDir() {
 #if defined(_WIN32)
     WCHAR buf[MAX_PATH];

@@ -18,7 +18,8 @@
 using namespace NoobWarrior::HttpServer;
 
 HttpServer::HttpServer(Core *core) :
-    Directory(core->GetInstallationDir() / "httpserver"),
+    mCore(core),
+    Directory(Core::GetInstallationDir() / "httpserver"),
     Server(nullptr)
 {}
 
@@ -54,7 +55,7 @@ int HttpServer::Start(uint16_t port) {
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);
-    mAssetHandler = new AssetHandler();
+    mAssetHandler = new AssetHandler(this, mCore->GetDatabaseManager());
 
     SetRequestHandler("/asset", mAssetHandler);
     SetRequestHandler("/v1/asset", mAssetHandler);

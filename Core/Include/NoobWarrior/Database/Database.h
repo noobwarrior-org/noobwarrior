@@ -71,9 +71,11 @@ namespace NoobWarrior {
         std::filesystem::path GetFilePath();
 
         DatabaseResponse AddAsset(Asset *asset);
-        std::vector<unsigned char> RetrieveContent(int64_t id, Roblox::IdType type);
+        std::vector<unsigned char> RetrieveContentData(int64_t id, Roblox::IdType type);
 
-        std::vector<Asset> GetAssets(const SearchOptions &opt);
+        Asset GetAsset(int64_t id);
+
+        std::vector<Asset> SearchAssets(const SearchOptions &opt);
     private:
         std::filesystem::path mPath;
         sqlite3 *mDatabase;

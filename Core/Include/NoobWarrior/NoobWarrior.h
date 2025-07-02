@@ -59,6 +59,7 @@ public:
 
     lua_State *GetLuaState();
     Config *GetConfig();
+    DatabaseManager *GetDatabaseManager();
 
     static std::filesystem::path GetInstallationDir();
 

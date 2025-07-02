@@ -24,6 +24,7 @@ namespace NoobWarrior::HttpServer {
         int Start(uint16_t port);
         int Stop();
     private:
+        Core *mCore;
         std::filesystem::path Directory;
         mg_context *Server;
 
