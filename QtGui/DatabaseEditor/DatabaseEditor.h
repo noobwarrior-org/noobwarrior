@@ -7,7 +7,7 @@
 
 #include <NoobWarrior/Database/Database.h>
 
-#include "OutlineWidget.h"
+#include "ContentBrowserWidget.h"
 
 #include <QMainWindow>
 #include <QMenu>
@@ -24,6 +24,8 @@ namespace NoobWarrior {
 
         void TryToCreateFile(const QString &path);
         void TryToOpenFile(const QString &path = ":memory:");
+
+        Database *GetCurrentlyEditingDatabase();
     protected:
         void closeEvent(QCloseEvent *event) override;
     private:
@@ -33,6 +35,7 @@ namespace NoobWarrior {
         QMenu *mFileMenu;
         QToolBar *mFileToolBar;
         QToolBar *mViewToolBar;
+        QToolBar *mInsertToolBar;
         QTabWidget *mTabWidget;
 
         Database *mCurrentDatabase;

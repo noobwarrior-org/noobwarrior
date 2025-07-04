@@ -6,7 +6,7 @@
 #pragma once
 #include "Asset.h"
 #include "../Roblox/Api/Asset.h"
-#include "../Roblox/IdType.h"
+#include "IdType.h"
 
 #include <sqlite3.h>
 
@@ -71,7 +71,7 @@ namespace NoobWarrior {
         std::filesystem::path GetFilePath();
 
         DatabaseResponse AddAsset(Asset *asset);
-        std::vector<unsigned char> RetrieveContentData(int64_t id, Roblox::IdType type);
+        std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);
 
         Asset GetAsset(int64_t id);
 

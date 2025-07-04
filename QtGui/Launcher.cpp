@@ -37,14 +37,14 @@
 using namespace NoobWarrior;
 
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
-static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, Settings) }
+static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
     "Tools",
-    "Offline Roblox",
+    "Roblox",
     "Application"
 };
 

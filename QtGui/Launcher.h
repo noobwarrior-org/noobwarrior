@@ -7,7 +7,7 @@
 
 #include "DatabaseEditor/DatabaseEditor.h"
 #include "AssetDownloader.h"
-#include "Settings.h"
+#include "Settings/SettingsDialog.h"
 #include "Dialog/AboutDialog.h"
 
 #include <QDialog>
@@ -24,7 +24,7 @@ namespace NoobWarrior {
         Launcher(QWidget *parent = nullptr);
         ~Launcher();
         AboutDialog *mAboutDialog;
-        Settings *mSettings;
+        SettingsDialog *mSettings;
         DatabaseEditor *mDatabaseEditor;
         AssetDownloader *mAssetDownload;
     private:

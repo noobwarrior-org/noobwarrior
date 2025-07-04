@@ -12,16 +12,26 @@ set(SOURCES
     Application.h
     Launcher.cpp
     Launcher.h
-    Settings.cpp
-    Settings.h
+    Settings/SettingsDialog.cpp
+    Settings/SettingsDialog.h
+    Settings/SettingsPage.cpp
+    Settings/SettingsPage.h
+    Settings/DatabasePage.cpp
+    Settings/DatabasePage.h
     AssetDownloader.cpp
     AssetDownloader.h
     Dialog/AboutDialog.cpp
     Dialog/AboutDialog.h
     DatabaseEditor/DatabaseEditor.cpp
     DatabaseEditor/DatabaseEditor.h
-    DatabaseEditor/OutlineWidget.cpp
-    DatabaseEditor/OutlineWidget.h
+    DatabaseEditor/ContentEditorDialog.cpp
+    DatabaseEditor/ContentEditorDialog.h
+    DatabaseEditor/ContentBrowserWidget.cpp
+    DatabaseEditor/ContentBrowserWidget.h
+    DatabaseEditor/OrganizerWidget.cpp
+    DatabaseEditor/OrganizerWidget.h
+    DatabaseEditor/PreviewWidget.cpp
+    DatabaseEditor/PreviewWidget.h
     Ui/Launcher.ui
     Resources/resources.qrc
 )

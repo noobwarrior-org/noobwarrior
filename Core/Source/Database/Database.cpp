@@ -6,6 +6,8 @@
 #include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <nlohmann/json.hpp>
+
 #include <cstdio>
 #include <cstring>
 
@@ -72,6 +74,7 @@ static const char* TableSchema[] = {
 	"Updated"	INTEGER,
 	"Type"	INTEGER,
 	"Icon"	INTEGER,
+	"Thumbnails"	TEXT,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"PriceInRobux"	INTEGER,
@@ -228,10 +231,9 @@ static const char* TableSchema[] = {
 	"Description"	INTEGER,
 	"Created"	INTEGER,
 	"Updated"	INTEGER,
+	"StartPlaceId"	INTEGER,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
-	"Icon"	INTEGER,
-	"Thumbnails"	TEXT,
 	"Active"	INTEGER,
 	"AccessType"	INTEGER,
 	"PaymentType"	INTEGER,
@@ -677,7 +679,7 @@ DatabaseResponse Database::AddAsset(Asset *asset) {
     // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
 }
 
-std::vector<unsigned char> Database::RetrieveContentData(int64_t id, Roblox::IdType type) {
+std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type) {
     const char *tbl = IdTypeAsString(type);
     if (*tbl == '\0' || !mInitialized) return {};
     sqlite3_stmt *stmt;
@@ -731,30 +733,31 @@ std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
 		asset.Updated = sqlite3_column_int(stmt, 7);
 		asset.Type = static_cast<Roblox::AssetType>(sqlite3_column_int(stmt, 8));
 		asset.Icon = sqlite3_column_int(stmt, 9);
+		try { asset.Thumbnails = nlohmann::json::parse(sqlite3_column_text(stmt, 10)); } catch (nlohmann::detail::parse_error &e) { asset.Thumbnails = "[]"; }
 		{
 			// The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
-			asset.CreatorType = sqlite3_column_type(stmt, 10) != SQLITE_NULL
+			asset.CreatorType = sqlite3_column_type(stmt, 11) != SQLITE_NULL
 									? Roblox::CreatorType::User
 									: Roblox::CreatorType::Group;
-			asset.CreatorId = sqlite3_column_type(stmt, 10) != SQLITE_NULL
-								  ? sqlite3_column_int(stmt, 10)
-								  : sqlite3_column_int(stmt, 11);
+			asset.CreatorId = sqlite3_column_type(stmt, 11) != SQLITE_NULL
+								  ? sqlite3_column_int(stmt, 11)
+								  : sqlite3_column_int(stmt, 12);
 		}
-		asset.PriceInRobux = sqlite3_column_int(stmt, 12);
-		asset.PriceInTickets = sqlite3_column_int(stmt, 13);
-		asset.ContentRatingTypeId = sqlite3_column_int(stmt, 14);
-		asset.MinimumMembershipLevel = sqlite3_column_int(stmt, 15);
-		asset.IsPublicDomain = sqlite3_column_int(stmt, 16);
-		asset.IsForSale = sqlite3_column_int(stmt, 17);
-		asset.IsNew = sqlite3_column_int(stmt, 18);
-		asset.LimitedType = static_cast<Roblox::LimitedType>(sqlite3_column_int(stmt, 19));
-		asset.Remaining = sqlite3_column_int(stmt, 20);
+		asset.PriceInRobux = sqlite3_column_int(stmt, 13);
+		asset.PriceInTickets = sqlite3_column_int(stmt, 14);
+		asset.ContentRatingTypeId = sqlite3_column_int(stmt, 15);
+		asset.MinimumMembershipLevel = sqlite3_column_int(stmt, 16);
+		asset.IsPublicDomain = sqlite3_column_int(stmt, 17);
+		asset.IsForSale = sqlite3_column_int(stmt, 18);
+		asset.IsNew = sqlite3_column_int(stmt, 19);
+		asset.LimitedType = static_cast<Roblox::LimitedType>(sqlite3_column_int(stmt, 20));
+		asset.Remaining = sqlite3_column_int(stmt, 21);
 
 		// Historical data
-		asset.Sales = sqlite3_column_int(stmt, 21);
-		asset.Favorites = sqlite3_column_int(stmt, 22);
-		asset.Likes = sqlite3_column_int(stmt, 23);
-		asset.Dislikes = sqlite3_column_int(stmt, 24);
+		asset.Sales = sqlite3_column_int(stmt, 22);
+		asset.Favorites = sqlite3_column_int(stmt, 23);
+		asset.Likes = sqlite3_column_int(stmt, 24);
+		asset.Dislikes = sqlite3_column_int(stmt, 25);
 
 		assets.push_back(asset);
 	}

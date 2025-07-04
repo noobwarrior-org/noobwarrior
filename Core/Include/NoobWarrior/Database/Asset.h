@@ -7,6 +7,8 @@
 #include "../Roblox/Api/Asset.h"
 #include "../Roblox/Api/User.h"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
 #include <string>
 
@@ -22,6 +24,7 @@ struct Asset {
     int64_t             Updated;
     Roblox::AssetType   Type;
     int64_t             Icon;
+    nlohmann::json      Thumbnails;
     Roblox::CreatorType CreatorType;
     int64_t             CreatorId;
     int                 PriceInRobux;

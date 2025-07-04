@@ -6,7 +6,7 @@
 #pragma once
 
 #include <NoobWarrior/Database/Database.h>
-#include <NoobWarrior/Roblox/IdType.h>
+#include "IdType.h"
 
 #include <filesystem>
 #include <vector>
@@ -17,7 +17,7 @@ public:
     DatabaseResponse Mount(const std::filesystem::path &filePath, unsigned int priority);
     void Mount(Database *database, unsigned int priority);
     int Unmount(Database *database);
-    std::vector<unsigned char> RetrieveContentData(int64_t id, Roblox::IdType type);
+    std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);
 private:
     std::vector<Database*> MountedDatabases;
 };

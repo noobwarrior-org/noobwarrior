@@ -68,4 +68,69 @@ namespace NoobWarrior::Roblox {
         bool                IsLimitedUnique         {};
         MembershipType      MinimumMembershipLevel  {};
     };
+
+    inline const char *AssetTypeAsTranslatableString(AssetType type) {
+        switch (type) {
+        case AssetType::Image: return "Image";
+        case AssetType::TShirt: return "TShirt";
+        case AssetType::Audio: return "Audio";
+        case AssetType::Mesh: return "Mesh";
+        case AssetType::Lua: return "Lua";
+        case AssetType::Hat: return "Hat";
+        case AssetType::Place: return "Place";
+        case AssetType::Model: return "Model";
+        case AssetType::Shirt: return "Shirt";
+        case AssetType::Pants: return "Pants";
+        case AssetType::Decal: return "Decal";
+        case AssetType::Head: return "Head";
+        case AssetType::Face: return "Face";
+        case AssetType::Gear: return "Gear";
+        case AssetType::Badge: return "Badge";
+        case AssetType::Animation: return "Animation";
+        case AssetType::Torso: return "Torso";
+        case AssetType::RightArm: return "RightArm";
+        case AssetType::LeftArm: return "LeftArm";
+        case AssetType::LeftLeg: return "LeftLeg";
+        case AssetType::RightLeg: return "RightLeg";
+        case AssetType::Package: return "Package";
+        case AssetType::Gamepass: return "Gamepass";
+        case AssetType::Plugin: return "Plugin";
+        case AssetType::MeshPart: return "MeshPart";
+        case AssetType::HairAccessory: return "Hair Accessory";
+        case AssetType::FaceAccessory: return "Face Accessory";
+        case AssetType::NeckAccessory: return "Neck Accessory";
+        case AssetType::ShoulderAccessory: return "Shoulder Accessory";
+        case AssetType::FrontAccessory: return "Front Accessory";
+        case AssetType::BackAccessory: return "Back Accessory";
+        case AssetType::WaistAccessory: return "Waist Accessory";
+        case AssetType::ClimbAnimation: return "Climb Animation";
+        case AssetType::DeathAnimation: return "Death Animation";
+        case AssetType::FallAnimation: return "Fall Animation";
+        case AssetType::IdleAnimation: return "Idle Animation";
+        case AssetType::JumpAnimation: return "Jump Animation";
+        case AssetType::RunAnimation: return "Run Animation";
+        case AssetType::SwimAnimation: return "Swim Animation";
+        case AssetType::WalkAnimation: return "Walk Animation";
+        case AssetType::PoseAnimation: return "Pose Animation";
+        case AssetType::EarAccessory: return "Ear Accessory";
+        case AssetType::EyeAccessory: return "Eye Accessory";
+        case AssetType::EmoteAnimation: return "Emote Animation";
+        case AssetType::Video: return "Video";
+        case AssetType::TShirtAccessory: return "T-Shirt Accessory";
+        case AssetType::ShirtAccessory: return "Shirt Accessory";
+        case AssetType::PantsAccessory: return "Pants Accessory";
+        case AssetType::JacketAccessory: return "Jacket Accessory";
+        case AssetType::SweaterAccessory: return "Sweater Accessory";
+        case AssetType::ShortsAccessory: return "Shorts Accessory";
+        case AssetType::LeftShoeAccessory: return "Left Shoe Accessory";
+        case AssetType::RightShoeAccessory: return "Right Shoe Accessory";
+        case AssetType::DressSkirtAccessory: return "Dress Skirt Accessory";
+        case AssetType::FontFamily: return "Font Family";
+        case AssetType::EyebrowAccessory: return "Eyebrow Accessory";
+        case AssetType::EyelashAccessory: return "Eyelash Accessory";
+        case AssetType::MoodAnimation: return "Mood Animation";
+        case AssetType::DynamicHead: return "Dynamic Head";
+        default: return "None";
+        }
+    }
 }

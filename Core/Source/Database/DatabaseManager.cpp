@@ -27,7 +27,7 @@ void DatabaseManager::Mount(Database *database, unsigned int priority) {
     // gConfig.MountedArchives.push_back(database->GetFilePath());
 }
 
-std::vector<unsigned char> DatabaseManager::RetrieveContentData(int64_t id, Roblox::IdType type) {
+std::vector<unsigned char> DatabaseManager::RetrieveContentData(int64_t id, IdType type) {
     for (int i = 0; i < MountedDatabases.size(); i++) {
         Database *database = MountedDatabases[i];
         auto data = database->RetrieveContentData(id, type);

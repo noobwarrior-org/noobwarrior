@@ -15,7 +15,7 @@ AssetHandler::AssetHandler(HttpServer *srv, DatabaseManager *dbm) :
 {}
 
 int AssetHandler::OnRequest(mg_connection *conn, void *userdata) {
-    std::vector<unsigned char> data = mDatabaseManager->RetrieveContentData(1, Roblox::IdType::Asset);
+    std::vector<unsigned char> data = mDatabaseManager->RetrieveContentData(1, IdType::Asset);
 
     if (data.empty()) {
         mg_send_http_error(conn, 404, "Cannot read asset");

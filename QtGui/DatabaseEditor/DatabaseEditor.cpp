@@ -4,7 +4,8 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "DatabaseEditor.h"
-#include "OutlineWidget.h"
+#include "ContentEditorDialog.h"
+#include "ContentBrowserWidget.h"
 #include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
@@ -81,6 +82,10 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
     }
 }
 
+Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
+    return mCurrentDatabase;
+}
+
 void DatabaseEditor::InitMenus() {
     QAction *newAct = new QAction("New Database");
     QAction *openAct = new QAction("Open Database");
@@ -128,26 +133,52 @@ void DatabaseEditor::InitWidgets() {
     mTabWidget = new QTabWidget(this);
     setCentralWidget(mTabWidget);
 
+    auto *hi = new QLabel("Welcome!\nUse the \"Content Browser\" to look at all the available contents of this database\nUse the \"Organizer\" to organize this content in a way that you similarly would in your file manager");
+    hi->setFont(QFont("Source Sans Pro", 20));
+    hi->setAlignment(Qt::AlignCenter);
+
+    mTabWidget->addTab(hi, "Welcome");
+
     mFileToolBar = new QToolBar(this);
     mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mFileToolBar->setWindowIconText("File");
-    auto fileNewButton = new QAction(QIcon(":/images/explorer.png"), "New Database", mFileToolBar);
-    fileNewButton->setProperty("textWrapEnabled", true);
+    auto fileNewButton = new QAction(QIcon(":/images/silk/database_add.png"), "New\nDatabase", mFileToolBar);
     mFileToolBar->addAction(fileNewButton);
 
     mViewToolBar = new QToolBar(this);
     mViewToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mViewToolBar->setWindowIconText("View");
-    auto viewOutlineButton = new QAction(QIcon(":/images/explorer.png"), "Outline", mViewToolBar);
-    viewOutlineButton->setProperty("textWrapEnabled", true);
+
+    auto viewOutlineButton = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content\nBrowser", mViewToolBar);
     mViewToolBar->addAction(viewOutlineButton);
+
+    auto viewOrganizerButton = new QAction(QIcon(":/images/silk/folder_page.png"), "Organizer\n", mViewToolBar);
+    mViewToolBar->addAction(viewOrganizerButton);
+
+    mInsertToolBar = new QToolBar(this);
+    mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    mInsertToolBar->setWindowIconText("Insert");
+
+    for (int i = 0; i < 7; i++) {
+        auto idType = static_cast<IdType>(i);
+        std::string idTypeStr = IdTypeAsString(idType);
+
+        auto insertAssetButton = new QAction(QIcon(GetIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
+        insertAssetButton->setDisabled(true); // Disable until we have a loaded database.
+        mInsertToolBar->addAction(insertAssetButton);
+
+        connect(insertAssetButton, &QAction::triggered, [&, idType]() {
+            ContentEditorDialog dialog(idType, this);
+            dialog.exec();
+        });
+    }
 
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mFileToolBar);
     // addToolBarBreak();
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mViewToolBar);
+    addToolBar(Qt::ToolBarArea::TopToolBarArea, mInsertToolBar);
 
-    auto outlineWidget = new OutlineWidget();
-    outlineWidget->setParent(this);
+    auto outlineWidget = new ContentBrowserWidget(this);
     outlineWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, outlineWidget);
 }
