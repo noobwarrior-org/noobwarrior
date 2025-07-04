@@ -71,7 +71,7 @@ close:
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         mContentBrowser->Refresh();
 
-        for (auto button : findChildren<QAction*>("CreateContentButton"))
+        for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
             button->setDisabled(true);
 
         setWindowTitle("Database Editor - noobWarrior");
@@ -109,7 +109,7 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
 
     mContentBrowser->Refresh();
 
-    for (auto button : findChildren<QAction*>("CreateContentButton"))
+    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(false);
 }
 
@@ -193,12 +193,15 @@ void DatabaseEditor::InitWidgets() {
     });
 
     auto fileSave = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase", mFileToolBar);
+    fileSave->setObjectName("RequiresDatabaseButton");
     mFileToolBar->addAction(fileSave);
 
     auto fileSaveAs = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase As...", mFileToolBar);
+    fileSaveAs->setObjectName("RequiresDatabaseButton");
     mFileToolBar->addAction(fileSaveAs);
 
     auto fileClose = new QAction(QIcon(":/images/silk/database_delete.png"), "Close Current\nDatabase", mFileToolBar);
+    fileClose->setObjectName("RequiresDatabaseButton");
     mFileToolBar->addAction(fileClose);
     connect(fileClose, &QAction::triggered, [&]() {
         TryToCloseCurrentDatabase();
@@ -209,9 +212,11 @@ void DatabaseEditor::InitWidgets() {
     mViewToolBar->setWindowIconText("View");
 
     auto viewOutlineButton = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content\nBrowser", mViewToolBar);
+    viewOutlineButton->setObjectName("RequiresDatabaseButton");
     mViewToolBar->addAction(viewOutlineButton);
 
     auto viewOrganizerButton = new QAction(QIcon(":/images/silk/folder_page.png"), "Organizer\n", mViewToolBar);
+    viewOrganizerButton->setObjectName("RequiresDatabaseButton");
     mViewToolBar->addAction(viewOrganizerButton);
 
     mInsertToolBar = new QToolBar(this);
@@ -223,8 +228,7 @@ void DatabaseEditor::InitWidgets() {
         QString idTypeStr = IdTypeAsString(idType);
 
         auto insertAssetButton = new QAction(QIcon(GetIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
-        insertAssetButton->setDisabled(true); // Disable until we have a loaded database.
-        insertAssetButton->setObjectName("CreateContentButton");
+        insertAssetButton->setObjectName("RequiresDatabaseButton");
         mInsertToolBar->addAction(insertAssetButton);
 
         connect(insertAssetButton, &QAction::triggered, [&, idType]() {
@@ -232,6 +236,9 @@ void DatabaseEditor::InitWidgets() {
             dialog.exec();
         });
     }
+
+    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
+        button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now
 
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mFileToolBar);
     // addToolBarBreak();
