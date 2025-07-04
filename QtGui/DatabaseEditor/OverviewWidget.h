@@ -4,6 +4,7 @@
 // Started on: 7/4/2025
 // Description:
 #pragma once
+#include <QVBoxLayout>
 #include <NoobWarrior/Database/Database.h>
 #include <QWidget>
 
@@ -15,5 +16,6 @@ public:
 private:
     void InitWidgets();
     Database *mDatabase;
+    QVBoxLayout *MainLayout;
 };
 }

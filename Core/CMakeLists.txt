@@ -56,6 +56,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/DataModel/RobloxFile.cpp
     Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/DataModel/Tree/Instance.cpp
+    Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja)

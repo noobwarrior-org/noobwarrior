@@ -101,8 +101,9 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
         QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)res))));
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
+        return;
     }
-    setWindowTitle(QString("%1 - Database Editor - noobWarrior").arg(path.compare(":memory:") == 0 ? "Unsaved Database" : path));
+    setWindowTitle(QString("%1 - Database Editor - noobWarrior").arg(QString::fromStdString(mCurrentDatabase->GetTitle())));
 
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
     mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, "Overview"));

@@ -11,9 +11,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include "../base64.h"
+
 static const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
-    {"Title", "Database"},
+    {"Title", "Untitled"},
     {"Description", "No description available."},
     {"Author", "N/A"},
     {"Version", "v1.0"}, // Not to be confused with the version of the database format, this is meant for the author to set.
@@ -41,9 +43,9 @@ static const char* TableNames[] = {
 static const char* TableSchema[] = {
     // Meta (0)
     R"(
-    "Name"	TEXT NOT NULL UNIQUE,
+    "Key"	TEXT NOT NULL UNIQUE,
 	"Value"	TEXT,
-	PRIMARY KEY("Name")
+	PRIMARY KEY("Key")
     )",
     /**
      * Notes
@@ -568,7 +570,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // and initialize some keys
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
-        std::string stmtStr = "INSERT INTO Meta('Name', 'Value') VALUES(?, ?)";
+        std::string stmtStr = "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)";
     	sqlite3_stmt *stmt;
         if (sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         	Out("Database", "Failed to prepare");
@@ -657,8 +659,28 @@ std::string Database::GetSqliteErrorMsg() {
     return sqlite3_errmsg(mDatabase);
 }
 
+std::string Database::GetMetaKeyValue(const std::string &key) {
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT Value FROM Meta WHERE Key = ?;", -1, &stmt, nullptr);
+	sqlite3_bind_text(stmt, 1, key.c_str(), -1, nullptr);
+
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
+		auto str = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+		sqlite3_finalize(stmt);
+		return str;
+	}
+
+	sqlite3_finalize(stmt);
+	return "";
+}
+
 std::string Database::GetTitle() {
-    return "Untitled";
+	auto str = GetMetaKeyValue("Title");
+    return !str.empty() ? str : "Untitled";
+}
+
+std::vector<unsigned char> Database::GetIcon() {
+	return base64_decode(GetMetaKeyValue("Icon"));
 }
 
 std::string Database::GetFileName() {
@@ -687,16 +709,19 @@ std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type
 	sqlite3_bind_text(stmt, 1, tbl, -1, nullptr);
 	sqlite3_bind_int64(stmt, 2, id);
 
-	if (sqlite3_step(stmt) == SQLITE_DONE) {
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
 		for (int i = 0; i < sqlite3_column_count(stmt); i++) {
 			if (strncmp(sqlite3_column_name(stmt, i), "Data", 4) == 0) {
 				std::vector<unsigned char> data;
 				unsigned char *buf = (unsigned char*)sqlite3_column_blob(stmt, i);
 				data.assign(buf, buf + sqlite3_column_bytes(stmt, i));
+				sqlite3_finalize(stmt);
 				return data;
 			}
 		}
 	}
+
+	sqlite3_finalize(stmt);
 
 	return {};
 }

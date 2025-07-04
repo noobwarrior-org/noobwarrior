@@ -60,7 +60,9 @@ namespace NoobWarrior {
         void MarkDirty();
 
         std::string GetSqliteErrorMsg();
+        std::string GetMetaKeyValue(const std::string &key);
         std::string GetTitle();
+        std::vector<unsigned char> GetIcon();
         /**
          * @return Returns the file name of the database's currently loaded file.
            If a file is currently not loaded or if the database is stored in memory only it returns a blank string.
