@@ -24,6 +24,8 @@ set(SOURCES
     Dialog/AboutDialog.h
     DatabaseEditor/DatabaseEditor.cpp
     DatabaseEditor/DatabaseEditor.h
+    DatabaseEditor/OverviewWidget.cpp
+    DatabaseEditor/OverviewWidget.h
     DatabaseEditor/ContentEditorDialog.cpp
     DatabaseEditor/ContentEditorDialog.h
     DatabaseEditor/ContentBrowserWidget.cpp

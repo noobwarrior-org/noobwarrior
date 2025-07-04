@@ -8,6 +8,8 @@
 #include <QDockWidget>
 #include <QLineEdit>
 #include <QVBoxLayout>
+#include <QListWidget>
+#include <QLabel>
 
 namespace NoobWarrior {
     class ContentBrowserWidget : public QDockWidget {
@@ -25,5 +27,7 @@ namespace NoobWarrior {
         QWidget *MainWidget;
         QVBoxLayout *MainLayout;
         QLineEdit *SearchBox;
+        QListWidget *List;
+        QLabel *NoDatabaseFoundLabel;
     };
 }

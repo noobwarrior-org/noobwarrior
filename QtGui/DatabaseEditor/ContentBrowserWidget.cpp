@@ -17,7 +17,8 @@ using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
     MainWidget(nullptr),
-    MainLayout(nullptr)
+    MainLayout(nullptr),
+    List(nullptr)
 {
     setWindowTitle("Content Browser");
     InitWidgets();
@@ -29,19 +30,19 @@ void ContentBrowserWidget::Refresh() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
     Database *db = editor->GetCurrentlyEditingDatabase();
 
-    if (db == nullptr) {
-        auto *label = new QLabel("No database loaded, there is no content to show", MainWidget);
-        MainLayout->addWidget(label);
+    NoDatabaseFoundLabel->setVisible(db == nullptr);
+    List->setVisible(db != nullptr);
+    if (db == nullptr)
         return;
-    }
 
     SearchOptions opt;
     opt.Offset = 0;
     opt.Limit = 100;
 
     for (auto asset : db->SearchAssets(opt)) {
-        auto *label = new QLabel(QString::fromStdString(asset.Name), MainWidget);
-        MainLayout->addWidget(label);
+        auto *cool = new QListWidgetItem(List);
+        cool->setText(QString::fromStdString(asset.Name));
+        cool->setIcon(QIcon(":/images/silk/page.png"));
     }
 }
 
@@ -49,9 +50,14 @@ void ContentBrowserWidget::InitWidgets() {
     MainWidget = new QWidget(this);
     setWidget(MainWidget);
 
+    MainLayout = new QVBoxLayout(MainWidget);
+
+    NoDatabaseFoundLabel = new QLabel("No database loaded, there is no content to show", MainWidget);
+    List = new QListWidget(MainWidget);
     SearchBox = new QLineEdit(MainWidget);
 
-    MainLayout = new QVBoxLayout(MainWidget);
+    MainLayout->addWidget(NoDatabaseFoundLabel);
+    MainLayout->addWidget(List);
     MainLayout->addWidget(SearchBox);
 
     SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...

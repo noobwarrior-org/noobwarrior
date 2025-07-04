@@ -28,7 +28,11 @@
 
 using namespace NoobWarrior;
 
-DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent), mCurrentDatabase(nullptr) {
+DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
+    mCurrentDatabase(nullptr),
+    mOverviewWidget(nullptr),
+    mContentBrowser(nullptr)
+{
     setWindowTitle("Database Editor - noobWarrior");
     setWindowState(Qt::WindowMaximized);
     InitMenus();
@@ -43,19 +47,36 @@ DatabaseEditor::~DatabaseEditor() {
 }
 
 void DatabaseEditor::closeEvent(QCloseEvent *event) {
+    if (TryToCloseCurrentDatabase()) event->accept(); else event->ignore();
+}
+
+int DatabaseEditor::TryToCloseCurrentDatabase() {
+    QMessageBox::StandardButton res;
+    if (mCurrentDatabase != nullptr && !mCurrentDatabase->IsDirty())
+        goto close;
+
     if (mCurrentDatabase != nullptr && mCurrentDatabase->IsDirty()) {
-        QMessageBox::StandardButton res = QMessageBox::question( this, nullptr,
+        res = QMessageBox::question( this, nullptr,
             QString("Do you want to save changes to \"%1\"?").arg(QString::fromStdString(mCurrentDatabase->GetTitle())),
             QMessageBox::Cancel | QMessageBox::No | QMessageBox::Yes,
             QMessageBox::Yes);
         if (res == QMessageBox::Cancel) {
-            event->ignore();
-        } else {
-            if (res == QMessageBox::Yes)
-                mCurrentDatabase->WriteChangesToDisk();
-            event->accept();
+            return 0;
         }
+        if (res == QMessageBox::Yes)
+            mCurrentDatabase->WriteChangesToDisk();
+close:
+        mOverviewWidget->deleteLater();
+        mCurrentDatabase->Close();
+        NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
+        mContentBrowser->Refresh();
+
+        for (auto button : findChildren<QAction*>("CreateContentButton"))
+            button->setDisabled(true);
+
+        setWindowTitle("Database Editor - noobWarrior");
     }
+    return 1;
 }
 
 // WARNING: THIS WILL OVERWRITE THE FILE
@@ -73,6 +94,7 @@ cleanup:
 }
 
 void DatabaseEditor::TryToOpenFile(const QString &path) {
+    if (!TryToCloseCurrentDatabase()) return;
     mCurrentDatabase = new Database(false);
     DatabaseResponse res = mCurrentDatabase->Open(path.toStdString());
     if (res != DatabaseResponse::Success) {
@@ -80,6 +102,15 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
     }
+    setWindowTitle(QString("%1 - Database Editor - noobWarrior").arg(path.compare(":memory:") == 0 ? "Unsaved Database" : path));
+
+    mOverviewWidget = new OverviewWidget(mCurrentDatabase);
+    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, "Overview"));
+
+    mContentBrowser->Refresh();
+
+    for (auto button : findChildren<QAction*>("CreateContentButton"))
+        button->setDisabled(false);
 }
 
 Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
@@ -142,8 +173,36 @@ void DatabaseEditor::InitWidgets() {
     mFileToolBar = new QToolBar(this);
     mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mFileToolBar->setWindowIconText("File");
+
     auto fileNewButton = new QAction(QIcon(":/images/silk/database_add.png"), "New\nDatabase", mFileToolBar);
     mFileToolBar->addAction(fileNewButton);
+    connect(fileNewButton, &QAction::triggered, [&]() {
+        TryToOpenFile();
+    });
+
+    auto fileOpenButton = new QAction(QIcon(":/images/silk/database_edit.png"), "Open\nDatabase", mFileToolBar);
+    mFileToolBar->addAction(fileOpenButton);
+    connect(fileOpenButton, &QAction::triggered, [&]() {
+        QString filePath = QFileDialog::getOpenFileName(
+            this,
+            "Open Database",
+            QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
+            "noobWarrior Database (*.nwdb)"
+        );
+        if (!filePath.isEmpty()) TryToOpenFile(filePath);
+    });
+
+    auto fileSave = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase", mFileToolBar);
+    mFileToolBar->addAction(fileSave);
+
+    auto fileSaveAs = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase As...", mFileToolBar);
+    mFileToolBar->addAction(fileSaveAs);
+
+    auto fileClose = new QAction(QIcon(":/images/silk/database_delete.png"), "Close Current\nDatabase", mFileToolBar);
+    mFileToolBar->addAction(fileClose);
+    connect(fileClose, &QAction::triggered, [&]() {
+        TryToCloseCurrentDatabase();
+    });
 
     mViewToolBar = new QToolBar(this);
     mViewToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -165,6 +224,7 @@ void DatabaseEditor::InitWidgets() {
 
         auto insertAssetButton = new QAction(QIcon(GetIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
         insertAssetButton->setDisabled(true); // Disable until we have a loaded database.
+        insertAssetButton->setObjectName("CreateContentButton");
         mInsertToolBar->addAction(insertAssetButton);
 
         connect(insertAssetButton, &QAction::triggered, [&, idType]() {
@@ -178,7 +238,7 @@ void DatabaseEditor::InitWidgets() {
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mViewToolBar);
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mInsertToolBar);
 
-    auto outlineWidget = new ContentBrowserWidget(this);
-    outlineWidget->setAllowedAreas(Qt::AllDockWidgetAreas);
-    addDockWidget(Qt::LeftDockWidgetArea, outlineWidget);
+    mContentBrowser = new ContentBrowserWidget(this);
+    mContentBrowser->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::LeftDockWidgetArea, mContentBrowser);
 }
