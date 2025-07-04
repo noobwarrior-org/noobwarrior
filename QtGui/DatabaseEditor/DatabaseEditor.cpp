@@ -161,7 +161,7 @@ void DatabaseEditor::InitWidgets() {
 
     for (int i = 0; i < 7; i++) {
         auto idType = static_cast<IdType>(i);
-        std::string idTypeStr = IdTypeAsString(idType);
+        QString idTypeStr = IdTypeAsString(idType);
 
         auto insertAssetButton = new QAction(QIcon(GetIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
         insertAssetButton->setDisabled(true); // Disable until we have a loaded database.
