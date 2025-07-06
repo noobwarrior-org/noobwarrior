@@ -43,9 +43,18 @@ static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launche
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
-    "Tools",
     "Roblox",
+    "Tools",
     "Application"
+};
+
+static const void* sRoblox[][3] = {
+    {"Join Server", nullptr, ":/images/silk/controller.png"},
+    {"Play Solo", nullptr, ":/images/silk/status_offline.png"},
+    {"Host Server", nullptr, ":/images/silk/server.png"},
+    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"},
+    {"Manage Installations", nullptr, ":/images/silk/disk_multiple.png"},
+    {"Manage Roblox Servers", nullptr, ":/images/silk/drive_network.png"}
 };
 
 static const void* sTools[][3] = {
@@ -55,15 +64,6 @@ static const void* sTools[][3] = {
     {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
     // {"Import Game As Database", nullptr, ":/images/silk/folder_go.png"}, // find this in the Database Utility instead
     {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
-};
-
-static const void* sRoblox[][3] = {
-    {"Host Server", nullptr, ":/images/silk/server.png"},
-    {"Join Server", nullptr, ":/images/silk/controller.png"},
-    {"Play Solo", nullptr, ":/images/silk/status_offline.png"},
-    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"},
-    {"Manage Installations", nullptr, ":/images/silk/disk_multiple.png"},
-    {"Manage Servers", nullptr, ":/images/silk/drive_network.png"}
 };
 
 static const void* sApplication[][3] = {
@@ -110,8 +110,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
         frameGrid->addWidget(label);
 
         switch (i) {
-        case 0: ADD_BUTTONS(sTools) break;
-        case 1: ADD_BUTTONS(sRoblox) break;
+        case 0: ADD_BUTTONS(sRoblox) break;
+        case 1: ADD_BUTTONS(sTools) break;
         case 2: ADD_BUTTONS(sApplication) break;
         }
     }
