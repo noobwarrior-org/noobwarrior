@@ -34,7 +34,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mContentBrowser(nullptr)
 {
     setWindowTitle("Database Editor - noobWarrior");
-    setWindowState(Qt::WindowMaximized);
+    // setWindowState(Qt::WindowMaximized);
     InitMenus();
     InitWidgets();
 }
@@ -95,6 +95,8 @@ cleanup:
 
 void DatabaseEditor::TryToOpenFile(const QString &path) {
     if (!TryToCloseCurrentDatabase()) return;
+
+    // noobWarrior core database API calls
     mCurrentDatabase = new Database(false);
     DatabaseResponse res = mCurrentDatabase->Open(path.toStdString());
     if (res != DatabaseResponse::Success) {
@@ -103,10 +105,20 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         return;
     }
+    if (path == ":memory:") {
+        // If we're making a new file, then fill in some defaults (like the author of the database) with the name of the
+        // person running the program.
+        QString name = qgetenv("USER");
+        if (name.isEmpty())
+            name = qgetenv("USERNAME");
+        mCurrentDatabase->SetAuthor(name.toStdString());
+    }
+
+    // our own functions
     setWindowTitle(QString("%1 - Database Editor - noobWarrior").arg(QString::fromStdString(mCurrentDatabase->GetTitle())));
 
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
-    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, "Overview"));
+    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
 
     mContentBrowser->Refresh();
 

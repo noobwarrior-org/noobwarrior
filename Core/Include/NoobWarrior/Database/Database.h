@@ -62,6 +62,9 @@ namespace NoobWarrior {
         std::string GetSqliteErrorMsg();
         std::string GetMetaKeyValue(const std::string &key);
         std::string GetTitle();
+        std::string GetDescription();
+        std::string GetVersion();
+        std::string GetAuthor();
         std::vector<unsigned char> GetIcon();
         /**
          * @return Returns the file name of the database's currently loaded file.
@@ -71,6 +74,10 @@ namespace NoobWarrior {
         std::string GetFileName();
 
         std::filesystem::path GetFilePath();
+
+        DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
+        DatabaseResponse SetAuthor(const std::string &author);
+        DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
         DatabaseResponse AddAsset(Asset *asset);
         std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);

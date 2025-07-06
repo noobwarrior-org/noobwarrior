@@ -68,6 +68,7 @@ static const void* sRoblox[][3] = {
 
 static const void* sApplication[][3] = {
     {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
+    {"Lua Shell", nullptr, ":/images/lua16.png"},
     {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
