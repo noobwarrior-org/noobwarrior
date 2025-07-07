@@ -15,6 +15,7 @@
 #include <QApplication>
 
 #include <fstream>
+#include <QGroupBox>
 #include <QMessageBox>
 
 using namespace NoobWarrior;
@@ -33,7 +34,7 @@ void OverviewWidget::InitWidgets() {
     MainLayout->setContentsMargins(32, 32, 32, 32);
 
     auto *overviewLabel = new QLabel(QString::fromStdString(mDatabase->GetTitle()));
-    overviewLabel->setFont(QFont("Source Sans Pro", 24, QFont::Bold));
+    overviewLabel->setFont(QFont(QApplication::font().family(), 24, QFont::Bold));
 
     auto *spacer1 = new QSpacerItem(16, 16);
     MainLayout->addWidget(overviewLabel);
@@ -42,13 +43,8 @@ void OverviewWidget::InitWidgets() {
     auto *metadataAndSettingsLayout = new QHBoxLayout();
 
     ////////// Metadata //////////
-    auto *metadataLayout = new QVBoxLayout();
-
-    auto *metadataLabel = new QLabel("Metadata");
-    metadataLabel->setAlignment(Qt::AlignLeft);
-    metadataLabel->setFont(QFont(QApplication::font().family(), 18));
-    metadataLayout->addWidget(metadataLabel);
-
+    auto *metadataBox = new QGroupBox("Metadata");
+    metadataBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     auto *metadataContainerLayout = new QHBoxLayout();
 
     auto *iconLayout = new QVBoxLayout();
@@ -126,25 +122,16 @@ void OverviewWidget::InitWidgets() {
     metadataContainerLayout->addItem(metadataSpacer);
     metadataContainerLayout->addLayout(nameAndDescriptionLayout);
 
-    metadataLayout->addLayout(metadataContainerLayout);
-    metadataAndSettingsLayout->addLayout(metadataLayout);
+    metadataBox->setLayout(metadataContainerLayout);
+    metadataAndSettingsLayout->addWidget(metadataBox);
 
     ////////// Settings //////////
-    auto *settingsLayout = new QVBoxLayout();
+    auto *settingsBox = new QGroupBox("Settings");
+    auto *settingsContainerLayout = new QGridLayout();
+    settingsContainerLayout->addWidget(new QCheckBox("Mutable"));
 
-    auto *settingsLabel = new QLabel("Settings");
-    settingsLabel->setAlignment(Qt::AlignLeft);
-    settingsLabel->setFont(QFont(QApplication::font().family(), 18));
-    settingsLayout->addWidget(settingsLabel);
-
-    auto *settingsContainerLayout = new QFormLayout();
-    settingsContainerLayout->addRow(new QCheckBox(), new QLabel("Mutable"));
-
-    settingsLayout->addLayout(settingsContainerLayout);
-
-    auto *metadataAndSettingsSpacer = new QSpacerItem(32, 32);
-    metadataAndSettingsLayout->addItem(metadataAndSettingsSpacer);
-    metadataAndSettingsLayout->addLayout(settingsLayout);
+    settingsBox->setLayout(settingsContainerLayout);
+    metadataAndSettingsLayout->addWidget(settingsBox);
 
     auto *spacer2 = new QSpacerItem(64, 64);
 

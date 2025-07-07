@@ -20,6 +20,7 @@
 #include <QCloseEvent>
 #include <QToolBar>
 #include <QPushButton>
+#include <QMimeData>
 
 #include <format>
 #include <qnamespace.h>
@@ -32,6 +33,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mContentBrowser(nullptr)
 {
     setWindowTitle("Database Editor - noobWarrior");
+    setAcceptDrops(true);
     // setWindowState(Qt::WindowMaximized);
     InitMenus();
     InitWidgets();
@@ -50,6 +52,9 @@ void DatabaseEditor::closeEvent(QCloseEvent *event) {
 
 void DatabaseEditor::paintEvent(QPaintEvent *event) {
     QMainWindow::paintEvent(event);
+
+    // I don't want to have to create all kinds of hooks and callbacks when our database has been marked dirty
+    // So we're just checking if it's dirty here in our paint event that Qt gives us. Much easier
     if (mCurrentDatabase != nullptr) {
         setWindowTitle(
             QString("%1%2 - Database Editor - noobWarrior")
@@ -57,6 +62,33 @@ void DatabaseEditor::paintEvent(QPaintEvent *event) {
             .arg(mCurrentDatabase->IsDirty() ? "*" : "")
         );
     } else setWindowTitle(QString("Database Editor - noobWarrior"));
+}
+
+void DatabaseEditor::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void DatabaseEditor::dragMoveEvent(QDragMoveEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void DatabaseEditor::dropEvent(QDropEvent *event) {
+    QMainWindow::dropEvent(event);
+    if (event->mimeData()->hasUrls()) {
+        for (const QUrl &url : event->mimeData()->urls())
+            TryToOpenFile(url.toLocalFile());
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
 }
 
 int DatabaseEditor::TryToCloseCurrentDatabase() {
@@ -137,6 +169,10 @@ void DatabaseEditor::InitMenus() {
     mCloseDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+W")));
     mSaveDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+S")));
 
+    mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mSaveAsDatabaseAction->setObjectName("RequiresDatabaseButton");
+
     mFileMenu = menuBar()->addMenu(tr("&File"));
     mFileMenu->addAction(mNewDatabaseAction);
     mFileMenu->addAction(mOpenDatabaseAction);
@@ -167,6 +203,7 @@ void DatabaseEditor::InitMenus() {
             mCurrentDatabase->WriteChangesToDisk();
             if (mCurrentDatabase->IsMemory()) {
                 // This database has never been saved to disk. Make the user pick where they want to store it so we can actually save
+                mCurrentDatabase->MarkDirty(); // And mark it dirty again just in case the user rejects the save prompt and nothing actually happens.
                 QString filePath = QFileDialog::getSaveFileName(
                     this,
                     "Save Database",
@@ -185,6 +222,7 @@ void DatabaseEditor::InitMenus() {
                         QMessageBox::critical(this, "Error", QString("Failed to re-open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(filePath, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", static_cast<int>(res)))));
                         return;
                     }
+                    mCurrentDatabase->UnmarkDirty();
                 }
             }
         }
@@ -264,6 +302,9 @@ void DatabaseEditor::InitWidgets() {
     }
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
+        button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now
+
+    for (auto button : menuBar()->findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now
 
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mFileToolBar);
