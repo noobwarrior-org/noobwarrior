@@ -24,17 +24,26 @@ namespace NoobWarrior {
         ~DatabaseEditor();
 
         int TryToCloseCurrentDatabase();
-        void TryToCreateFile(const QString &path);
         void TryToOpenFile(const QString &path = ":memory:");
 
         Database *GetCurrentlyEditingDatabase();
     protected:
         void closeEvent(QCloseEvent *event) override;
+        void paintEvent(QPaintEvent *event) override;
     private:
         void InitMenus();
         void InitWidgets();
 
+        //////////////////// Menu Bar ////////////////////
         QMenu *mFileMenu;
+
+        QAction *mNewDatabaseAction;
+        QAction *mOpenDatabaseAction;
+        QAction *mCloseDatabaseAction;
+        QAction *mSaveDatabaseAction;
+        QAction *mSaveAsDatabaseAction;
+
+        //////////////////// Tool Bars ////////////////////
         QToolBar *mFileToolBar;
         QToolBar *mViewToolBar;
         QToolBar *mInsertToolBar;

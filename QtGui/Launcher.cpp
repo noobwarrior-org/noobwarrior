@@ -52,9 +52,7 @@ static const void* sRoblox[][3] = {
     {"Join Server", nullptr, ":/images/silk/controller.png"},
     {"Play Solo", nullptr, ":/images/silk/status_offline.png"},
     {"Host Server", nullptr, ":/images/silk/server.png"},
-    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"},
-    {"Manage Installations", nullptr, ":/images/silk/disk_multiple.png"},
-    {"Manage Roblox Servers", nullptr, ":/images/silk/drive_network.png"}
+    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
 };
 
 static const void* sTools[][3] = {
@@ -115,6 +113,16 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
         case 2: ADD_BUTTONS(sApplication) break;
         }
     }
+
+    auto *authenticationStatus = new QLabel("Not authenticated with Roblox");
+    grid->addWidget(authenticationStatus);
+
+    auto *httpServerLabel = new QLabel("HTTP Server: Stopped");
+    grid->addWidget(httpServerLabel);
+
+    auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
+    grid->addWidget(robloxServersLabel);
+
     resize(grid->sizeHint());
 }
 

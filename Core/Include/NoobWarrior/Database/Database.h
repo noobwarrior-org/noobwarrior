@@ -58,6 +58,12 @@ namespace NoobWarrior {
          */
         bool IsDirty();
         void MarkDirty();
+        void UnmarkDirty();
+
+        /**
+         * @brief Returns true if this database is not yet a tangible file and only exists within memory.
+         */
+        bool IsMemory();
 
         std::string GetSqliteErrorMsg();
         std::string GetMetaKeyValue(const std::string &key);
@@ -76,6 +82,7 @@ namespace NoobWarrior {
         std::filesystem::path GetFilePath();
 
         DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
+        DatabaseResponse SetTitle(const std::string &title);
         DatabaseResponse SetAuthor(const std::string &author);
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 

@@ -24,8 +24,6 @@
 #include <format>
 #include <qnamespace.h>
 
-#define CREATE_NEW_DATABASES_IN_MEMORY 1
-
 using namespace NoobWarrior;
 
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
@@ -50,6 +48,17 @@ void DatabaseEditor::closeEvent(QCloseEvent *event) {
     if (TryToCloseCurrentDatabase()) event->accept(); else event->ignore();
 }
 
+void DatabaseEditor::paintEvent(QPaintEvent *event) {
+    QMainWindow::paintEvent(event);
+    if (mCurrentDatabase != nullptr) {
+        setWindowTitle(
+            QString("%1%2 - Database Editor - noobWarrior")
+            .arg(QString::fromStdString(mCurrentDatabase->GetTitle()))
+            .arg(mCurrentDatabase->IsDirty() ? "*" : "")
+        );
+    } else setWindowTitle(QString("Database Editor - noobWarrior"));
+}
+
 int DatabaseEditor::TryToCloseCurrentDatabase() {
     QMessageBox::StandardButton res;
     if (mCurrentDatabase != nullptr && !mCurrentDatabase->IsDirty())
@@ -64,7 +73,7 @@ int DatabaseEditor::TryToCloseCurrentDatabase() {
             return 0;
         }
         if (res == QMessageBox::Yes)
-            mCurrentDatabase->WriteChangesToDisk();
+            mSaveDatabaseAction->trigger();
 close:
         mOverviewWidget->deleteLater();
         mCurrentDatabase->Close();
@@ -73,24 +82,8 @@ close:
 
         for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
             button->setDisabled(true);
-
-        setWindowTitle("Database Editor - noobWarrior");
     }
     return 1;
-}
-
-// WARNING: THIS WILL OVERWRITE THE FILE
-void DatabaseEditor::TryToCreateFile(const QString &path) {
-    // create an empty file of 0 bytes
-    FILE *file = fopen(path.toLocal8Bit().constData(), "w");
-    if (file == nullptr) {
-        QMessageBox::critical(this, "Error", "Cannot create a new file in this directory. It is likely that you do not have sufficient privileges to write to this directory.");
-        goto cleanup;
-    }
-    fprintf(file, ""); // bye bye
-    TryToOpenFile(path);
-cleanup:
-    fclose(file);
 }
 
 void DatabaseEditor::TryToOpenFile(const QString &path) {
@@ -105,18 +98,20 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         return;
     }
-    if (path == ":memory:") {
+    if (mCurrentDatabase->IsMemory()) {
         // If we're making a new file, then fill in some defaults (like the author of the database) with the name of the
         // person running the program.
         QString name = qgetenv("USER");
         if (name.isEmpty())
             name = qgetenv("USERNAME");
         mCurrentDatabase->SetAuthor(name.toStdString());
+
+        // It got marked as dirty because we programmatically changed the author of the DB.
+        // Unmark it so that you won't get the stupid "you forgot to save your changes" screen when closing this empty new file.
+        mCurrentDatabase->UnmarkDirty();
     }
 
     // our own functions
-    setWindowTitle(QString("%1 - Database Editor - noobWarrior").arg(QString::fromStdString(mCurrentDatabase->GetTitle())));
-
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
     mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
 
@@ -131,38 +126,29 @@ Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
 }
 
 void DatabaseEditor::InitMenus() {
-    QAction *newAct = new QAction("New Database");
-    QAction *openAct = new QAction("Open Database");
-    QAction *saveAct = new QAction("Save Database");
-    QAction *saveAsAct = new QAction("Save Database As");
+    mNewDatabaseAction = new QAction("New Database");
+    mOpenDatabaseAction = new QAction("Open Database");
+    mCloseDatabaseAction = new QAction("Close Current Database");
+    mSaveDatabaseAction = new QAction("Save Database");
+    mSaveAsDatabaseAction = new QAction("Save Database As");
+
+    mNewDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+N")));
+    mOpenDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+O")));
+    mCloseDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+W")));
+    mSaveDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+S")));
 
     mFileMenu = menuBar()->addMenu(tr("&File"));
+    mFileMenu->addAction(mNewDatabaseAction);
+    mFileMenu->addAction(mOpenDatabaseAction);
+    mFileMenu->addAction(mCloseDatabaseAction);
+    mFileMenu->addAction(mSaveDatabaseAction);
+    mFileMenu->addAction(mSaveAsDatabaseAction);
 
-    newAct->setParent(mFileMenu);
-    openAct->setParent(mFileMenu);
-    saveAct->setParent(mFileMenu);
-    saveAsAct->setParent(mFileMenu);
-
-    mFileMenu->addAction(newAct);
-    mFileMenu->addAction(openAct);
-    mFileMenu->addAction(saveAct);
-    mFileMenu->addAction(saveAsAct);
-
-    connect(newAct, &QAction::triggered, [&]() {
-#if CREATE_NEW_DATABASES_IN_MEMORY
+    connect(mNewDatabaseAction, &QAction::triggered, [&]() {
         TryToOpenFile();
-#else
-        QString filePath = QFileDialog::getSaveFileName(
-            this,
-            "New Database",
-            QString::fromStdString(gApp->GetCore()->GetConfig()->GetUserDataDir() / "databases"),
-            "noobWarrior Database (*.nwdb)"
-        );
-        if (!filePath.isEmpty()) TryToCreateFile(filePath);
-#endif
     });
 
-    connect(openAct, &QAction::triggered, [&]() {
+    connect(mOpenDatabaseAction, &QAction::triggered, [&]() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Open Database",
@@ -171,6 +157,39 @@ void DatabaseEditor::InitMenus() {
         );
         if (!filePath.isEmpty()) TryToOpenFile(filePath);
     });
+
+    connect(mCloseDatabaseAction, &QAction::triggered, [&]() {
+        TryToCloseCurrentDatabase();
+    });
+
+    connect(mSaveDatabaseAction, &QAction::triggered, [&]() {
+        if (mCurrentDatabase != nullptr) {
+            mCurrentDatabase->WriteChangesToDisk();
+            if (mCurrentDatabase->IsMemory()) {
+                // This database has never been saved to disk. Make the user pick where they want to store it so we can actually save
+                QString filePath = QFileDialog::getSaveFileName(
+                    this,
+                    "Save Database",
+                    QString::fromStdString(gApp->GetCore()->GetUserDataDir() / "databases"),
+                    "noobWarrior Database (*.nwdb)"
+                );
+                if (!filePath.isEmpty()) {
+                    DatabaseResponse res = mCurrentDatabase->SaveAs(filePath.toStdString());
+                    if (res != DatabaseResponse::Success) {
+                        QMessageBox::critical(this, "Error", QString("Failed to save database to \"%1\"").arg(filePath));
+                        return;
+                    }
+                    mCurrentDatabase->Close();
+                    res = mCurrentDatabase->Open(filePath.toStdString());
+                    if (res != DatabaseResponse::Success) {
+                        QMessageBox::critical(this, "Error", QString("Failed to re-open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(filePath, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", static_cast<int>(res)))));
+                        return;
+                    }
+                }
+            }
+        }
+        repaint(); // trigger a repaint, because we update the window title there.
+    });
 }
 
 void DatabaseEditor::InitWidgets() {
@@ -178,7 +197,7 @@ void DatabaseEditor::InitWidgets() {
     setCentralWidget(mTabWidget);
 
     auto *hi = new QLabel("Welcome!\nUse the \"Content Browser\" to look at all the available contents of this database\nUse the \"Organizer\" to organize this content in a way that you similarly would in your file manager");
-    hi->setFont(QFont("Source Sans Pro", 20));
+    hi->setFont(QFont(QApplication::font().family(), 20));
     hi->setAlignment(Qt::AlignCenter);
 
     mTabWidget->addTab(hi, "Welcome");
@@ -190,19 +209,13 @@ void DatabaseEditor::InitWidgets() {
     auto fileNewButton = new QAction(QIcon(":/images/silk/database_add.png"), "New\nDatabase", mFileToolBar);
     mFileToolBar->addAction(fileNewButton);
     connect(fileNewButton, &QAction::triggered, [&]() {
-        TryToOpenFile();
+        mNewDatabaseAction->trigger();
     });
 
     auto fileOpenButton = new QAction(QIcon(":/images/silk/database_edit.png"), "Open\nDatabase", mFileToolBar);
     mFileToolBar->addAction(fileOpenButton);
     connect(fileOpenButton, &QAction::triggered, [&]() {
-        QString filePath = QFileDialog::getOpenFileName(
-            this,
-            "Open Database",
-            QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
-            "noobWarrior Database (*.nwdb)"
-        );
-        if (!filePath.isEmpty()) TryToOpenFile(filePath);
+        mOpenDatabaseAction->trigger();
     });
 
     auto fileSave = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase", mFileToolBar);
@@ -217,7 +230,7 @@ void DatabaseEditor::InitWidgets() {
     fileClose->setObjectName("RequiresDatabaseButton");
     mFileToolBar->addAction(fileClose);
     connect(fileClose, &QAction::triggered, [&]() {
-        TryToCloseCurrentDatabase();
+        mCloseDatabaseAction->trigger();
     });
 
     mViewToolBar = new QToolBar(this);

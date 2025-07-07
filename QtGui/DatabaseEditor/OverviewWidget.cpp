@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QApplication>
 
 #include <fstream>
 #include <QMessageBox>
@@ -45,7 +46,7 @@ void OverviewWidget::InitWidgets() {
 
     auto *metadataLabel = new QLabel("Metadata");
     metadataLabel->setAlignment(Qt::AlignLeft);
-    metadataLabel->setFont(QFont("Source Sans Pro", 18));
+    metadataLabel->setFont(QFont(QApplication::font().family(), 18));
     metadataLayout->addWidget(metadataLabel);
 
     auto *metadataContainerLayout = new QHBoxLayout();
@@ -100,19 +101,23 @@ void OverviewWidget::InitWidgets() {
 
     auto *nameAndDescriptionLayout = new QFormLayout();
 
-    auto *nameField = new QLineEdit(QString::fromStdString(mDatabase->GetTitle()));
+    auto *titleField = new QLineEdit(QString::fromStdString(mDatabase->GetTitle()));
     auto *descriptionField = new QPlainTextEdit(QString::fromStdString(mDatabase->GetDescription()));
     auto *versionField = new QLineEdit(QString::fromStdString(mDatabase->GetVersion()));
     auto *authorField = new QLineEdit(QString::fromStdString(mDatabase->GetAuthor()));
 
-    nameField->setMaximumWidth(256);
+    titleField->setMaximumWidth(256);
     descriptionField->setMaximumWidth(400);
     descriptionField->setMinimumHeight(128);
     descriptionField->setWordWrapMode(QTextOption::WordWrap);
     versionField->setMaximumWidth(64);
     authorField->setMaximumWidth(192);
 
-    nameAndDescriptionLayout->addRow("Name", nameField);
+    connect(titleField, &QLineEdit::textChanged, [&](const QString &text) {
+        mDatabase->SetTitle(text.toStdString());
+    });
+
+    nameAndDescriptionLayout->addRow("Title", titleField);
     nameAndDescriptionLayout->addRow("Description", descriptionField);
     nameAndDescriptionLayout->addRow("Version", versionField);
     nameAndDescriptionLayout->addRow("Author", authorField);
@@ -129,7 +134,7 @@ void OverviewWidget::InitWidgets() {
 
     auto *settingsLabel = new QLabel("Settings");
     settingsLabel->setAlignment(Qt::AlignLeft);
-    settingsLabel->setFont(QFont("Source Sans Pro", 18));
+    settingsLabel->setFont(QFont(QApplication::font().family(), 18));
     settingsLayout->addWidget(settingsLabel);
 
     auto *settingsContainerLayout = new QFormLayout();

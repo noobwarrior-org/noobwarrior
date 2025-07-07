@@ -570,9 +570,22 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // and initialize some keys
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
-        std::string stmtStr = "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)";
+    	sqlite3_stmt *checkStmt;
+    	if (sqlite3_prepare_v2(mDatabase, "SELECT 1 FROM Meta WHERE Key = ?;", -1, &checkStmt, nullptr) != SQLITE_OK) {
+    		Out("Database", "Failed to prepare");
+    		sqlite3_close_v2(mDatabase);
+    		return DatabaseResponse::CouldNotSetKeyValues;
+    	}
+    	sqlite3_bind_text(checkStmt, 1, MetaKv[i][0], -1, nullptr);
+    	if (sqlite3_step(checkStmt) == SQLITE_ROW) {
+    		// key already exists, don't insert anything, we're done here
+    		sqlite3_finalize(checkStmt);
+    		continue;
+    	}
+    	sqlite3_finalize(checkStmt);
+
     	sqlite3_stmt *stmt;
-        if (sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
         	Out("Database", "Failed to prepare");
         	sqlite3_close_v2(mDatabase);
 	        return DatabaseResponse::CouldNotSetKeyValues;
@@ -642,6 +655,7 @@ DatabaseResponse Database::WriteChangesToDisk() {
     	return DatabaseResponse::Failed;
 	if (sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr) != SQLITE_OK) // and disable auto-commit mode again
 		return DatabaseResponse::Failed;
+	UnmarkDirty();
     return DatabaseResponse::Success;
 }
 
@@ -653,6 +667,15 @@ bool Database::IsDirty() {
 void Database::MarkDirty() {
 	if (mAutoCommit) return; // every single thing is saved, it's never dirty
 	mDirty = true;
+}
+
+void Database::UnmarkDirty() {
+	if (mAutoCommit) return;
+	mDirty = false;
+}
+
+bool Database::IsMemory() {
+	return mPath.compare(":memory:") == 0;
 }
 
 std::string Database::GetSqliteErrorMsg() {
@@ -715,6 +738,10 @@ DatabaseResponse Database::SetMetaKeyValue(const std::string &key, const std::st
 	sqlite3_finalize(stmt);
 	MarkDirty();
 	return res;
+}
+
+DatabaseResponse Database::SetTitle(const std::string &title) {
+	return SetMetaKeyValue("Title", title);
 }
 
 DatabaseResponse Database::SetAuthor(const std::string &author) {
