@@ -39,5 +39,16 @@ void ContentEditorDialog::RegenWidgets() {
         mLayout->addRow(new QLabel(tr("Id"), this), new QLineEdit(this));
     }
 
-    mLayout->addRow(new QPushButton("Save", this), new QPushButton("Cancel", this));
+    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
+    mLayout->addWidget(mButtonBox);
+
+    connect(mButtonBox, &QDialogButtonBox::accepted, this, [&]() {
+
+        close();
+    });
+
+    connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
+        close();
+    });
+    // mLayout->addRow(new QPushButton("Save", this), new QPushButton("Cancel", this));
 }

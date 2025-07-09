@@ -8,6 +8,7 @@
 #include <../../Core/Include/NoobWarrior/Database/IdType.h>
 
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QFormLayout>
 
 namespace NoobWarrior {
@@ -20,5 +21,6 @@ public:
 private:
     IdType mIdType;
     QFormLayout *mLayout;
+    QDialogButtonBox *mButtonBox;
 };
 }

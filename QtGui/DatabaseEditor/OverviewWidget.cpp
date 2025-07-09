@@ -109,8 +109,9 @@ void OverviewWidget::InitWidgets() {
     versionField->setMaximumWidth(64);
     authorField->setMaximumWidth(192);
 
-    connect(titleField, &QLineEdit::textChanged, [&](const QString &text) {
+    connect(titleField, &QLineEdit::textChanged, [&, overviewLabel](const QString &text) {
         mDatabase->SetTitle(text.toStdString());
+        overviewLabel->setText(QString::fromStdString(mDatabase->GetTitle()));
     });
 
     nameAndDescriptionLayout->addRow("Title", titleField);
