@@ -11,6 +11,7 @@
 #include "Dialog/AboutDialog.h"
 
 #include <QDialog>
+#include <QVBoxLayout>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Launcher; }
@@ -28,6 +29,6 @@ namespace NoobWarrior {
         DatabaseEditor *mDatabaseEditor;
         AssetDownloader *mAssetDownload;
     private:
-        Ui::Launcher *ui;
+        QVBoxLayout *Layout;
     };
 }

@@ -1,0 +1,57 @@
+// === noobWarrior ===
+// File: DefaultStyle.cpp
+// Started by: Hattozo
+// Started on: 7/11/2025
+// Description: My style that I like for this program.
+#include "DefaultStyle.h"
+
+#include <NoobWarrior/Log.h>
+
+#include <QApplication>
+#include <QFont>
+#include <QStyleFactory>
+#include <QPainter>
+#include <QWidget>
+#include <QFrame>
+
+NoobWarrior::DefaultStyle::DefaultStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
+}
+
+void NoobWarrior::DefaultStyle::polish(QPalette &pal) {
+    pal.setColor(QPalette::Window, QColor(60, 63, 65));
+
+    pal.setColor(QPalette::Base,              QColor(60,63,65));
+    pal.setColor(QPalette::Button,            QColor(53, 53, 53));
+    pal.setColor(QPalette::Link,              QColor(42, 130, 218));
+    pal.setColor(QPalette::Highlight,         QColor(42, 130, 218));
+    pal.setColor(QPalette::ToolTipBase,       QColor(71, 73, 74));
+
+    pal.setColor(QPalette::Light,       QColor(80, 81, 80));
+    pal.setColor(QPalette::Midlight,       QColor(80, 81, 80));
+    pal.setColor(QPalette::Dark,       QColor(51,50,51));
+    pal.setColor(QPalette::Mid,       QColor(51,50,51));
+
+    pal.setColor(QPalette::WindowText, Qt::lightGray);
+    pal.setColor(QPalette::Text, Qt::lightGray);
+    pal.setColor(QPalette::ButtonText, Qt::lightGray);
+    pal.setColor(QPalette::ToolTipText, Qt::lightGray);
+    QProxyStyle::polish(pal);
+}
+
+void NoobWarrior::DefaultStyle::polish(QWidget *widget) {
+    QFont font = widget->font();
+    font.setFamily("Source Sans Pro");
+
+    if (widget->palette() == QProxyStyle::standardPalette()) {
+        widget->setPalette(QApplication::palette());
+    }
+
+    auto *frame = qobject_cast<QFrame*>(widget);
+    if (frame != nullptr) {
+        QPalette framePalette = QApplication::palette();
+        framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(150));
+        frame->setPalette(framePalette);
+    }
+
+    QProxyStyle::polish(widget);
+}

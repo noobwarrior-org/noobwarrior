@@ -6,6 +6,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include "Launcher.h"
+#include "Application.h"
 #include "Dialog/AboutDialog.h"
 #include "AssetDownloader.h"
 #include "Ui/ui_Launcher.h"
@@ -71,7 +72,7 @@ static const void* sApplication[][3] = {
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
 
-Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
+Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mAboutDialog(nullptr),
     mSettings(nullptr),
     mDatabaseEditor(nullptr),
@@ -80,23 +81,35 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
 
-    auto *grid = new QGridLayout(this);
-    setLayout(grid);
+    Layout = new QVBoxLayout(this);
+    setLayout(Layout);
 
-    auto *logo = new QLabel(this);
-    logo->setTextFormat(Qt::TextFormat::RichText);
-    logo->setText("<h1><img src=\":/images/icon64.png\">noobWarrior</h1>");
-    logo->setMaximumHeight(64);
-    grid->addWidget(logo);
+    QImage logoImg(":/images/icon64.png");
+    QPixmap logoPix = QPixmap::fromImage(logoImg);
+
+    auto *logoLayout = new QHBoxLayout();
+    logoLayout->setAlignment(Qt::AlignBottom);
+    Layout->addLayout(logoLayout);
+
+    auto *logoLabel = new QLabel();
+    logoLabel->setPixmap(logoPix);
+    logoLayout->addWidget(logoLabel);
+
+    auto *titleLabel = new QLabel();
+    titleLabel->setText("noobWarrior");
+    QFont font = titleLabel->font();
+    font.setPointSize(20);
+    titleLabel->setFont(font);
+    logoLayout->addWidget(titleLabel);
 
     auto *frame = new QFrame(this);
-    QPalette framePalette = frame->palette();
-    framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(105));
-    frame->setPalette(framePalette);
+    // QPalette framePalette = frame->palette();
+    // framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(175));
+    // frame->setPalette(framePalette);
     frame->setAutoFillBackground(true); // QFrames usually have invisible backgrounds, turn it on in this case.
     frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
 
-    grid->addWidget(frame);
+    Layout->addWidget(frame);
 
     auto *frameGrid = new QGridLayout(frame);
     frameGrid->setSpacing(8);
@@ -115,18 +128,15 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent), ui(new Ui::Launcher),
     }
 
     auto *authenticationStatus = new QLabel("Not authenticated with Roblox");
-    grid->addWidget(authenticationStatus);
+    Layout->addWidget(authenticationStatus);
 
     auto *httpServerLabel = new QLabel("HTTP Server: Stopped");
-    grid->addWidget(httpServerLabel);
+    Layout->addWidget(httpServerLabel);
 
     auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
-    grid->addWidget(robloxServersLabel);
+    Layout->addWidget(robloxServersLabel);
 
-    resize(grid->sizeHint());
+    resize(Layout->sizeHint());
 }
 
-Launcher::~Launcher() {
-    delete ui;
-    ui = nullptr;
-}
+Launcher::~Launcher() {}

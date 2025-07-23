@@ -12,6 +12,8 @@ set(SOURCES
     Application.h
     Launcher.cpp
     Launcher.h
+        Style/DefaultStyle.cpp
+        Style/DefaultStyle.h
     Settings/SettingsDialog.cpp
     Settings/SettingsDialog.h
     Settings/SettingsPage.cpp
