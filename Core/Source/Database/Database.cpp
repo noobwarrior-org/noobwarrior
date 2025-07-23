@@ -536,7 +536,7 @@ Database::Database(bool autocommit) :
 
 DatabaseResponse Database::Open(const std::string &path) {
     mPath = path;
-    int val = sqlite3_open_v2(reinterpret_cast<const char *>(mPath.c_str()), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
+    int val = sqlite3_open_v2(path.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
     if (val != SQLITE_OK)
         return DatabaseResponse::CouldNotOpen;
 	if (!mAutoCommit) {

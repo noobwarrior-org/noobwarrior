@@ -207,7 +207,7 @@ void DatabaseEditor::InitMenus() {
                 QString filePath = QFileDialog::getSaveFileName(
                     this,
                     "Save Database",
-                    QString::fromStdString(gApp->GetCore()->GetUserDataDir() / "databases"),
+                    QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
                     "noobWarrior Database (*.nwdb)"
                 );
                 if (!filePath.isEmpty()) {
