@@ -18,7 +18,7 @@
 
 #include "Style/DefaultStyle.h"
 
-#define USE_CUSTOM_STYLESHEET 0
+#define USE_CUSTOM_STYLE 1
 
 using namespace NoobWarrior;
 
@@ -49,14 +49,16 @@ int Application::Run() {
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Medium.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Bold.ttf");
     mLauncher = new Launcher();
-#if USE_CUSTOM_STYLESHEET
+#if USE_CUSTOM_STYLE
+    /*
     QFile styleFile(":/css/style.css");
     if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&styleFile);
         app.setStyleSheet(in.readAll());
     }
-#endif
+    */
     QApplication::setStyle(new DefaultStyle());
+#endif
 #if !defined(Q_OS_MACOS)
     QMessageBox::StandardButton res = QMessageBox::question(nullptr, "Warning",
         "What you are running is incomplete software. Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.",
