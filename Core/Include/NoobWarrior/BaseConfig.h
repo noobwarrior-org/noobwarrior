@@ -52,15 +52,6 @@ public:
     ConfigResponse Open();
     ConfigResponse Close();
     std::string GetLuaError();
-protected:
-    virtual void OnDeserialize() = 0;
-    virtual void OnSerialize() = 0;
-
-    std::string             mGlobalName;
-    std::string             mLastError;
-    std::filesystem::path   mFilePath;
-    std::ostream*           mFileOutput;
-    lua_State*              mLuaState;
 
     void SetKeyComment(const char *key, const char *comment);
 
@@ -76,22 +67,30 @@ protected:
 
     template <typename T>
     T GetKeyValue(const std::string &key) {
+        T result {};
+        lua_getglobal(mLuaState, mGlobalName.c_str());
+        lua_getfield(mLuaState, -1, key.c_str());
         // sorry for the ugly code
-        if constexpr (std::is_same_v<T, std::string>) {
-            return lua_type(mLuaState, -1) == LUA_TSTRING ?
-                std::string(lua_tostring(mLuaState, -1)) :
-                nullptr;
-        } else if constexpr (std::is_same_v<T, int> || std::is_enum_v<T>) {
-            if (lua_type(mLuaState, -1) == LUA_TNUMBER)
-                return static_cast<T>(lua_tointeger(mLuaState, -1));
-        } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
-            if (lua_type(mLuaState, -1) == LUA_TNUMBER)
-                return static_cast<T>(lua_tonumber(mLuaState, -1));
-        } else if constexpr (std::is_same_v<T, bool>) {
-            if (lua_type(mLuaState, -1) == LUA_TBOOLEAN)
-                return lua_toboolean(mLuaState, -1);
-        }
+        if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>)
+            result = lua_type(mLuaState, -1) == LUA_TSTRING ? std::string(lua_tostring(mLuaState, -1)) : "";
+        else if constexpr (std::is_same_v<T, int> || std::is_enum_v<T>)
+            result = lua_type(mLuaState, -1) == LUA_TNUMBER ? static_cast<T>(lua_tointeger(mLuaState, -1)) : 0;
+        else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>)
+            result = lua_type(mLuaState, -1) == LUA_TNUMBER ? static_cast<T>(lua_tonumber(mLuaState, -1)) : 0;
+        else if constexpr (std::is_same_v<T, bool>)
+            result = lua_type(mLuaState, -1) == LUA_TBOOLEAN ? lua_toboolean(mLuaState, -1) : false;
+        lua_pop(mLuaState, 2);
+        return result;
     }
+protected:
+    virtual void OnDeserialize() = 0;
+    virtual void OnSerialize() = 0;
+
+    std::string             mGlobalName;
+    std::string             mLastError;
+    std::filesystem::path   mFilePath;
+    std::ostream*           mFileOutput;
+    lua_State*              mLuaState;
 
     /*std::map<std::any, std::pair<const char*, const char*>> mSerializedProperties;
 
