@@ -18,8 +18,12 @@ set(SOURCES
     Settings/SettingsDialog.h
     Settings/SettingsPage.cpp
     Settings/SettingsPage.h
+    Settings/GeneralPage.cpp
+    Settings/GeneralPage.h
     Settings/DatabasePage.cpp
     Settings/DatabasePage.h
+    Settings/HttpServerPage.cpp
+    Settings/HttpServerPage.h
     AssetDownloader.cpp
     AssetDownloader.h
     Dialog/AboutDialog.cpp

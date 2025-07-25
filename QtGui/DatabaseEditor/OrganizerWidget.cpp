@@ -7,3 +7,20 @@
 // seeing in the SQLite database. This lets you organize it yourself
 // This works more like a traditional file manager, with tree views and rearranging files and all of that shit.
 #include "OrganizerWidget.h"
+#include "DatabaseEditor.h"
+
+using namespace NoobWarrior;
+
+OrganizerWidget::OrganizerWidget(QWidget *parent) : QDockWidget(parent)
+{
+    assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr);
+    setWindowTitle("Organizer");
+    InitWidgets();
+}
+
+void OrganizerWidget::InitWidgets() {
+    MainWidget = new QWidget(this);
+    setWidget(MainWidget);
+
+    MainLayout = new QVBoxLayout(MainWidget);
+}

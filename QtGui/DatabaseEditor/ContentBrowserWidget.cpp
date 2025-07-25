@@ -20,6 +20,7 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent
     MainLayout(nullptr),
     List(nullptr)
 {
+    assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentBrowserWidget should not be parented to anything other than DatabaseEditor");
     setWindowTitle("Content Browser");
     InitWidgets();
 }

@@ -315,4 +315,8 @@ void DatabaseEditor::InitWidgets() {
     mContentBrowser = new ContentBrowserWidget(this);
     mContentBrowser->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mContentBrowser);
+
+    mOrganizer = new OrganizerWidget(this);
+    mOrganizer->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::LeftDockWidgetArea, mOrganizer);
 }

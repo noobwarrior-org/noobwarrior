@@ -9,6 +9,7 @@
 
 #include "OverviewWidget.h"
 #include "ContentBrowserWidget.h"
+#include "OrganizerWidget.h"
 
 #include <QMainWindow>
 #include <QMenu>
@@ -52,8 +53,12 @@ namespace NoobWarrior {
         QToolBar *mViewToolBar;
         QToolBar *mInsertToolBar;
         QTabWidget *mTabWidget;
+
         OverviewWidget *mOverviewWidget;
+
+        //////////////////// Dockable Widgets ////////////////////
         ContentBrowserWidget *mContentBrowser;
+        OrganizerWidget *mOrganizer;
 
         Database *mCurrentDatabase;
     };

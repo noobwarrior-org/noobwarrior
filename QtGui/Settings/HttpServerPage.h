@@ -1,16 +1,15 @@
 // === noobWarrior ===
-// File: DatabasePage.h
+// File: HttpServerPage.h
 // Started by: Hattozo
-// Started on: 7/2/2025
+// Started on: 7/24/2025
 // Description:
 #pragma once
 #include "SettingsPage.h"
 
 namespace NoobWarrior {
-class DatabasePage : public SettingsPage {
-    Q_OBJECT
+class HttpServerPage : public SettingsPage {
 public:
-    DatabasePage(QWidget *parent = nullptr);
+    HttpServerPage(QWidget *parent = nullptr);
     const QString GetTitle() override;
     const QString GetDescription() override;
     const QIcon GetIcon() override;
