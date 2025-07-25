@@ -136,7 +136,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
     Layout->addWidget(robloxServersLabel);
 
-    resize(Layout->sizeHint());
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
 
 Launcher::~Launcher() {}
