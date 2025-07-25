@@ -5,6 +5,8 @@
 // Description: Dockable Qt widget that allows the user to explore the contents of a database in an easily-digestible format
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Database/IdRecord.h>
+
 #include "ContentBrowserWidget.h"
 #include "DatabaseEditor.h"
 
@@ -43,14 +45,23 @@ void ContentBrowserWidget::Refresh() {
     if (db == nullptr)
         return;
 
-    SearchOptions opt;
+    SearchOptions opt {};
     opt.Offset = 0;
     opt.Limit = 100;
 
-    for (auto asset : db->SearchAssets(opt)) {
+    std::vector<IdRecord*> list;
+
+    if (mIdType == IdType::Asset) {
+        std::vector<Asset> assetsList = db->SearchAssets(opt);
+        for (auto asset : assetsList) {
+            list.push_back(&asset);
+        }
+    }
+
+    for (auto item : list) {
         auto *cool = new QListWidgetItem(List);
-        cool->setText(QString::fromStdString(asset.Name));
-        cool->setIcon(QIcon(":/images/silk/page.png"));
+        cool->setText(QString::fromStdString(item->Name));
+        // cool->setIcon(QIcon(item.Icon));
     }
 }
 

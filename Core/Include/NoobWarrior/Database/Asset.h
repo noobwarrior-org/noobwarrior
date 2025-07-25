@@ -4,6 +4,7 @@
 // Started on: 6/30/2025
 // Description: A C-struct representation of what the database would give you when you ask it for an asset.
 #pragma once
+#include "OwnedIdRecord.h"
 #include "../Roblox/Api/Asset.h"
 #include "../Roblox/Api/User.h"
 
@@ -13,20 +14,9 @@
 #include <string>
 
 namespace NoobWarrior {
-struct Asset {
-    int64_t             Id;
-    int                 Version;
-    int64_t             FirstRecorded;
-    int64_t             LastRecorded;
-    std::string         Name;
-    std::string         Description;
-    int64_t             Created;
-    int64_t             Updated;
+struct Asset : OwnedIdRecord {
     Roblox::AssetType   Type;
-    int64_t             Icon;
     nlohmann::json      Thumbnails;
-    Roblox::CreatorType CreatorType;
-    int64_t             CreatorId;
     int                 PriceInRobux;
     int                 PriceInTickets;
     int                 ContentRatingTypeId;
