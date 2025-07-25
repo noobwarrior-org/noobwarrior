@@ -13,7 +13,7 @@
 
 #include "../base64.h"
 
-static const char* MetaKv[][2] = {
+static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
     {"Title", "Untitled"},
     {"Description", "No description available."},
@@ -28,7 +28,7 @@ static const char* MetaKv[][2] = {
 	 */
 	{"Mutable", "false"}
 };
-static const char* TableNames[] = {
+static constexpr const char* TableNames[] = {
     // Meta
     "Meta",
     // Id Types
@@ -40,7 +40,7 @@ static const char* TableNames[] = {
 	// Misc
 	"Transaction"
 };
-static const char* TableSchema[] = {
+static constexpr const char* TableSchema[] = {
     // Meta (0)
     R"(
     "Key"	TEXT NOT NULL UNIQUE,

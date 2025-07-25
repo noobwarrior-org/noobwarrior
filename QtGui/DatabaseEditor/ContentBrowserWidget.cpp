@@ -16,9 +16,16 @@
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
+    mIdType(IdType::Asset),
+    mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
     MainLayout(nullptr),
-    List(nullptr)
+    FilterDropdownLayout(nullptr),
+    IdTypeDropdown(nullptr),
+    AssetTypeDropdown(nullptr),
+    SearchBox(nullptr),
+    List(nullptr),
+    NoDatabaseFoundLabel(nullptr)
 {
     assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentBrowserWidget should not be parented to anything other than DatabaseEditor");
     setWindowTitle("Content Browser");
@@ -53,15 +60,43 @@ void ContentBrowserWidget::InitWidgets() {
 
     MainLayout = new QVBoxLayout(MainWidget);
 
+    FilterDropdownLayout = new QHBoxLayout(MainWidget);
+
+    IdTypeDropdown = new QComboBox();
+
+    AssetTypeDropdown = new QComboBox();
+    AssetTypeDropdown->addItem("All");
+
+    for (int i = 0; i <= 7; i++) {
+        auto idType = static_cast<IdType>(i);
+        QString idTypeStr = IdTypeAsString(idType);
+        IdTypeDropdown->addItem(QIcon(GetIconForIdType(idType)), idTypeStr);
+    }
+
+    for (int i = 1; i <= 79; i++) {
+        auto assetType = static_cast<Roblox::AssetType>(i);
+        QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
+        if (assetTypeStr.compare("None") != 0)
+            AssetTypeDropdown->addItem(assetTypeStr);
+    }
+
+    FilterDropdownLayout->addWidget(IdTypeDropdown);
+    FilterDropdownLayout->addWidget(AssetTypeDropdown);
+
     NoDatabaseFoundLabel = new QLabel("No database loaded, there is no content to show", MainWidget);
     List = new QListWidget(MainWidget);
     SearchBox = new QLineEdit(MainWidget);
 
+    NoDatabaseFoundLabel->setWordWrap(true);
+    SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
+
+    MainLayout->addLayout(FilterDropdownLayout);
+    MainLayout->addWidget(SearchBox);
     MainLayout->addWidget(NoDatabaseFoundLabel);
     MainLayout->addWidget(List);
-    MainLayout->addWidget(SearchBox);
 
-    SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
+    connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
 
     InitPageCounter();
     Refresh();

@@ -16,6 +16,7 @@ enum class IdType {
     Universe,
     User
 };
+
 inline const char *IdTypeAsString(IdType type) {
     switch (type) {
     case IdType::Asset: return "Asset";
@@ -29,7 +30,8 @@ inline const char *IdTypeAsString(IdType type) {
     default: return "";
     }
 }
-inline const char *GetIconForIdType(IdType type) {
+
+inline const char *GetAddIconForIdType(IdType type) {
     switch (type) {
         case IdType::Asset: return ":/images/silk/page_add.png";
         case IdType::Badge: return ":/images/silk/medal_gold_add.png";
@@ -38,7 +40,21 @@ inline const char *GetIconForIdType(IdType type) {
         case IdType::Group: return ":/images/silk/group_add.png";
         case IdType::Pass: return ":/images/silk/award_star_add.png";
         case IdType::Universe: return ":/images/silk/world_add.png";
-        case IdType::User: return ":/images/silk/star.png";
+        case IdType::User: return ":/images/silk/user_add.png";
+        default: return "";
+    }
+}
+
+inline const char *GetIconForIdType(IdType type) {
+    switch (type) {
+        case IdType::Asset: return ":/images/silk/page.png";
+        case IdType::Badge: return ":/images/silk/medal_gold_1.png";
+        case IdType::Bundle: return ":/images/silk/package.png";
+        case IdType::DevProduct: return ":/images/silk/coins.png";
+        case IdType::Group: return ":/images/silk/group.png";
+        case IdType::Pass: return ":/images/silk/award_star_gold_3.png";
+        case IdType::Universe: return ":/images/silk/world.png";
+        case IdType::User: return ":/images/silk/user.png";
         default: return "";
     }
 }

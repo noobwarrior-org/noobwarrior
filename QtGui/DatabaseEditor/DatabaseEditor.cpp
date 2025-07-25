@@ -235,8 +235,9 @@ void DatabaseEditor::InitWidgets() {
     setCentralWidget(mTabWidget);
 
     auto *hi = new QLabel("Welcome!\nUse the \"Content Browser\" to look at all the available contents of this database\nUse the \"Organizer\" to organize this content in a way that you similarly would in your file manager");
-    hi->setFont(QFont(QApplication::font().family(), 20));
+    hi->setFont(QFont(QApplication::font().family(), 18));
     hi->setAlignment(Qt::AlignCenter);
+    hi->setWordWrap(true);
 
     mTabWidget->addTab(hi, "Welcome");
 
@@ -287,11 +288,11 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mInsertToolBar->setWindowIconText("Insert");
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i <= 7; i++) {
         auto idType = static_cast<IdType>(i);
         QString idTypeStr = IdTypeAsString(idType);
 
-        auto insertAssetButton = new QAction(QIcon(GetIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
+        auto insertAssetButton = new QAction(QIcon(GetAddIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
         insertAssetButton->setObjectName("RequiresDatabaseButton");
         mInsertToolBar->addAction(insertAssetButton);
 
