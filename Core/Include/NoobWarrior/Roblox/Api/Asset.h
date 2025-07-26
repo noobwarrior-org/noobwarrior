@@ -72,7 +72,7 @@ namespace NoobWarrior::Roblox {
     inline const char *AssetTypeAsTranslatableString(AssetType type) {
         switch (type) {
         case AssetType::Image: return "Image";
-        case AssetType::TShirt: return "TShirt";
+        case AssetType::TShirt: return "T-Shirt";
         case AssetType::Audio: return "Audio";
         case AssetType::Mesh: return "Mesh";
         case AssetType::Lua: return "Lua";
@@ -88,10 +88,10 @@ namespace NoobWarrior::Roblox {
         case AssetType::Badge: return "Badge";
         case AssetType::Animation: return "Animation";
         case AssetType::Torso: return "Torso";
-        case AssetType::RightArm: return "RightArm";
-        case AssetType::LeftArm: return "LeftArm";
-        case AssetType::LeftLeg: return "LeftLeg";
-        case AssetType::RightLeg: return "RightLeg";
+        case AssetType::RightArm: return "Right Arm";
+        case AssetType::LeftArm: return "Left Arm";
+        case AssetType::LeftLeg: return "Left Leg";
+        case AssetType::RightLeg: return "Right Leg";
         case AssetType::Package: return "Package";
         case AssetType::Gamepass: return "Gamepass";
         case AssetType::Plugin: return "Plugin";

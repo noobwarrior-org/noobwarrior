@@ -50,16 +50,15 @@ void ContentBrowserWidget::Refresh() {
     opt.Offset = 0;
     opt.Limit = 100;
 
-    std::vector<IdRecord*> list;
+    std::vector<std::unique_ptr<IdRecord>> list;
 
     if (mIdType == IdType::Asset) {
         std::vector<Asset> assetsList = db->SearchAssets(opt);
-        for (auto asset : assetsList) {
-            list.push_back(&asset);
-        }
+        for (auto asset : assetsList)
+            list.push_back(std::make_unique<Asset>(asset));
     }
 
-    for (auto item : list) {
+    for (const auto &item : list) {
         auto *cool = new QListWidgetItem(List);
         cool->setText(QString::fromStdString(item->Name));
         // cool->setIcon(QIcon(item.Icon));

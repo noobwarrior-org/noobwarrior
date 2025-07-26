@@ -807,7 +807,7 @@ std::optional<Asset> Database::GetAsset(int64_t id) {
 	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
 	sqlite3_bind_int64(stmt, 1, id);
 
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
+	while (sqlite3_step(stmt) != SQLITE_DONE) {
 		const char *name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
 		const char *desc = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
 		const char *thumbnailsJson = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
@@ -818,7 +818,7 @@ std::optional<Asset> Database::GetAsset(int64_t id) {
 		asset.FirstRecorded = sqlite3_column_int(stmt, 2);
 		asset.LastRecorded = sqlite3_column_int(stmt, 3);
 		asset.Name = std::string(name != nullptr ? name : "No Name");
-		asset.Description = std::string(desc != nullptr ? desc : "No description available");
+		asset.Description = std::string(desc != nullptr ? desc : "No description available.");
 		asset.Created = sqlite3_column_int(stmt, 6);
 		asset.Updated = sqlite3_column_int(stmt, 7);
 		asset.Type = static_cast<Roblox::AssetType>(sqlite3_column_int(stmt, 8));
@@ -866,10 +866,10 @@ std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
 	sqlite3_bind_int(stmt, 1, opt.Limit);
 	sqlite3_bind_int(stmt, 2, opt.Offset);
 
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
+	while (sqlite3_step(stmt) != SQLITE_DONE) {
 		const int64_t id = sqlite3_column_int64(stmt, 0);
 		std::optional<Asset> asset = GetAsset(id);
-		if (GetAsset(id).has_value())
+		if (asset.has_value())
 			assets.push_back(asset.value());
 	}
 
