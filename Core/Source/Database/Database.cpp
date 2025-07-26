@@ -752,31 +752,6 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
-DatabaseResponse Database::AddAsset(const Asset &asset) {
-    if (!mInitialized) return DatabaseResponse::NotInitialized;
-	DatabaseResponse res = DatabaseResponse::Failed;
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, asset.Id);
-	sqlite3_bind_text(stmt, 2, asset.Name.c_str(), -1, nullptr);
-	asset.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 3, asset.CreatorId) : sqlite3_bind_null(stmt, 3);
-	asset.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 4, asset.CreatorId) : sqlite3_bind_null(stmt, 4);
-
-	int stepRes = sqlite3_step(stmt);
-	switch (stepRes) {
-	case SQLITE_CONSTRAINT:
-		res = DatabaseResponse::StatementConstraintViolation;
-		break;
-	case SQLITE_DONE:
-		MarkDirty();
-		res = DatabaseResponse::Success;
-		break;
-	}
-
-	sqlite3_finalize(stmt);
-	return res;
-}
-
 std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type) {
     const char *tbl = IdTypeAsString(type);
     if (*tbl == '\0' || !mInitialized) return {};
@@ -802,25 +777,35 @@ std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type
 	return {};
 }
 
-Asset Database::GetAsset(int64_t id) {
+DatabaseResponse Database::AddAsset(const Asset &asset) {
+	if (!mInitialized) return DatabaseResponse::NotInitialized;
+	DatabaseResponse res = DatabaseResponse::Failed;
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, asset.Id);
+	sqlite3_bind_text(stmt, 2, asset.Name.c_str(), -1, nullptr);
+	asset.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 3, asset.CreatorId) : sqlite3_bind_null(stmt, 3);
+	asset.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 4, asset.CreatorId) : sqlite3_bind_null(stmt, 4);
+
+	int stepRes = sqlite3_step(stmt);
+	switch (stepRes) {
+		case SQLITE_CONSTRAINT:
+			res = DatabaseResponse::StatementConstraintViolation;
+			break;
+		case SQLITE_DONE:
+			MarkDirty();
+			res = DatabaseResponse::Success;
+			break;
+	}
+
+	sqlite3_finalize(stmt);
+	return res;
+}
+
+std::optional<Asset> Database::GetAsset(int64_t id) {
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
 	sqlite3_bind_int64(stmt, 1, id);
-
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
-
-	}
-}
-
-std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
-	if (!mInitialized) return {};
-
-	std::vector<Asset> assets;
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
-	sqlite3_bind_int(stmt, 1, opt.Limit);
-	sqlite3_bind_int(stmt, 2, opt.Offset);
 
 	while (sqlite3_step(stmt) == SQLITE_ROW) {
 		const char *name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
@@ -864,7 +849,28 @@ std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
 		asset.Likes = sqlite3_column_int(stmt, 24);
 		asset.Dislikes = sqlite3_column_int(stmt, 25);
 
-		assets.push_back(asset);
+		sqlite3_finalize(stmt);
+		return asset;
+	}
+	sqlite3_finalize(stmt);
+	return std::nullopt;
+}
+
+std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
+	if (!mInitialized) return {};
+
+	std::vector<Asset> assets;
+
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
+	sqlite3_bind_int(stmt, 1, opt.Limit);
+	sqlite3_bind_int(stmt, 2, opt.Offset);
+
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		const int64_t id = sqlite3_column_int64(stmt, 0);
+		std::optional<Asset> asset = GetAsset(id);
+		if (GetAsset(id).has_value())
+			assets.push_back(asset.value());
 	}
 
 	sqlite3_finalize(stmt);

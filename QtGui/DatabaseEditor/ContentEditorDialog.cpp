@@ -43,7 +43,16 @@ void ContentEditorDialog::RegenWidgets() {
     mLayout->addRow(new QLabel(tr("Updated"), this), new QDateTimeEdit(this));
 
     if (mIdType == IdType::Asset) {
+        auto *typeDropdown = new QComboBox(this);
 
+        for (int i = 1; i <= 79; i++) {
+            auto assetType = static_cast<Roblox::AssetType>(i);
+            QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
+            if (assetTypeStr.compare("None") != 0)
+                typeDropdown->addItem(assetTypeStr);
+        }
+
+        mLayout->addRow(new QLabel(tr("Type"), this), typeDropdown);
     }
 
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);

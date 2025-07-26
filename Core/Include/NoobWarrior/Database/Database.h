@@ -87,11 +87,12 @@ namespace NoobWarrior {
         DatabaseResponse SetAuthor(const std::string &author);
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
-        DatabaseResponse AddAsset(const Asset &asset);
         std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);
 
-        Asset GetAsset(int64_t id);
-
+        //////////////////// Id Types ////////////////////
+        /** Asset **/
+        DatabaseResponse AddAsset(const Asset &asset);
+        std::optional<Asset> GetAsset(int64_t id);
         std::vector<Asset> SearchAssets(const SearchOptions &opt);
     private:
         std::filesystem::path mPath;

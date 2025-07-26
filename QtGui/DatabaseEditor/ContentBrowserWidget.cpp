@@ -42,6 +42,7 @@ void ContentBrowserWidget::Refresh() {
 
     NoDatabaseFoundLabel->setVisible(db == nullptr);
     List->setVisible(db != nullptr);
+    List->clear();
     if (db == nullptr)
         return;
 
@@ -99,6 +100,7 @@ void ContentBrowserWidget::InitWidgets() {
     SearchBox = new QLineEdit(MainWidget);
 
     NoDatabaseFoundLabel->setWordWrap(true);
+    List->setViewMode(QListView::IconMode);
     SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
 
     MainLayout->addLayout(FilterDropdownLayout);
