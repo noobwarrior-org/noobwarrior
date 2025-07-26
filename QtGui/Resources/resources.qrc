@@ -945,5 +945,6 @@
     <file>images/icon64.png</file>
     <file>images/lua16.png</file>
     <file>images/explorer.png</file>
+    <file>images/content_deleted.png</file>
   </qresource>
 </RCC>
