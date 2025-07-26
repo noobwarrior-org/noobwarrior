@@ -19,7 +19,7 @@ using namespace NoobWarrior::HttpServer;
 
 HttpServer::HttpServer(Core *core) :
     mCore(core),
-    Directory(Core::GetInstallationDir() / "httpserver"),
+    Directory(mCore->GetInstallationDir() / "httpserver"),
     Server(nullptr)
 {}
 
@@ -51,7 +51,9 @@ int HttpServer::Start(uint16_t port) {
     char portStr[5];
     snprintf(portStr, 5, "%i", port);
 
-    const char* configOptions[] = {"listening_ports", portStr, "document_root", (Directory / "web/static").generic_string().c_str(), nullptr};
+    const std::filesystem::path &staticDir = Directory / "web" / "static";
+
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", staticDir.c_str(), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);

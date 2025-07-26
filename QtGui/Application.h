@@ -17,6 +17,7 @@ public:
     Core *GetCore();
     bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
 private:
+    Init mInit {};
     Core *mCore;
     Launcher *mLauncher;
 };

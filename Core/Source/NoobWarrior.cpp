@@ -13,14 +13,17 @@
 #include <shlobj.h>
 #elif defined(__APPLE__)
 #include <CoreServices/CoreServices.h>
+
+#include <utility>
 #endif
 
 using namespace NoobWarrior;
 
 Core::Core(Init init) :
+    mInit(std::move(init)),
     mLuaState(nullptr),
     mHttpServer(nullptr),
-    mPortable(init.Portable)
+    mPortable(mInit.Portable)
 {
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
@@ -67,13 +70,18 @@ DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
 }
 
-std::filesystem::path Core::GetInstallationDir() {
-#if defined(_WIN32)
-    WCHAR buf[MAX_PATH];
-    GetModuleFileNameW(NULL, buf, MAX_PATH);
-    return std::filesystem::path(buf).parent_path();
+std::filesystem::path Core::GetInstallationDir() const {
+    assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallationDir()");
+#if defined(__APPLE__)
+    // Assuming everyone who calls this function wants to access non-executable files.
+    auto path = std::filesystem::path(mInit.ArgVec[0]).parent_path();
+    // Are we part of an app bundle?
+    if (path.filename().compare("MacOS") == 0)
+        return std::filesystem::path(path / ".." / "Resources");
+    // No? okay just do it like how everyone else is doing it lol
+    return path;
 #else
-    return std::filesystem::current_path();
+    return std::filesystem::path(mInit.ArgVec[0]).parent_path();
 #endif
 }
 

@@ -23,8 +23,10 @@
 
 namespace NoobWarrior {
 struct Init {
-    bool Portable { true };
-    std::string ConfigFileName = { "config.json" };
+    int         ArgCount        {};
+    char**      ArgVec          {};
+    bool        Portable        { true };
+    std::string ConfigFileName  { "config.json" };
 };
 
 enum class AssetFileNameStyle {
@@ -52,7 +54,7 @@ struct DownloadAssetArgs {
 
 class Core {
 public:
-    Core(Init = {});
+    Core(Init  = {});
     ~Core();
 
     ConfigResponse ConfigReturnCode;
@@ -61,7 +63,7 @@ public:
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
 
-    static std::filesystem::path GetInstallationDir();
+    std::filesystem::path GetInstallationDir() const;
 
     /**
      * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
@@ -85,6 +87,7 @@ private:
     int Inject(unsigned long pid, char *dllPath);
     int LaunchInjectProcess(const std::filesystem::path &filePath);
 
+    Init                            mInit;
     lua_State*                      mLuaState;
     Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;

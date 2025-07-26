@@ -9,6 +9,7 @@
 #include <NoobWarrior/Config.h>
 
 #include <QApplication>
+#include <QDir>
 #include <QFontDatabase>
 #include <QLabel>
 #include <QMessageBox>
@@ -24,16 +25,16 @@ using namespace NoobWarrior;
 
 Application *NoobWarrior::gApp = nullptr;
 
-Application::Application(int &argc, char **argv) : QApplication(argc, argv)
-{}
+Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
+    mInit.ArgCount = argc;
+    mInit.ArgVec = argv;
+    mInit.Portable = QDir(QDir(applicationDirPath()).filePath("NW_PORTABLE")).exists();
+}
 
 int Application::Run() {
     int ret = 1;
 
-    Init init;
-    init.Portable = std::filesystem::exists(Core::GetInstallationDir().append("NW_PORTABLE"));
-
-    mCore = new Core(init);
+    mCore = new Core(mInit);
     mCore->StartHttpServer(8080);
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {
