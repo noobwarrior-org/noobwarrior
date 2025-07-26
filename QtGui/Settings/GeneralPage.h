@@ -10,6 +10,7 @@ namespace NoobWarrior {
 class GeneralPage : public SettingsPage {
 public:
     GeneralPage(QWidget *parent = nullptr);
+    void InitWidgets();
     const QString GetTitle() override;
     const QString GetDescription() override;
     const QIcon GetIcon() override;

@@ -47,6 +47,8 @@ void SettingsDialog::InitWidgets() {
 
     mainLayout->addWidget(ListWidget);
     mainLayout->addWidget(StackedWidget);
+
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 void SettingsDialog::InitPages() {
