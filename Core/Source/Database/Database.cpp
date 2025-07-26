@@ -67,7 +67,7 @@ static constexpr const char* TableSchema[] = {
     // Asset (1)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -101,7 +101,7 @@ static constexpr const char* TableSchema[] = {
     // Badge (2)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -123,7 +123,7 @@ static constexpr const char* TableSchema[] = {
     // Bundle (3)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -152,7 +152,7 @@ static constexpr const char* TableSchema[] = {
     // DevProduct (4)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -179,7 +179,7 @@ static constexpr const char* TableSchema[] = {
     // Group (5)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -202,7 +202,7 @@ static constexpr const char* TableSchema[] = {
     // Pass (6)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -226,7 +226,7 @@ static constexpr const char* TableSchema[] = {
     // Universe (7)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -262,7 +262,7 @@ static constexpr const char* TableSchema[] = {
     // User (8)
     R"(
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -752,12 +752,29 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
-DatabaseResponse Database::AddAsset(Asset *asset) {
+DatabaseResponse Database::AddAsset(const Asset &asset) {
     if (!mInitialized) return DatabaseResponse::NotInitialized;
+	DatabaseResponse res = DatabaseResponse::Failed;
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, asset.Id);
+	sqlite3_bind_text(stmt, 2, asset.Name.c_str(), -1, nullptr);
+	asset.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 3, asset.CreatorId) : sqlite3_bind_null(stmt, 3);
+	asset.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 4, asset.CreatorId) : sqlite3_bind_null(stmt, 4);
 
-	MarkDirty();
+	int stepRes = sqlite3_step(stmt);
+	switch (stepRes) {
+	case SQLITE_CONSTRAINT:
+		res = DatabaseResponse::StatementConstraintViolation;
+		break;
+	case SQLITE_DONE:
+		MarkDirty();
+		res = DatabaseResponse::Success;
+		break;
+	}
 
-    // int execVal = sqlite3_exec(mDatabase, statement, nullptr, nullptr, nullptr);
+	sqlite3_finalize(stmt);
+	return res;
 }
 
 std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type) {
@@ -806,18 +823,22 @@ std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
 	sqlite3_bind_int(stmt, 2, opt.Offset);
 
 	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		const char *name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+		const char *desc = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+		const char *thumbnailsJson = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
+
 		Asset asset;
 		asset.Id = sqlite3_column_int(stmt, 0);
 		asset.Version = sqlite3_column_int(stmt, 1);
 		asset.FirstRecorded = sqlite3_column_int(stmt, 2);
 		asset.LastRecorded = sqlite3_column_int(stmt, 3);
-		asset.Name = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
-		asset.Description = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+		asset.Name = std::string(name != nullptr ? name : "No Name");
+		asset.Description = std::string(desc != nullptr ? desc : "No description available");
 		asset.Created = sqlite3_column_int(stmt, 6);
 		asset.Updated = sqlite3_column_int(stmt, 7);
 		asset.Type = static_cast<Roblox::AssetType>(sqlite3_column_int(stmt, 8));
 		asset.Icon = sqlite3_column_int(stmt, 9);
-		try { asset.Thumbnails = nlohmann::json::parse(sqlite3_column_text(stmt, 10)); } catch (nlohmann::detail::parse_error &e) { asset.Thumbnails = "[]"; }
+		try { asset.Thumbnails = nlohmann::json::parse(thumbnailsJson != nullptr ? thumbnailsJson : "[]"); } catch (nlohmann::detail::parse_error &e) { asset.Thumbnails = "[]"; }
 		{
 			// The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
 			asset.CreatorType = sqlite3_column_type(stmt, 11) != SQLITE_NULL

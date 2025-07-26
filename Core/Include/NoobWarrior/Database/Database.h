@@ -34,7 +34,8 @@ namespace NoobWarrior {
         CouldNotCreateTable,
         CouldNotSetKeyValues,
         DidNothing,
-        NotInitialized
+        NotInitialized,
+        StatementConstraintViolation
     };
 
     class Database {
@@ -86,7 +87,7 @@ namespace NoobWarrior {
         DatabaseResponse SetAuthor(const std::string &author);
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
-        DatabaseResponse AddAsset(Asset *asset);
+        DatabaseResponse AddAsset(const Asset &asset);
         std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);
 
         Asset GetAsset(int64_t id);

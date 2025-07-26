@@ -157,6 +157,10 @@ Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
     return mCurrentDatabase;
 }
 
+ContentBrowserWidget *DatabaseEditor::GetContentBrowser() {
+    return mContentBrowser;
+}
+
 void DatabaseEditor::InitMenus() {
     mNewDatabaseAction = new QAction("New Database");
     mOpenDatabaseAction = new QAction("Open Database");

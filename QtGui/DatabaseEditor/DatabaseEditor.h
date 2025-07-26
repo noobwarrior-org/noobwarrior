@@ -28,6 +28,8 @@ namespace NoobWarrior {
         void TryToOpenFile(const QString &path = ":memory:");
 
         Database *GetCurrentlyEditingDatabase();
+
+        ContentBrowserWidget *GetContentBrowser();
     protected:
         void closeEvent(QCloseEvent *event) override;
         void paintEvent(QPaintEvent *event) override;
