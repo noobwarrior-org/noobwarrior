@@ -943,6 +943,7 @@
     <file>fonts/FiraMono-Bold.ttf</file>
     <file>images/icon.ico</file>
     <file>images/icon64.png</file>
+    <file>images/icon1024.png</file>
     <file>images/lua16.png</file>
     <file>images/explorer.png</file>
     <file>images/content_deleted.png</file>

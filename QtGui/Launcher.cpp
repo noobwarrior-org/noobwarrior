@@ -84,8 +84,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     Layout = new QVBoxLayout(this);
     setLayout(Layout);
 
-    QImage logoImg(":/images/icon64.png");
-    QPixmap logoPix = QPixmap::fromImage(logoImg);
+    QImage logoImg(":/images/icon1024.png");
+    QPixmap logoPix = QPixmap::fromImage(logoImg).scaled(64 * static_cast<int>(devicePixelRatio()), 64 * static_cast<int>(devicePixelRatio()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    logoPix.setDevicePixelRatio(devicePixelRatio());
 
     auto *logoLayout = new QHBoxLayout();
     logoLayout->setAlignment(Qt::AlignBottom);
