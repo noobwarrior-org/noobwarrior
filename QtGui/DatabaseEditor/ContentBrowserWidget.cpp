@@ -6,6 +6,7 @@
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
+#include <NoobWarrior/Database/AssetTypeCategory.h>
 
 #include "ContentBrowserWidget.h"
 #include "ContentListItem.h"
@@ -16,6 +17,8 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+#include "ContentEditorDialog.h"
+
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
@@ -23,7 +26,7 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent
     mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
     MainLayout(nullptr),
-    FilterDropdownLayout(nullptr),
+    AssetFilterDropdownLayout(nullptr),
     IdTypeDropdown(nullptr),
     AssetTypeDropdown(nullptr),
     SearchBox(nullptr),
@@ -40,6 +43,19 @@ ContentBrowserWidget::~ContentBrowserWidget() {}
 void ContentBrowserWidget::Refresh() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
     Database *db = editor->GetCurrentlyEditingDatabase();
+
+    mIdType = static_cast<IdType>(IdTypeDropdown->currentIndex());
+
+    AssetTypeDropdown->setVisible(mIdType == IdType::Asset);
+    AssetTypeCategoryDropdown->setVisible(mIdType == IdType::Asset);
+
+    AssetTypeDropdown->clear();
+    for (int i = 1; i <= Roblox::AssetTypeCount; i++) {
+        auto assetType = static_cast<Roblox::AssetType>(i);
+        QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
+        if (assetTypeStr.compare("None") != 0)
+            AssetTypeDropdown->addItem(assetTypeStr);
+    }
 
     NoDatabaseFoundLabel->setVisible(db == nullptr);
     List->setVisible(db != nullptr);
@@ -66,14 +82,19 @@ void ContentBrowserWidget::Refresh() {
 }
 
 void ContentBrowserWidget::InitWidgets() {
+    auto editor = dynamic_cast<DatabaseEditor*>(parent());
+
     MainWidget = new QWidget(this);
     setWidget(MainWidget);
 
     MainLayout = new QVBoxLayout(MainWidget);
 
-    FilterDropdownLayout = new QHBoxLayout(MainWidget);
-
     IdTypeDropdown = new QComboBox();
+
+    AssetFilterDropdownLayout = new QHBoxLayout(MainWidget);
+
+    AssetTypeCategoryDropdown = new QComboBox();
+    AssetTypeCategoryDropdown->addItem("Any");
 
     AssetTypeDropdown = new QComboBox();
     AssetTypeDropdown->addItem("All");
@@ -84,15 +105,14 @@ void ContentBrowserWidget::InitWidgets() {
         IdTypeDropdown->addItem(QIcon(GetIconForIdType(idType)), idTypeStr);
     }
 
-    for (int i = 1; i <= Roblox::AssetTypeCount; i++) {
-        auto assetType = static_cast<Roblox::AssetType>(i);
-        QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
-        if (assetTypeStr.compare("None") != 0)
-            AssetTypeDropdown->addItem(assetTypeStr);
+    for (int i = 0; i <= AssetTypeCategoryCount; i++) {
+        auto assetTypeCategory = static_cast<AssetTypeCategory>(i);
+        QString assetTypeCategoryStr = AssetTypeCategoryAsTranslatableString(assetTypeCategory);
+        AssetTypeCategoryDropdown->addItem(assetTypeCategoryStr);
     }
 
-    FilterDropdownLayout->addWidget(IdTypeDropdown);
-    FilterDropdownLayout->addWidget(AssetTypeDropdown);
+    AssetFilterDropdownLayout->addWidget(AssetTypeCategoryDropdown);
+    AssetFilterDropdownLayout->addWidget(AssetTypeDropdown);
 
     NoDatabaseFoundLabel = new QLabel("No database loaded, there is no content to show", MainWidget);
     List = new QListWidget(MainWidget);
@@ -105,13 +125,19 @@ void ContentBrowserWidget::InitWidgets() {
     List->setWordWrap(true);
     SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
 
-    MainLayout->addLayout(FilterDropdownLayout);
+    MainLayout->addWidget(IdTypeDropdown);
+    MainLayout->addLayout(AssetFilterDropdownLayout);
     MainLayout->addWidget(SearchBox);
     MainLayout->addWidget(NoDatabaseFoundLabel);
     MainLayout->addWidget(List);
 
     connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    connect(AssetTypeCategoryDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
     connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    connect(List, &QListWidget::itemDoubleClicked, this, [editor](QListWidgetItem *item) {
+        auto editDialog = ContentEditorDialog<Asset>(editor);
+        editDialog.exec();
+    });
 
     InitPageCounter();
     Refresh();

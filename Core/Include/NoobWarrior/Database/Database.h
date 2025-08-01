@@ -234,11 +234,32 @@ public:
         sqlite3_stmt *stmt;
 
         if constexpr (std::is_same_v<T, Asset>) {
-        	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
+        	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Icon, Thumbnails, UserId, GroupId, PriceInRobux, PriceInTickets, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Sales, Favorites, Likes, Dislikes, Data) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", -1, &stmt, nullptr);
         	sqlite3_bind_int64(stmt, 1, content.Id);
-        	sqlite3_bind_text(stmt, 2, content.Name.c_str(), -1, nullptr);
-        	content.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 3, content.CreatorId) : sqlite3_bind_null(stmt, 3);
-        	content.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 4, content.CreatorId) : sqlite3_bind_null(stmt, 4);
+        	sqlite3_bind_int64(stmt, 2, content.Version);
+        	sqlite3_bind_text(stmt, 3, content.Name.c_str(), -1, nullptr);
+        	sqlite3_bind_text(stmt, 4, content.Description.c_str(), -1, nullptr);
+        	sqlite3_bind_int64(stmt, 5, content.Created);
+        	sqlite3_bind_int64(stmt, 6, content.Updated);
+        	sqlite3_bind_int(stmt, 7, static_cast<int>(content.Type));
+        	sqlite3_bind_int64(stmt, 8, content.Icon);
+        	sqlite3_bind_text(stmt, 9, content.Thumbnails.dump().c_str(), -1, nullptr);
+        	content.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 10, content.CreatorId) : sqlite3_bind_null(stmt, 10);
+        	content.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 11, content.CreatorId) : sqlite3_bind_null(stmt, 11);
+        	sqlite3_bind_int(stmt, 12, content.PriceInRobux);
+        	sqlite3_bind_int(stmt, 13, content.PriceInTickets);
+        	sqlite3_bind_int(stmt, 14, content.ContentRatingTypeId);
+        	sqlite3_bind_int(stmt, 15, content.MinimumMembershipLevel);
+        	sqlite3_bind_int(stmt, 16, content.IsPublicDomain);
+        	sqlite3_bind_int(stmt, 17, content.IsForSale);
+        	sqlite3_bind_int(stmt, 18, content.IsNew);
+        	sqlite3_bind_int(stmt, 19, static_cast<int>(content.LimitedType));
+        	sqlite3_bind_int(stmt, 20, content.Remaining);
+        	sqlite3_bind_int(stmt, 21, content.Sales);
+        	sqlite3_bind_int(stmt, 22, content.Favorites);
+        	sqlite3_bind_int(stmt, 23, content.Likes);
+        	sqlite3_bind_int(stmt, 24, content.Dislikes);
+        	sqlite3_bind_blob(stmt, 25, content.Data.data(), content.Data.size(), nullptr);
         } else if constexpr (std::is_same_v<T, Badge>) {
         	sqlite3_prepare_v2(mDatabase, "INSERT INTO Badge (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
         	sqlite3_bind_int64(stmt, 1, content.Id);

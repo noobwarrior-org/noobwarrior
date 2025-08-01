@@ -6,7 +6,7 @@
 #include "ContentListItem.h"
 
 NoobWarrior::ContentListItem::ContentListItem(Database *db, IdRecord *record, QListWidget *listview) : QListWidgetItem(listview) {
-    setText(QString::fromStdString(record->Name));
+    setText(QString("%1\n(%2)").arg(QString::fromStdString(record->Name), QString::number(record->Id)));
 
     std::vector<unsigned char> imageData = db->RetrieveContentIconData<Asset>(record->Id);
     if (!imageData.empty()) {

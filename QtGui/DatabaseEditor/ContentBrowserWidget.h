@@ -35,9 +35,10 @@ private:
     QWidget*        MainWidget;
     QVBoxLayout*    MainLayout;
 
-    QHBoxLayout*    FilterDropdownLayout;
     QComboBox*      IdTypeDropdown;
+    QHBoxLayout*    AssetFilterDropdownLayout;
     QComboBox*      AssetTypeDropdown;
+    QComboBox*      AssetTypeCategoryDropdown;
 
     QLineEdit*      SearchBox;
     QListWidget*    List;

@@ -15,21 +15,22 @@
 
 namespace NoobWarrior {
 struct Asset : OwnedIdRecord {
-    Roblox::AssetType   Type;
-    nlohmann::json      Thumbnails;
-    int                 PriceInRobux;
-    int                 PriceInTickets;
-    int                 ContentRatingTypeId;
-    int                 MinimumMembershipLevel;
-    bool                IsPublicDomain;
-    bool                IsForSale;
-    bool                IsNew;
-    Roblox::LimitedType LimitedType;
-    int64_t             Remaining;
-    int64_t             Sales;
-    int64_t             Favorites;
-    int64_t             Likes;
-    int64_t             Dislikes;
+    Roblox::AssetType           Type;
+    nlohmann::json              Thumbnails;
+    int                         PriceInRobux;
+    int                         PriceInTickets;
+    int                         ContentRatingTypeId;
+    int                         MinimumMembershipLevel;
+    bool                        IsPublicDomain;
+    bool                        IsForSale;
+    bool                        IsNew;
+    Roblox::LimitedType         LimitedType;
+    int64_t                     Remaining;
+    int64_t                     Sales;
+    int64_t                     Favorites;
+    int64_t                     Likes;
+    int64_t                     Dislikes;
+    std::vector<unsigned char> Data;
 
     static constexpr const char* TableName = "Asset";
 };

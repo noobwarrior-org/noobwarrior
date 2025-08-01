@@ -9,7 +9,7 @@
 namespace NoobWarrior {
 struct IdRecord : Record {
     int64_t             Id;
-    int                 Version;
+    int                 Version = 1;
     std::string         Name;
 };
 }

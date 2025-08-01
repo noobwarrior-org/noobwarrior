@@ -14,4 +14,3 @@ public:
     ContentListItem(Database *db, IdRecord *record, QListWidget *listview = nullptr);
 };
 }
-

@@ -301,7 +301,7 @@ void DatabaseEditor::InitWidgets() {
         mInsertToolBar->addAction(insertAssetButton);
 
         connect(insertAssetButton, &QAction::triggered, [&, idType]() {
-            ContentEditorDialog dialog(idType, this);
+            ContentEditorDialog<Asset> dialog(this);
             dialog.exec();
         });
     }

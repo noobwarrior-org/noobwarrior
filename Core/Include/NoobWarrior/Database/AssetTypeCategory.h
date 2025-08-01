@@ -6,8 +6,17 @@
 #pragma once
 
 namespace NoobWarrior {
+constexpr int AssetTypeCategoryCount = 1;
 enum class AssetTypeCategory {
     DevelopmentItem,
     AvatarItem
 };
+
+inline const char *AssetTypeCategoryAsTranslatableString(AssetTypeCategory type) {
+    switch (type) {
+        case AssetTypeCategory::DevelopmentItem: return "Development Item";
+        case AssetTypeCategory::AvatarItem: return "Avatar Item";
+        default: return "Unknown";
+    }
+}
 }
