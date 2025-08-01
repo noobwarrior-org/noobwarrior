@@ -4,8 +4,8 @@
 // Started on: 7/2/2025
 // Description:
 #pragma once
-#include <NoobWarrior/Database/Asset.h>
-#include <../../Core/Include/NoobWarrior/Database/IdType.h>
+#include <../../Core/Include/NoobWarrior/Database/IdType/Asset.h>
+#include <../../Core/Include/NoobWarrior/Database/IdType/IdType.h>
 
 #include <QDialog>
 #include <QDialogButtonBox>

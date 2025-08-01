@@ -4,9 +4,9 @@
 // Started on: 6/30/2025
 // Description: A C-struct representation of what the database would give you when you ask it for an asset.
 #pragma once
-#include "OwnedIdRecord.h"
-#include "../Roblox/Api/Asset.h"
-#include "../Roblox/Api/User.h"
+#include "../Record/OwnedIdRecord.h"
+#include "../../Roblox/Api/Asset.h"
+#include "../../Roblox/Api/User.h"
 
 #include <nlohmann/json.hpp>
 
@@ -30,5 +30,7 @@ struct Asset : OwnedIdRecord {
     int64_t             Favorites;
     int64_t             Likes;
     int64_t             Dislikes;
+
+    static constexpr const char* TableName = "Asset";
 };
 }

@@ -48,7 +48,7 @@ enum class ConfigResponse {
 };
 class BaseConfig {
 public:
-    BaseConfig(const std::string &globalName, const std::filesystem::path &filePath, lua_State *luaState);
+    BaseConfig(std::string globalName, std::filesystem::path filePath, lua_State *luaState);
     ConfigResponse Open();
     ConfigResponse Close();
     std::string GetLuaError();

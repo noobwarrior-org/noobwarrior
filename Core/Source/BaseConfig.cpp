@@ -6,6 +6,8 @@
 #include <NoobWarrior/BaseConfig.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <utility>
+
 #include "serpent.lua.inc"
 
 static int custom_serializer_func(lua_State *L) {
@@ -19,9 +21,9 @@ static int custom_serializer_func(lua_State *L) {
     return 1;
 }
 
-NoobWarrior::BaseConfig::BaseConfig(const std::string &globalName, const std::filesystem::path &filePath, lua_State *luaState) :
-    mGlobalName(globalName),
-    mFilePath(filePath),
+NoobWarrior::BaseConfig::BaseConfig(std::string globalName, std::filesystem::path filePath, lua_State *luaState) :
+    mGlobalName(std::move(globalName)),
+    mFilePath(std::move(filePath)),
     mFileOutput(nullptr),
     mLuaState(luaState)
 {}

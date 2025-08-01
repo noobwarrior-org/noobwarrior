@@ -5,9 +5,10 @@
 // Description: Dockable Qt widget that allows the user to explore the contents of a database in an easily-digestible format
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/Database/IdRecord.h>
+#include <../../Core/Include/NoobWarrior/Database/Record/IdRecord.h>
 
 #include "ContentBrowserWidget.h"
+#include "ContentListItem.h"
 #include "DatabaseEditor.h"
 
 #include <QLabel>
@@ -53,14 +54,13 @@ void ContentBrowserWidget::Refresh() {
     std::vector<std::unique_ptr<IdRecord>> list;
 
     if (mIdType == IdType::Asset) {
-        std::vector<Asset> assetsList = db->SearchAssets(opt);
+        std::vector<Asset> assetsList = db->SearchContent<Asset>(opt);
         for (auto asset : assetsList)
             list.push_back(std::make_unique<Asset>(asset));
     }
 
     for (const auto &item : list) {
-        auto *cool = new QListWidgetItem(List);
-        cool->setText(QString::fromStdString(item->Name));
+        new ContentListItem(db, item.get(), List);
         // cool->setIcon(QIcon(item.Icon));
     }
 }
@@ -78,13 +78,13 @@ void ContentBrowserWidget::InitWidgets() {
     AssetTypeDropdown = new QComboBox();
     AssetTypeDropdown->addItem("All");
 
-    for (int i = 0; i <= 7; i++) {
+    for (int i = 0; i <= IdTypeCount; i++) {
         auto idType = static_cast<IdType>(i);
         QString idTypeStr = IdTypeAsString(idType);
         IdTypeDropdown->addItem(QIcon(GetIconForIdType(idType)), idTypeStr);
     }
 
-    for (int i = 1; i <= 79; i++) {
+    for (int i = 1; i <= Roblox::AssetTypeCount; i++) {
         auto assetType = static_cast<Roblox::AssetType>(i);
         QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
         if (assetTypeStr.compare("None") != 0)

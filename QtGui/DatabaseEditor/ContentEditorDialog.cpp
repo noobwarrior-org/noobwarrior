@@ -63,7 +63,7 @@ void ContentEditorDialog::RegenWidgets() {
             Asset asset {};
             asset.Id = qobject_cast<QLineEdit*>(mLayout->itemAt(0, QFormLayout::FieldRole)->widget())->text().toInt();
             asset.Name = qobject_cast<QLineEdit*>(mLayout->itemAt(3, QFormLayout::FieldRole)->widget())->text().toStdString();
-            db->AddAsset(asset);
+            db->AddContent(asset);
         }
         editor->GetContentBrowser()->Refresh();
         close();

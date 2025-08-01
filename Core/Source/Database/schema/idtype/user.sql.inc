@@ -1,0 +1,31 @@
+/**
+ * The following fields aim to represent historical data and are not meant to be updated in a live database:
+ * "FriendCount", "FollowersCount", "FollowingCount"
+ * If such an item is mutable, these values will be added on top of through conventional means, like storing them
+ * in a separate table (ex: "UserFriends", "UserFollowers", "UserFollowing")
+ */
+static const char *schema_user = R"***(
+CREATE TABLE IF NOT EXISTS "User" (
+    "Id"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
+	"Name"	TEXT,
+	"PreviousNames"	TEXT,
+	"Groups"	TEXT,
+	"RobloxBadges"	TEXT,
+	"Outfits"	TEXT,
+	"CharacterAppearance"	TEXT,
+    "Bio"	TEXT,
+    "Status"	TEXT,
+	"JoinDate"	INTEGER,
+	"LastOnline"	INTEGER,
+	"PlaceVisits"	INTEGER,
+    "FriendCount"	INTEGER,
+    "FollowersCount"	INTEGER,
+	"FollowingCount"	INTEGER,
+	"HeadshotThumbnail"	BLOB,
+	"BustThumbnail"	BLOB,
+	PRIMARY KEY("Id","Version")
+);
+)***";

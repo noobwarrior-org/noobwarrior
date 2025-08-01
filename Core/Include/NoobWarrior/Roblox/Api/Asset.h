@@ -11,6 +11,7 @@
 #include <string>
 
 namespace NoobWarrior::Roblox {
+    constexpr int AssetTypeCount = 79;
     // Note: "None" is a fallback if the asset does not have a type. It's not a real value in the Roblox API
     enum class AssetType { None = 0, Image = 1, TShirt = 2, Audio = 3, Mesh = 4, Lua = 5,
         Hat = 8, Place = 9, Model = 10, Shirt = 11, Pants = 12,

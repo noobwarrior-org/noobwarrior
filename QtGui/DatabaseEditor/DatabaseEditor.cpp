@@ -292,7 +292,7 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mInsertToolBar->setWindowIconText("Insert");
 
-    for (int i = 0; i <= 7; i++) {
+    for (int i = 0; i <= IdTypeCount; i++) {
         auto idType = static_cast<IdType>(i);
         QString idTypeStr = IdTypeAsString(idType);
 

@@ -4,7 +4,7 @@
 // Started on: 2/17/2025
 // Description: Dockable Qt widget that allows the user to explore the contents of an archive in an easily-digestible format
 #pragma once
-#include <NoobWarrior/Database/IdType.h>
+#include <../../Core/Include/NoobWarrior/Database/IdType/IdType.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
 #include <QDockWidget>

@@ -13,6 +13,39 @@
 
 #include "../base64.h"
 
+// table schemas that are just sql statements describing how the table should be created.
+#include "schema/meta.sql.inc"
+#include "schema/transaction.sql.inc"
+
+#include "schema/idtype/asset.sql.inc"
+#include "schema/idtype/badge.sql.inc"
+#include "schema/idtype/bundle.sql.inc"
+#include "schema/idtype/devproduct.sql.inc"
+#include "schema/idtype/group.sql.inc"
+#include "schema/idtype/pass.sql.inc"
+#include "schema/idtype/universe.sql.inc"
+#include "schema/idtype/user.sql.inc"
+
+#include "schema/idtype/user/user_friends.sql.inc"
+#include "schema/idtype/user/user_followers.sql.inc"
+#include "schema/idtype/user/user_following.sql.inc"
+#include "schema/idtype/user/user_inventory.sql.inc"
+#include "schema/idtype/user/user_favorites.sql.inc"
+#include "schema/idtype/user/user_likes_dislikes.sql.inc"
+
+#include "schema/idtype/group/group_role.sql.inc"
+#include "schema/idtype/group/group_member.sql.inc"
+#include "schema/idtype/group/group_wall.sql.inc"
+#include "schema/idtype/group/group_log.sql.inc"
+#include "schema/idtype/group/group_ally.sql.inc"
+#include "schema/idtype/group/group_enemy.sql.inc"
+
+// sql code for migrating so that when the database file has to be updated it can apply these patches in order.
+#include "migrations/v2.sql.inc"
+
+// icons
+#include "icons/content_deleted.png.inc"
+
 static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
     {"Title", "Untitled"},
@@ -27,502 +60,6 @@ static constexpr const char* MetaKv[][2] = {
 	 * (Ex: Adding records to friend table by friending someone in-game, liking/disliking a game, uploading UGC, etc.)
 	 */
 	{"Mutable", "false"}
-};
-static constexpr const char* TableNames[] = {
-    // Meta
-    "Meta",
-    // Id Types
-    "Asset", "Badge", "Bundle", "DevProduct", "Group", "Pass", "Universe", "User",
-    // User-Related Tables
-    "UserFriends", "UserFollowers", "UserFollowing", "UserInventory", "UserFavorites", "UserLikesDislikes",
-    // Group-Related Tables
-    "GroupRole", "GroupMember", "GroupWall", "GroupLog", "GroupAlly", "GroupEnemy",
-	// Misc
-	"Transaction"
-};
-static constexpr const char* TableSchema[] = {
-    // Meta (0)
-    R"(
-    "Key"	TEXT NOT NULL UNIQUE,
-	"Value"	TEXT,
-	PRIMARY KEY("Key")
-    )",
-    /**
-     * Notes
-     *
-     * There can be multiple records with the same Id, but with different version numbers.
-     * It is used for storing multiple versions of an item.
-     *
-     * For the "UserId" and "GroupId" fields, either one of these two fields have to be null, and the other must not be null.
-     * There cannot be a scenario where both the "UserId" and "GroupId" fields are filled in.
-     *
-	 * Also, just because an asset is owned by a "UserId" or "GroupId" does not necessarily mean it is in their
-	 * corresponding inventories.
-     *
-     * The following fields aim to represent historical data and are not meant to be updated in a live database:
-     * "Sales", "Favorites", "Likes", "Dislikes"
-     * If such an item is mutable, these values will be added on top of through conventional means, like storing them
-     * in a separate table (ex: "UserLikesDislikes", or "Transaction")
-     */
-    // Asset (1)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"Type"	INTEGER,
-	"Icon"	INTEGER,
-	"Thumbnails"	TEXT,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PriceInRobux"	INTEGER,
-	"PriceInTickets"	INTEGER,
-	"ContentRatingTypeId"	INTEGER,
-	"MinimumMembershipLevel"	INTEGER,
-	"IsPublicDomain"	INTEGER,
-	"IsForSale"	INTEGER,
-	"IsNew"	INTEGER,
-	"LimitedType"	INTEGER,
-	"Remaining"	INTEGER,
-	"Sales"	INTEGER,
-    "Favorites"	INTEGER,
-    "Likes"	INTEGER,
-	"Dislikes"	INTEGER,
-	"Data"	BLOB,
-	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-    // Badge (2)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"Image"	INTEGER,
-	"Awarded"	INTEGER,
-    "AwardedYesterday"	INTEGER,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"UniverseId"	INTEGER NOT NULL,
-	PRIMARY KEY("Id","Version"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-    // Bundle (3)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"Type"	INTEGER NOT NULL,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PriceInRobux"	INTEGER,
-	"ContentRatingTypeId"	INTEGER,
-	"MinimumMembershipLevel"	INTEGER,
-	"IsForSale"	INTEGER,
-	"IsLimited"	INTEGER,
-	"IsLimitedUnique"	INTEGER,
-	"IsNew"	INTEGER,
-	"Remaining"	INTEGER,
-	"Sales"	INTEGER,
-    "Favorites"	INTEGER,
-	"Items"	TEXT,
-	PRIMARY KEY("Id","Version"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-    // DevProduct (4)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"PriceInRobux"	INTEGER,
-	"Image"	INTEGER,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"UniverseId"	INTEGER NOT NULL,
-	PRIMARY KEY("Id","Version"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-	/**
-	 * The following fields aim to represent historical data and are not meant to be updated in a live database:
-	 * "MemberCount"
-	 * If such an item is mutable, these values will be added on top of through conventional means, like storing them
-	 * in a separate table (ex: "GroupMember")
-	 */
-    // Group (5)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-    "Created"	INTEGER,
-	"OwnerId"	INTEGER,
-	"EmblemId"	INTEGER,
-    "MemberCount"	INTEGER,
-    "SocialLinks"	TEXT,
-    "Funds"	INTEGER,
-    "Shout"	TEXT,
-    "ShoutUserId"	INTEGER,
-    "ShoutTimestamp"	INTEGER,
-	"EnemyDeclarationsEnabled"	INTEGER DEFAULT 0,
-	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("OwnerId") REFERENCES "User"("Id"),
-	FOREIGN KEY("ShoutUserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("EmblemId") REFERENCES "Asset"("Id")
-    )",
-    // Pass (6)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	TEXT,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"Image"	INTEGER,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"UniverseId"	INTEGER NOT NULL,
-	"PriceInRobux"	INTEGER NOT NULL,
-	"IsForSale"	INTEGER,
-    "Likes"	INTEGER,
-	"Dislikes"	INTEGER,
-	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-    // Universe (7)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"Description"	INTEGER,
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-	"StartPlaceId"	INTEGER,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
-	"Active"	INTEGER,
-	"AccessType"	INTEGER,
-	"PaymentType"	INTEGER,
-	"Genre"	INTEGER,
-	"Subgenre"	INTEGER,
-	"AgeRating"	INTEGER,
-	"SocialLinks"	TEXT,
-	"SupportedDevices"	TEXT,
-	"Favorites"	INTEGER,
-	"Likes"	INTEGER,
-	"Dislikes"	INTEGER,
-	"Visits"	INTEGER,
-	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("GroupId") REFERENCES "User"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
-    )",
-	/**
-	 * The following fields aim to represent historical data and are not meant to be updated in a live database:
-	 * "FriendCount", "FollowersCount", "FollowingCount"
-	 * If such an item is mutable, these values will be added on top of through conventional means, like storing them
-	 * in a separate table (ex: "UserFriends", "UserFollowers", "UserFollowing")
-	 */
-    // User (8)
-    R"(
-    "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
-	"PreviousNames"	TEXT,
-	"Groups"	TEXT,
-	"RobloxBadges"	TEXT,
-	"Outfits"	TEXT,
-	"CharacterAppearance"	TEXT,
-    "Bio"	TEXT,
-    "Status"	TEXT,
-	"JoinDate"	INTEGER,
-	"LastOnline"	INTEGER,
-	"PlaceVisits"	INTEGER,
-    "FriendCount"	INTEGER,
-    "FollowersCount"	INTEGER,
-	"FollowingCount"	INTEGER,
-	PRIMARY KEY("Id","Version")
-    )",
-    // UserFriends (9)
-    R"(
-    "UserId"	INTEGER NOT NULL,
-	"FriendId"	INTEGER NOT NULL,
-	"FriendedSince"	INTEGER,
-	"UnfriendedSince"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("UserId","FriendId","FriendedSince"),
-	FOREIGN KEY("FriendId") REFERENCES "User"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id")
-    )",
-    // UserFollowers (10)
-R"(
-    "UserId"	INTEGER NOT NULL,
-    "FollowerId"	INTEGER NOT NULL,
-	"FollowedSince"	INTEGER,
-	"UnfollowedSince"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-    PRIMARY KEY("UserId","FollowerId","FollowedSince"),
-    FOREIGN KEY("FollowerId") REFERENCES "User"("Id"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id")
-    )",
-    // UserFollowing (11)
-R"(
-    "UserId"	INTEGER NOT NULL,
-    "FollowingId"	INTEGER NOT NULL,
-	"FollowingSince"	INTEGER,
-	"UnfollowingSince"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-    PRIMARY KEY("UserId","FollowingId","FollowingSince"),
-    FOREIGN KEY("FollowingId") REFERENCES "User"("Id"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id")
-    )",
-	/**
-	 * Fill in only one of these "AssetId", "BadgeId", "BundleId", "GroupId", "PassId", "UniverseId" for each record
-	 * if you don't want the universe to explode. Doing polymorphic association in SQL is very stupid
-	 *
-	 * The same also goes for UserFavorites and UserLikesDislikes
-	 */
-	// UserInventory (12)
-R"(
-    "UserId"	INTEGER NOT NULL,
-	"UserVersion"	INTEGER NOT NULL,
-
-	"AssetId"	INTEGER,
-	"BadgeId"	INTEGER,
-	"BundleId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PassId"	INTEGER,
-	"UniverseId"	INTEGER,
-
-	"PurchasedTimestamp"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("UserId","UserVersion","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("UserVersion") REFERENCES "User"("Version"),
-
-	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),
-	FOREIGN KEY("BundleId") REFERENCES "Bundle"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("PassId") REFERENCES "Pass"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
-    )",
-	// UserFavorites (13)
-R"(
-    "UserId"	INTEGER NOT NULL,
-	"UserVersion"	INTEGER NOT NULL,
-
-	"AssetId"	INTEGER,
-	"BadgeId"	INTEGER,
-	"BundleId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PassId"	INTEGER,
-	"UniverseId"	INTEGER,
-
-	"FavoritedTimestamp"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("UserId","UserVersion","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("UserVersion") REFERENCES "User"("Version"),
-
-	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),
-	FOREIGN KEY("BundleId") REFERENCES "Bundle"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("PassId") REFERENCES "Pass"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
-    )",
-	// UserLikesDislikes (14)
-	R"(
-	"UserId"	INTEGER NOT NULL,
-
-	"LikedSince"	INTEGER,
-	"UnlikedSince"	INTEGER,
-
-	"Type"	INTEGER NOT NULL,
-
-	"AssetId"	INTEGER,
-	"BadgeId"	INTEGER,
-	"BundleId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PassId"	INTEGER,
-	"UniverseId"	INTEGER,
-
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-
-	PRIMARY KEY("UserId","LikedSince","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-
-	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),
-	FOREIGN KEY("BundleId") REFERENCES "Bundle"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("PassId") REFERENCES "Pass"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
-	)",
-	// GroupRole (15)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"GroupVersion"	INTEGER NOT NULL,
-	"Rank"	INTEGER NOT NULL,
-
-	"Created"	INTEGER,
-	"Updated"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","GroupVersion","Rank"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("GroupVersion") REFERENCES "Group"("Version")
-    )",
-	// GroupMember (16)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"UserId"	INTEGER NOT NULL,
-	"JoinedTimestamp"	INTEGER,
-	"LeftTimestamp"	INTEGER,
-	"Rank"	INTEGER NOT NULL,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","UserId"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id")
-    )",
-	// GroupWall (17)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"PostId"	INTEGER,
-    "UserId"	INTEGER,
-	"Message"	TEXT,
-	"Date"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","PostId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
-    )",
-	// GroupLog (18)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"LogId"	INTEGER,
-    "UserId"	INTEGER,
-	"LogType"	INTEGER,
-	"UserData"	TEXT,
-	"Date"	INTEGER,
-    "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","LogId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
-    )",
-	// GroupAlly (19)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"AllyId"	INTEGER NOT NULL,
-	"AlliedSince"	INTEGER,
-	"UnalliedSince"	INTEGER,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","AllyId","AlliedSince"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("AllyId") REFERENCES "Group"("Id")
-	)",
-	// GroupEnemy (20)
-	R"(
-	"GroupId"	INTEGER NOT NULL,
-	"EnemyId"	INTEGER NOT NULL,
-	"AntagonizedSince"	INTEGER,
-	"UnantagonizedSince"	INTEGER,
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","EnemyId","AntagonizedSince"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("EnemyId") REFERENCES "Group"("Id")
-	)",
-	// Transaction (21)
-	R"(
-	"TransactionId"	INTEGER,
-	"Date"	INTEGER,
-	"Amount"	INTEGER,
-
-	"BuyerUserId"	INTEGER,
-	"BuyerGroupId"	INTEGER,
-
-	"SellerUserId"	INTEGER,
-	"SellerGroupId"	INTEGER,
-
-	"AssetId"	INTEGER,
-	"BadgeId"	INTEGER,
-	"BundleId"	INTEGER,
-	"DevProductId"	INTEGER,
-	"GroupId"	INTEGER,
-	"PassId"	INTEGER,
-	"UniverseId"	INTEGER,
-
-	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
-	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("TransactionId"),
-
-	FOREIGN KEY("BuyerUserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("BuyerGroupId") REFERENCES "Group"("Id"),
-
-	FOREIGN KEY("SellerUserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("SellerGroupId") REFERENCES "Group"("Id"),
-
-	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),
-	FOREIGN KEY("BundleId") REFERENCES "Bundle"("Id"),
-	FOREIGN KEY("DevProductId") REFERENCES "DevProduct"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("PassId") REFERENCES "Pass"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-
-    CONSTRAINT "ONLY_ONE_VALUE1" CHECK((BuyerUserId IS NULL OR BuyerGroupId IS NULL) AND NOT (BuyerUserId IS NULL AND BuyerGroupId IS NULL)),
-	CONSTRAINT "ONLY_ONE_VALUE2" CHECK((SellerUserId IS NULL OR SellerGroupId IS NULL) AND NOT (SellerUserId IS NULL AND SellerGroupId IS NULL))
-	)",
 };
 
 using namespace NoobWarrior;
@@ -556,17 +93,46 @@ DatabaseResponse Database::Open(const std::string &path) {
         // no migrating required, just set the database version and go
         if (SetDatabaseVersion(NOOBWARRIOR_DATABASE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return DatabaseResponse::CouldNotSetVersion; }
         break;
+	case 1: ;
     }
 
+#define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
+	if (var##_execVal != SQLITE_OK) { \
+		sqlite3_close_v2(mDatabase); \
+		Out("Database", "Failed to create table from variable \"{}\"", #var);\
+		return DatabaseResponse::CouldNotCreateTable; \
+	}
+
     // create all tables that do not exist
-    for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(TableNames); i++) {
-    	std::string stmtStr = std::format("CREATE TABLE IF NOT EXISTS '{}' ({});", TableNames[i], TableSchema[i]);
-        int execVal = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
-        if (execVal != SQLITE_OK) {
-            sqlite3_close_v2(mDatabase);
-            return DatabaseResponse::CouldNotCreateTable;
-        }
-    }
+    CREATE_TABLE(schema_meta)
+	CREATE_TABLE(schema_transaction)
+
+	// id type tables
+	CREATE_TABLE(schema_asset)
+	CREATE_TABLE(schema_badge)
+	CREATE_TABLE(schema_bundle)
+	CREATE_TABLE(schema_devproduct)
+	CREATE_TABLE(schema_group)
+	CREATE_TABLE(schema_pass)
+	CREATE_TABLE(schema_universe)
+	CREATE_TABLE(schema_user)
+
+	// tables that are directly related to an id type
+	CREATE_TABLE(schema_user_friends)
+	CREATE_TABLE(schema_user_followers)
+	CREATE_TABLE(schema_user_following)
+	CREATE_TABLE(schema_user_inventory)
+	CREATE_TABLE(schema_user_favorites)
+	CREATE_TABLE(schema_user_likes_dislikes)
+
+	CREATE_TABLE(schema_group_role)
+	CREATE_TABLE(schema_group_member)
+	CREATE_TABLE(schema_group_wall)
+	CREATE_TABLE(schema_group_log)
+	CREATE_TABLE(schema_group_ally)
+	CREATE_TABLE(schema_group_enemy)
+
+#undef CREATE_TABLE
 
     // and initialize some keys
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
@@ -753,126 +319,16 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 }
 
 std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type) {
-    const char *tbl = IdTypeAsString(type);
-    if (*tbl == '\0' || !mInitialized) return {};
-    sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT * FROM ? WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
-	sqlite3_bind_text(stmt, 1, tbl, -1, nullptr);
-	sqlite3_bind_int64(stmt, 2, id);
-
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		for (int i = 0; i < sqlite3_column_count(stmt); i++) {
-			if (strncmp(sqlite3_column_name(stmt, i), "Data", 4) == 0) {
-				std::vector<unsigned char> data;
-				unsigned char *buf = (unsigned char*)sqlite3_column_blob(stmt, i);
-				data.assign(buf, buf + sqlite3_column_bytes(stmt, i));
-				sqlite3_finalize(stmt);
-				return data;
-			}
-		}
+	switch (type) {
+	default: return {};
+	case IdType::Asset: return RetrieveContentData<Asset>(id);
 	}
-
-	sqlite3_finalize(stmt);
-
-	return {};
 }
 
-DatabaseResponse Database::AddAsset(const Asset &asset) {
-	if (!mInitialized) return DatabaseResponse::NotInitialized;
-	DatabaseResponse res = DatabaseResponse::Failed;
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, asset.Id);
-	sqlite3_bind_text(stmt, 2, asset.Name.c_str(), -1, nullptr);
-	asset.CreatorType == Roblox::CreatorType::User ? sqlite3_bind_int64(stmt, 3, asset.CreatorId) : sqlite3_bind_null(stmt, 3);
-	asset.CreatorType == Roblox::CreatorType::Group ? sqlite3_bind_int64(stmt, 4, asset.CreatorId) : sqlite3_bind_null(stmt, 4);
-
-	int stepRes = sqlite3_step(stmt);
-	switch (stepRes) {
-		case SQLITE_CONSTRAINT:
-			res = DatabaseResponse::StatementConstraintViolation;
-			break;
-		case SQLITE_DONE:
-			MarkDirty();
-			res = DatabaseResponse::Success;
-			break;
+std::vector<unsigned char> Database::RetrieveContentIconData(int64_t id, IdType type) {
+	switch (type) {
+	default: return {};
+	case IdType::Asset: return RetrieveContentIconData<Asset>(id);
 	}
-
-	sqlite3_finalize(stmt);
-	return res;
 }
 
-std::optional<Asset> Database::GetAsset(int64_t id) {
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ?;", -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-
-	while (sqlite3_step(stmt) != SQLITE_DONE) {
-		const char *name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
-		const char *desc = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-		const char *thumbnailsJson = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
-
-		Asset asset;
-		asset.Id = sqlite3_column_int(stmt, 0);
-		asset.Version = sqlite3_column_int(stmt, 1);
-		asset.FirstRecorded = sqlite3_column_int(stmt, 2);
-		asset.LastRecorded = sqlite3_column_int(stmt, 3);
-		asset.Name = std::string(name != nullptr ? name : "No Name");
-		asset.Description = std::string(desc != nullptr ? desc : "No description available.");
-		asset.Created = sqlite3_column_int(stmt, 6);
-		asset.Updated = sqlite3_column_int(stmt, 7);
-		asset.Type = static_cast<Roblox::AssetType>(sqlite3_column_int(stmt, 8));
-		asset.Icon = sqlite3_column_int(stmt, 9);
-		try { asset.Thumbnails = nlohmann::json::parse(thumbnailsJson != nullptr ? thumbnailsJson : "[]"); } catch (nlohmann::detail::parse_error &e) { asset.Thumbnails = "[]"; }
-		{
-			// The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
-			asset.CreatorType = sqlite3_column_type(stmt, 11) != SQLITE_NULL
-									? Roblox::CreatorType::User
-									: Roblox::CreatorType::Group;
-			asset.CreatorId = sqlite3_column_type(stmt, 11) != SQLITE_NULL
-								  ? sqlite3_column_int(stmt, 11)
-								  : sqlite3_column_int(stmt, 12);
-		}
-		asset.PriceInRobux = sqlite3_column_int(stmt, 13);
-		asset.PriceInTickets = sqlite3_column_int(stmt, 14);
-		asset.ContentRatingTypeId = sqlite3_column_int(stmt, 15);
-		asset.MinimumMembershipLevel = sqlite3_column_int(stmt, 16);
-		asset.IsPublicDomain = sqlite3_column_int(stmt, 17);
-		asset.IsForSale = sqlite3_column_int(stmt, 18);
-		asset.IsNew = sqlite3_column_int(stmt, 19);
-		asset.LimitedType = static_cast<Roblox::LimitedType>(sqlite3_column_int(stmt, 20));
-		asset.Remaining = sqlite3_column_int(stmt, 21);
-
-		// Historical data
-		asset.Sales = sqlite3_column_int(stmt, 22);
-		asset.Favorites = sqlite3_column_int(stmt, 23);
-		asset.Likes = sqlite3_column_int(stmt, 24);
-		asset.Dislikes = sqlite3_column_int(stmt, 25);
-
-		sqlite3_finalize(stmt);
-		return asset;
-	}
-	sqlite3_finalize(stmt);
-	return std::nullopt;
-}
-
-std::vector<Asset> Database::SearchAssets(const SearchOptions &opt) {
-	if (!mInitialized) return {};
-
-	std::vector<Asset> assets;
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset LIMIT ? OFFSET ?;", -1, &stmt, nullptr);
-	sqlite3_bind_int(stmt, 1, opt.Limit);
-	sqlite3_bind_int(stmt, 2, opt.Offset);
-
-	while (sqlite3_step(stmt) != SQLITE_DONE) {
-		const int64_t id = sqlite3_column_int64(stmt, 0);
-		std::optional<Asset> asset = GetAsset(id);
-		if (asset.has_value())
-			assets.push_back(asset.value());
-	}
-
-	sqlite3_finalize(stmt);
-	return assets;
-}

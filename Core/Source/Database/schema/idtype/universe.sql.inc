@@ -1,0 +1,31 @@
+static const char *schema_universe = R"***(
+CREATE TABLE IF NOT EXISTS "Universe" (
+    "Id"	INTEGER NOT NULL,
+	"Version"	INTEGER DEFAULT 1,
+	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
+	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
+	"Name"	TEXT,
+	"Description"	TEXT,
+	"Created"	INTEGER,
+	"Updated"	INTEGER,
+	"StartPlaceId"	INTEGER,
+	"UserId"	INTEGER,
+	"GroupId"	INTEGER,
+	"Active"	INTEGER,
+	"AccessType"	INTEGER,
+	"PaymentType"	INTEGER,
+	"Genre"	INTEGER,
+	"Subgenre"	INTEGER,
+	"AgeRating"	INTEGER,
+	"SocialLinks"	TEXT,
+	"SupportedDevices"	TEXT,
+	"Favorites"	INTEGER,
+	"Likes"	INTEGER,
+	"Dislikes"	INTEGER,
+	"Visits"	INTEGER,
+	PRIMARY KEY("Id","Version"),
+	FOREIGN KEY("GroupId") REFERENCES "User"("Id"),
+	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+);
+)***";

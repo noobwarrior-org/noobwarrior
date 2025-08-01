@@ -12,8 +12,8 @@ set(SOURCES
     Application.h
     Launcher.cpp
     Launcher.h
-        Style/DefaultStyle.cpp
-        Style/DefaultStyle.h
+    Style/DefaultStyle.cpp
+    Style/DefaultStyle.h
     Settings/SettingsDialog.cpp
     Settings/SettingsDialog.h
     Settings/SettingsPage.cpp
@@ -36,6 +36,8 @@ set(SOURCES
     DatabaseEditor/ContentEditorDialog.h
     DatabaseEditor/ContentBrowserWidget.cpp
     DatabaseEditor/ContentBrowserWidget.h
+    DatabaseEditor/ContentListItem.cpp
+    DatabaseEditor/ContentListItem.h
     DatabaseEditor/OrganizerWidget.cpp
     DatabaseEditor/OrganizerWidget.h
     DatabaseEditor/PreviewWidget.cpp

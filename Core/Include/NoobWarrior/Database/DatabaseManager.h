@@ -6,7 +6,7 @@
 #pragma once
 
 #include <NoobWarrior/Database/Database.h>
-#include "IdType.h"
+#include "IdType/IdType.h"
 
 #include <filesystem>
 #include <vector>

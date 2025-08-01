@@ -4,8 +4,10 @@
 // Started on: 3/17/2025
 // Description:
 #pragma once
+#include <typeindex>
 
 namespace NoobWarrior {
+constexpr int IdTypeCount = 7;
 enum class IdType {
     Asset,
     Badge,
