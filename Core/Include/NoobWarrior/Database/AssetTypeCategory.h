@@ -8,9 +8,6 @@
 namespace NoobWarrior {
 enum class AssetTypeCategory {
     DevelopmentItem,
-    Accessory,
-    Clothing,
-    Package,
-    Animation
+    AvatarItem
 };
 }
