@@ -10,12 +10,11 @@ NoobWarrior::ContentListItem::ContentListItem(Database *db, IdRecord *record, QL
 
     std::vector<unsigned char> imageData = db->RetrieveContentIconData<Asset>(record->Id);
     if (!imageData.empty()) {
-        Out("ContentListItem", "{}", imageData.size());
         QImage image;
         image.loadFromData(imageData);
 
         QPixmap pixmap = QPixmap::fromImage(image);
 
-        setIcon(QIcon(pixmap.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+        setIcon(QIcon(pixmap));
     }
 }

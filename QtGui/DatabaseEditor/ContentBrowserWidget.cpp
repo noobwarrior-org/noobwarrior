@@ -100,6 +100,7 @@ void ContentBrowserWidget::InitWidgets() {
 
     NoDatabaseFoundLabel->setWordWrap(true);
     List->setViewMode(QListView::IconMode);
+    List->setIconSize(QSize(64, 64));
     SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
 
     MainLayout->addLayout(FilterDropdownLayout);

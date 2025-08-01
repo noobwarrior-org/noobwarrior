@@ -20,7 +20,8 @@
 
 #define NOOBWARRIOR_DATABASE_VERSION 1
 
-extern const int icon_content_deleted[187500];
+extern const int g_icon_content_deleted[];
+extern const int g_icon_content_deleted_size;
 
 namespace NoobWarrior {
 struct SearchOptions {
@@ -147,7 +148,7 @@ public:
 
     	if constexpr (std::is_same_v<T, Asset>) {
     		std::vector<unsigned char> data;
-    		data.assign(icon_content_deleted, icon_content_deleted + 187500);
+    		data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
     		return data;
     	}
 
