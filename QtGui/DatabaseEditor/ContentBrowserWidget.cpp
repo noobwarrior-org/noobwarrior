@@ -5,7 +5,7 @@
 // Description: Dockable Qt widget that allows the user to explore the contents of a database in an easily-digestible format
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include <NoobWarrior/NoobWarrior.h>
-#include <../../Core/Include/NoobWarrior/Database/Record/IdRecord.h>
+#include <NoobWarrior/Database/Record/IdRecord.h>
 
 #include "ContentBrowserWidget.h"
 #include "ContentListItem.h"
