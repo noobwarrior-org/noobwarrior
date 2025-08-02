@@ -317,18 +317,3 @@ DatabaseResponse Database::SetAuthor(const std::string &author) {
 DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
-
-std::vector<unsigned char> Database::RetrieveContentData(int64_t id, IdType type) {
-	switch (type) {
-	default: return {};
-	case IdType::Asset: return RetrieveContentData<Asset>(id);
-	}
-}
-
-std::vector<unsigned char> Database::RetrieveContentIconData(int64_t id, IdType type) {
-	switch (type) {
-	default: return {};
-	case IdType::Asset: return RetrieveContentIconData<Asset>(id);
-	}
-}
-

@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	"Created"	INTEGER,
 	"Updated"	INTEGER,
 	"Type"	INTEGER,
-	"Icon"	INTEGER,
+	"Image"	INTEGER,
 	"Thumbnails"	TEXT,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,

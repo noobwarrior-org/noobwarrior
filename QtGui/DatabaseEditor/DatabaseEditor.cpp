@@ -25,6 +25,17 @@
 #include <format>
 #include <qnamespace.h>
 
+#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = IdType::TableName; \
+    \
+    auto IdType##_InsertAction = new QAction(QIcon(iconPath), QString("Create\n%1").arg(IdType##_Str), mInsertToolBar); \
+    IdType##_InsertAction->setObjectName("RequiresDatabaseButton"); \
+    mInsertToolBar->addAction(IdType##_InsertAction); \
+    \
+    connect(IdType##_InsertAction, &QAction::triggered, [&, this]() { \
+        ContentEditorDialog<IdType> dialog(this); \
+        dialog.exec(); \
+    });
+
 using namespace NoobWarrior;
 
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
@@ -110,7 +121,7 @@ close:
         mOverviewWidget->deleteLater();
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-        mContentBrowser->Refresh();
+        mContentBrowser->Refresh<Asset>();
 
         for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
             button->setDisabled(true);
@@ -147,7 +158,7 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
     mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
 
-    mContentBrowser->Refresh();
+    mContentBrowser->Refresh<Asset>();
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(false);
@@ -292,19 +303,8 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mInsertToolBar->setWindowIconText("Insert");
 
-    for (int i = 0; i <= IdTypeCount; i++) {
-        auto idType = static_cast<IdType>(i);
-        QString idTypeStr = IdTypeAsString(idType);
-
-        auto insertAssetButton = new QAction(QIcon(GetAddIconForIdType(idType)), QString("Create\n%1").arg(idTypeStr), mInsertToolBar);
-        insertAssetButton->setObjectName("RequiresDatabaseButton");
-        mInsertToolBar->addAction(insertAssetButton);
-
-        connect(insertAssetButton, &QAction::triggered, [&, idType]() {
-            ContentEditorDialog<Asset> dialog(this);
-            dialog.exec();
-        });
-    }
+    ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
+    ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now

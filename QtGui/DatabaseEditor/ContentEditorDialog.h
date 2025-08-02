@@ -6,9 +6,10 @@
 #pragma once
 #include <NoobWarrior/Database/IdType/Asset.h>
 #include <NoobWarrior/Database/IdType/User.h>
-#include <NoobWarrior/Database/IdType/IdType.h>
+#include <NoobWarrior/Database/AssetCategory.h>
 
 #include "DatabaseEditor.h"
+#include "ContentBrowserWidget.h"
 
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -18,6 +19,9 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QLabel>
+#include <QLineEdit>
+#include <QComboBox>
 
 #include <fstream>
 #include <optional>
@@ -48,7 +52,7 @@ public:
         mLayout->addLayout(mContentLayout);
 
         QImage image;
-        image.loadFromData(db->RetrieveContentIconData<T>(-1));
+        image.loadFromData(db->RetrieveContentImageData<T>(-1));
 
         QPixmap pixmap = QPixmap::fromImage(image);
 
@@ -98,7 +102,14 @@ public:
         }
 
         if constexpr (std::is_same_v<T, Asset>) {
+            auto *categoryDropdown = new QComboBox(this);
             auto *typeDropdown = new QComboBox(this);
+
+            for (int i = 0; i <= AssetCategoryCount; i++) {
+                auto assetTypeCategory = static_cast<AssetCategory>(i);
+                QString assetTypeCategoryStr = AssetCategoryAsTranslatableString(assetTypeCategory);
+                categoryDropdown->addItem(assetTypeCategoryStr);
+            }
 
             for (int i = 1; i <= Roblox::AssetTypeCount; i++) {
                 auto assetType = static_cast<Roblox::AssetType>(i);
@@ -107,6 +118,7 @@ public:
                     typeDropdown->addItem(assetTypeStr);
             }
 
+            mContentLayout->addRow(new QLabel(tr("Category"), this), categoryDropdown);
             mContentLayout->addRow(new QLabel(tr("Type"), this), typeDropdown);
         }
 
@@ -129,7 +141,7 @@ public:
             }
             if (res != DatabaseResponse::Success)
                 QMessageBox::critical(this, "Failed To Add Content", errMsg);
-            else editor->GetContentBrowser()->Refresh();
+            else editor->GetContentBrowser()->Refresh<T>();
             close();
         });
 

@@ -3,10 +3,11 @@
 // Started by: Hattozo
 // Started on: 2/17/2025
 // Description: Dockable Qt widget that allows the user to explore the contents of a database in an easily-digestible format
+// It's very similar to the Roblox Studio toolbox widget.
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
-#include <NoobWarrior/Database/AssetTypeCategory.h>
+#include <NoobWarrior/Database/AssetCategory.h>
 
 #include "ContentBrowserWidget.h"
 #include "ContentListItem.h"
@@ -19,16 +20,20 @@
 
 #include "ContentEditorDialog.h"
 
+#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = IdType::TableName; \
+    IdTypeDropdown->addItem(QIcon(iconPath), IdType##_Str);
+
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
-    mIdType(IdType::Asset),
     mAssetType(Roblox::AssetType::Model),
+    mAssetCategory(AssetCategory::DevelopmentItem),
     MainWidget(nullptr),
     MainLayout(nullptr),
     AssetFilterDropdownLayout(nullptr),
     IdTypeDropdown(nullptr),
     AssetTypeDropdown(nullptr),
+    AssetCategoryDropdown(nullptr),
     SearchBox(nullptr),
     List(nullptr),
     NoDatabaseFoundLabel(nullptr)
@@ -40,22 +45,32 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent
 
 ContentBrowserWidget::~ContentBrowserWidget() {}
 
-void ContentBrowserWidget::Refresh() {
+/*void ContentBrowserWidget::Refresh() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
     Database *db = editor->GetCurrentlyEditingDatabase();
 
-    mIdType = static_cast<IdType>(IdTypeDropdown->currentIndex());
+    mIdType = static_cast<IdType>(IdTypeDropdown->currentData().toInt());
+    mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
 
     AssetTypeDropdown->setVisible(mIdType == IdType::Asset);
-    AssetTypeCategoryDropdown->setVisible(mIdType == IdType::Asset);
+    AssetCategoryDropdown->setVisible(mIdType == IdType::Asset);
 
     AssetTypeDropdown->clear();
-    for (int i = 1; i <= Roblox::AssetTypeCount; i++) {
+    for (int i = 0; i <= Roblox::AssetTypeCount; i++) {
         auto assetType = static_cast<Roblox::AssetType>(i);
         QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
-        if (assetTypeStr.compare("None") != 0)
-            AssetTypeDropdown->addItem(assetTypeStr);
+        if (assetTypeStr.compare("None") != 0) {
+            // Does this match our category type?
+            if (AssetCategoryDropdown->currentIndex() == 0 || // If it's 0, then that should mean it's set to "Any" so let it through
+                MapAssetTypeToCategory(assetType) == mAssetCategory)
+                AssetTypeDropdown->addItem(assetTypeStr, i);
+        }
     }
+
+    if (!AssetCategoryDropdown->currentData().isNull())
+        AssetTypeDropdown->setCurrentText(mAssetCategory == AssetCategory::AvatarItem ? "Hat" : "Model"); // set sane default.
+    else
+        AssetTypeDropdown->setCurrentText("All");
 
     NoDatabaseFoundLabel->setVisible(db == nullptr);
     List->setVisible(db != nullptr);
@@ -79,7 +94,7 @@ void ContentBrowserWidget::Refresh() {
         new ContentListItem(db, item.get(), List);
         // cool->setIcon(QIcon(item.Icon));
     }
-}
+}*/
 
 void ContentBrowserWidget::InitWidgets() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
@@ -93,25 +108,22 @@ void ContentBrowserWidget::InitWidgets() {
 
     AssetFilterDropdownLayout = new QHBoxLayout(MainWidget);
 
-    AssetTypeCategoryDropdown = new QComboBox();
-    AssetTypeCategoryDropdown->addItem("Any");
+    AssetCategoryDropdown = new QComboBox();
+    AssetCategoryDropdown->addItem("Any");
 
     AssetTypeDropdown = new QComboBox();
     AssetTypeDropdown->addItem("All");
 
-    for (int i = 0; i <= IdTypeCount; i++) {
-        auto idType = static_cast<IdType>(i);
-        QString idTypeStr = IdTypeAsString(idType);
-        IdTypeDropdown->addItem(QIcon(GetIconForIdType(idType)), idTypeStr);
+    ADD_ID_TYPE(Asset, ":/images/silk/page.png")
+    ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_1.png")
+
+    for (int i = 0; i <= AssetCategoryCount; i++) {
+        auto assetTypeCategory = static_cast<AssetCategory>(i);
+        QString assetTypeCategoryStr = AssetCategoryAsTranslatableString(assetTypeCategory);
+        AssetCategoryDropdown->addItem(assetTypeCategoryStr, i);
     }
 
-    for (int i = 0; i <= AssetTypeCategoryCount; i++) {
-        auto assetTypeCategory = static_cast<AssetTypeCategory>(i);
-        QString assetTypeCategoryStr = AssetTypeCategoryAsTranslatableString(assetTypeCategory);
-        AssetTypeCategoryDropdown->addItem(assetTypeCategoryStr);
-    }
-
-    AssetFilterDropdownLayout->addWidget(AssetTypeCategoryDropdown);
+    AssetFilterDropdownLayout->addWidget(AssetCategoryDropdown);
     AssetFilterDropdownLayout->addWidget(AssetTypeDropdown);
 
     NoDatabaseFoundLabel = new QLabel("No database loaded, there is no content to show", MainWidget);
@@ -131,16 +143,16 @@ void ContentBrowserWidget::InitWidgets() {
     MainLayout->addWidget(NoDatabaseFoundLabel);
     MainLayout->addWidget(List);
 
-    connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
-    connect(AssetTypeCategoryDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
-    connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    // connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    // connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    // connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
     connect(List, &QListWidget::itemDoubleClicked, this, [editor](QListWidgetItem *item) {
         auto editDialog = ContentEditorDialog<Asset>(editor);
         editDialog.exec();
     });
 
     InitPageCounter();
-    Refresh();
+    Refresh<Asset>();
     GoToPage(1);
 }
 

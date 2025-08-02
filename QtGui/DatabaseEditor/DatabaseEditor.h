@@ -8,7 +8,6 @@
 #include <NoobWarrior/Database/Database.h>
 
 #include "OverviewWidget.h"
-#include "ContentBrowserWidget.h"
 #include "OrganizerWidget.h"
 
 #include <QMainWindow>
@@ -17,6 +16,7 @@
 #include <QToolBar>
 
 namespace NoobWarrior {
+    class ContentBrowserWidget;
     class DatabaseEditor : public QMainWindow {
         Q_OBJECT
         

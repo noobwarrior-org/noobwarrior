@@ -10,5 +10,7 @@ namespace NoobWarrior {
 struct Badge : UniverseIdRecord {
     int Awarded;
     int AwardedYesterday;
+
+    static constexpr const char* TableName = "Badge";
 };
 }

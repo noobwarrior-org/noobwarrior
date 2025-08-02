@@ -50,9 +50,8 @@ static const char* sCategoryNames[] = {
 };
 
 static const void* sRoblox[][3] = {
-    {"Join Server", nullptr, ":/images/silk/controller.png"},
-    {"Play Solo", nullptr, ":/images/silk/status_offline.png"},
-    {"Host Server", nullptr, ":/images/silk/server.png"},
+    {"Join Server", nullptr, ":/images/silk/server_go.png"},
+    {"Start Game", nullptr, ":/images/silk/controller.png"},
     {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
 };
 

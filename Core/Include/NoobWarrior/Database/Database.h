@@ -4,7 +4,6 @@
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 #pragma once
-#include "IdType/IdType.h"
 #include "IdType/Asset.h"
 #include "IdType/Badge.h"
 
@@ -92,9 +91,6 @@ public:
     DatabaseResponse SetAuthor(const std::string &author);
     DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
-    std::vector<unsigned char> RetrieveContentData(int64_t id, IdType type);
-    std::vector<unsigned char> RetrieveContentIconData(int64_t id, IdType type);
-
     template<typename T>
     std::vector<unsigned char> RetrieveContentData(int64_t id) {
     	static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
@@ -124,7 +120,7 @@ public:
     }
 
     template<typename T>
-	std::vector<unsigned char> RetrieveContentIconData(int64_t id) {
+	std::vector<unsigned char> RetrieveContentImageData(int64_t id) {
     	static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
     	if (!mInitialized) return {};
 
@@ -135,7 +131,7 @@ public:
     	sqlite3_bind_int64(stmt, 1, id);
     	if (sqlite3_step(stmt) == SQLITE_ROW) {
     		for (int i = 0; i < sqlite3_column_count(stmt); i++) {
-    			if (strncmp(sqlite3_column_name(stmt, i), "Icon", 4) == 0) {
+    			if (strncmp(sqlite3_column_name(stmt, i), "Image", 5) == 0) {
     				const int64_t iconId = sqlite3_column_int64(stmt, i);
 				    if (std::vector<unsigned char> imageData = RetrieveContentData<Asset>(iconId); !imageData.empty()) {
 					    sqlite3_finalize(stmt);
@@ -147,12 +143,11 @@ public:
     	sqlite3_finalize(stmt);
 
     	if constexpr (std::is_same_v<T, Asset>) {
-    		std::vector<unsigned char> data;
-    		data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
-    		return data;
     	}
 
-    	return {};
+    	std::vector<unsigned char> data;
+    	data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+    	return data;
     }
 
     template<typename T>
@@ -234,7 +229,7 @@ public:
         sqlite3_stmt *stmt;
 
         if constexpr (std::is_same_v<T, Asset>) {
-        	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Icon, Thumbnails, UserId, GroupId, PriceInRobux, PriceInTickets, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Sales, Favorites, Likes, Dislikes, Data) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", -1, &stmt, nullptr);
+        	sqlite3_prepare_v2(mDatabase, "INSERT INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Image, Thumbnails, UserId, GroupId, PriceInRobux, PriceInTickets, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Sales, Favorites, Likes, Dislikes, Data) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", -1, &stmt, nullptr);
         	sqlite3_bind_int64(stmt, 1, content.Id);
         	sqlite3_bind_int64(stmt, 2, content.Version);
         	sqlite3_bind_text(stmt, 3, content.Name.c_str(), -1, nullptr);
