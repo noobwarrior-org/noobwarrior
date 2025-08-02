@@ -6,6 +6,7 @@
 #pragma once
 #include "IdType/Asset.h"
 #include "IdType/Badge.h"
+#include "ContentImages.h"
 
 #include "../Roblox/Api/Asset.h"
 #include "../Log.h"
@@ -18,9 +19,6 @@
 #include <cstdint>
 
 #define NOOBWARRIOR_DATABASE_VERSION 1
-
-extern const int g_icon_content_deleted[];
-extern const int g_icon_content_deleted_size;
 
 namespace NoobWarrior {
 struct SearchOptions {
@@ -142,11 +140,16 @@ public:
     	}
     	sqlite3_finalize(stmt);
 
-    	if constexpr (std::is_same_v<T, Asset>) {
+    	std::vector<unsigned char> data;
+
+    	if (std::is_same_v<T, Asset>) {
+    		std::optional<Asset> asset = GetContent<Asset>(id);
+    		if (asset.has_value()) {
+    			data = GetImageForAssetType(asset.value().Type);
+    		}
     	}
 
-    	std::vector<unsigned char> data;
-    	data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+    	if (data.empty()) data.assign(T::DefaultImage, T::DefaultImage + T::DefaultImageSize);
     	return data;
     }
 

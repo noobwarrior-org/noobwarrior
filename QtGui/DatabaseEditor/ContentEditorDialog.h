@@ -30,7 +30,8 @@ namespace NoobWarrior {
 template<class T>
 class ContentEditorDialog : public QDialog {
 public:
-    ContentEditorDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt) : QDialog(parent)
+    ContentEditorDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt) : QDialog(parent),
+        mId(id)
     {
         assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentEditorDialog should not be parented to anything other than DatabaseEditor");
         setWindowTitle(tr("Content Editor"));
@@ -42,7 +43,7 @@ public:
         Database *db = editor->GetCurrentlyEditingDatabase();
 
         qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
-        setWindowTitle(tr("Configure %1").arg(T::TableName));
+        setWindowTitle(mId.has_value() ? tr("Configure %1").arg(T::TableName) : tr("Create New %1").arg(T::TableName));
 
         mLayout = new QHBoxLayout(this);
         mSidebarLayout = new QVBoxLayout();
@@ -52,7 +53,9 @@ public:
         mLayout->addLayout(mContentLayout);
 
         QImage image;
-        image.loadFromData(db->RetrieveContentImageData<T>(-1));
+
+        if (mId.has_value())
+            image.loadFromData(db->RetrieveContentImageData<T>(mId.value()));
 
         QPixmap pixmap = QPixmap::fromImage(image);
 
@@ -115,11 +118,22 @@ public:
                 auto assetType = static_cast<Roblox::AssetType>(i);
                 QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
                 if (assetTypeStr.compare("None") != 0)
-                    typeDropdown->addItem(assetTypeStr);
+                    typeDropdown->addItem(assetTypeStr, i);
             }
 
             mContentLayout->addRow(new QLabel(tr("Category"), this), categoryDropdown);
             mContentLayout->addRow(new QLabel(tr("Type"), this), typeDropdown);
+
+            connect(typeDropdown, &QComboBox::currentIndexChanged, [this, typeDropdown, db, icon](int index) {
+                auto assetType = static_cast<Roblox::AssetType>(typeDropdown->currentData().toInt());
+
+                QImage image;
+                mId.has_value() ? image.loadFromData(db->RetrieveContentImageData<T>(mId.value())) :
+                    image.loadFromData(GetImageForAssetType(assetType));
+
+                QPixmap pixmap = QPixmap::fromImage(image);
+                icon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            });
         }
 
         mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
@@ -139,10 +153,10 @@ public:
                 case DatabaseResponse::StatementConstraintViolation: errMsg = "A constraint violation occurred when trying to add content to the database."; break;
                 default: errMsg = "An unknown error occurred when trying to add content to the database."; break;
             }
-            if (res != DatabaseResponse::Success)
-                QMessageBox::critical(this, "Failed To Add Content", errMsg);
-            else editor->GetContentBrowser()->Refresh<T>();
-            close();
+            if (res == DatabaseResponse::Success) {
+                editor->GetContentBrowser()->Refresh<T>();
+                close();
+            } else QMessageBox::critical(this, "Failed To Add Content", errMsg);
         });
 
         connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
@@ -151,6 +165,8 @@ public:
         // mLayout->addRow(new QPushButton("Save", this), new QPushButton("Cancel", this));
     }
 private:
+    std::optional<int> mId;
+
     QHBoxLayout *mLayout;
     QVBoxLayout *mSidebarLayout;
     QFormLayout *mContentLayout;

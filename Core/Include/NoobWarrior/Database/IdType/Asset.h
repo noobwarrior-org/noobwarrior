@@ -30,7 +30,7 @@ struct Asset : OwnedIdRecord {
     int64_t                     Favorites;
     int64_t                     Likes;
     int64_t                     Dislikes;
-    std::vector<unsigned char> Data;
+    std::vector<unsigned char>  Data;
 
     static constexpr const char* TableName = "Asset";
 };

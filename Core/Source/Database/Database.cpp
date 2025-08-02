@@ -43,9 +43,6 @@
 // sql code for migrating so that when the database file has to be updated it can apply these patches in order.
 #include "migrations/v2.sql.inc"
 
-// icons
-#include "icons/content_deleted.png.inc"
-
 static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
     {"Title", "Untitled"},
