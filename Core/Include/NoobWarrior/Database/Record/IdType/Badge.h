@@ -4,7 +4,7 @@
 // Started on: 6/30/2025
 // Description: A C-struct representation of what the database would give you when you ask it for an asset.
 #pragma once
-#include "../Record/UniverseIdRecord.h"
+#include <NoobWarrior/Database/Record/UniverseIdRecord.h>
 
 namespace NoobWarrior {
 struct Badge : UniverseIdRecord {

@@ -24,33 +24,30 @@ public:
     ContentBrowserWidget(QWidget *parent = nullptr);
     ~ContentBrowserWidget();
 
+    /**
+     * @brief A simple Refresh function that dynamically calls RefreshWithNewIdRecord() depending on what id type the user has
+     * selected in the dropdown menu
+     */
+    std::function<void()> Refresh;
+protected:
+    void RefreshAssetCategory();
+
+    /**
+     * @brief Re-generates everything in the list, and uses the according IdRecord to search content.
+     * @tparam T An IdRecord
+     */
     template<typename T>
-    void Refresh() {
+    void RefreshWithNewIdRecord() {
+        static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
         auto editor = dynamic_cast<DatabaseEditor*>(parent());
         Database *db = editor->GetCurrentlyEditingDatabase();
 
         mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
+        mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
         IdTypeDropdown->setCurrentText(QString::fromStdString(T::TableName));
-        AssetTypeDropdown->setVisible(std::is_same_v<T, Asset>);
         AssetCategoryDropdown->setVisible(std::is_same_v<T, Asset>);
-
-        AssetTypeDropdown->clear();
-        for (int i = 0; i <= Roblox::AssetTypeCount; i++) {
-            auto assetType = static_cast<Roblox::AssetType>(i);
-            QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
-            if (assetTypeStr.compare("None") != 0) {
-                // Does this match our category type?
-                if (AssetCategoryDropdown->currentIndex() == 0 || // If it's 0, then that should mean it's set to "Any" so let it through
-                    MapAssetTypeToCategory(assetType) == mAssetCategory)
-                    AssetTypeDropdown->addItem(assetTypeStr, i);
-            }
-        }
-
-        if (!AssetCategoryDropdown->currentData().isNull())
-            AssetTypeDropdown->setCurrentText(mAssetCategory == AssetCategory::AvatarItem ? "Hat" : "Model"); // set sane default.
-        else
-            AssetTypeDropdown->setCurrentText("All");
+        AssetTypeDropdown->setVisible(std::is_same_v<T, Asset>);
 
         NoDatabaseFoundLabel->setVisible(db == nullptr);
         List->setVisible(db != nullptr);
@@ -61,10 +58,11 @@ public:
         SearchOptions opt {};
         opt.Offset = 0;
         opt.Limit = 100;
+        opt.AssetType = mAssetType;
 
         std::vector<T> list = db->SearchContent<T>(opt);
-        for (auto item : list) {
-            new ContentListItem(db, &item, List);
+        for (auto &item : list) {
+            new ContentListItem<T>(&item, db, List);
             // cool->setIcon(QIcon(item.Icon));
         }
     }
@@ -73,9 +71,11 @@ private:
     void InitPageCounter();
     void GoToPage(int num);
 
+    std::vector<std::function<void()>> mRefreshFunctions;
+
     // Similarly to Roblox's Toolbox widget, we have a few dropdowns that allow you to filter out what you don't want.
-    Roblox::AssetType   mAssetType;
     AssetCategory       mAssetCategory;
+    Roblox::AssetType   mAssetType;
 
     //////////// QWidget stuff ////////////
     QWidget*        MainWidget;

@@ -4,12 +4,12 @@
 // Started on: 7/2/2025
 // Description: Dialog window that allows you to edit the details of a piece of content.
 #pragma once
-#include <NoobWarrior/Database/IdType/Asset.h>
-#include <NoobWarrior/Database/IdType/User.h>
+#include <NoobWarrior/Database/Record/IdType/Asset.h>
+#include <NoobWarrior/Database/Record/IdType/User.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 
 #include "DatabaseEditor.h"
-#include "ContentBrowserWidget.h"
+#include "IdTypeFields.h"
 
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -34,16 +34,18 @@ public:
         mId(id)
     {
         assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentEditorDialog should not be parented to anything other than DatabaseEditor");
+        mDatabaseEditor = dynamic_cast<DatabaseEditor*>(this->parent());
+        mDatabase = mDatabaseEditor->GetCurrentlyEditingDatabase();
+
         setWindowTitle(tr("Content Editor"));
         RegenWidgets();
     }
 
     void RegenWidgets() {
-        auto editor = dynamic_cast<DatabaseEditor*>(parent());
-        Database *db = editor->GetCurrentlyEditingDatabase();
-
         qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
         setWindowTitle(mId.has_value() ? tr("Configure %1").arg(T::TableName) : tr("Create New %1").arg(T::TableName));
+
+
 
         mLayout = new QHBoxLayout(this);
         mSidebarLayout = new QVBoxLayout();
@@ -52,22 +54,25 @@ public:
         mLayout->addLayout(mSidebarLayout);
         mLayout->addLayout(mContentLayout);
 
+        ////////////////////////////////////////////////////////////////////////
+        /// icon
+        ////////////////////////////////////////////////////////////////////////
         QImage image;
 
         if (mId.has_value())
-            image.loadFromData(db->RetrieveContentImageData<T>(mId.value()));
+            image.loadFromData(mDatabase->RetrieveContentImageData<T>(mId.value()));
 
         QPixmap pixmap = QPixmap::fromImage(image);
 
-        auto *icon = new QLabel();
-        icon->setAlignment(Qt::AlignLeft);
-        icon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        mSidebarLayout->addWidget(icon);
+        mIcon = new QLabel();
+        mIcon->setAlignment(Qt::AlignLeft);
+        mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        mSidebarLayout->addWidget(mIcon);
 
         if constexpr (!(std::is_same_v<T, Asset> || std::is_same_v<T, User>)) {
             auto *changeIcon = new QPushButton("Change Icon");
             mSidebarLayout->addWidget(changeIcon);
-            connect(changeIcon, &QPushButton::clicked, [&, icon]() {
+            connect(changeIcon, &QPushButton::clicked, [this]() {
                 QString filePath = QFileDialog::getOpenFileName(
                     this,
                     "Change Icon",
@@ -84,20 +89,29 @@ public:
 
                     QImage newImage(filePath);
                     QPixmap newPixmap = QPixmap::fromImage(newImage);
-                    icon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                    mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                 }
             });
         }
 
         mSidebarLayout->addStretch();
 
+        ////////////////////////////////////////////////////////////////////////
+        /// main content containing all the fields and stuff
+        ////////////////////////////////////////////////////////////////////////
+        std::vector<FieldDesc> fields = GetIdTypeFields<T>();
+        for (const auto &field : fields) {
+            QWidget *poop = field.WidgetFactory(this);
+            mContentLayout->addRow(new QLabel(field.Label, this), poop);
+        }
+        /*
         auto idInput = new QLineEdit(this);
         idInput->setValidator(new QIntValidator(idInput));
         mContentLayout->addRow(new QLabel(tr("Id"), this), idInput);
         mContentLayout->addRow(new QLabel(tr("Version"), this), new QSpinBox(this));
         mContentLayout->addItem(new QSpacerItem(16, 16, QSizePolicy::Minimum, QSizePolicy::Minimum));
         mContentLayout->addRow(new QLabel(tr("Name"), this), new QLineEdit(this));
-        if constexpr (std::is_base_of_v<T, OwnedIdRecord>) {
+        if constexpr (std::is_base_of_v<OwnedIdRecord, T>) {
             mContentLayout->addRow(new QLabel(tr("Description"), this), new QLineEdit(this));
             mContentLayout->addItem(new QSpacerItem(16, 16, QSizePolicy::Minimum, QSizePolicy::Minimum));
             mContentLayout->addRow(new QLabel(tr("Created"), this), new QDateTimeEdit(this));
@@ -124,29 +138,30 @@ public:
             mContentLayout->addRow(new QLabel(tr("Category"), this), categoryDropdown);
             mContentLayout->addRow(new QLabel(tr("Type"), this), typeDropdown);
 
-            connect(typeDropdown, &QComboBox::currentIndexChanged, [this, typeDropdown, db, icon](int index) {
+            connect(typeDropdown, &QComboBox::currentIndexChanged, [this, typeDropdown](int index) {
                 auto assetType = static_cast<Roblox::AssetType>(typeDropdown->currentData().toInt());
 
                 QImage image;
-                mId.has_value() ? image.loadFromData(db->RetrieveContentImageData<T>(mId.value())) :
+                mId.has_value() ? image.loadFromData(mDatabase->RetrieveContentImageData<T>(mId.value())) :
                     image.loadFromData(GetImageForAssetType(assetType));
 
                 QPixmap pixmap = QPixmap::fromImage(image);
-                icon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             });
         }
+        */
 
         mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
         mContentLayout->addWidget(mButtonBox);
 
-        connect(mButtonBox, &QDialogButtonBox::accepted, this, [&, db, editor]() {
+        connect(mButtonBox, &QDialogButtonBox::accepted, this, [this]() {
             T content {};
             content.Id = qobject_cast<QLineEdit*>(mContentLayout->itemAt(0, QFormLayout::FieldRole)->widget())->text().toInt();
             content.Name = qobject_cast<QLineEdit*>(mContentLayout->itemAt(3, QFormLayout::FieldRole)->widget())->text().toStdString();
             if constexpr (std::is_same_v<T, Asset>) {
-
+                // content.Type = qobject_cast<QComboBox*>()
             }
-            DatabaseResponse res = db->AddContent(content);
+            DatabaseResponse res = mDatabase->AddContent(content);
             QString errMsg;
             switch (res) {
                 case DatabaseResponse::NotInitialized: errMsg = "Database not initialized"; break;
@@ -154,7 +169,7 @@ public:
                 default: errMsg = "An unknown error occurred when trying to add content to the database."; break;
             }
             if (res == DatabaseResponse::Success) {
-                editor->GetContentBrowser()->Refresh<T>();
+                mDatabaseEditor->Refresh();
                 close();
             } else QMessageBox::critical(this, "Failed To Add Content", errMsg);
         });
@@ -166,10 +181,14 @@ public:
     }
 private:
     std::optional<int> mId;
+    DatabaseEditor *mDatabaseEditor;
+    Database *mDatabase;
 
     QHBoxLayout *mLayout;
     QVBoxLayout *mSidebarLayout;
     QFormLayout *mContentLayout;
+
+    QLabel *mIcon;
     QDialogButtonBox *mButtonBox;
 };
 }

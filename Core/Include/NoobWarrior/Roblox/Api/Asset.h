@@ -42,6 +42,12 @@ namespace NoobWarrior::Roblox {
         Limited,
         LimitedUnique
     };
+
+    enum class CurrencyType {
+        Default,
+        Robux,
+        Tix
+    };
     
     struct AssetDetails {
         int64_t             TargetId                {};

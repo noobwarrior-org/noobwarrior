@@ -30,13 +30,13 @@ set(SOURCES
     Dialog/AboutDialog.h
     DatabaseEditor/DatabaseEditor.cpp
     DatabaseEditor/DatabaseEditor.h
+    DatabaseEditor/BackgroundTask.cpp
+    DatabaseEditor/BackgroundTask.h
     DatabaseEditor/OverviewWidget.cpp
     DatabaseEditor/OverviewWidget.h
-    DatabaseEditor/ContentEditorDialog.cpp
     DatabaseEditor/ContentEditorDialog.h
     DatabaseEditor/ContentBrowserWidget.cpp
     DatabaseEditor/ContentBrowserWidget.h
-    DatabaseEditor/ContentListItem.cpp
     DatabaseEditor/ContentListItem.h
     DatabaseEditor/OrganizerWidget.cpp
     DatabaseEditor/OrganizerWidget.h

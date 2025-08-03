@@ -5,29 +5,28 @@
 // Description: Dockable Qt widget that allows the user to explore the contents of a database in an easily-digestible format
 // It's very similar to the Roblox Studio toolbox widget.
 // Limitations are that this doesn't support tree view, only per-page icon view.
+#include "ContentBrowserWidget.h"
+#include "ContentEditorDialog.h"
+#include "DatabaseEditor.h"
+
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/AssetCategory.h>
-
-#include "ContentBrowserWidget.h"
-#include "ContentListItem.h"
-#include "DatabaseEditor.h"
 
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-#include "ContentEditorDialog.h"
-
 #define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = IdType::TableName; \
-    IdTypeDropdown->addItem(QIcon(iconPath), IdType##_Str);
+    IdTypeDropdown->addItem(QIcon(iconPath), IdType##_Str); \
+    mRefreshFunctions.emplace_back([this]{ RefreshWithNewIdRecord<IdType>(); });
 
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
-    mAssetType(Roblox::AssetType::Model),
     mAssetCategory(AssetCategory::DevelopmentItem),
+    mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
     MainLayout(nullptr),
     AssetFilterDropdownLayout(nullptr),
@@ -45,17 +44,9 @@ ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent
 
 ContentBrowserWidget::~ContentBrowserWidget() {}
 
-/*void ContentBrowserWidget::Refresh() {
-    auto editor = dynamic_cast<DatabaseEditor*>(parent());
-    Database *db = editor->GetCurrentlyEditingDatabase();
-
-    mIdType = static_cast<IdType>(IdTypeDropdown->currentData().toInt());
-    mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
-
-    AssetTypeDropdown->setVisible(mIdType == IdType::Asset);
-    AssetCategoryDropdown->setVisible(mIdType == IdType::Asset);
-
+void ContentBrowserWidget::RefreshAssetCategory() {
     AssetTypeDropdown->clear();
+    AssetTypeDropdown->addItem("All");
     for (int i = 0; i <= Roblox::AssetTypeCount; i++) {
         auto assetType = static_cast<Roblox::AssetType>(i);
         QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
@@ -72,29 +63,8 @@ ContentBrowserWidget::~ContentBrowserWidget() {}
     else
         AssetTypeDropdown->setCurrentText("All");
 
-    NoDatabaseFoundLabel->setVisible(db == nullptr);
-    List->setVisible(db != nullptr);
-    List->clear();
-    if (db == nullptr)
-        return;
-
-    SearchOptions opt {};
-    opt.Offset = 0;
-    opt.Limit = 100;
-
-    std::vector<std::unique_ptr<IdRecord>> list;
-
-    if (mIdType == IdType::Asset) {
-        std::vector<Asset> assetsList = db->SearchContent<Asset>(opt);
-        for (auto asset : assetsList)
-            list.push_back(std::make_unique<Asset>(asset));
-    }
-
-    for (const auto &item : list) {
-        new ContentListItem(db, item.get(), List);
-        // cool->setIcon(QIcon(item.Icon));
-    }
-}*/
+    Refresh();
+}
 
 void ContentBrowserWidget::InitWidgets() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
@@ -112,10 +82,11 @@ void ContentBrowserWidget::InitWidgets() {
     AssetCategoryDropdown->addItem("Any");
 
     AssetTypeDropdown = new QComboBox();
-    AssetTypeDropdown->addItem("All");
 
     ADD_ID_TYPE(Asset, ":/images/silk/page.png")
     ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_1.png")
+    ADD_ID_TYPE(User, ":/images/silk/user.png")
+    Refresh = mRefreshFunctions.at(0);
 
     for (int i = 0; i <= AssetCategoryCount; i++) {
         auto assetTypeCategory = static_cast<AssetCategory>(i);
@@ -143,16 +114,23 @@ void ContentBrowserWidget::InitWidgets() {
     MainLayout->addWidget(NoDatabaseFoundLabel);
     MainLayout->addWidget(List);
 
-    // connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
-    // connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
-    // connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, &ContentBrowserWidget::Refresh);
+    connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
+        Refresh = mRefreshFunctions.at(index);
+        Refresh();
+    });
+    connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
+        RefreshAssetCategory();
+    });
+    connect(AssetTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
+        Refresh();
+    });
     connect(List, &QListWidget::itemDoubleClicked, this, [editor](QListWidgetItem *item) {
-        auto editDialog = ContentEditorDialog<Asset>(editor);
-        editDialog.exec();
+        auto *contentItem = dynamic_cast<ContentListItemBase*>(item);
+        contentItem->Configure(editor);
     });
 
     InitPageCounter();
-    Refresh<Asset>();
+    RefreshAssetCategory();
     GoToPage(1);
 }
 

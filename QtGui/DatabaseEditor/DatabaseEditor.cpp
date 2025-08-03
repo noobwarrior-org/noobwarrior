@@ -41,13 +41,21 @@ using namespace NoobWarrior;
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mCurrentDatabase(nullptr),
     mOverviewWidget(nullptr),
-    mContentBrowser(nullptr)
+    mContentBrowser(nullptr),
+    mBackgroundTasksStatusBarWidget(nullptr)
 {
     setWindowTitle("Database Editor - noobWarrior");
     setAcceptDrops(true);
     // setWindowState(Qt::WindowMaximized);
     InitMenus();
+    InitStatusBarWidgets();
     InitWidgets();
+
+    BackgroundTask *theItem = mBackgroundTasks.AddTask({
+        .Title = "Pooping",
+        .Caption = "Some pooping is happening right now",
+    });
+    mBackgroundTasks.UpdateTask(theItem, 0.5, "/Users/Poop/");
 }
 
 DatabaseEditor::~DatabaseEditor() {
@@ -55,6 +63,10 @@ DatabaseEditor::~DatabaseEditor() {
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
     }
+}
+
+void DatabaseEditor::Refresh() {
+    mContentBrowser->Refresh();
 }
 
 void DatabaseEditor::closeEvent(QCloseEvent *event) {
@@ -121,7 +133,7 @@ close:
         mOverviewWidget->deleteLater();
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-        mContentBrowser->Refresh<Asset>();
+        mContentBrowser->Refresh();
 
         for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
             button->setDisabled(true);
@@ -158,7 +170,7 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
     mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
 
-    mContentBrowser->Refresh<Asset>();
+    mContentBrowser->Refresh();
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(false);
@@ -245,6 +257,12 @@ void DatabaseEditor::InitMenus() {
     });
 }
 
+void DatabaseEditor::InitStatusBarWidgets() {
+    mBackgroundTasksStatusBarWidget = new BackgroundTasksStatusBarWidget();
+    statusBar()->addPermanentWidget(mBackgroundTasksStatusBarWidget);
+    mBackgroundTasks.SetStatusBarWidget(mBackgroundTasksStatusBarWidget);
+}
+
 void DatabaseEditor::InitWidgets() {
     mTabWidget = new QTabWidget(this);
     setCentralWidget(mTabWidget);
@@ -305,6 +323,7 @@ void DatabaseEditor::InitWidgets() {
 
     ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
     ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
+    ADD_ID_TYPE(User, ":/images/silk/user_add.png")
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now

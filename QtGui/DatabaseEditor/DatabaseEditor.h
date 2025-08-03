@@ -7,6 +7,7 @@
 
 #include <NoobWarrior/Database/Database.h>
 
+#include "BackgroundTask.h"
 #include "OverviewWidget.h"
 #include "OrganizerWidget.h"
 
@@ -14,6 +15,7 @@
 #include <QMenu>
 #include <QObject>
 #include <QToolBar>
+#include <QStatusBar>
 
 namespace NoobWarrior {
     class ContentBrowserWidget;
@@ -23,6 +25,11 @@ namespace NoobWarrior {
     public:
         DatabaseEditor(QWidget *parent = nullptr);
         ~DatabaseEditor();
+
+        /**
+         * @brief Refreshes all widgets that may have dirty data in them
+         */
+        void Refresh();
 
         int TryToCloseCurrentDatabase();
         void TryToOpenFile(const QString &path = ":memory:");
@@ -39,6 +46,7 @@ namespace NoobWarrior {
         void dropEvent(QDropEvent *event) override;
     private:
         void InitMenus();
+        void InitStatusBarWidgets();
         void InitWidgets();
 
         //////////////////// Menu Bar ////////////////////
@@ -63,5 +71,9 @@ namespace NoobWarrior {
         OrganizerWidget *mOrganizer;
 
         Database *mCurrentDatabase;
+
+        //////////////////// Status Bar ////////////////////
+        BackgroundTasks mBackgroundTasks;
+        BackgroundTasksStatusBarWidget *mBackgroundTasksStatusBarWidget;
     };
 }
