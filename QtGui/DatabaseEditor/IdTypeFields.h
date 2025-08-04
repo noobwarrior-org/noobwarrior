@@ -77,7 +77,8 @@ auto GetFields() {
             return le;
         },
         [](QWidget *widget) {
-            return "";
+            auto *le = qobject_cast<QLineEdit*>(widget);
+            return le->text().isEmpty() ? "Name cannot be empty" : "";
         }
     });
 
