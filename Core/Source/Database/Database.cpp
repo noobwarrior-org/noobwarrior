@@ -314,3 +314,20 @@ DatabaseResponse Database::SetAuthor(const std::string &author) {
 DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
+
+int Database::GetAssetSize(int64_t id) {
+	if (!mInitialized) return -1;
+
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
+		const auto data = GetBlobSizeFromColumnName(stmt, "Data");
+		sqlite3_finalize(stmt);
+		return data;
+	}
+
+	sqlite3_finalize(stmt);
+	return -1;
+}

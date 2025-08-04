@@ -126,6 +126,11 @@ namespace NoobWarrior {
 
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
+        /**
+         * @brief Gets the size of the asset's data in bytes
+         */
+        int GetAssetSize(int64_t id);
+
         template<typename T>
         std::vector<unsigned char> RetrieveContentData(int64_t id) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
@@ -383,6 +388,15 @@ namespace NoobWarrior {
             for (int i = 0; i < sqlite3_column_count(stmt); i++) {
                 if (strncmp(sqlite3_column_name(stmt, i), columnName.c_str(), strlen(columnName.c_str())) == 0) {
                     return sqlite3_column_type(stmt, i);
+                }
+            }
+            return 0;
+        }
+
+        inline int GetBlobSizeFromColumnName(sqlite3_stmt *stmt, const std::string &columnName) {
+            for (int i = 0; i < sqlite3_column_count(stmt); i++) {
+                if (strncmp(sqlite3_column_name(stmt, i), columnName.c_str(), strlen(columnName.c_str())) == 0) {
+                    return sqlite3_column_bytes(stmt, i);
                 }
             }
             return 0;

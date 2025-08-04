@@ -155,6 +155,22 @@ public:
         }
         */
 
+        if constexpr (std::is_same_v<T, Asset>) {
+            auto *dataFrame = new QFrame(this);
+            mContentLayout->addRow("Data", dataFrame);
+
+            auto *dataLayout = new QVBoxLayout(dataFrame);
+
+            auto *le = new QPushButton();
+            le->setText("Select File...");
+
+            auto *label = new QLabel();
+            label->setText(QString("Size: %1 bytes").arg(mId.has_value() ? mDatabase->GetAssetSize(mId.value()) : 0));
+
+            dataLayout->addWidget(le);
+            dataLayout->addWidget(label);
+        }
+
         mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
         mContentLayout->addWidget(mButtonBox);
 
