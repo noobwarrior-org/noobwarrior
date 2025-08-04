@@ -23,7 +23,6 @@ BackgroundTask* BackgroundTasks::AddTask(const BackgroundTask &item) {
 void BackgroundTasks::UpdateTask(BackgroundTask *task, double progress, const QString &newCaption) {
     for (int i = 0; i < mTasks.size(); i++) {
         if (&mTasks[i] == task && i == 0) {
-            Out("BackgroundTaskWidget", "hey broski");
             if (mStatusBarWidget != nullptr) {
                 mStatusBarWidget->mLabel.setVisible(progress < 1);
                 mStatusBarWidget->mProgressBar.setVisible(progress < 1);

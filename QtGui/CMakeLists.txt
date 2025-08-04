@@ -40,6 +40,8 @@ set(SOURCES
     DatabaseEditor/ContentListItem.h
     DatabaseEditor/OrganizerWidget.cpp
     DatabaseEditor/OrganizerWidget.h
+    DatabaseEditor/PreviewItemWidget.cpp
+    DatabaseEditor/PreviewItemWidget.h
     DatabaseEditor/PreviewWidget.cpp
     DatabaseEditor/PreviewWidget.h
     Ui/Launcher.ui

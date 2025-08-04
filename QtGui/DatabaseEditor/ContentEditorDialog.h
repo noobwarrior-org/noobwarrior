@@ -45,8 +45,6 @@ public:
         qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
         setWindowTitle(mId.has_value() ? tr("Configure %1").arg(T::TableName) : tr("Create New %1").arg(T::TableName));
 
-
-
         mLayout = new QHBoxLayout(this);
         mSidebarLayout = new QVBoxLayout();
         mContentLayout = new QFormLayout();
@@ -99,10 +97,16 @@ public:
         ////////////////////////////////////////////////////////////////////////
         /// main content containing all the fields and stuff
         ////////////////////////////////////////////////////////////////////////
-        std::vector<FieldDesc> fields = GetIdTypeFields<T>();
-        for (const auto &field : fields) {
-            QWidget *poop = field.WidgetFactory(this);
-            mContentLayout->addRow(new QLabel(field.Label, this), poop);
+        mFields = GetFields<T>();
+        if (mId.has_value()) {
+            std::optional<T> content = mDatabase->GetContent<T>(mId.value());
+            if (content.has_value()) mContent = content.value();
+        }
+        for (const auto &field : mFields) {
+            std::any val = field.ConvertValueToAny(mContent);
+            QWidget *widget = field.WidgetFactory(this, val);
+            mWidgetFields.push_back(widget);
+            mContentLayout->addRow(new QLabel(field.Label, this), widget);
         }
         /*
         auto idInput = new QLineEdit(this);
@@ -154,14 +158,26 @@ public:
         mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
         mContentLayout->addWidget(mButtonBox);
 
-        connect(mButtonBox, &QDialogButtonBox::accepted, this, [this]() {
-            T content {};
-            content.Id = qobject_cast<QLineEdit*>(mContentLayout->itemAt(0, QFormLayout::FieldRole)->widget())->text().toInt();
-            content.Name = qobject_cast<QLineEdit*>(mContentLayout->itemAt(3, QFormLayout::FieldRole)->widget())->text().toStdString();
-            if constexpr (std::is_same_v<T, Asset>) {
-                // content.Type = qobject_cast<QComboBox*>()
+        connect(mButtonBox, &QDialogButtonBox::accepted, this, [this] () mutable {
+            // validate everything first
+            for (int i = 0; i < mFields.size(); i++) {
+                FieldDesc field = mFields[i];
+                QWidget *widget = mWidgetFields[i];
+                QString errorMsg = field.Validate(widget);
+                if (!errorMsg.isEmpty()) {
+                    QMessageBox::critical(this, "Failed To Add Content", errorMsg);
+                    return;
+                }
             }
-            DatabaseResponse res = mDatabase->AddContent(content);
+
+            // and then begin with the value setting
+            for (int i = 0; i < mFields.size(); i++) {
+                FieldDesc field = mFields[i];
+                QWidget *widget = mWidgetFields[i];
+                field.SetValue(mContent, widget);
+            }
+
+            DatabaseResponse res = mDatabase->AddContent(std::any_cast<T>(mContent));
             QString errMsg;
             switch (res) {
                 case DatabaseResponse::NotInitialized: errMsg = "Database not initialized"; break;
@@ -181,6 +197,11 @@ public:
     }
 private:
     std::optional<int> mId;
+
+    std::any mContent = T {};
+    std::vector<FieldDesc> mFields = GetFields<T>();
+    std::vector<QWidget*> mWidgetFields;
+
     DatabaseEditor *mDatabaseEditor;
     Database *mDatabase;
 

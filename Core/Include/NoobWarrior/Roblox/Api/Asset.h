@@ -43,6 +43,7 @@ namespace NoobWarrior::Roblox {
         LimitedUnique
     };
 
+    constexpr int CurrencyTypeCount = 2;
     enum class CurrencyType {
         Default,
         Robux,
@@ -138,6 +139,14 @@ namespace NoobWarrior::Roblox {
         case AssetType::MoodAnimation: return "Mood Animation";
         case AssetType::DynamicHead: return "Dynamic Head";
         default: return "None";
+        }
+    }
+
+    inline const char *CurrencyTypeAsTranslatableString(CurrencyType type) {
+        switch (type) {
+        default: return "Default";
+        case CurrencyType::Robux: return "Robux";
+        case CurrencyType::Tix: return "Tix";
         }
     }
 }
