@@ -6,6 +6,7 @@
 #pragma once
 #include <string>
 #include <tuple>
+#include <cstdint>
 
 namespace NoobWarrior {
 struct Record {

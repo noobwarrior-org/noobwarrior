@@ -53,7 +53,7 @@ int HttpServer::Start(uint16_t port) {
 
     const std::filesystem::path &staticDir = Directory / "web" / "static";
 
-    const char* configOptions[] = {"listening_ports", portStr, "document_root", staticDir.c_str(), nullptr};
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", reinterpret_cast<const char*>(staticDir.c_str()), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);
