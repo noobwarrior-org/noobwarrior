@@ -10,6 +10,7 @@
 #include <fstream>
 #include <map>
 #include <any>
+#include <vector>
 #include <format>
 
 #define NOOBWARRIOR_CONFIG_DESERIALIZE_ENUM(propName, key, enumeration) \
@@ -37,6 +38,8 @@
     }
 
 namespace NoobWarrior {
+typedef std::vector<std::any> table_t;
+inline constexpr table_t table { };
 enum class ConfigResponse {
     Failed,
     Success,
@@ -49,7 +52,7 @@ enum class ConfigResponse {
 class BaseConfig {
 public:
     BaseConfig(std::string globalName, std::filesystem::path filePath, lua_State *luaState);
-    ConfigResponse Open();
+    virtual ConfigResponse Open();
     ConfigResponse Close();
     std::string GetLuaError();
 
@@ -58,34 +61,47 @@ public:
     template <typename T>
     void SetKeyValue(const std::string &key, T value) {
         // BTW: std::format() will automatically render bools as "true" or "false" in textual form, so you won't have to hassle with that.
-        luaL_dostring(mLuaState, std::format("{}.{} = {}", // Let the Lua interpreter do the talking because I don't feel like interfacing with a stack right now.
-            mGlobalName, key,
-            // Too many conditionals here!
-            (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>) ? std::format("\"{}\"", value) : value
-            ).c_str());
+        std::string str;
+        if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>)
+            str = std::format("{}.{} = {}", mGlobalName, key, std::format("\"{}\"", value).c_str());
+        else if constexpr (std::is_same_v<T, std::nullopt_t>)
+            str = std::format("{}.{} = nil", mGlobalName, key);
+        else if constexpr (std::is_same_v<T, table_t>)
+            str = std::format("{}.{} = {{}}", mGlobalName, key);
+        else
+            str = std::format("{}.{} = {}", mGlobalName, key, value);
+        luaL_dostring(mLuaState, str.c_str());
     }
 
     template <typename T>
-    T GetKeyValue(const std::string &key) {
+    std::optional<T> GetKeyValue(const std::string &key) {
+        luaL_dostring(mLuaState, std::format("return rawget_path({}, \"{}\")", mGlobalName, key).c_str());
+
+        if (lua_isnil(mLuaState, -1))
+            return std::nullopt;
+
         T result {};
-        lua_getglobal(mLuaState, mGlobalName.c_str());
-        lua_getfield(mLuaState, -1, key.c_str());
         // sorry for the ugly code
-        if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>)
+        if constexpr (std::is_same_v<T, std::string>)
             result = lua_type(mLuaState, -1) == LUA_TSTRING ? std::string(lua_tostring(mLuaState, -1)) : "";
+        else if constexpr (std::is_same_v<T, char*> || std::is_same_v<T, const char*>)
+            result = lua_type(mLuaState, -1) == LUA_TSTRING ? lua_tostring(mLuaState, -1) : "";
         else if constexpr (std::is_same_v<T, int> || std::is_enum_v<T>)
             result = lua_type(mLuaState, -1) == LUA_TNUMBER ? static_cast<T>(lua_tointeger(mLuaState, -1)) : 0;
         else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>)
             result = lua_type(mLuaState, -1) == LUA_TNUMBER ? static_cast<T>(lua_tonumber(mLuaState, -1)) : 0;
         else if constexpr (std::is_same_v<T, bool>)
             result = lua_type(mLuaState, -1) == LUA_TBOOLEAN ? lua_toboolean(mLuaState, -1) : false;
-        lua_pop(mLuaState, 2);
+        lua_pop(mLuaState, 1);
         return result;
     }
-protected:
-    virtual void OnDeserialize() = 0;
-    virtual void OnSerialize() = 0;
 
+    template <typename T>
+    void SetKeyValueIfNotSet(const std::string &key, T value) {
+        if (!GetKeyValue<T>(key).has_value())
+            SetKeyValue<T>(key, value);
+    }
+protected:
     std::string             mGlobalName;
     std::string             mLastError;
     std::filesystem::path   mFilePath;

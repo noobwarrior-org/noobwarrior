@@ -8,6 +8,9 @@
 #include <civetweb.h>
 #include <sqlite3.h>
 
+#include "lua/lock_global_env.lua.inc"
+#include "lua/rawget_path.lua.inc"
+
 #if defined(_WIN32)
 #include <windows.h>
 #include <shlobj.h>
@@ -55,6 +58,10 @@ int Core::InitLuaState() {
 
     // lua_pushcfunction(mLuaState, printBS);
     // lua_setglobal(mLuaState, "error");
+
+    // Run lua code to define some functions without having to hassle with Lua C API
+    luaL_dostring(mLuaState, rawget_path_lua);
+    luaL_dostring(mLuaState, lock_global_env_lua);
     return 1;
 }
 

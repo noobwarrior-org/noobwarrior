@@ -1,4 +1,7 @@
-<h2>Running Games</h2>
-## for job in jobs
-    <h3>{{job.}}</h3>
-## endfor
+{% if multi_server_places %}
+{% else %}
+    <h2>Running Servers</h2>
+    ## for job in jobs
+        <h3>{{job.}}</h3>
+    ## endfor
+{% endif %}

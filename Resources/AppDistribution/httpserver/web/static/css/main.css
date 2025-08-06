@@ -1,0 +1,69 @@
+@font-face {
+    font-family: "Source Sans Pro";
+    src: url('/fonts/SourceSansPro-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Source Sans Pro";
+    src: url('/fonts/SourceSansPro-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+.navbar {
+    width: 100%;
+    height: 64px;
+    background-color: #292b2b;
+    overflow: clip;
+
+    display: flex;
+    align-items: center;
+}
+
+.navbar a, .navbar p, .navbar img {
+    float: left;
+}
+
+.navbar a, .navbar p {
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.navbar img {
+    padding: 8px;
+}
+
+.navbar .active {
+    color: white;
+}
+
+.navbar a {
+    color: #aeadac;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.navbar a:hover {
+    color: white;
+}
+
+.navbar p {
+    font-size: 24px;
+    padding-right: 16px;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+
+    background-color: #3d3f40;
+    color: #aeadac;
+    font-family: "Source Sans Pro", "Helvetica", "Arial", "Noto Sans", serif;
+}
+
+#content {
+    margin: 8px;
+    padding: 8px;
+}

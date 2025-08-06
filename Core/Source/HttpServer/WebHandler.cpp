@@ -41,6 +41,9 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
 
     // generate the body template
     nlohmann::json bodyData;
+    bodyData["user"] = {
+        {"loggedin", false}
+    };
 
     std::stringstream bodyFileBuf;
     bodyFileBuf << fileInput.rdbuf();

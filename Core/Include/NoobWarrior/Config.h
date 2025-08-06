@@ -11,7 +11,7 @@
 #include <vector>
 
 #define NOOBWARRIOR_CONFIG_VERSION 1
-#define NOOBWARRIOR_USERDATA_DIRNAME "noobwarrior"
+#define NOOBWARRIOR_USERDATA_DIRNAME "noobWarrior"
 
 namespace NoobWarrior {
 class Database;
@@ -23,14 +23,12 @@ enum class Theme {
 class Config : public BaseConfig {
 public:
     Config(const std::filesystem::path &filePath, lua_State *luaState);
+    ConfigResponse Open() override;
 
     int         Version;
     std::string Api_AssetDownload;
     std::string Api_AssetDetails;
     std::string Binaries_WineExe; // only required on non-Windows systems
     Theme       Gui_Theme;
-private:
-    void OnDeserialize() override;
-    void OnSerialize() override;
 };
 }

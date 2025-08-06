@@ -52,8 +52,9 @@ int HttpServer::Start(uint16_t port) {
     snprintf(portStr, 5, "%i", port);
 
     const std::filesystem::path &staticDir = Directory / "web" / "static";
+    const std::string &staticDirStr = staticDir.generic_string();
 
-    const char* configOptions[] = {"listening_ports", portStr, "document_root", reinterpret_cast<const char*>(staticDir.c_str()), nullptr};
+    const char* configOptions[] = {"listening_ports", portStr, "document_root", staticDirStr.c_str(), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(Directory);
@@ -62,7 +63,8 @@ int HttpServer::Start(uint16_t port) {
     SetRequestHandler("/asset", mAssetHandler);
     SetRequestHandler("/v1/asset", mAssetHandler);
 
-    // LINK_URI_TO_TEMPLATE("/", "home.jinja")
+    // LINK_URI_TO_TEMPLATE("/", "guest.jinja")
+    LINK_URI_TO_TEMPLATE("/login", "login.jinja")
     LINK_URI_TO_TEMPLATE("/home", "home.jinja")
 
     Out("HttpServer", "Started server on port {}", port);

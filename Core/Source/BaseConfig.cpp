@@ -8,7 +8,8 @@
 
 #include <utility>
 
-#include "serpent.lua.inc"
+#include "lua/config_metatable.lua.inc"
+#include "lua/serpent.lua.inc"
 
 static int custom_serializer_func(lua_State *L) {
     const char *tag = luaL_checkstring(L, 1);
@@ -66,25 +67,14 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
 
     lua_setglobal(mLuaState, mGlobalName.c_str()); // set our global as what our config file returned, a table. also pops it off the stack
 
-    // not doing this from C, it gets too ugly
-    char buf[1024];
-    snprintf(buf, 1024, R"(
-    -- metatable that, when a value is accessed, automatically sets that value as a table if it doesn't exist (nil)
-    -- so you can do stuff like "config.this_property_doesnt_exist.this_property_also_doesnt_exist.my_setting = "hi"
-    local metatable
-    metatable = {
-        __index = function(table, index)
-            local value = rawget(table, index)
-            if value == nil then
-                local tbl = {}
-                setmetatable(tbl, metatable) -- recursively do this :)
-                rawset(table, index, tbl)
-                return tbl
-            else return value end
-        end
-    }
-    setmetatable(%s, metatable)
-    )", mGlobalName.c_str());
+    // Attach a metatable to our config table that will make it so that if you index anything in it, it will make it a table if its nil.
+    // This is really good for doing assignments that require access to a lot of tables like "config.gui.database_editor.content_browser.size.x = 200"
+    // because it will auto-create each table in the process without having to manually do it yourself.
+    //
+    // Of course this can get messy, so when we serialize the table we remove any empty tables beforehand so that it
+    // doesn't look godawful when you open it in your text editor
+    char buf[2048];
+    snprintf(buf, 2048, config_metatable_lua, mGlobalName.c_str());
     luaL_dostring(mLuaState, buf);
 
     if (lua_isstring(mLuaState, -1)) {
@@ -96,12 +86,35 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
 
     // now init our default key values
     SetKeyValue("meta.version", "v1.0.0");
-    // wip
+
+    Out("Config", "Opened config");
 
     return ConfigResponse::Success;
 }
 
 NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
+    // First lets remove all empty tables in our config table.
+    // Since our metatable will automatically set any indexed nil value to a table, it creates a lot of clutter and junk
+    std::string pruneSrc = std::format(R"(
+        local function prune(tbl)
+            for k, v in pairs(tbl) do
+                if type(v) == "table" then
+                    prune(v)
+                    if next(v) == nil then
+                        rawset(tbl, k, nil)
+                    end
+                end
+            end
+        end
+        prune({});
+    )", mGlobalName);
+
+    if (int err = luaL_dostring(mLuaState, pruneSrc.c_str()); err != LUA_OK) {
+        mLastError = lua_tostring(mLuaState, -1);
+        lua_pop(mLuaState, 1);
+        return ConfigResponse::ErrorDuringExecution;
+    }
+
     // Load in serpent.lua through our header file that embeds it into the program.
     // It's a lua serializer that reconstructs a source-code version of the table.
     int res = luaL_loadstring(mLuaState, serpent_lua);
@@ -134,8 +147,8 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
         // disable the printing of addresses of tables because it's unnecessary.
         lua_pushboolean(mLuaState, false);
             lua_setfield(mLuaState, -2, "comment");
-        lua_pushcfunction(mLuaState, custom_serializer_func);
-            lua_setfield(mLuaState, -2, "custom");
+        // lua_pushcfunction(mLuaState, custom_serializer_func);
+            // lua_setfield(mLuaState, -2, "custom");
 
 
     res = lua_pcall(mLuaState, 2, 1, 0);
@@ -157,6 +170,8 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     NOOBWARRIOR_FREE_PTR(mFileOutput)
 
     lua_pop(mLuaState, 2); // pop the string and table
+
+    Out("Config", "Closed config");
 
     return ConfigResponse::Success;
 }
