@@ -1,8 +1,10 @@
-{% if user %}
+{% if user.rank != "guest" %}
     <img src="{{ user.headshot_thumbnail }}">
     <h2>Hello, {{ user.name }}!</h2>
+{% else %}
+    <h2>You are not logged in!</h2>
 {% endif %}
-{% if game_view_mode == 'server' %}
+{% if game_view_mode == "server" %}
     {% if servers %}
         <h2>Running Servers</h2>
         {% for server in servers %}

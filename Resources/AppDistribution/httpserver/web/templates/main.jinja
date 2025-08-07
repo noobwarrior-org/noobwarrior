@@ -22,13 +22,15 @@
             <a href="/control-panel">Control Panel</a>
             {% endif %}
 
-            {% if user %}
-            <a href="/users/{{ user.id }}/profile">{{ user.name }}</a>
+            {% if user.rank != "guest" %}
+                <a href="/users/{{ user.id }}/profile">{{ user.name }}</a>
             {% endif %}
 	    </div>
 		<div id="content">
-		    {% if banner.message %}
-		    <div background-color="{{ banner.background_color }} foreground-color="{{ banner.foreground_color }}" class="banner">{{ banner.message }}</div>
+		    {% if exists("banner") %}
+                {% if banner.message %}
+                    <div background-color="{{ banner.background_color }} foreground-color="{{ banner.foreground_color }}" class="banner">{{ banner.message }}</div>
+                {% endif %}
 		    {% endif %}
 			{{ body }}
 			<hr>
