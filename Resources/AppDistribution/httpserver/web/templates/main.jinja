@@ -22,7 +22,7 @@
             <a href="/control-panel">Control Panel</a>
             {% endif %}
 
-            {% if user.loggedin %}
+            {% if user %}
             <a href="/users/{{ user.id }}/profile">{{ user.name }}</a>
             {% endif %}
 	    </div>

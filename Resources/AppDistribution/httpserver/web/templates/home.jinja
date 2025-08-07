@@ -1,7 +1,16 @@
-{% if multi_server_places %}
+{% if user %}
+    <img src="{{ user.headshot_thumbnail }}">
+    <h2>Hello, {{ user.name }}!</h2>
+{% endif %}
+{% if game_view_mode == 'server' %}
+    {% if servers %}
+        <h2>Running Servers</h2>
+        {% for server in servers %}
+            <div class="server">
+                <h1>{{ server.name }}</h1>
+            </div>
+        {% endfor %}
+    {% endif %}
 {% else %}
-    <h2>Running Servers</h2>
-    ## for job in jobs
-        <h3>{{job.}}</h3>
-    ## endfor
+
 {% endif %}

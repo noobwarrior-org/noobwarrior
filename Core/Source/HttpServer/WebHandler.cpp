@@ -16,7 +16,7 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-WebHandler::WebHandler(const std::filesystem::path &dir) : Directory(dir) {}
+WebHandler::WebHandler(Config *config, const std::filesystem::path &dir) : mConfig(config), Directory(dir) {}
 
 int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     char *fileName = static_cast<char*>(userdata);
@@ -39,26 +39,50 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
         return 500;
     }
 
-    // generate the body template
-    nlohmann::json bodyData;
-    bodyData["user"] = {
-        {"loggedin", false}
+    std::optional title = mConfig->GetKeyValue<std::string>("httpserver.branding.title");
+    std::optional logo = mConfig->GetKeyValue<std::string>("httpserver.branding.logo");
+    std::optional favicon = mConfig->GetKeyValue<std::string>("httpserver.branding.favicon");
+
+    std::optional game_view_mode = mConfig->GetKeyValue<std::string>("httpserver.game_view_mode");
+
+    // generate the template
+    nlohmann::json data;
+    data["title"] = "RegularPage";
+    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
+    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
+    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
+    data["game_view_mode"] = game_view_mode.has_value() ? game_view_mode.value() : "server";
+
+    data["servers"] = {
+        {
+            {"name", "My Server"}
+        }
     };
 
     std::stringstream bodyFileBuf;
     bodyFileBuf << fileInput.rdbuf();
 
-    std::string generatedBodyTemplate = inja::render(bodyFileBuf.str(), bodyData);
+    std::string generatedBodyTemplate;
+    try {
+        generatedBodyTemplate = inja::render(bodyFileBuf.str(), data);
+    } catch (const inja::InjaError &e) {
+        mg_send_http_error(conn, 500, "Failed to render body template \"%s\"\nException Message: %s", fileName, e.what());
+        return 500;
+    }
     
     // now generate the main template, and send it to client
     std::stringstream mainFileBuf;
     mainFileBuf << mainFileInput.rdbuf();
 
-    nlohmann::json mainData;
-    mainData["body"] = generatedBodyTemplate;
-    mainData["title"] = "RegularPage";
+    data["body"] = generatedBodyTemplate;
 
-    std::string generatedMainTemplate = inja::render(mainFileBuf.str(), mainData);
+    std::string generatedMainTemplate;
+    try {
+        generatedMainTemplate = inja::render(mainFileBuf.str(), data);
+    } catch (const inja::InjaError &e) {
+        mg_send_http_error(conn, 500, "Failed to render main template\nException Message: %s", e.what());
+        return 500;
+    }
 
     mg_send_http_ok(conn, "text/html", generatedMainTemplate.length());
 	mg_write(conn, generatedMainTemplate.c_str(), generatedMainTemplate.length());

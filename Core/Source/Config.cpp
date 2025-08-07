@@ -40,7 +40,7 @@ ConfigResponse Config::Open() {
     SetKeyComment("httpserver.enable_roblox_proxy", "Use the Roblox API as a fallback reverse proxy for API requests. Note that this requires the program to be logged in to your Roblox account in order for it to work.");
 
     SetKeyValueIfNotSet("httpserver.game_view_mode", "server");
-    SetKeyComment("httpserver.game_view_mode", "This value can be set to three modes, \"server\", \"universe\", and \"place\". If set to \"server\", it will display individual servers on the website. If set to \"universe\", it will display an entire Roblox game containing all the servers being hosted for it and the places it contains; this is how Roblox does it for their website. If set to \"place\", individual places that belong to a universe will be shown; this is how Roblox did it before introducing the \"Universe\" system in 2014.");
+    SetKeyComment("httpserver.game_view_mode", "This value can be set to three modes, \"server\", \"game\", and \"place\". If set to \"server\", it will display individual servers on the website. If set to \"game\", it will display an entire Roblox game containing all the servers being hosted for it and the places it contains; this is how Roblox does it for their website. If set to \"place\", individual places that belong to a universe will be shown; this is how Roblox did it before introducing the \"Universe\" system in 2014.");
 
     SetKeyValueIfNotSet("httpserver.connect_to_individual_place", true);
 
@@ -71,8 +71,8 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.permissions.login_filter_type", "whitelist");
     SetKeyComment("httpserver.permissions.login_filter_type", "This setting only applies if enable_login_filter is set to true. You can set this to either \"blacklist\" or \"whitelist\"");
 
-    SetKeyValueIfNotSet("httpserver.permissions.ugc", "user");
-    SetKeyComment("httpserver.permissions.ugc", "What rank is able to upload user generated content to the website?");
+    SetKeyValueIfNotSet("httpserver.permissions.upload_ugc", "user");
+    SetKeyComment("httpserver.permissions.upload_ugc", "What rank is able to upload user generated content to the website?");
 
     SetKeyValueIfNotSet("httpserver.permissions.access.home", "user");
     SetKeyComment("httpserver.permissions.access.servers", "What rank is able to access the Home page on the website?");

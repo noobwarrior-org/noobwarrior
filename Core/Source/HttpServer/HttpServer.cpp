@@ -57,7 +57,7 @@ int HttpServer::Start(uint16_t port) {
     const char* configOptions[] = {"listening_ports", portStr, "document_root", staticDirStr.c_str(), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
-    mWebHandler = new WebHandler(Directory);
+    mWebHandler = new WebHandler(mCore->GetConfig(), Directory);
     mAssetHandler = new AssetHandler(this, mCore->GetDatabaseManager());
 
     SetRequestHandler("/asset", mAssetHandler);
