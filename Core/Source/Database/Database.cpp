@@ -32,6 +32,7 @@
 #include "schema/idtype/user/user_inventory.sql.inc"
 #include "schema/idtype/user/user_favorites.sql.inc"
 #include "schema/idtype/user/user_likes_dislikes.sql.inc"
+#include "schema/idtype/user/user_previous_names.sql.inc"
 
 #include "schema/idtype/group/group_role.sql.inc"
 #include "schema/idtype/group/group_member.sql.inc"
@@ -121,6 +122,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_user_inventory)
 	CREATE_TABLE(schema_user_favorites)
 	CREATE_TABLE(schema_user_likes_dislikes)
+	CREATE_TABLE(schema_user_previous_names)
 
 	CREATE_TABLE(schema_group_role)
 	CREATE_TABLE(schema_group_member)

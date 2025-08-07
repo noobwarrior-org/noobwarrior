@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS "Group" (
     "Created"	INTEGER,
 	"OwnerId"	INTEGER,
 	"EmblemId"	INTEGER,
-    "MemberCount"	INTEGER,
+    "Historical_MemberCount"	INTEGER,
     "SocialLinks"	TEXT,
     "Funds"	INTEGER,
     "Shout"	TEXT,
