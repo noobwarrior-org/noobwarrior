@@ -8,6 +8,7 @@
 #include <NoobWarrior/Database/Record/IdType/User.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 
+#include "ContentEditorDialogBase.h"
 #include "DatabaseEditor.h"
 #include "IdTypeFields.h"
 
@@ -28,44 +29,29 @@
 
 namespace NoobWarrior {
 template<class T>
-class ContentEditorDialog : public QDialog {
+class ContentEditorDialog : public ContentEditorDialogBase {
 public:
-    ContentEditorDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt) : QDialog(parent),
-        mId(id)
+    ContentEditorDialog(QWidget *parent = nullptr, const std::optional<int> id = std::nullopt, const std::optional<int> version = std::nullopt) : ContentEditorDialogBase(parent, id, version)
     {
-        assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentEditorDialog should not be parented to anything other than DatabaseEditor");
-        mDatabaseEditor = dynamic_cast<DatabaseEditor*>(this->parent());
-        mDatabase = mDatabaseEditor->GetCurrentlyEditingDatabase();
-
-        setWindowTitle(tr("Content Editor"));
-        RegenWidgets();
+        static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
+        ContentEditorDialog<T>::RegenWidgets();
     }
 
-    void RegenWidgets() {
-        qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
+    void RegenWidgets() override {
+        ContentEditorDialogBase::RegenWidgets();
         setWindowTitle(mId.has_value() ? tr("Configure %1").arg(T::TableName) : tr("Create New %1").arg(T::TableName));
-
-        mLayout = new QHBoxLayout(this);
-        mSidebarLayout = new QVBoxLayout();
-        mContentLayout = new QFormLayout();
-
-        mLayout->addLayout(mSidebarLayout);
-        mLayout->addLayout(mContentLayout);
 
         ////////////////////////////////////////////////////////////////////////
         /// icon
         ////////////////////////////////////////////////////////////////////////
         QImage image;
 
-        if (mId.has_value())
+        if (mId.has_value()) {
             image.loadFromData(mDatabase->RetrieveContentImageData<T>(mId.value()));
 
-        QPixmap pixmap = QPixmap::fromImage(image);
-
-        mIcon = new QLabel();
-        mIcon->setAlignment(Qt::AlignLeft);
-        mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        mSidebarLayout->addWidget(mIcon);
+            QPixmap pixmap = QPixmap::fromImage(image);
+            mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
 
         if constexpr (!(std::is_same_v<T, Asset> || std::is_same_v<T, User>)) {
             auto *changeIcon = new QPushButton("Change Icon");
@@ -99,7 +85,7 @@ public:
         ////////////////////////////////////////////////////////////////////////
         mFields = GetFields<T>();
         if (mId.has_value()) {
-            std::optional<T> content = mDatabase->GetContent<T>(mId.value());
+            std::optional<T> content = mDatabase->GetContent<T>(mId.value(), mVersion);
             if (content.has_value()) mContent = content.value();
         }
         for (const auto &field : mFields) {
@@ -188,9 +174,10 @@ public:
             for (int i = 0; i < mFields.size(); i++) {
                 FieldDesc field = mFields[i];
                 QWidget *widget = mWidgetFields[i];
-                QString errorMsg = field.Validate(widget);
+                QString errorMsg = field.Validate(this, widget);
                 if (!errorMsg.isEmpty()) {
-                    QMessageBox::critical(this, "Failed To Add Content", errorMsg);
+                    if (errorMsg.compare("SILENTFAIL") != 0)
+                        QMessageBox::critical(this, "Failed To Add Content", errorMsg);
                     return;
                 }
             }
@@ -221,20 +208,8 @@ public:
         // mLayout->addRow(new QPushButton("Save", this), new QPushButton("Cancel", this));
     }
 private:
-    std::optional<int> mId;
-
     std::any mContent = T {};
     std::vector<FieldDesc> mFields = GetFields<T>();
     std::vector<QWidget*> mWidgetFields;
-
-    DatabaseEditor *mDatabaseEditor;
-    Database *mDatabase;
-
-    QHBoxLayout *mLayout;
-    QVBoxLayout *mSidebarLayout;
-    QFormLayout *mContentLayout;
-
-    QLabel *mIcon;
-    QDialogButtonBox *mButtonBox;
 };
 }

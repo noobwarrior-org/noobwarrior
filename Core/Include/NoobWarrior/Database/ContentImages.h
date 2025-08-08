@@ -11,6 +11,12 @@
 extern const int g_icon_content_deleted[];
 extern const int g_icon_content_deleted_size;
 
+extern const int g_question_mark_png[];
+extern const int g_question_mark_png_size;
+
+extern const int g_model_png[];
+extern const int g_model_png_size;
+
 extern const int g_audio_png[];
 extern const int g_audio_png_size;
 
@@ -20,10 +26,11 @@ extern const int g_animation_png_size;
 namespace NoobWarrior {
 inline std::vector<unsigned char> GetImageForAssetType(Roblox::AssetType assetType) {
     std::vector<unsigned char> data;
-    const int *icon = g_icon_content_deleted;
-    int icon_size = g_icon_content_deleted_size;
+    const int *icon = g_question_mark_png;
+    int icon_size = g_question_mark_png_size;
     switch (assetType) {
     default: break;
+    case Roblox::AssetType::Model: icon = g_model_png; icon_size = g_model_png_size; break;
     case Roblox::AssetType::Audio: icon = g_audio_png; icon_size = g_audio_png_size; break;
     case Roblox::AssetType::Animation: icon = g_animation_png; icon_size = g_animation_png_size; break;
     }

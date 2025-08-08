@@ -7,5 +7,7 @@
 #include <array>
 
 #include "icons/content_deleted.png.inc"
+#include "icons/question_mark.png.inc"
+#include "icons/asset_type/model.png.inc"
 #include "icons/asset_type/audio.png.inc"
 #include "icons/asset_type/animation.png.inc"

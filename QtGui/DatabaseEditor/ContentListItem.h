@@ -17,6 +17,7 @@ public:
     ContentListItem(T record, Database *db, QListWidget *listview = nullptr) : ContentListItemBase(listview),
         mRecord(std::move(record))
     {
+        static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
         setText(QString("%1\n(%2)").arg(QString::fromStdString(mRecord.Name), QString::number(mRecord.Id)));
 
         std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(mRecord.Id);

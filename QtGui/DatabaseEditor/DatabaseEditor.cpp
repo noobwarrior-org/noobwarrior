@@ -227,7 +227,17 @@ void DatabaseEditor::InitMenus() {
 
     connect(mSaveDatabaseAction, &QAction::triggered, [&]() {
         if (mCurrentDatabase != nullptr) {
-            mCurrentDatabase->WriteChangesToDisk();
+            DatabaseResponse save_res = mCurrentDatabase->WriteChangesToDisk();
+            if (save_res != DatabaseResponse::Success) {
+                QString save_err_msg;
+                switch (save_res) {
+                default: save_err_msg = "Is this file read-only?"; break;
+                case DatabaseResponse::Busy: save_err_msg = "The database seems to be busy."; break;
+                case DatabaseResponse::Misuse: save_err_msg = "There was an internal error."; break;
+                }
+                QMessageBox::critical(this, "Failed To Save Database", QString("The database could not be saved to disk. %1").arg(save_err_msg));
+                return;
+            }
             if (mCurrentDatabase->IsMemory()) {
                 // This database has never been saved to disk. Make the user pick where they want to store it so we can actually save
                 mCurrentDatabase->MarkDirty(); // And mark it dirty again just in case the user rejects the save prompt and nothing actually happens.

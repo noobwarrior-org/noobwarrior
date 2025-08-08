@@ -4,6 +4,7 @@
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 #include <NoobWarrior/Database/Database.h>
+#include <NoobWarrior/Database/Statement.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <nlohmann/json.hpp>
@@ -141,7 +142,8 @@ DatabaseResponse Database::Open(const std::string &path) {
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
     	sqlite3_stmt *checkStmt;
     	if (sqlite3_prepare_v2(mDatabase, "SELECT 1 FROM Meta WHERE Key = ?;", -1, &checkStmt, nullptr) != SQLITE_OK) {
-    		Out("Database", "Failed to prepare");
+    		Out("checkStmt", "Failed to prepare");
+    		sqlite3_finalize(checkStmt);
     		sqlite3_close_v2(mDatabase);
     		return DatabaseResponse::CouldNotSetKeyValues;
     	}
@@ -156,6 +158,7 @@ DatabaseResponse Database::Open(const std::string &path) {
     	sqlite3_stmt *stmt;
         if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
         	Out("Database", "Failed to prepare");
+        	sqlite3_finalize(stmt);
         	sqlite3_close_v2(mDatabase);
 	        return DatabaseResponse::CouldNotSetKeyValues;
         }
@@ -210,8 +213,10 @@ DatabaseResponse Database::SaveAs(const std::string &path) {
 
 	backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
 	if (backup) {
-		if (!sqlite3_backup_step(backup, -1)) goto cleanup;
-		if (!sqlite3_backup_finish(backup)) goto cleanup;
+		int backup_step_res = sqlite3_backup_step(backup, -1);
+		if (backup_step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
+		if (backup_step_res != SQLITE_DONE && backup_step_res != SQLITE_READONLY) goto cleanup;
+		if (sqlite3_backup_finish(backup) != SQLITE_OK) goto cleanup;
 		res = DatabaseResponse::Success;
 	}
 	cleanup:
@@ -221,13 +226,28 @@ DatabaseResponse Database::SaveAs(const std::string &path) {
 
 DatabaseResponse Database::WriteChangesToDisk() {
 	if (mAutoCommit) return DatabaseResponse::DidNothing; // You don't have to save
+	auto res = DatabaseResponse::Failed;
 
-    if (sqlite3_exec(mDatabase, "COMMIT;", nullptr, nullptr, nullptr) != SQLITE_OK)
-    	return DatabaseResponse::Failed;
-	if (sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr) != SQLITE_OK) // and disable auto-commit mode again
-		return DatabaseResponse::Failed;
+	sqlite3_stmt *stmt;
+
+	sqlite3_prepare_v2(mDatabase, "COMMIT;", -1, &stmt, nullptr);
+	int step_res = sqlite3_step(stmt);
+	if (step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
+	if (step_res == SQLITE_MISUSE) res = DatabaseResponse::Misuse;
+	if (step_res != SQLITE_DONE) goto cleanup;
+	sqlite3_finalize(stmt);
+
+	sqlite3_prepare_v2(mDatabase, "BEGIN TRANSACTION;", -1, &stmt, nullptr);
+	step_res = sqlite3_step(stmt);
+	if (step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
+	if (step_res == SQLITE_MISUSE) res = DatabaseResponse::Misuse;
+	if (step_res != SQLITE_DONE) goto cleanup;
+
+	res = DatabaseResponse::Success;
 	UnmarkDirty();
-    return DatabaseResponse::Success;
+cleanup:
+	sqlite3_finalize(stmt);
+    return res;
 }
 
 bool Database::IsDirty() {
@@ -255,6 +275,7 @@ std::string Database::GetSqliteErrorMsg() {
 
 std::string Database::GetMetaKeyValue(const std::string &key) {
 	if (!mInitialized) return "";
+
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, "SELECT Value FROM Meta WHERE Key = ?;", -1, &stmt, nullptr);
 	sqlite3_bind_text(stmt, 1, key.c_str(), -1, nullptr);

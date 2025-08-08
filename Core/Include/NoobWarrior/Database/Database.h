@@ -50,13 +50,16 @@ namespace NoobWarrior {
         CouldNotSetKeyValues,
         DidNothing,
         NotInitialized,
-        StatementConstraintViolation
+        StatementConstraintViolation,
+        Busy,
+        Misuse
     };
 
     /**
      * @brief A noobWarrior database that can contain Roblox assets, users, games, etc.
      */
     class Database {
+        friend class Statement;
     public:
         /**
          * @param autocommit Will enable SQLite's auto-commit feature if true; any writes you do to the database are immediately saved to disk.
@@ -177,15 +180,17 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        std::optional<T> GetContent(int64_t id) {
+        std::optional<T> GetContent(const int64_t id, const std::optional<int> version = std::nullopt) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
             if (!mInitialized) return std::nullopt;
 
-            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ?;", T::TableName);
+            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", T::TableName, version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
             sqlite3_bind_int64(stmt, 1, id);
+            if (version.has_value())
+                sqlite3_bind_int(stmt, 2, version.value());
 
             while (sqlite3_step(stmt) == SQLITE_ROW) {
                 T content {};
@@ -233,8 +238,10 @@ namespace NoobWarrior {
                     content.Likes = GetValueFromColumnName<int64_t>(stmt, "Historical_Likes");
                     content.Dislikes = GetValueFromColumnName<int64_t>(stmt, "Historical_Dislikes");
 
+                    sqlite3_finalize(stmt);
                     return content;
                 } else if constexpr (std::is_same_v<T, Badge>) {
+                    sqlite3_finalize(stmt);
                     return content;
                 }
             }
@@ -260,7 +267,7 @@ namespace NoobWarrior {
                     stmtStr.c_str(),
                     -1, &stmt, nullptr);
                 sqlite3_bind_int64(stmt, 1, content.Id);
-                sqlite3_bind_int64(stmt, 2, content.Version);
+                sqlite3_bind_int(stmt, 2, content.Version);
                 sqlite3_bind_text(stmt, 3, content.Name.c_str(), -1, nullptr);
                 sqlite3_bind_text(stmt, 4, content.Description.c_str(), -1, nullptr);
                 sqlite3_bind_int64(stmt, 5, content.Created);
@@ -288,7 +295,8 @@ namespace NoobWarrior {
                 sqlite3_bind_int(stmt, 23, content.Likes);
                 sqlite3_bind_int(stmt, 24, content.Dislikes);
             } else if constexpr (std::is_same_v<T, Badge>) {
-                sqlite3_prepare_v2(mDatabase, "INSERT INTO Badge (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1,
+                std::string stmtStr = std::format("{} INTO Badge (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", keyword);
+                sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1,
                                    &stmt, nullptr);
                 sqlite3_bind_int64(stmt, 1, content.Id);
                 sqlite3_bind_text(stmt, 2, content.Name.c_str(), -1, nullptr);
@@ -349,15 +357,16 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        bool DoesContentExist(const int64_t &id) {
+        bool DoesContentExist(const int64_t &id, const int64_t &version = 1) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
             if (!mInitialized) return false;
 
-            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ?;", T::TableName);
+            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? AND Version = ?;", T::TableName);
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
             sqlite3_bind_int64(stmt, 1, id);
+            sqlite3_bind_int(stmt, 2, version);
 
             int res = sqlite3_step(stmt);
             sqlite3_finalize(stmt);
