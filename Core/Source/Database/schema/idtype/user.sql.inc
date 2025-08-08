@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS "User" (
 	"Admin"	INTEGER,
 	"HeadshotThumbnail"	BLOB,
 	"BustThumbnail"	BLOB,
-	PRIMARY KEY("Id","Version")
+	PRIMARY KEY("Id","Version"),
+	FOREIGN KEY("Name") REFERENCES "UserNames"("Name")
 );
 )***";
