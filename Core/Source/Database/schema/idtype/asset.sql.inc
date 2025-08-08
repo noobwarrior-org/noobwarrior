@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     "Historical_Favorites"	INTEGER,
     "Historical_Likes"	INTEGER,
 	"Historical_Dislikes"	INTEGER,
-	"Data"	BLOB,
 	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),

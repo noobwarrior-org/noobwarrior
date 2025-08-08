@@ -26,6 +26,8 @@
 #include "schema/idtype/universe.sql.inc"
 #include "schema/idtype/user.sql.inc"
 
+#include "schema/idtype/asset/asset_data.sql.inc"
+
 #include "schema/idtype/user/user_friends.sql.inc"
 #include "schema/idtype/user/user_followers.sql.inc"
 #include "schema/idtype/user/user_following.sql.inc"
@@ -116,6 +118,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_user)
 
 	// tables that are directly related to an id type
+	CREATE_TABLE(schema_asset_data)
+
 	CREATE_TABLE(schema_user_friends)
 	CREATE_TABLE(schema_user_followers)
 	CREATE_TABLE(schema_user_following)
@@ -191,6 +195,7 @@ int Database::SetDatabaseVersion(int version) {
 
 DatabaseResponse Database::SaveAs(const std::string &path) {
 	if (!mInitialized) return DatabaseResponse::NotInitialized;
+	auto res = DatabaseResponse::Failed;
 	sqlite3 *newDb;
 	sqlite3_backup *backup;
 
@@ -205,12 +210,13 @@ DatabaseResponse Database::SaveAs(const std::string &path) {
 
 	backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
 	if (backup) {
-		sqlite3_backup_step(backup, -1);
-		sqlite3_backup_finish(backup);
+		if (!sqlite3_backup_step(backup, -1)) goto cleanup;
+		if (!sqlite3_backup_finish(backup)) goto cleanup;
+		res = DatabaseResponse::Success;
 	}
 	cleanup:
 		sqlite3_close_v2(newDb);
-	return DatabaseResponse::Success;
+	return res;
 }
 
 DatabaseResponse Database::WriteChangesToDisk() {
@@ -317,19 +323,44 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
-int Database::GetAssetSize(int64_t id) {
-	if (!mInitialized) return -1;
+std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,
+	const std::string &columnName) {
+	if (!mInitialized) return {};
+
+	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", tableName);
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT * FROM Asset WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
 	sqlite3_bind_int64(stmt, 1, id);
 
 	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		const auto data = GetBlobSizeFromColumnName(stmt, "Data");
+		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt, columnName);
 		sqlite3_finalize(stmt);
 		return data;
 	}
 
 	sqlite3_finalize(stmt);
+
+	return {};
+}
+
+int Database::GetAssetSize(int64_t id) {
+	if (!mInitialized) return -1;
+
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, "SELECT Data FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
+		const int size = sqlite3_column_bytes(stmt, 0);
+		sqlite3_finalize(stmt);
+		return size;
+	}
+
+	sqlite3_finalize(stmt);
 	return -1;
+}
+
+std::vector<unsigned char> Database::RetrieveAssetData(int64_t id) {
+	return RetrieveBlobFromTableName(id, "AssetData", "Data");
 }

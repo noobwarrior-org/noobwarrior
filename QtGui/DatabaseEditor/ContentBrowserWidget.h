@@ -62,7 +62,7 @@ protected:
 
         std::vector<T> list = db->SearchContent<T>(opt);
         for (auto &item : list) {
-            new ContentListItem<T>(&item, db, List);
+            new ContentListItem<T>(item, db, List);
             // cool->setIcon(QIcon(item.Icon));
         }
     }

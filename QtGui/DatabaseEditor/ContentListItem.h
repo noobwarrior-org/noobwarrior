@@ -14,12 +14,12 @@ namespace NoobWarrior {
 template<class T>
 class ContentListItem : public ContentListItemBase {
 public:
-    ContentListItem(T *record, Database *db, QListWidget *listview = nullptr) : ContentListItemBase(listview),
-        mRecord(record)
+    ContentListItem(T record, Database *db, QListWidget *listview = nullptr) : ContentListItemBase(listview),
+        mRecord(std::move(record))
     {
-        setText(QString("%1\n(%2)").arg(QString::fromStdString(record->Name), QString::number(record->Id)));
+        setText(QString("%1\n(%2)").arg(QString::fromStdString(mRecord.Name), QString::number(mRecord.Id)));
 
-        std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(record->Id);
+        std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(mRecord.Id);
         if (!imageData.empty()) {
             QImage image;
             image.loadFromData(imageData);
@@ -31,10 +31,10 @@ public:
     }
 
     void Configure(DatabaseEditor *editor) override {
-        auto editDialog = ContentEditorDialog<T>(editor, mRecord->Id);
+        auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
         editDialog.exec();
     }
 private:
-    T *mRecord;
+    T mRecord;
 };
 }

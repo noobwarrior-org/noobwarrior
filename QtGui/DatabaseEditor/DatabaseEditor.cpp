@@ -267,8 +267,8 @@ void DatabaseEditor::InitWidgets() {
     mTabWidget = new QTabWidget(this);
     setCentralWidget(mTabWidget);
 
-    auto *hi = new QLabel("Welcome!\nUse the \"Content Browser\" to look at all the available contents of this database\nUse the \"Organizer\" to organize this content in a way that you similarly would in your file manager");
-    hi->setFont(QFont(QApplication::font().family(), 18));
+    auto *hi = new QLabel("New Database  Ctrl-N\nOpen Database  Ctrl-O");
+    hi->setFont(QFont(QApplication::font().family(), 14));
     hi->setAlignment(Qt::AlignCenter);
     hi->setWordWrap(true);
 

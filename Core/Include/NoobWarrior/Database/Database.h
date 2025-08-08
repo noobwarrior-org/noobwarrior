@@ -131,27 +131,16 @@ namespace NoobWarrior {
          */
         int GetAssetSize(int64_t id);
 
+        /**
+         * @param id The asset ID
+         * @return The raw data that the asset contains
+         */
+        std::vector<unsigned char> RetrieveAssetData(int64_t id);
+
         template<typename T>
-        std::vector<unsigned char> RetrieveContentData(int64_t id) {
+        std::vector<unsigned char> RetrieveContentBlob(int64_t id, const std::string &columnName) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-            if (!mInitialized) return {};
-
-            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;",
-                                              T::TableName);
-
-            sqlite3_stmt *stmt;
-            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-            sqlite3_bind_int64(stmt, 1, id);
-
-            if (sqlite3_step(stmt) == SQLITE_ROW) {
-                const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt, "Data");
-                sqlite3_finalize(stmt);
-                return data;
-            }
-
-            sqlite3_finalize(stmt);
-
-            return {};
+            return RetrieveBlobFromTableName(id, T::TableName, columnName);
         }
 
         template<typename T>
@@ -167,7 +156,7 @@ namespace NoobWarrior {
             sqlite3_bind_int64(stmt, 1, id);
             if (sqlite3_step(stmt) == SQLITE_ROW) {
                 const auto iconId = GetValueFromColumnName<int64_t>(stmt, "Image");
-                if (std::vector<unsigned char> imageData = RetrieveContentData<Asset>(iconId); !imageData.empty()) {
+                if (std::vector<unsigned char> imageData = RetrieveAssetData(iconId); !imageData.empty()) {
                     sqlite3_finalize(stmt);
                     return imageData;
                 }
@@ -255,17 +244,20 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        DatabaseResponse AddContent(const T &content) {
+        DatabaseResponse AddContent(const T &content, bool overwrite = false) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
 
             if (!mInitialized) return DatabaseResponse::NotInitialized;
             DatabaseResponse res = DatabaseResponse::Failed;
             sqlite3_stmt *stmt;
 
+            std::string keyword = overwrite ? "REPLACE" : "INSERT";
+
             if constexpr (std::is_same_v<T, Asset>) {
+                std::string stmtStr = std::format("{} INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Image, Thumbnails, UserId, GroupId, CurrencyType, Price, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Historical_Sales, Historical_Favorites, Historical_Likes, Historical_Dislikes) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", keyword);
                 sqlite3_prepare_v2(
                     mDatabase,
-                    "INSERT INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Image, Thumbnails, UserId, GroupId, CurrencyType, Price, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Historical_Sales, Historical_Favorites, Historical_Likes, Historical_Dislikes, Data) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                    stmtStr.c_str(),
                     -1, &stmt, nullptr);
                 sqlite3_bind_int64(stmt, 1, content.Id);
                 sqlite3_bind_int64(stmt, 2, content.Version);
@@ -295,7 +287,6 @@ namespace NoobWarrior {
                 sqlite3_bind_int(stmt, 22, content.Favorites);
                 sqlite3_bind_int(stmt, 23, content.Likes);
                 sqlite3_bind_int(stmt, 24, content.Dislikes);
-                sqlite3_bind_blob(stmt, 25, content.Data.data(), content.Data.size(), nullptr);
             } else if constexpr (std::is_same_v<T, Badge>) {
                 sqlite3_prepare_v2(mDatabase, "INSERT INTO Badge (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", -1,
                                    &stmt, nullptr);
@@ -357,8 +348,25 @@ namespace NoobWarrior {
             return list;
         }
 
+        template<typename T>
+        bool DoesContentExist(const int64_t &id) {
+            static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
+            if (!mInitialized) return false;
+
+            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ?;", T::TableName);
+
+            sqlite3_stmt *stmt;
+            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+            sqlite3_bind_int64(stmt, 1, id);
+
+            int res = sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            return res == SQLITE_ROW;
+        }
     protected:
         int SetDatabaseVersion(int version);
+
+        std::vector<unsigned char> RetrieveBlobFromTableName(int64_t id, const std::string &tableName, const std::string &columnName);
 
         // TODO: Optimize this so that it caches the results instead of having to go through the for loop everytime.
         template<typename T>

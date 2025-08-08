@@ -26,3 +26,13 @@ void DatabaseManager::Mount(Database *database, unsigned int priority) {
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
     // gConfig.MountedArchives.push_back(database->GetFilePath());
 }
+
+std::vector<unsigned char> DatabaseManager::RetrieveAssetData(int64_t id) {
+    for (int i = 0; i < MountedDatabases.size(); i++) {
+        Database *database = MountedDatabases[i];
+        auto data = database->RetrieveAssetData(id);
+        if (!data.empty())
+            return data;
+    }
+    return {};
+}

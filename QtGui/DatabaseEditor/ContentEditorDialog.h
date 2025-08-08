@@ -169,6 +169,15 @@ public:
 
             dataLayout->addWidget(le);
             dataLayout->addWidget(label);
+
+            connect(le, &QPushButton::clicked, [this]() {
+                QString filePath = QFileDialog::getOpenFileName(
+                    this,
+                    "Choose File",
+                    "",
+                    "Any File (*.*)"
+                );
+            });
         }
 
         mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
@@ -193,7 +202,7 @@ public:
                 field.SetValue(mContent, widget);
             }
 
-            DatabaseResponse res = mDatabase->AddContent(std::any_cast<T>(mContent));
+            DatabaseResponse res = mDatabase->AddContent(std::any_cast<T>(mContent), true);
             QString errMsg;
             switch (res) {
                 case DatabaseResponse::NotInitialized: errMsg = "Database not initialized"; break;

@@ -17,15 +17,16 @@ public:
     void Mount(Database *database, unsigned int priority);
     int Unmount(Database *database);
 
+    std::vector<unsigned char> RetrieveAssetData(int64_t id);
+
     template<typename T>
-    std::vector<unsigned char> RetrieveContentData(int64_t id) {
+    bool DoesContentExist(const int64_t &id) {
         for (int i = 0; i < MountedDatabases.size(); i++) {
             Database *database = MountedDatabases[i];
-            auto data = database->RetrieveContentData<T>(id);
-            if (!data.empty())
-                return data;
+            if (const bool exists = database->DoesContentExist<T>(id))
+                return exists;
         }
-        return {};
+        return false;
     }
 private:
     std::vector<Database*> MountedDatabases;
