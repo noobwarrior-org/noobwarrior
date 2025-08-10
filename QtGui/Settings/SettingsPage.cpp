@@ -14,16 +14,20 @@ SettingsPage::SettingsPage(QWidget *parent) : QWidget(parent),
 {}
 
 void SettingsPage::Init() {
+    auto nameAndDescLayout = new QVBoxLayout();
+
     auto title = new QLabel(GetTitle());
+    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     QFont font = title->font();
     font.setBold(true);
     font.setPointSize(14);
     title->setFont(font);
 
     auto desc = new QLabel(GetDescription());
+    desc->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     desc->setWordWrap(true);
 
-    Layout->addWidget(title);
-    Layout->addWidget(desc);
-    Layout->addStretch();
+    nameAndDescLayout->addWidget(title);
+    nameAndDescLayout->addWidget(desc);
+    Layout->addLayout(nameAndDescLayout);
 }

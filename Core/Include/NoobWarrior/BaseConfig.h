@@ -12,6 +12,7 @@
 #include <any>
 #include <vector>
 #include <format>
+#include <mutex>
 
 #define NOOBWARRIOR_CONFIG_DESERIALIZE_ENUM(propName, key, enumeration) \
     { \
@@ -60,6 +61,7 @@ public:
 
     template <typename T>
     void SetKeyValue(const std::string &key, T value) {
+        AccessConfigMutex.lock();
         // BTW: std::format() will automatically render bools as "true" or "false" in textual form, so you won't have to hassle with that.
         std::string str;
         if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, char*> || std::is_same_v<T, const char*>)
@@ -71,14 +73,18 @@ public:
         else
             str = std::format("{}.{} = {}", mGlobalName, key, value);
         luaL_dostring(mLuaState, str.c_str());
+        AccessConfigMutex.unlock();
     }
 
     template <typename T>
     std::optional<T> GetKeyValue(const std::string &key) {
+        AccessConfigMutex.lock();
         luaL_dostring(mLuaState, std::format("return rawget_path({}, \"{}\")", mGlobalName, key).c_str());
 
-        if (lua_isnil(mLuaState, -1))
+        if (lua_isnil(mLuaState, -1)) {
+            AccessConfigMutex.unlock();
             return std::nullopt;
+        }
 
         T result {};
         // sorry for the ugly code
@@ -93,6 +99,7 @@ public:
         else if constexpr (std::is_same_v<T, bool>)
             result = lua_type(mLuaState, -1) == LUA_TBOOLEAN ? lua_toboolean(mLuaState, -1) : false;
         lua_pop(mLuaState, 1);
+        AccessConfigMutex.unlock();
         return result;
     }
 
@@ -107,6 +114,8 @@ protected:
     std::filesystem::path   mFilePath;
     std::ostream*           mFileOutput;
     lua_State*              mLuaState;
+
+    std::mutex AccessConfigMutex;
 
     /*std::map<std::any, std::pair<const char*, const char*>> mSerializedProperties;
 

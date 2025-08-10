@@ -27,8 +27,9 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("databases", table);
     SetKeyValueIfNotSet("plugins", table);
 
-    SetKeyValueIfNotSet("api.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
-    SetKeyValueIfNotSet("api.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
+    SetKeyValueIfNotSet("internet.index", "https://raw.githubusercontent.com/noobwarrior-org/index/refs/heads/main/index.json");
+    SetKeyValueIfNotSet("internet.roblox.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
+    SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
 
     SetKeyValueIfNotSet("httpserver.port", 53640);
     SetKeyComment("httpserver.port", "The port that the HTTP server should listen on.");

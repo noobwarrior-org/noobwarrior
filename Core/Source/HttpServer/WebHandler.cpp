@@ -40,7 +40,7 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     fileInput.open(filePath);
 
     if (mainFileInput.fail() || fileInput.fail()) {
-        mg_send_http_error(conn, 500, "Failed to open \"%s\". The website cannot be accessed.", mainFileInput.fail() ? mainFilePath.c_str() : filePath.c_str());
+        mg_send_http_error(conn, 500, "Failed to open \"%ls\". The website cannot be accessed.", mainFileInput.fail() ? mainFilePath.c_str() : filePath.c_str());
         return 500;
     }
 

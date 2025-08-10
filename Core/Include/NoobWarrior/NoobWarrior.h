@@ -12,10 +12,11 @@
 #include "Config.h"
 #include "Database/DatabaseManager.h"
 #include "RccServiceManager.h"
+#include "RobloxClient.h"
 #include "HttpServer/HttpServer.h"
 #include "Roblox/DataModel/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
-#include "Roblox/EngineType.h"
+#include "RobloxClient.h"
 
 #include <lua.hpp>
 
@@ -26,7 +27,6 @@ struct Init {
     int         ArgCount        {};
     char**      ArgVec          {};
     bool        Portable        { true };
-    std::string ConfigFileName  { "config.json" };
 };
 
 enum class AssetFileNameStyle {
@@ -70,10 +70,10 @@ public:
     */
     std::filesystem::path GetUserDataDir();
 
+    bool CreateStandardUserDataDirectories();
+
     int StartHttpServer(uint16_t port = 8080);
     int StopHttpServer();
-
-    int LaunchRoblox(Roblox::EngineType type, std::string version);
 
     /**
      * @brief Lets you download a batch of Roblox assets to a directory.
@@ -82,6 +82,16 @@ public:
     // std::future<char*> DownloadAssetAsync(DownloadAssetArgs);
 
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
+
+    //////////////// Client Related Functions ////////////////
+    std::vector<RobloxClient> GetInstalledClients();
+    std::vector<RobloxClient> GetClients();
+    std::filesystem::path GetClientDirectory(const RobloxClient &client);
+
+    bool IsClientInstalled(const RobloxClient &client);
+    bool InstallClient(const RobloxClient &client);
+
+    int LaunchClient(const RobloxClient &client);
 private:
     int InitLuaState();
     int Inject(unsigned long pid, char *dllPath);

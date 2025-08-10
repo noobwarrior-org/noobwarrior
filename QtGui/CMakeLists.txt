@@ -22,6 +22,8 @@ set(SOURCES
     Settings/GeneralPage.h
     Settings/DatabasePage.cpp
     Settings/DatabasePage.h
+    Settings/InstallationPage.cpp
+    Settings/InstallationPage.h
     Settings/HttpServerPage.cpp
     Settings/HttpServerPage.h
     AssetDownloader.cpp
@@ -52,7 +54,9 @@ set(SOURCES
 )
 
 if (WIN32)
-    set(SOURCES ${SOURCES} Resources/resources.rc)
+    set(SOURCES ${SOURCES} Resources/resources.rc
+            Settings/InstallationPage.cpp
+            Settings/InstallationPage.h)
 endif()
 
 qt_add_executable(NoobWarrior.QtGui ${SOURCES})

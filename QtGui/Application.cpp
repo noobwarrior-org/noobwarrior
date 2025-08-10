@@ -35,6 +35,7 @@ int Application::Run() {
     int ret = 1;
 
     mCore = new Core(mInit);
+    mCore->CreateStandardUserDataDirectories();
     mCore->StartHttpServer(8080);
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {

@@ -33,7 +33,8 @@ CPMAddPackage(
 find_package(SQLite3 REQUIRED)
 find_package(CURL REQUIRED)
 
-add_library(NoobWarrior.Core STATIC)
+add_library(NoobWarrior.Core STATIC
+        Include/NoobWarrior/RobloxInstall.h)
 set_target_properties(NoobWarrior.Core PROPERTIES
     OUTPUT_NAME "noobwarrior"
 )

@@ -59,14 +59,8 @@ int Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
 #endif
 }
 
-int Core::LaunchRoblox(Roblox::EngineType type, std::string version) {
-    std::string dirName;
-    switch (type) {
-    case Roblox::EngineType::Client: dirName = "client"; break;
-    case Roblox::EngineType::Server: dirName = "server"; break;
-    case Roblox::EngineType::Studio: dirName = "studio"; break;
-    }
-    const std::filesystem::path dir = GetUserDataDir().append(std::format("roblox/{}/{}", dirName, version));
+int Core::LaunchClient(const RobloxClient &client) {
+    const std::filesystem::path dir = GetClientDirectory(client);
     if (!std::filesystem::exists(dir)) return -3;
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {

@@ -15,6 +15,7 @@
 #include "DatabasePage.h"
 #include "GeneralPage.h"
 #include "HttpServerPage.h"
+#include "InstallationPage.h"
 #include "SettingsPage.h"
 
 // #define PAGE(name, icon) { auto *page = new QFrame(tab); auto *layout = new QVBoxLayout(page); page->setLayout(layout); tab->addTab(page, QIcon(icon), name); }
@@ -55,6 +56,7 @@ void SettingsDialog::InitPages() {
     AddPage(new GeneralPage());
     AddPage(new DatabasePage());
     AddPage(new HttpServerPage());
+    AddPage(new InstallationPage());
 }
 
 void SettingsDialog::AddPage(SettingsPage *page) {
@@ -64,5 +66,12 @@ void SettingsDialog::AddPage(SettingsPage *page) {
     connect(ListWidget, &QListWidget::currentItemChanged, [this, button, index](QListWidgetItem *current, QListWidgetItem *previous) {
         if (current == button)
             StackedWidget->setCurrentIndex(index);
+
+        // Page specific code for anything that needs to be lazily loaded.
+        auto installationPage = dynamic_cast<InstallationPage*>(StackedWidget->currentWidget());
+        // Only refresh the index if it's dirty, since we don't want to piss off the server and get rate-limited
+        if (installationPage != nullptr && installationPage->IsRefreshDirty()) {
+            installationPage->Refresh();
+        }
     });
 }

@@ -946,5 +946,6 @@
     <file>images/icon1024.png</file>
     <file>images/lua16.png</file>
     <file>images/explorer.png</file>
+    <file>images/roblox_folder.png</file>
   </qresource>
 </RCC>

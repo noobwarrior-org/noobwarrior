@@ -10,7 +10,7 @@ using namespace NoobWarrior;
 DatabasePage::DatabasePage(QWidget *parent) : SettingsPage(parent) { Init(); }
 
 const QString DatabasePage::GetTitle() {
-    return "Database";
+    return "Databases";
 }
 
 const QString DatabasePage::GetDescription() {

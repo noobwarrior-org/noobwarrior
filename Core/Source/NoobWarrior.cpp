@@ -121,6 +121,33 @@ std::filesystem::path Core::GetUserDataDir() {
     return GetInstallationDir();
 }
 
+bool Core::CreateStandardUserDataDirectories() {
+#define NW_CREATE(path) if (!std::filesystem::create_directory(path)) return false;
+    NW_CREATE(GetUserDataDir() / "databases");
+    NW_CREATE(GetUserDataDir() / "roblox");
+    return true;
+#undef NW_CREATE
+}
+
+std::vector<RobloxClient> Core::GetInstalledClients() {
+
+}
+
+std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
+    std::string dirName;
+    switch (client.Type) {
+    case ClientType::Client: dirName = "client"; break;
+    case ClientType::Server: dirName = "server"; break;
+    case ClientType::Studio: dirName = "studio"; break;
+    }
+    const std::filesystem::path dir = GetUserDataDir() / std::format("roblox/{}/version-{}", dirName, client.Version);
+    return dir;
+}
+
+bool Core::IsClientInstalled(const RobloxClient &client) {
+    return std::filesystem::exists(GetClientDirectory(client));
+}
+
 int Core::StartHttpServer(uint16_t port) {
     if (mHttpServer != nullptr && !StopHttpServer()) { // try stopping the HTTP server if it's already on
         return -2;
