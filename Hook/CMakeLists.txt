@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
-project(NoobWarrior.Hook)
-
 if (WIN32)
     SET(CMAKE_SYSTEM_NAME Windows)
     SET(CMAKE_C_COMPILER "/msys64/mingw32/bin/gcc.exe")
@@ -19,7 +16,7 @@ set(SOURCES
 add_library(NoobWarrior.Hook SHARED ${SOURCES})
 set_target_properties(NoobWarrior.Hook PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "noobwarrior-hook"
+    OUTPUT_NAME "noobhook_x86"
     COMPILE_OPTIONS "-m32" LINK_FLAGS "-m32" # 32-bit DLL since our target is a 32-bit process
 )
 target_link_libraries(NoobWarrior.Hook PRIVATE version)

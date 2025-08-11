@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.26)
 project(NoobWarrior)
 
+set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/cpm")
+include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
+
 if (WIN32)
     if (EXISTS "/msys64/mingw32/bin/g++.exe")
         set(SHOULD_TARGET_HOOK_BY_DEFAULT ON)
@@ -42,6 +45,13 @@ if (TARGET_NOOBWARRIOR_NOGUI)
 endif()
 
 if (TARGET_NOOBWARRIOR_QTGUI)
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
+
+    find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
+
+    add_subdirectory(QtShared)
     add_subdirectory(QtGui)
 endif()
 

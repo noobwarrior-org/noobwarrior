@@ -4,6 +4,8 @@
 // Started on: 8/8/2025
 // Description:
 #pragma once
+#include <string>
+
 namespace NoobWarrior {
 constexpr int ClientTypeCount = 2;
 enum class ClientType {
@@ -22,8 +24,17 @@ inline const char *ClientTypeAsTranslatableString(ClientType type) {
 }
 
 struct RobloxClient {
-    ClientType              Type    {};
-    std::string             Hash    {};
-    std::string             Version {};
+    int                     NoobWarriorVersion  {};
+    ClientType              Type                {};
+    std::string             Hash                {};
+    std::string             Version             {};
+};
+
+enum class ClientInstallState {
+    Failed,
+    Success,
+    RetrievingIndex,
+    DownloadingFiles,
+    ExtractingFiles
 };
 }

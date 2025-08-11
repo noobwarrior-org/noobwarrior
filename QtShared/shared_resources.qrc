@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/shared">
+        <file>loading_icon.png</file>
+    </qresource>
+</RCC>

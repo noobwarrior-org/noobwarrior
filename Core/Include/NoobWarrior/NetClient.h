@@ -9,12 +9,24 @@
 
 #include <functional>
 #include <vector>
+#include <memory>
+#include <atomic>
 
 namespace NoobWarrior {
+    struct Transfer {
+        CURL* Handle = nullptr;
+        std::shared_ptr<std::atomic_bool> Cancelled = std::make_shared<std::atomic_bool>(false);
+        std::shared_ptr<std::ofstream> File;
+        size_t DownloadTotal {};
+        size_t DownloadNow {};
+        size_t UploadTotal {};
+        size_t UploadNow {};
+    };
+
     class NetClient {
     public:
         NetClient();
-        
+
         CURLcode Open();
         CURLcode Close();
         CURLcode Exec();

@@ -4,6 +4,7 @@
 // Started on: 5/18/2025
 // Description: Main entrypoint for Qt application
 #include "Application.h"
+#include "LoadingDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Config.h>
@@ -14,9 +15,14 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QFile>
+#include <QTimer>
+#include <QPointer>
 
 #include <curl/curl.h>
+#include <qmessagebox.h>
 
+#include "NoobWarrior/Log.h"
+#include "NoobWarrior/RobloxClient.h"
 #include "Style/DefaultStyle.h"
 
 #define USE_CUSTOM_STYLE 1
@@ -127,8 +133,71 @@ bool Application::CheckConfigResponse(ConfigResponse res, const QString &errStr)
     return true;
 }
 
+void Application::DownloadAndInstallClient(const RobloxClient &client) {
+    Out("Application", "Installing client {}", client.Version);
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+
+    auto transfers = std::make_shared<std::vector<std::shared_ptr<Transfer>>>();;
+
+    QObject::connect(dialog, &QWidget::destroyed, [transfers]() {
+        for (auto &t : *transfers) {
+            if (t && t->Cancelled) t->Cancelled->store(true);
+        }
+    });
+
+    dialog->show();
+
+    QPointer<LoadingDialog> dialogPtr(dialog);
+
+    auto callback = std::make_shared<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>>(
+        [client, dialogPtr](ClientInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
+            double sizeMb = static_cast<double>(size) / (1024 * 1024);
+            double totalSizeMb = static_cast<double>(totalSize) / (1024 * 1024);
+
+            // This callback is actually running on another thread, so lets use this QTimer thing to make it run on the main thread.
+            QTimer::singleShot(0, dialogPtr.data(), [dialogPtr, client, state, sizeMb, totalSizeMb]() {
+                if (!dialogPtr) return;
+
+                if (state == ClientInstallState::Failed || state == ClientInstallState::Success) {
+                    if (state == ClientInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
+                    dialogPtr->close();
+                    return;
+                }
+                if (state == ClientInstallState::DownloadingFiles) {
+                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(ClientTypeAsTranslatableString(client.Type), client.Version, QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
+                    if (totalSizeMb > 0) // pls dont ever divide by 0
+                        dialogPtr->SetProgress(sizeMb / totalSizeMb);
+                }
+            });
+        }
+    );
+
+    mCore->DownloadAndInstallClient(client, transfers, callback);
+}
+
+void Application::LaunchClient(const RobloxClient &client) {
+    if (!mCore->IsClientInstalled(client)) {
+        DownloadAndInstallClient(client);
+    }
+
+    /*
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+
+    QObject::connect(dialog, &QWidget::destroyed, [&]() {
+
+    });
+
+    dialog->show();
+    */
+}
+
 int main(int argc, char **argv) {
     Q_INIT_RESOURCE(resources);
+    Q_INIT_RESOURCE(shared_resources); // you must do this or else the compiler will optimize it out of the code.
     Application app(argc, argv);
     gApp = &app;
     return app.Run();

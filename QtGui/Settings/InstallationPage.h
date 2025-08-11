@@ -19,30 +19,19 @@
 namespace NoobWarrior {
 class InstallationPage : public SettingsPage {
 public:
-    enum class NetResponse {
-        Failed,
-        Success,
-        NoUrl
-    };
-
     InstallationPage(QWidget *parent = nullptr);
     void InitWidgets();
     void Refresh();
-
-    bool IsRefreshDirty();
 
     const QString GetTitle() override;
     const QString GetDescription() override;
     const QIcon GetIcon() override;
 private:
-    NetResponse RequestIndex(nlohmann::json &json);
-
-    bool mDirtyRefresh;
-
     QHBoxLayout *HorizontalLayout;
     QListWidget *ListWidget;
     QStackedWidget *StackedWidget;
 
+    QLabel *IndexMessageLabel;
     QLabel *CannotConnectLabel;
 
     std::map<ClientType, QTreeView*> ClientVersionViewMap;

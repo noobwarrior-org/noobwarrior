@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.26)
-project(NoobWarrior.Core)
-
-set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/CPM")
-include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
-
 CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
@@ -33,8 +27,7 @@ CPMAddPackage(
 find_package(SQLite3 REQUIRED)
 find_package(CURL REQUIRED)
 
-add_library(NoobWarrior.Core STATIC
-        Include/NoobWarrior/RobloxInstall.h)
+add_library(NoobWarrior.Core STATIC)
 set_target_properties(NoobWarrior.Core PROPERTIES
     OUTPUT_NAME "noobwarrior"
 )
@@ -51,6 +44,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Shell.cpp
     Source/Injector.cpp
     Source/RccServiceManager.cpp
+    Source/RobloxClient.cpp
     Source/AssetRequest.cpp
     Source/HttpServer/HttpServer.cpp
     Source/HttpServer/Handler.cpp
@@ -63,4 +57,4 @@ target_sources(NoobWarrior.Core PRIVATE
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja)
-target_compile_features(NoobWarrior.Core PUBLIC cxx_std_20)
+target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)

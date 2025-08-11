@@ -1,10 +1,5 @@
-cmake_minimum_required(VERSION 3.26)
-project(NoobWarrior.GameLauncher)
-
 find_package(SDL3 REQUIRED)
 
-set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/CPM")
-include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
 CPMAddPackage("gh:asmjit/asmjit#964e7c2")
 set(ASMJIT_DIR ${asmjit_SOURCE_DIR})
 set(BLEND2D_EXTERNAL_ASMJIT TRUE)

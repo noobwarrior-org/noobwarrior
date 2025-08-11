@@ -4,6 +4,7 @@
 // Started on: 6/17/2025
 // Description: Contains code for the main class used to utilize the noobWarrior library
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/NetClient.h>
 
 #include <civetweb.h>
 #include <sqlite3.h>
@@ -16,7 +17,6 @@
 #include <shlobj.h>
 #elif defined(__APPLE__)
 #include <CoreServices/CoreServices.h>
-
 #include <utility>
 #endif
 
@@ -26,7 +26,8 @@ Core::Core(Init init) :
     mInit(std::move(init)),
     mLuaState(nullptr),
     mHttpServer(nullptr),
-    mPortable(mInit.Portable)
+    mPortable(mInit.Portable),
+    mIndexDirty(true)
 {
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
@@ -121,31 +122,17 @@ std::filesystem::path Core::GetUserDataDir() {
     return GetInstallationDir();
 }
 
-bool Core::CreateStandardUserDataDirectories() {
-#define NW_CREATE(path) if (!std::filesystem::create_directory(path)) return false;
-    NW_CREATE(GetUserDataDir() / "databases");
-    NW_CREATE(GetUserDataDir() / "roblox");
-    return true;
+void Core::CreateStandardUserDataDirectories() {
+#define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path)
+    NW_CREATE("databases");
+    NW_CREATE("roblox");
+    NW_CREATE("roblox" / "client");
+    NW_CREATE("roblox" / "server");
+    NW_CREATE("roblox" / "studio");
+    NW_CREATE("temp");
+    NW_CREATE("temp" / "downloads");
+    NW_CREATE("temp" / "downloads" / "clients");
 #undef NW_CREATE
-}
-
-std::vector<RobloxClient> Core::GetInstalledClients() {
-
-}
-
-std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
-    std::string dirName;
-    switch (client.Type) {
-    case ClientType::Client: dirName = "client"; break;
-    case ClientType::Server: dirName = "server"; break;
-    case ClientType::Studio: dirName = "studio"; break;
-    }
-    const std::filesystem::path dir = GetUserDataDir() / std::format("roblox/{}/version-{}", dirName, client.Version);
-    return dir;
-}
-
-bool Core::IsClientInstalled(const RobloxClient &client) {
-    return std::filesystem::exists(GetClientDirectory(client));
 }
 
 int Core::StartHttpServer(uint16_t port) {
@@ -163,4 +150,46 @@ int Core::StopHttpServer() {
     }
     NOOBWARRIOR_FREE_PTR(mHttpServer)
     return 1;
+}
+
+static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
+    static_cast<std::string*>(userp)->append(static_cast<char*>(contents), size * nmemb);
+    return size * nmemb;
+}
+
+int Core::RetrieveIndex(nlohmann::json &index, bool forceRefresh) {
+    if (!mIndexDirty && !forceRefresh) {
+        index = mIndexJson;
+        return CURLE_OK;
+    }
+
+    auto url = mConfig->GetKeyValue<const char*>("internet.index");
+    if (!url.has_value())
+        return -1;
+
+    CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_URL, url.value());
+
+    std::string jsonStr;
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonStr);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK)
+        return res;
+
+    index = nlohmann::json::parse(jsonStr);
+    mIndexJson = index;
+    mIndexDirty = false;
+    return res;
+}
+
+std::string Core::GetIndexMessage() {
+    nlohmann::json index;
+    int res = RetrieveIndex(index);
+    if (res != CURLE_OK)
+        return "";
+    if (index.contains("Message"))
+        return index["Message"].get<std::string>();
+    return "";
 }

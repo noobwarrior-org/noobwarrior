@@ -58,16 +58,3 @@ int Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
     return 0;
 #endif
 }
-
-int Core::LaunchClient(const RobloxClient &client) {
-    const std::filesystem::path dir = GetClientDirectory(client);
-    if (!std::filesystem::exists(dir)) return -3;
-    std::filesystem::path exe;
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
-        if (entry.path().extension().compare(".exe") == 0) {
-            exe = entry.path();
-            break;
-        }
-    }
-    if (!exe.empty()) return LaunchInjectProcess(exe); else return -4;
-}

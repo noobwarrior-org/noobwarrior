@@ -69,8 +69,7 @@ void SettingsDialog::AddPage(SettingsPage *page) {
 
         // Page specific code for anything that needs to be lazily loaded.
         auto installationPage = dynamic_cast<InstallationPage*>(StackedWidget->currentWidget());
-        // Only refresh the index if it's dirty, since we don't want to piss off the server and get rate-limited
-        if (installationPage != nullptr && installationPage->IsRefreshDirty()) {
+        if (installationPage != nullptr) {
             installationPage->Refresh();
         }
     });

@@ -16,6 +16,10 @@ public:
     int Run();
     Core *GetCore();
     bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
+
+    // GUI versions for downloading clients
+    void DownloadAndInstallClient(const RobloxClient &client);
+    void LaunchClient(const RobloxClient &client);
 private:
     Init mInit {};
     Core *mCore;

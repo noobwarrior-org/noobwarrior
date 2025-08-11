@@ -14,15 +14,17 @@
 #include <QMessageBox>
 #include <QDateTime>
 
-#include <thread>
-#include <future>
-
 #include <curl/curl.h>
 
 using namespace NoobWarrior;
 
+static std::map<ClientType, QString> sIcons = {
+    { ClientType::Client, QString(":/images/client.png") },
+    { ClientType::Server, QString(":/images/server.png") },
+    { ClientType::Studio, QString(":/images/studio.png") }
+};
+
 InstallationPage::InstallationPage(QWidget *parent) : SettingsPage(parent),
-    mDirtyRefresh(true),
     HorizontalLayout(nullptr),
     ListWidget(nullptr),
     StackedWidget(nullptr),
@@ -43,18 +45,20 @@ void InstallationPage::InitWidgets() {
 
     for (int i = 0; i <= ClientTypeCount; i++) {
         auto clientType = static_cast<ClientType>(i);
-        auto clientTypeItem = new QListWidgetItem(ClientTypeAsTranslatableString(clientType), ListWidget);
+        auto clientTypeItem = new QListWidgetItem(QIcon(sIcons[clientType]), ClientTypeAsTranslatableString(clientType), ListWidget);
         QFont font = clientTypeItem->font();
         font.setPointSize(12);
         clientTypeItem->setFont(font);
 
         auto clientView = new QTreeView(StackedWidget);
         clientView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        clientView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
         auto clientModel = new QStandardItemModel(clientView);
         clientModel->setColumnCount(6);
         clientModel->setHorizontalHeaderLabels({"", "Latest", "Installed", "Version", "Hash", "Date"});
         clientView->setModel(clientModel);
+        clientView->setColumnHidden(0, true); // for some odd reason, the first column cannot be reordered. so we just make it blank and hide it. good job!
 
         ClientVersionViewMap.emplace(clientType, clientView);
         ClientVersionModelMap.emplace(clientType, clientModel);
@@ -69,26 +73,29 @@ void InstallationPage::InitWidgets() {
     HorizontalLayout->addWidget(ListWidget);
     HorizontalLayout->addWidget(StackedWidget);
 
+    IndexMessageLabel = new QLabel("");
+    IndexMessageLabel->setWordWrap(true);
+    IndexMessageLabel->setStyleSheet("QLabel { color: orange; }");
+    IndexMessageLabel->setVisible(false);
+
+    Layout->addWidget(IndexMessageLabel);
     Layout->addLayout(HorizontalLayout);
 
-    CannotConnectLabel = new QLabel(QString("Could not connect to server for file \"\""));
+    CannotConnectLabel = new QLabel("");
+    CannotConnectLabel->setWordWrap(true);
     CannotConnectLabel->setVisible(false);
     Layout->addWidget(CannotConnectLabel);
 }
 
 void InstallationPage::Refresh() {
     nlohmann::json index;
-    NetResponse res = RequestIndex(index);
-
-    // We've tried our luck. It's not dirty anymore. If it fails beyond this point, the user will need to manually refresh.
-    mDirtyRefresh = false;
-
-    if (res != NetResponse::Success) {
+    int res = gApp->GetCore()->RetrieveIndex(index);
+    if (res != CURLE_OK) {
         auto url = gApp->GetCore()->GetConfig()->GetKeyValue<std::string>("internet.index");
         QString errMsg;
         switch (res) {
             default: errMsg = QString("Could not connect to server for file \"\"").arg(url.value()); break;
-            case NetResponse::NoUrl: errMsg = "Could not connect to server to retrieve clients; no URL is set!"; break;
+            case -1: errMsg = "Could not connect to server to retrieve clients; no URL is set!"; break;
         }
         CannotConnectLabel->setText(errMsg);
         CannotConnectLabel->setVisible(true);
@@ -96,14 +103,21 @@ void InstallationPage::Refresh() {
     }
 
 #define REQUIRE(key) if (!index.contains(key)) { QMessageBox::critical(this, "Cannot Load Index", QString("This JSON is malformed since it does not contain a \"%1\" object.").arg(key)); return; }
-    REQUIRE("Meta")
+    REQUIRE("Version")
     REQUIRE("Roblox")
 #undef REQUIRE
+
+    if (index.contains("Message") && !index["Message"].get<std::string>().empty()) {
+        IndexMessageLabel->setText(QString::fromStdString(index["Message"].get<std::string>()));
+        IndexMessageLabel->setVisible(true);
+    }
 
     for (int i = 0; i <= ClientTypeCount; i++) {
         auto clientType = static_cast<ClientType>(i);
         const char* clientTypeStr = ClientTypeAsTranslatableString(clientType);
         QStandardItemModel *clientVersionModel = ClientVersionModelMap.at(clientType);
+        clientVersionModel->removeRows(0, clientVersionModel->rowCount());
+        clientVersionModel->setRowCount(0);
 
         if (!index["Roblox"].contains(clientTypeStr)) {
             QMessageBox::critical(this, "Error", QString("The index does not contain \"%1\" within the list.").arg(clientTypeStr));
@@ -139,37 +153,6 @@ void InstallationPage::Refresh() {
             clientVersionView->resizeColumnToContents(i);
         }
     }
-}
-
-bool InstallationPage::IsRefreshDirty() {
-    return mDirtyRefresh;
-}
-
-static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
-    static_cast<std::string*>(userp)->append(static_cast<char*>(contents), size * nmemb);
-    return size * nmemb;
-}
-
-InstallationPage::NetResponse InstallationPage::RequestIndex(nlohmann::json &json) {
-    auto url = gApp->GetCore()->GetConfig()->GetKeyValue<const char*>("internet.index");
-
-    if (!url.has_value())
-        return NetResponse::NoUrl;
-
-    CURL *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_URL, url.value());
-
-    std::string jsonStr;
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonStr);
-
-    CURLcode res = curl_easy_perform(curl);
-
-    if (res != CURLE_OK)
-        return NetResponse::Failed;
-
-    json = nlohmann::json::parse(jsonStr);
-    return NetResponse::Success;
 }
 
 const QString InstallationPage::GetTitle() {

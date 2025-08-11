@@ -37,6 +37,7 @@
 
 using namespace NoobWarrior;
 
+static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
@@ -50,7 +51,7 @@ static const char* sCategoryNames[] = {
 };
 
 static const void* sRoblox[][3] = {
-    {"Start Game", nullptr, ":/images/silk/controller.png"},
+    {"Start Game", (void*)&ShowStartGame, ":/images/silk/controller.png"},
     {"Join Server", nullptr, ":/images/silk/server_go.png"},
     {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
 };

@@ -17,8 +17,10 @@
 #include "Roblox/DataModel/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
+#include "NetClient.h"
 
 #include <lua.hpp>
+#include <curl/curl.h>
 
 #include <vector>
 
@@ -54,7 +56,7 @@ struct DownloadAssetArgs {
 
 class Core {
 public:
-    Core(Init  = {});
+    Core(Init init = {});
     ~Core();
 
     ConfigResponse ConfigReturnCode;
@@ -70,7 +72,7 @@ public:
     */
     std::filesystem::path GetUserDataDir();
 
-    bool CreateStandardUserDataDirectories();
+    void CreateStandardUserDataDirectories();
 
     int StartHttpServer(uint16_t port = 8080);
     int StopHttpServer();
@@ -83,14 +85,18 @@ public:
 
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
 
+    //////////////// Index Related Functions ////////////////
+    int RetrieveIndex(nlohmann::json &index, bool forceRefresh = false);
+    std::string GetIndexMessage();
+
     //////////////// Client Related Functions ////////////////
     std::vector<RobloxClient> GetInstalledClients();
-    std::vector<RobloxClient> GetClients();
+    std::vector<RobloxClient> GetClientsFromIndex();
+    std::vector<RobloxClient> GetAllClients();
     std::filesystem::path GetClientDirectory(const RobloxClient &client);
 
     bool IsClientInstalled(const RobloxClient &client);
-    bool InstallClient(const RobloxClient &client);
-
+    void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
     int LaunchClient(const RobloxClient &client);
 private:
     int InitLuaState();
@@ -104,5 +110,8 @@ private:
     HttpServer::HttpServer*         mHttpServer;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;
+
+    nlohmann::json                  mIndexJson;
+    bool                            mIndexDirty;
 };
 }
