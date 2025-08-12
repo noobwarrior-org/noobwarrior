@@ -42,7 +42,7 @@ std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
     case ClientType::Server: dirName = "server"; break;
     case ClientType::Studio: dirName = "studio"; break;
     }
-    const std::filesystem::path dir = GetUserDataDir() / std::format("roblox/{}/version-{}", dirName, client.Hash);
+    const std::filesystem::path dir = GetUserDataDir() / "roblox" / dirName / ("version-" + client.Hash);
     return dir;
 }
 
