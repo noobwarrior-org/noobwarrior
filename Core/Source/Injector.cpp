@@ -5,13 +5,13 @@
 // Description: A really basic DLL injector. Anyone could make this, it's not really impressive.
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Config.h>
-#include <filesystem>
+#include <NoobWarrior/Log.h>
 
 #if defined(_WIN32)
 #include <windows.h>
 #endif
 
-#include <format>
+#include <filesystem>
 
 using namespace NoobWarrior;
 
@@ -38,16 +38,34 @@ int Core::Inject(unsigned long pid, char *dllPath) {
 // }
 // #endif
 
+static std::string LastErrorStr(DWORD err = GetLastError()) {
+    char buf[512] = {0};
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   buf, (DWORD)sizeof(buf), nullptr);
+    return std::string(buf);
+}
+
 ClientLaunchResponse Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
-    std::string args = filePath.string() + " -console -verbose -placeid:1818 -port 53641";
+    // make this use widechar because the dumbasses at microsoft didn't know that utf 8 would exist
+    std::wstring wargs = filePath.wstring() + L" -console -verbose -placeid:1818 -port 53641";
+    std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
+    wargs_vec.push_back(L'\0');
+
+    std::string args( wargs.begin(), wargs.end() );
+
     const std::filesystem::path &dllPath = std::filesystem::path(GetInstallationDir() / "noobhook_x86.dll");
-    const std::string &dllPathStr = dllPath.generic_string();
+    const std::string &dllPathStr = dllPath.string();
+    Out("Inject", "Launching process \"{}\" with args \"{}\", will hook DLL file located at \"{}\"", filePath.string(), args, dllPathStr);
 #if defined(_WIN32)
-    PROCESS_INFORMATION pi = { 0 };
-    STARTUPINFO si = { 0 };
-    si.cb = sizeof(STARTUPINFO);
-    if (!CreateProcessA((LPCSTR)filePath.c_str(), (char*)args.c_str(), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
+    PROCESS_INFORMATION pi {};
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &si, &pi)) {
+        DWORD err = GetLastError();
+        Out("Inject", "CreateProcessW failed: {} ({})", err, LastErrorStr(err));
         return ClientLaunchResponse::FailedToCreateProcess;
+    }
     if (!Inject(GetProcessId(pi.hProcess), const_cast<char*>(dllPathStr.c_str())))
         return ClientLaunchResponse::FailedToInject;
     if (ResumeThread(pi.hThread) == -1)

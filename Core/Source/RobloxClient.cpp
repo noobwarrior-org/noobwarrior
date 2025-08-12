@@ -250,6 +250,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                         callback_mutex->lock();
                             (*callback)(ClientInstallState::Failed, res, 0, 0);
                         callback_mutex->unlock();
+                        std::filesystem::remove(tmp_download_file);
                         delete my_data;
                         return;
                     }
@@ -353,7 +354,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                             (*callback)(ClientInstallState::Success, res, 0, 0);
                         callback_mutex->unlock();
                     }
-
+                    std::filesystem::remove(tmp_download_file);
                     delete my_data;
                 }).detach();
             };
