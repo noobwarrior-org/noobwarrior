@@ -133,7 +133,7 @@ bool Application::CheckConfigResponse(ConfigResponse res, const QString &errStr)
     return true;
 }
 
-void Application::DownloadAndInstallClient(const RobloxClient &client) {
+void Application::DownloadAndInstallClient(const RobloxClient &client, std::function<void(bool)> callback) {
     Out("Application", "Installing client {}", client.Version);
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -151,13 +151,13 @@ void Application::DownloadAndInstallClient(const RobloxClient &client) {
 
     QPointer<LoadingDialog> dialogPtr(dialog);
 
-    auto callback = std::make_shared<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>>(
-        [client, dialogPtr](ClientInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
+    auto install_callback = std::make_shared<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>>(
+        [=](ClientInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
             double sizeMb = static_cast<double>(size) / (1024 * 1024);
             double totalSizeMb = static_cast<double>(totalSize) / (1024 * 1024);
 
             // This callback is actually running on another thread, so lets use this QTimer thing to make it run on the main thread.
-            QTimer::singleShot(0, dialogPtr.data(), [dialogPtr, client, state, sizeMb, totalSizeMb]() {
+            QTimer::singleShot(0, dialogPtr.data(), [=]() {
                 if (!dialogPtr) return;
 
                 switch (state) {
@@ -180,30 +180,44 @@ void Application::DownloadAndInstallClient(const RobloxClient &client) {
                 if (state == ClientInstallState::Failed || state == ClientInstallState::Success) {
                     if (state == ClientInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
                     dialogPtr->close();
+                    callback(state == ClientInstallState::Success);
                 }
             });
         }
     );
 
-    mCore->DownloadAndInstallClient(client, transfers, callback);
+    mCore->DownloadAndInstallClient(client, transfers, install_callback);
 }
 
 void Application::LaunchClient(const RobloxClient &client) {
+    std::function callback = [this, client](bool success) {
+        if (!success) return;
+        
+        auto *dialog = new LoadingDialog(nullptr);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setModal(false);
+        dialog->SetText(QString("Loading Roblox %1 %2...").arg(ClientTypeAsTranslatableString(client.Type), client.Version));
+        dialog->DisableCancel(true);
+        dialog->show();
+
+        ClientLaunchResponse res = mCore->LaunchClient(client);
+        if (res != ClientLaunchResponse::Success) {
+            QString errMsg;
+            switch (res) {
+            default: errMsg = "An error occurred while trying to launch Roblox."; break;
+            case ClientLaunchResponse::NotInstalled: errMsg = "The client that you are trying to launch is not installed on your computer. Please install it and try again."; break;
+            case ClientLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
+            case ClientLaunchResponse::FailedToCreateProcess: errMsg = "Could not create a valid process for Roblox."; break;
+            case ClientLaunchResponse::FailedToInject: errMsg = "Failed to inject DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
+            }
+            QMessageBox::critical(dialog, "Cannot Launch Client", errMsg);
+            dialog->close();
+        }
+    };
+
     if (!mCore->IsClientInstalled(client)) {
-        DownloadAndInstallClient(client);
-    }
-
-    /*
-    auto *dialog = new LoadingDialog(nullptr);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setModal(false);
-
-    QObject::connect(dialog, &QWidget::destroyed, [&]() {
-
-    });
-
-    dialog->show();
-    */
+        DownloadAndInstallClient(client, callback);
+    } else callback(true);
 }
 
 int main(int argc, char **argv) {

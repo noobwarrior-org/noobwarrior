@@ -374,15 +374,17 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
     }
 }
 
-int Core::LaunchClient(const RobloxClient &client) {
+ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
+    bool installed = IsClientInstalled(client);
+    if (!installed) return ClientLaunchResponse::NotInstalled;
     const std::filesystem::path dir = GetClientDirectory(client);
-    if (!std::filesystem::exists(dir)) return -3;
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
-        if (entry.path().extension().compare(".exe") == 0) {
+        std::string fn = entry.path().filename().string();
+        if (fn == "RobloxPlayerBeta.exe" || fn == "RCCService.exe" || fn == "RobloxStudioBeta.exe") {
             exe = entry.path();
             break;
         }
     }
-    if (!exe.empty()) return LaunchInjectProcess(exe); else return -4;
+    if (!exe.empty()) return LaunchInjectProcess(exe); else return ClientLaunchResponse::NoValidExecutable;
 }

@@ -38,23 +38,26 @@ int Core::Inject(unsigned long pid, char *dllPath) {
 // }
 // #endif
 
-int Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
+ClientLaunchResponse Core::LaunchInjectProcess(const std::filesystem::path &filePath) {
+    std::string args = filePath.string() + " -console -verbose -placeid:1818 -port 53641";
+    const std::filesystem::path &dllPath = std::filesystem::path(GetInstallationDir() / "noobhook_x86.dll");
+    const std::string &dllPathStr = dllPath.generic_string();
 #if defined(_WIN32)
     PROCESS_INFORMATION pi = { 0 };
     STARTUPINFO si = { 0 };
     si.cb = sizeof(STARTUPINFO);
-    if (!CreateProcessA((LPCSTR)filePath.c_str(), NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
-        return -2;
-    if (!Inject(GetProcessId(pi.hProcess), (char*)"./noobwarrior-hook.dll"))
-        return -1;
+    if (!CreateProcessA((LPCSTR)filePath.c_str(), (char*)args.c_str(), NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
+        return ClientLaunchResponse::FailedToCreateProcess;
+    if (!Inject(GetProcessId(pi.hProcess), const_cast<char*>(dllPathStr.c_str())))
+        return ClientLaunchResponse::FailedToInject;
     if (ResumeThread(pi.hThread) == -1)
-        return 0;
+        return ClientLaunchResponse::Failed;
     // HANDLE waitHandle;
     // RegisterWaitForSingleObject(&waitHandle, pi.hProcess, &ProcessExitCallback, NULL, INFINITE, WT_EXECUTEONLYONCE);
     CloseHandle(pi.hProcess);
-    return 1;
+    return ClientLaunchResponse::Success;
 #elif defined(__unix__) || defined(__APPLE__)
     // where wine comes in
-    return 0;
+    return ClientLaunchResponse::Failed;
 #endif
 }

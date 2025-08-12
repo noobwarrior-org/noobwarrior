@@ -97,11 +97,11 @@ public:
 
     bool IsClientInstalled(const RobloxClient &client);
     void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
-    int LaunchClient(const RobloxClient &client);
+    ClientLaunchResponse LaunchClient(const RobloxClient &client);
 private:
     int InitLuaState();
     int Inject(unsigned long pid, char *dllPath);
-    int LaunchInjectProcess(const std::filesystem::path &filePath);
+    ClientLaunchResponse LaunchInjectProcess(const std::filesystem::path &filePath);
 
     Init                            mInit;
     lua_State*                      mLuaState;

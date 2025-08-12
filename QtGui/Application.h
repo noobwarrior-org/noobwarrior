@@ -18,7 +18,7 @@ public:
     bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
 
     // GUI versions for downloading clients
-    void DownloadAndInstallClient(const RobloxClient &client);
+    void DownloadAndInstallClient(const RobloxClient &client, std::function<void(bool)> callback);
     void LaunchClient(const RobloxClient &client);
 private:
     Init mInit {};

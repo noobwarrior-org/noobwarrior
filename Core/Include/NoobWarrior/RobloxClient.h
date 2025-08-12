@@ -37,4 +37,13 @@ enum class ClientInstallState {
     DownloadingFiles,
     ExtractingFiles
 };
+
+enum class ClientLaunchResponse {
+    Failed,
+    Success,
+    NotInstalled,
+    NoValidExecutable,
+    FailedToCreateProcess,
+    FailedToInject
+};
 }

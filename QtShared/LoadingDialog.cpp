@@ -80,8 +80,10 @@ void LoadingDialog::SetProgress(double progress) {
 
 void LoadingDialog::DisableCancel(bool val) {
     mCancelButton->setEnabled(!val);
+    mCancelButton->setVisible(!val);
 }
 
 void LoadingDialog::closeEvent(QCloseEvent *event) {
-    mCancelButton->isEnabled() ? event->accept() : event->ignore();
+    // mCancelButton->isEnabled() ? event->accept() : event->ignore();
+    event->accept();
 }
