@@ -77,3 +77,11 @@ void LoadingDialog::SetProgress(double progress) {
     mProgressBar->setMaximum(100);
     mProgressBar->setValue(progress * 100);
 }
+
+void LoadingDialog::DisableCancel(bool val) {
+    mCancelButton->setEnabled(!val);
+}
+
+void LoadingDialog::closeEvent(QCloseEvent *event) {
+    mCancelButton->isEnabled() ? event->accept() : event->ignore();
+}

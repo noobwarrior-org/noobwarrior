@@ -160,15 +160,26 @@ void Application::DownloadAndInstallClient(const RobloxClient &client) {
             QTimer::singleShot(0, dialogPtr.data(), [dialogPtr, client, state, sizeMb, totalSizeMb]() {
                 if (!dialogPtr) return;
 
-                if (state == ClientInstallState::Failed || state == ClientInstallState::Success) {
-                    if (state == ClientInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
-                    dialogPtr->close();
-                    return;
-                }
-                if (state == ClientInstallState::DownloadingFiles) {
+                switch (state) {
+                default: break;
+                case ClientInstallState::RetrievingIndex:
+                    dialogPtr->SetText("Retrieving index...");
+                    dialogPtr->SetProgress(-1);
+                    break;
+                case ClientInstallState::DownloadingFiles:
                     dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(ClientTypeAsTranslatableString(client.Type), client.Version, QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
                     if (totalSizeMb > 0) // pls dont ever divide by 0
                         dialogPtr->SetProgress(sizeMb / totalSizeMb);
+                    break;
+                case ClientInstallState::ExtractingFiles:
+                    dialogPtr->SetText("Extracting files...");
+                    dialogPtr->SetProgress(-1);
+                    break;
+                }
+
+                if (state == ClientInstallState::Failed || state == ClientInstallState::Success) {
+                    if (state == ClientInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
+                    dialogPtr->close();
                 }
             });
         }

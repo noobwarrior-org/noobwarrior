@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QCloseEvent>
 
 namespace NoobWarrior {
 class LoadingDialog : public QDialog {
@@ -19,6 +20,9 @@ public:
 
     void SetText(const QString &str);
     void SetProgress(double progress);
+    void DisableCancel(bool val);
+
+    void closeEvent(QCloseEvent *event) override;
 private:
     QLabel *mImgLabel;
     QLabel *mTextLabel;

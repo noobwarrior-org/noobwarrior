@@ -10,8 +10,11 @@
 
 #include <curl/curl.h>
 #include <curl/multi.h>
+#include <filesystem>
+#include <zip.h>
 
 #include <thread>
+#include <zipconf.h>
 
 using namespace NoobWarrior;
 
@@ -42,7 +45,13 @@ std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
 }
 
 bool Core::IsClientInstalled(const RobloxClient &client) {
-    return std::filesystem::exists(GetClientDirectory(client));
+    if (!std::filesystem::exists(GetClientDirectory(client))) return false;
+    bool foundExe = false;
+    for (const auto &entry : std::filesystem::directory_iterator(GetClientDirectory(client))) {
+        if (entry.path().extension() == ".exe")
+            foundExe = true;
+    }
+    return foundExe;
 }
 
 static size_t WriteToDisk(void *contents, size_t size, size_t nmemb, void *userp) {
@@ -107,6 +116,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
 
     bool foundClient = false;
 
+    auto output_mutex = std::make_shared<std::mutex>(); // Don't ask me why I didn't just make this part of the Out function. Because I don't know either!
     auto callback_mutex = std::make_shared<std::mutex>();
     auto access_transfers_mutex = std::make_shared<std::mutex>();
     
@@ -136,17 +146,34 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                 }
                 if (customFileName.empty()) customFileName = fileName;
 
-                Out("Download", "Downloading file {} from URL \"{}\"", customFileName, url);
+                output_mutex->lock();
+                    Out("Download", "Downloading file {} from URL \"{}\"", customFileName, url);
+                output_mutex->unlock();
 
+                std::filesystem::path client_dir = GetClientDirectory(client);
                 std::filesystem::path tmp_download_dir = GetUserDataDir() / "temp" / "downloads" / "clients" / client.Hash;
+                std::filesystem::create_directories(client_dir);
                 std::filesystem::create_directories(tmp_download_dir);
 
                 std::filesystem::path tmp_download_file = tmp_download_dir / customFileName;
+                auto ext = tmp_download_file.extension();
+
+                // Do this because I don't want to bundle a bunch of decompression algorithms within my library.
+                if (ext == ".7z" || ext == ".rar" || ext == ".gz" || ext == ".xz" || ext == ".bz2" || ext == ".zst") {
+                    output_mutex->lock();
+                        Out("Download", "Error downloading: Detected file \"{}\"; Only .zip files are allowed when it comes to archives!", tmp_download_file.string());
+                    output_mutex->unlock();
+                    (*callback)(ClientInstallState::Failed, CURLE_OK, 0, 0);
+                    return;
+                }
+
                 std::shared_ptr<std::ofstream> file = std::make_shared<std::ofstream>();
                 file->open(tmp_download_file.string(), std::ios::out | std::ios::binary | std::ios::trunc);
 
                 if (!file->is_open()) {
-                    Out("Download", "Failed to open file \"{}\" for writing", tmp_download_file.string());
+                    output_mutex->lock();
+                        Out("Download", "Failed to open file \"{}\" for writing", tmp_download_file.string());
+                    output_mutex->unlock();
                     (*callback)(ClientInstallState::Failed, CURLE_OK, 0, 0);
                     return;
                 }
@@ -154,7 +181,8 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                 auto transfer = std::make_shared<Transfer>();
                 size_t transfer_id = transfers->size();
                 transfers->push_back(transfer);
-                std::thread([transfer, transfer_id, callback_mutex, access_transfers_mutex, callback, transfers, url, file]() -> void {
+                std::thread([=]() -> void {
+                    // Downloading the file
                     CURL *handle = curl_easy_init();
                     if (!handle) {
                         (*callback)(ClientInstallState::Failed, CURLE_FAILED_INIT, 0, 0);
@@ -179,17 +207,158 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     curl_easy_setopt(handle, CURLOPT_XFERINFODATA, my_data);
 
                     CURLcode res = curl_easy_perform(handle);
-                    if (res != CURLE_OK) {
-                        callback_mutex->lock();
-                            (*callback)(ClientInstallState::Failed, res, 0, 0);
-                        callback_mutex->unlock();
-                    }
+                    callback_mutex->lock();
+                        (*callback)(res != CURLE_OK ? ClientInstallState::Failed : ClientInstallState::ExtractingFiles, res, 0, 0);
+                    callback_mutex->unlock();
 
                     access_transfers_mutex->lock();
                         transfers->erase(transfers->begin() + transfer_id);
                     access_transfers_mutex->unlock();
                     
                     curl_easy_cleanup(handle);
+                    file->close();
+
+                    if (res != CURLE_OK || (my_data->cancelled && my_data->cancelled->load())) {
+                        output_mutex->lock();
+                            Out("Download", res != CURLE_OK ? "Failed to download file {}" : "Cancelled download for file {}", customFileName);
+                        output_mutex->unlock();
+                        std::filesystem::remove(tmp_download_file.string());
+                        delete my_data;
+                        return;
+                    }
+                    
+                    // Extracting the file
+                    output_mutex->lock();
+                    if (tmp_download_file.extension() != ".zip") {
+                        // Not a zip, don't extract! Move it to its intended place.
+                        Out("Download", "Successfully download file {}! Moving...", customFileName);
+                        output_mutex->unlock();
+                        std::filesystem::rename(tmp_download_file, client_dir / customFileName);
+                        delete my_data;
+                        return;
+                    } else Out("Download", "Successfully download file {}! Extracting...", customFileName);
+                    output_mutex->unlock();
+
+                    int error;
+                    zip_t *archive = zip_open(tmp_download_file.string().c_str(), 0, &error);
+                    if (!archive) {
+                        output_mutex->lock();
+                            Out("Download", "Failed to open zip archive \"{}\"", tmp_download_file.string());
+                        output_mutex->unlock();
+                        callback_mutex->lock();
+                            (*callback)(ClientInstallState::Failed, res, 0, 0);
+                        callback_mutex->unlock();
+                        delete my_data;
+                        return;
+                    }
+                    
+                    // For some reason when I do C programming I fall back to snake case. Don't ask why
+                    zip_int64_t num_entries = zip_get_num_entries(archive, 0);
+                    zip_int64_t num_entries_in_root = 0; // how many entries are directly inside of the root of the archive?
+                    std::string single_dir_name = ""; // if there is only one directory in the root of the archive, it will be named here so that we can get rid of it
+                    for (zip_int64_t i = 0; i < num_entries; ++i) {
+                        zip_stat_t st;
+                        if (zip_stat_index(archive, i, 0, &st) < 0) {
+                            output_mutex->lock();
+                                Out("Download", "Failed to get statistics for file inside of zip archive. The index of the file is {}", i);
+                            output_mutex->unlock();
+                            continue;
+                        }
+
+                        std::string name = st.name;
+
+                        if (!single_dir_name.empty()) {
+                            std::string prefix = single_dir_name;
+                            if (name.rfind(prefix, 0) == 0)
+                                name.erase(0, prefix.size());
+                        }
+
+                        int times_found_slash = 0;
+                        for (int i = 0; i < name.length(); i++) {
+                            if (name.at(i) == '/')
+                                times_found_slash++;
+                        }
+
+                        if (times_found_slash == 0)
+                            num_entries_in_root++;
+
+                        auto path = std::filesystem::path(client_dir / name);
+                        if (name.ends_with('/')) {
+                            // detected as a directory
+                            if (times_found_slash == 1) {
+                                // So this is a directory, and we found only one slash.
+                                // libzip indicates that an entry is a directory by suffixing the end of the entry with a slash.
+                                // Since there is only one slash, this could only mean that this directory is in the root of the archive.
+                                // So make that count.
+                                num_entries_in_root++;
+                            }
+
+                            // Some zip files were created in a way where the author decided to put a single directory containing all files in the root of the archive,
+                            // instead of doing it correctly by having all of the contents in that single directory be within the root directory itself.
+                            // This fucks up our current scheme where we make the directory ourselves and then extract all files within the root to it.
+                            // We have to correct that edge-case by NOT making that single directory if the author tried doing that.
+                            // We also have to change all further entry names to not include the name of the directory.
+                            if (times_found_slash > 1 || num_entries_in_root > 1)
+                                std::filesystem::create_directories(path);
+                            if (times_found_slash == 1 && num_entries_in_root == 1)
+                                single_dir_name = name;
+                            continue;
+                        }
+
+                        zip_file *zf = zip_fopen_index(archive, i, 0);
+                        if (!zf) {
+                            output_mutex->lock();
+                                Out("Download", "Failed to open file inside of zip archive \"{}\"", name);
+                            output_mutex->unlock();
+                            continue;
+                        }
+                        
+                        std::ofstream extracted_file(path.string(), std::ios::out | std::ios::binary | std::ios::trunc);
+                        if (!extracted_file.is_open()) {
+                            output_mutex->lock();
+                                Out("Download", "Failed to open extracted file \"{}\"", path.string());
+                            output_mutex->unlock();
+                            zip_fclose(zf);
+                            continue;
+                        }
+
+                        char buffer[4096];
+                        zip_int64_t bytes_read = 0;
+                        while ((bytes_read = zip_fread(zf, buffer, sizeof(buffer))) > 0) {
+                            if (my_data->cancelled && my_data->cancelled->load()) {
+                                // if the user decides to cancel mid-extraction
+                                output_mutex->lock();
+                                    Out("Download", "Cancelled extraction of file \"{}\"", path.string());
+                                output_mutex->unlock();
+                                std::filesystem::remove(tmp_download_file.string());
+                                try {
+                                    if (client_dir.parent_path().parent_path().filename() == "roblox") // make sure we are nuking the right thing here
+                                        std::filesystem::remove_all(client_dir.string()); // just nuke the entire fucking client directory
+                                } catch (std::exception &ex) {} 
+                                break;
+                            }
+                            extracted_file.write(buffer, bytes_read);
+                        }
+                        if (bytes_read == -1) {
+                            output_mutex->lock();
+                                Out("Download", "Failed to extract file inside of zip archive \"{}\"", path.string());
+                            output_mutex->unlock();
+                        }
+
+                        extracted_file.close();
+                        zip_fclose(zf);
+                    }
+                    zip_close(archive);
+
+                    if (!my_data->cancelled || !my_data->cancelled->load()) {
+                        output_mutex->lock();
+                            Out("Download", "Successfully extracted archive {}", customFileName);
+                        output_mutex->unlock();
+                        callback_mutex->lock();
+                            (*callback)(ClientInstallState::Success, res, 0, 0);
+                        callback_mutex->unlock();
+                    }
+
                     delete my_data;
                 }).detach();
             };

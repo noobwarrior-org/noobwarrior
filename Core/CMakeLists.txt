@@ -1,3 +1,4 @@
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
@@ -7,6 +8,10 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
+)
+CPMAddPackage(
+    URI "gh:nih-at/libzip#542fc1c"
+    OPTIONS "BUILD_SHARED_LIBS OFF"
 )
 
 #if (LuaJIT_ADDED)
@@ -56,5 +61,5 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
