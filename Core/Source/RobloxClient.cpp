@@ -16,6 +16,8 @@
 #include <thread>
 #include <zipconf.h>
 
+#include <set>
+
 using namespace NoobWarrior;
 
 std::vector<RobloxClient> Core::GetInstalledClients() {
@@ -231,12 +233,12 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     output_mutex->lock();
                     if (tmp_download_file.extension() != ".zip") {
                         // Not a zip, don't extract! Move it to its intended place.
-                        Out("Download", "Successfully download file {}! Moving...", customFileName);
+                        Out("Download", "Successfully downloaded file {}! Moving...", customFileName);
                         output_mutex->unlock();
                         std::filesystem::rename(tmp_download_file, client_dir / customFileName);
                         delete my_data;
                         return;
-                    } else Out("Download", "Successfully download file {}! Extracting...", customFileName);
+                    } else Out("Download", "Successfully downloaded file {}! Extracting...", customFileName);
                     output_mutex->unlock();
 
                     int error;
@@ -254,8 +256,22 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     
                     // For some reason when I do C programming I fall back to snake case. Don't ask why
                     zip_int64_t num_entries = zip_get_num_entries(archive, 0);
-                    zip_int64_t num_entries_in_root = 0; // how many entries are directly inside of the root of the archive?
-                    std::string single_dir_name = ""; // if there is only one directory in the root of the archive, it will be named here so that we can get rid of it
+
+                    // Some zip files were created in a way where the author decided to put a single directory containing all files in the root of the archive,
+                    // instead of doing it correctly by having all of the contents in that single directory be within the root directory itself.
+                    // This fucks up our current scheme where we make the directory ourselves and then extract all files within the root to it.
+                    // So what we have to do is to first collect the number of entries we have in the root of the archive.
+                    // And if it's only one and it's a directory, guess what, it's getting scrubbed away and replaced with MY directory.
+                    std::set<std::string> root_entries;
+                    for (zip_uint64_t i = 0; i < num_entries; ++i) {
+                        zip_stat_t st;
+                        if (zip_stat_index(archive, i, 0, &st) != 0) continue;
+                        std::string name = st.name;
+                        auto pos = name.find('/');
+                        std::string top_level_name = (pos == std::string::npos) ? name : name.substr(0, pos + 1);
+                        root_entries.insert(top_level_name);
+                    }
+                    
                     for (zip_int64_t i = 0; i < num_entries; ++i) {
                         zip_stat_t st;
                         if (zip_stat_index(archive, i, 0, &st) < 0) {
@@ -267,41 +283,20 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
 
                         std::string name = st.name;
 
-                        if (!single_dir_name.empty()) {
-                            std::string prefix = single_dir_name;
-                            if (name.rfind(prefix, 0) == 0)
-                                name.erase(0, prefix.size());
+                        if (root_entries.size() == 1) {
+                            // to get around the stupid "one directory at the root level with everything else inside of that directory" thing
+                            // basically erases the prefix altogether
+                            for (const auto &root_entry : root_entries) {
+                                if (root_entry.ends_with('/') && name.rfind(root_entry, 0) == 0)
+                                    name.erase(0, root_entry.size());
+                            }
                         }
-
-                        int times_found_slash = 0;
-                        for (int i = 0; i < name.length(); i++) {
-                            if (name.at(i) == '/')
-                                times_found_slash++;
-                        }
-
-                        if (times_found_slash == 0)
-                            num_entries_in_root++;
 
                         auto path = std::filesystem::path(client_dir / name);
-                        if (name.ends_with('/')) {
-                            // detected as a directory
-                            if (times_found_slash == 1) {
-                                // So this is a directory, and we found only one slash.
-                                // libzip indicates that an entry is a directory by suffixing the end of the entry with a slash.
-                                // Since there is only one slash, this could only mean that this directory is in the root of the archive.
-                                // So make that count.
-                                num_entries_in_root++;
-                            }
 
-                            // Some zip files were created in a way where the author decided to put a single directory containing all files in the root of the archive,
-                            // instead of doing it correctly by having all of the contents in that single directory be within the root directory itself.
-                            // This fucks up our current scheme where we make the directory ourselves and then extract all files within the root to it.
-                            // We have to correct that edge-case by NOT making that single directory if the author tried doing that.
-                            // We also have to change all further entry names to not include the name of the directory.
-                            if (times_found_slash > 1 || num_entries_in_root > 1)
-                                std::filesystem::create_directories(path);
-                            if (times_found_slash == 1 && num_entries_in_root == 1)
-                                single_dir_name = name;
+                        if (path.string().ends_with('/')) {
+                            // directory detected
+                            std::filesystem::create_directories(path.string());
                             continue;
                         }
 
