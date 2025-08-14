@@ -5,9 +5,12 @@
 // Description: Main entrypoint for Qt application
 #include "Application.h"
 #include "LoadingDialog.h"
+#include "Style/DefaultStyle.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Config.h>
+#include <NoobWarrior/Log.h>
+#include <NoobWarrior/RobloxClient.h>
 
 #include <QApplication>
 #include <QDir>
@@ -20,10 +23,6 @@
 
 #include <curl/curl.h>
 #include <qmessagebox.h>
-
-#include "NoobWarrior/Log.h"
-#include "NoobWarrior/RobloxClient.h"
-#include "Style/DefaultStyle.h"
 
 #define USE_CUSTOM_STYLE 1
 
@@ -208,7 +207,15 @@ void Application::LaunchClient(const RobloxClient &client) {
             case ClientLaunchResponse::NotInstalled: errMsg = "The client that you are trying to launch is not installed on your computer. Please install it and try again."; break;
             case ClientLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
             case ClientLaunchResponse::FailedToCreateProcess: errMsg = "Could not create a valid process for Roblox."; break;
-            case ClientLaunchResponse::FailedToInject: errMsg = "Failed to inject DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
+            case ClientLaunchResponse::InjectFailed: errMsg = "Failed to inject into the Roblox process."; break;
+            case ClientLaunchResponse::InjectDllMissing: errMsg = "Failed to locate DLL file. Please make sure it's in the right place."; break;
+            case ClientLaunchResponse::InjectCannotAccessProcess: errMsg = "Could not access the Roblox process in order to perform DLL injection. Do you have a kernel-level anti-cheat running?"; break;
+            case ClientLaunchResponse::InjectWrongArchitecture: errMsg = "Tried injecting 64-bit DLL into 32-bit process. If you are on a 32-bit version of Windows, this error message is misleading. Feel free to fix it!"; break;
+            case ClientLaunchResponse::InjectCannotWriteToProcessMemory: errMsg = "Could not write arbitrary memory to the Roblox process."; break;
+            case ClientLaunchResponse::InjectCannotCreateThreadInProcess: errMsg = "Could not create a thread in the Roblox process."; break;
+            case ClientLaunchResponse::InjectCouldNotGetReturnValueOfLoadLibrary: errMsg = "Could not get the return value of the LoadLibrary API call."; break;
+            case ClientLaunchResponse::InjectFailedToLoadLibrary: errMsg = "Failed to load the DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
+            case ClientLaunchResponse::InjectFailedToResumeProcess: errMsg = "Failed to resume Roblox process after injecting DLL."; break;
             }
             QMessageBox::critical(dialog, "Cannot Launch Client", errMsg);
             dialog->close();

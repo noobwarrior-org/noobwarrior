@@ -100,7 +100,7 @@ public:
     ClientLaunchResponse LaunchClient(const RobloxClient &client);
 private:
     int InitLuaState();
-    int Inject(unsigned long pid, char *dllPath);
+    ClientLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath);
     ClientLaunchResponse LaunchInjectProcess(const std::filesystem::path &filePath);
 
     Init                            mInit;

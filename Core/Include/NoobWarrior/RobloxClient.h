@@ -44,6 +44,14 @@ enum class ClientLaunchResponse {
     NotInstalled,
     NoValidExecutable,
     FailedToCreateProcess,
-    FailedToInject
+    InjectFailed,
+    InjectDllMissing,
+    InjectCannotAccessProcess,
+    InjectWrongArchitecture,
+    InjectCannotWriteToProcessMemory,
+    InjectCannotCreateThreadInProcess,
+    InjectCouldNotGetReturnValueOfLoadLibrary,
+    InjectFailedToLoadLibrary,
+    InjectFailedToResumeProcess
 };
 }

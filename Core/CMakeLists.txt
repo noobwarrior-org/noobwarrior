@@ -61,5 +61,5 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip)
+target_link_libraries(NoobWarrior.Core PUBLIC -static-libgcc -static-libstdc++ sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)

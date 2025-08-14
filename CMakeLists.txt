@@ -45,10 +45,6 @@ if (TARGET_NOOBWARRIOR_NOGUI)
 endif()
 
 if (TARGET_NOOBWARRIOR_QTGUI)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTOUIC ON)
-    set(CMAKE_AUTORCC ON)
-
     find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
     add_subdirectory(QtShared)

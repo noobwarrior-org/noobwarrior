@@ -78,19 +78,26 @@ static HWND GetWindow() {
     return data.hwnd;
 }
 
+DWORD WINAPI Thread(LPVOID param) {
+    /*
+    switch (GetRobloxVersion()) {
+    case VER_UNKNOWN:
+        MessageBoxA(NULL, "I have no idea what version I am running on!", "noobWarrior", MB_ICONASTERISK | MB_OK);
+        break;
+    case VER_0_449_0_411458:
+        MessageBoxA(NULL, "I am running on version 0.449.0.411458", "noobWarrior", MB_ICONASTERISK | MB_OK);
+        break;
+    }
+    */
+    MessageBoxA(NULL, "hi lol", "noobWarrior", MB_ICONASTERISK | MB_OK);
+    // TerminateProcess(GetCurrentProcess(), 1);
+    return 0;
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
-        switch (GetRobloxVersion()) {
-        case VER_UNKNOWN:
-            MessageBoxA(NULL, "I have no idea what version I am running on!", "noobWarrior", MB_ICONASTERISK | MB_OK);
-            break;
-        case VER_0_449_0_411458:
-            MessageBoxA(NULL, "I am running on version 0.449.0.411458", "noobWarrior", MB_ICONASTERISK | MB_OK);
-            break;
-        }
-        MessageBoxA(NULL, "hi lol", "noobWarrior", MB_ICONASTERISK | MB_OK);
-        TerminateProcess(GetCurrentProcess(), 1);
+        CreateThread(0, 0, Thread, hModule, 0, 0);
         break;
     case DLL_PROCESS_DETACH:
         if (lpReserved != nullptr)

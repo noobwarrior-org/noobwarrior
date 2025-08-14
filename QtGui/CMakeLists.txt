@@ -1,3 +1,7 @@
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
 set(SOURCES
     Application.cpp
     Launcher.cpp
@@ -32,6 +36,6 @@ set_target_properties(NoobWarrior.QtGui PROPERTIES
     OUTPUT_NAME "noobwarrior"
 #    WIN32_EXECUTABLE ON
 )
-target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets)
+target_link_libraries(NoobWarrior.QtGui PUBLIC -static-libgcc -static-libstdc++ NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)

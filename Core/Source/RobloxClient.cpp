@@ -387,5 +387,5 @@ ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
             break;
         }
     }
-    if (!exe.empty()) return LaunchInjectProcess(exe); else return ClientLaunchResponse::NoValidExecutable;
+    if (!exe.empty()) return LaunchInjectProcess("C:\\Users\\hattozo\\Downloads\\winmine.exe"); else return ClientLaunchResponse::NoValidExecutable;
 }
