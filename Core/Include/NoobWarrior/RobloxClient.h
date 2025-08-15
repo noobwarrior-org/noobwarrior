@@ -49,7 +49,10 @@ enum class ClientLaunchResponse {
     InjectCannotAccessProcess,
     InjectWrongArchitecture,
     InjectCannotWriteToProcessMemory,
+    InjectFailedToGetModuleHandle,
+    InjectFailedToGetFunctionAddress,
     InjectCannotCreateThreadInProcess,
+    InjectThreadTimedOut,
     InjectCouldNotGetReturnValueOfLoadLibrary,
     InjectFailedToLoadLibrary,
     InjectFailedToResumeProcess

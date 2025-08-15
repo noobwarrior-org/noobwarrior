@@ -32,7 +32,13 @@ CPMAddPackage(
 find_package(SQLite3 REQUIRED)
 find_package(CURL REQUIRED)
 
-add_library(NoobWarrior.Core STATIC)
+if (NOOBWARRIOR_LIBTYPE_STATIC)
+    message(STATUS "Configured noobWarrior as a static library")
+    add_library(NoobWarrior.Core STATIC)
+else()
+    message(STATUS "Configured noobWarrior as a shared library")
+    add_library(NoobWarrior.Core SHARED)
+endif()
 set_target_properties(NoobWarrior.Core PROPERTIES
     OUTPUT_NAME "noobwarrior"
 )
@@ -47,7 +53,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Config.cpp
     Source/Log.cpp
     Source/Shell.cpp
-    Source/Injector.cpp
     Source/RccServiceManager.cpp
     Source/RobloxClient.cpp
     Source/AssetRequest.cpp

@@ -18,6 +18,11 @@
 
 #include <set>
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <tlhelp32.h>
+#endif
+
 using namespace NoobWarrior;
 
 std::vector<RobloxClient> Core::GetInstalledClients() {
@@ -375,6 +380,50 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
     }
 }
 
+#if defined(_WIN32)
+static std::string LastErrorStr(DWORD err = GetLastError()) {
+    char buf[512] = {0};
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   buf, (DWORD)sizeof(buf), nullptr);
+    return std::string(buf);
+}
+#endif
+
+ClientLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::path &filePath) {
+    const std::filesystem::path &injectorPath = GetInstallationDir() / "noobhook_x86_injector.exe";
+    std::wstring wargs = std::format(L"{} --file {}", injectorPath.wstring(), filePath.wstring());
+    std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
+    wargs_vec.push_back(L'\0');
+#if defined(_WIN32)
+    PROCESS_INFORMATION pi {};
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+        DWORD err = GetLastError();
+        Out("Inject", "Failed to create injector process: {} ({})", err, LastErrorStr(err));
+        return ClientLaunchResponse::FailedToCreateProcess;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD exitCode;
+    if (!GetExitCodeProcess(pi.hProcess, &exitCode)) {
+        DWORD err = GetLastError();
+        Out("Inject", "Failed to get exit code for injector process: {} ({})", err, LastErrorStr(err));
+        return ClientLaunchResponse::Failed;
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return static_cast<ClientLaunchResponse>(exitCode);
+#elif defined(__unix__) || defined(__APPLE__)
+    // where wine comes in
+    return ClientLaunchResponse::Failed;
+#endif
+}
+
 ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
     bool installed = IsClientInstalled(client);
     if (!installed) return ClientLaunchResponse::NotInstalled;
@@ -387,5 +436,5 @@ ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
             break;
         }
     }
-    if (!exe.empty()) return LaunchInjectProcess("C:\\Users\\hattozo\\Downloads\\winmine.exe"); else return ClientLaunchResponse::NoValidExecutable;
+    if (!exe.empty()) return LaunchProcessThroughInjector(exe); else return ClientLaunchResponse::NoValidExecutable;
 }

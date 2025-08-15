@@ -1,12 +1,6 @@
-if (WIN32)
-    SET(CMAKE_SYSTEM_NAME Windows)
-    SET(CMAKE_C_COMPILER "/msys64/mingw32/bin/gcc.exe")
-    SET(CMAKE_CXX_COMPILER "/msys64/mingw32/bin/g++.exe")
-elseif (UNIX AND EXISTS "$ENV{PATH}/i686-w64-mingw32-g++" AND NOT WIN32)
-    set(CMAKE_SYSTEM_NAME Windows)
-    set(CMAKE_C_COMPILER "$ENV{PATH}/i686-w64-mingw32-gcc")
-    set(CMAKE_CXX_COMPILER "$ENV{PATH}/i686-w64-mingw32-g++")
-endif()
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_C_COMPILER ${LEGACY_COMPILER})
+set(CMAKE_CXX_COMPILER ${LEGACY_COMPILER})
 
 set(SOURCES
     Hook.cpp
