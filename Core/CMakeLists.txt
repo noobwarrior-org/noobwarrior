@@ -11,7 +11,7 @@ CPMAddPackage(
 )
 CPMAddPackage(
     URI "gh:nih-at/libzip#542fc1c"
-    OPTIONS "BUILD_SHARED_LIBS OFF"
+    OPTIONS "BUILD_SHARED_LIBS OFF ENABLE_ZSTD OFF"
 )
 
 #if (LuaJIT_ADDED)
