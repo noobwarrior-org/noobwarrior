@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(NoobWarrior)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/cpm")
 include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
 
