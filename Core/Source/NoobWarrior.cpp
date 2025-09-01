@@ -31,12 +31,19 @@ Core::Core(Init init) :
 {
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
+    mAuth = new Auth(mConfig);
     ConfigReturnCode = mConfig->Open();
     sqlite3_initialize();
     mg_init_library(0);
+
+    if (mInit.EnableKeychain)
+        GetAuth()->ReadFromKeychain();
 }
 
 Core::~Core() {
+    if (mInit.EnableKeychain)
+        GetAuth()->WriteToKeychain();
+
     StopHttpServer();
     sqlite3_shutdown();
     ConfigReturnCode = mConfig->Close();
@@ -76,6 +83,10 @@ Config *Core::GetConfig() {
 
 DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
+}
+
+Auth *Core::GetAuth() {
+    return mAuth;
 }
 
 std::filesystem::path Core::GetInstallationDir() const {

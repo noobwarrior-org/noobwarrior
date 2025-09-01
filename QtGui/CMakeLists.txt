@@ -11,9 +11,12 @@ set(SOURCES
     Settings/GeneralPage.cpp
     Settings/DatabasePage.cpp
     Settings/InstallationPage.cpp
+    Settings/AccountPage.cpp
     Settings/HttpServerPage.cpp
     AssetDownloader.cpp
     Dialog/AboutDialog.cpp
+    Dialog/AuthBaseDialog.cpp
+    Dialog/AuthTokenDialog.cpp
     DatabaseEditor/DatabaseEditor.cpp
     DatabaseEditor/BackgroundTask.cpp
     DatabaseEditor/OverviewWidget.cpp

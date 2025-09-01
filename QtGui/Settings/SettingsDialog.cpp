@@ -16,6 +16,7 @@
 #include "GeneralPage.h"
 #include "HttpServerPage.h"
 #include "InstallationPage.h"
+#include "AccountPage.h"
 #include "SettingsPage.h"
 
 // #define PAGE(name, icon) { auto *page = new QFrame(tab); auto *layout = new QVBoxLayout(page); page->setLayout(layout); tab->addTab(page, QIcon(icon), name); }
@@ -57,6 +58,7 @@ void SettingsDialog::InitPages() {
     AddPage(new DatabasePage());
     AddPage(new HttpServerPage());
     AddPage(new InstallationPage());
+    AddPage(new AccountPage());
 }
 
 void SettingsDialog::AddPage(SettingsPage *page) {

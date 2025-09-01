@@ -29,6 +29,7 @@ struct Init {
     int         ArgCount        {};
     char**      ArgVec          {};
     bool        Portable        { true };
+    bool        EnableKeychain  { true };
 };
 
 enum class AssetFileNameStyle {
@@ -64,6 +65,7 @@ public:
     lua_State *GetLuaState();
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
+    Auth *GetAuth();
 
     std::filesystem::path GetInstallationDir() const;
 
@@ -107,6 +109,7 @@ private:
     Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;
     HttpServer::HttpServer*         mHttpServer;
+    Auth*                           mAuth;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;
 
