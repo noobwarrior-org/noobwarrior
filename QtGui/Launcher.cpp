@@ -128,8 +128,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         }
     }
 
-    auto *authenticationStatus = new QLabel("Not authenticated with Roblox");
-    Layout->addWidget(authenticationStatus);
+    AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
+    Layout->addWidget(AuthenticationStatusLabel);
 
     auto *httpServerLabel = new QLabel("HTTP Server: Stopped");
     Layout->addWidget(httpServerLabel);
@@ -141,3 +141,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
 }
 
 Launcher::~Launcher() {}
+
+void Launcher::paintEvent(QPaintEvent *event) {
+    QDialog::paintEvent(event);
+    Auth *auth = gApp->GetCore()->GetAuth();
+    AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(auth->GetActiveAccount()->Name) : "Not authenticated with Roblox");
+}

@@ -24,11 +24,15 @@ namespace NoobWarrior {
     public:
         Launcher(QWidget *parent = nullptr);
         ~Launcher();
+
         AboutDialog *mAboutDialog;
         SettingsDialog *mSettings;
         DatabaseEditor *mDatabaseEditor;
         AssetDownloader *mAssetDownload;
+    protected:
+        void paintEvent(QPaintEvent *event) override;
     private:
-        QVBoxLayout *Layout;
+        QVBoxLayout*    Layout;
+        QLabel*         AuthenticationStatusLabel; 
     };
 }

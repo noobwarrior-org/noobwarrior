@@ -44,11 +44,11 @@ namespace NoobWarrior {
         AuthResponse            WriteToKeychain();
 
         bool                    IsLoggedIn();
-        AuthResponse            AddAccountFromToken(const std::string &token, Account *acc = nullptr);
+        AuthResponse            AddAccountFromToken(const std::string &token, Account **acc = nullptr);
         void                    AddAccount(Account&);
         void                    SetActiveAccount(Account *acc);
         Account*                GetActiveAccount();
-        std::vector<Account>    GetAccounts();
+        std::vector<Account>&   GetAccounts();
 
         AuthResponse            TryAuthAccount(std::string& name, std::string& pass);
         AuthResponse            TryMultiAuth(int code);

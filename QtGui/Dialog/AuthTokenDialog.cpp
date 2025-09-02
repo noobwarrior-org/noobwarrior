@@ -32,7 +32,7 @@ void AuthTokenDialog::InitWidgets() {
         QString token = TokenInput->text();
 
         Account *acc;
-        AuthResponse res = gApp->GetCore()->GetAuth()->AddAccountFromToken(token.toStdString(), acc);
+        AuthResponse res = gApp->GetCore()->GetAuth()->AddAccountFromToken(token.toStdString(), &acc);
         if (acc != nullptr)
             gApp->GetCore()->GetAuth()->SetActiveAccount(acc);
 

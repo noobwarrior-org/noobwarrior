@@ -94,7 +94,7 @@ AuthResponse Auth::WriteToKeychain() {
         accJson["expire_timestamp"] = acc.ExpireTimestamp;
         accountsJson.push_back(accJson);
     }
-    
+
     keychain::Error err;
     keychain::setPassword("org.noobwarrior", "rbx-acc", "all", accountsJson.dump(), err);
     if (err.type != keychain::ErrorType::NoError)
@@ -120,8 +120,8 @@ AuthResponse Auth::TryMultiAuth(int code) {
     return AuthResponse::Failed;
 }
 
-AuthResponse Auth::AddAccountFromToken(const std::string &token, Account *acc) {
-    acc = nullptr;
+AuthResponse Auth::AddAccountFromToken(const std::string &token, Account **acc) {
+    if (acc != nullptr) *acc = nullptr;
 
     Account accStack {};
     accStack.Token = token;
@@ -135,7 +135,7 @@ AuthResponse Auth::AddAccountFromToken(const std::string &token, Account *acc) {
     accStack.Name = userInfo["name"].get<std::string>();
 
     Accounts.push_back(accStack);
-    acc = &accStack;
+    *acc = &Accounts.back();
     return AuthResponse::Success;
 }
 
@@ -147,6 +147,6 @@ Account *Auth::GetActiveAccount() {
     return ActiveAccount;
 }
 
-std::vector<Account> Auth::GetAccounts() {
+std::vector<Account> &Auth::GetAccounts() {
     return Accounts;
 }
