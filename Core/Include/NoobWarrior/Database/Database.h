@@ -6,6 +6,7 @@
 #pragma once
 #include "Record/IdType/Asset.h"
 #include "Record/IdType/Badge.h"
+#include "Record/IdType/Universe.h"
 #include "Record/IdType/User.h"
 #include "ContentImages.h"
 

@@ -4,8 +4,9 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "DatabaseEditor.h"
-#include "ContentEditorDialog.h"
 #include "ContentBrowserWidget.h"
+#include "ContentEditorDialog.h"
+#include "ContentBackupDialog.h"
 #include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
@@ -187,25 +188,38 @@ ContentBrowserWidget *DatabaseEditor::GetContentBrowser() {
 void DatabaseEditor::InitMenus() {
     mNewDatabaseAction = new QAction("New Database");
     mOpenDatabaseAction = new QAction("Open Database");
-    mCloseDatabaseAction = new QAction("Close Current Database");
     mSaveDatabaseAction = new QAction("Save Database");
-    mSaveAsDatabaseAction = new QAction("Save Database As");
 
-    mNewDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+N")));
-    mOpenDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+O")));
-    mCloseDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+W")));
-    mSaveDatabaseAction->setShortcut(QKeySequence(tr("Ctrl+S")));
+    mSaveAsDatabaseAction = new QAction("Save Database As...");
+
+    mCloseDatabaseAction = new QAction("Close Current Database");
+
+    mBackupGameAction = new QAction("Backup Game");
+
+    mExitAction = new QAction("Exit");
+
+    mNewDatabaseAction->setShortcut(QKeySequence("Ctrl+N"));
+    mOpenDatabaseAction->setShortcut(QKeySequence("Ctrl+O"));
+    mCloseDatabaseAction->setShortcut(QKeySequence("Ctrl+W"));
+    mSaveDatabaseAction->setShortcut(QKeySequence("Ctrl+S"));
+    mExitAction->setShortcut(QKeySequence("Alt+F4"));
 
     mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
     mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
     mSaveAsDatabaseAction->setObjectName("RequiresDatabaseButton");
 
     mFileMenu = menuBar()->addMenu(tr("&File"));
-    mFileMenu->addAction(mNewDatabaseAction);
-    mFileMenu->addAction(mOpenDatabaseAction);
-    mFileMenu->addAction(mCloseDatabaseAction);
-    mFileMenu->addAction(mSaveDatabaseAction);
-    mFileMenu->addAction(mSaveAsDatabaseAction);
+        mFileMenu->addAction(mNewDatabaseAction);
+        mFileMenu->addAction(mOpenDatabaseAction);
+    mFileMenu->addSeparator();
+        mFileMenu->addAction(mSaveDatabaseAction);
+        mFileMenu->addAction(mSaveAsDatabaseAction);
+    mFileMenu->addSeparator();
+        mFileMenu->addAction(mCloseDatabaseAction);
+    mFileMenu->addSeparator();
+        mFileMenu->addAction(mBackupGameAction);
+    mFileMenu->addSeparator();
+        mFileMenu->addAction(mExitAction);
 
     connect(mNewDatabaseAction, &QAction::triggered, [&]() {
         TryToOpenFile();
@@ -264,6 +278,16 @@ void DatabaseEditor::InitMenus() {
             }
         }
         repaint(); // trigger a repaint, because we update the window title there.
+    });
+
+    connect(mBackupGameAction, &QAction::triggered, [this]() {
+        auto backupDialog = new ContentBackupDialog<Universe>(this);
+        backupDialog->setAttribute(Qt::WA_DeleteOnClose);
+        backupDialog->show();
+    });
+
+    connect(mExitAction, &QAction::triggered, [this]() {
+        close();
     });
 }
 

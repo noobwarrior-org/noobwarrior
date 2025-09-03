@@ -54,9 +54,15 @@ namespace NoobWarrior {
 
         QAction *mNewDatabaseAction;
         QAction *mOpenDatabaseAction;
-        QAction *mCloseDatabaseAction;
+        
         QAction *mSaveDatabaseAction;
         QAction *mSaveAsDatabaseAction;
+
+        QAction *mCloseDatabaseAction;
+
+        QAction *mBackupGameAction;
+
+        QAction* mExitAction;
 
         //////////////////// Tool Bars ////////////////////
         QToolBar *mFileToolBar;
