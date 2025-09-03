@@ -1,21 +1,18 @@
 # noobWarrior
-An all-in-one toolkit to help aid the preservation and archival of Roblox content, so that you can edit and play Roblox games in an untouched state, even if they entirely disappear off the Roblox website. It's invaluable for both developers and players.
+noobWarrior is a preservation toolkit and server emulator for Roblox; it lets you play and host entirely offline Roblox games on your computer that do not rely on the official Roblox services by leveraging your backed up content. It's invaluable for both developers and players.
 
-It lets you play and host entirely offline Roblox games on your computer that do not rely on the official Roblox services by leveraging your backed up content.
-
+## Technicals
 Content for a piece of media on Roblox is organized into databases, which can be mounted and layered on top of each other.
-A HTTP server is ran in the background, mimicking the Roblox API and serving files/metadata from these databases.
+A server emulator is ran in the background, mimicking the Roblox API and serving files/metadata from these databases.
 
-Users connect to these HTTP servers using the noobWarrior launcher, which is then set as a proxy (so that they can access asset files from the server hoster) and they are then coordinated to the right game servers.
-The Roblox client is patched on the fly to have all asset and API requests redirect to the HTTP server.
+Users connect to these server emulators using the noobWarrior launcher, which is then set as a proxy (so that they can access asset files from the server hoster) and they are then coordinated to the right game servers.
+The Roblox client is patched on the fly to have all asset and API requests redirect to the server emulator.
 
 A master database is used to automatically store all user-generated actions/content that can occur from players interacting in your game servers, like friending each other.
 
-If this all sounds complicated to you, don't worry; the program handles most of this for you, this is merely describing the inner-workings of how everything works.
-
 ## Features
 ### Database Utility
-This is the main part of the program. All noobWarrior database files are edited and viewed using this tool, and it allows you to backup almost any form of user-generated content on the Roblox website, granted you have the appropriate permissions.
+All noobWarrior database files are edited and viewed using this tool, and it allows you to backup almost any form of user-generated content on the Roblox website, granted you have the appropriate permissions.
 
 This includes entire Roblox games (thumbnails, places, visits, badges, etc), assets (models, clothing, gear, ...), user profiles (outfits, inventories), whatever the hell you can name.
 
@@ -25,8 +22,8 @@ All of this data is compiled into a database where it can be easily retrieved us
 
 There is also a built-in feature to convert your databases into human-readable folders, and then upload them to the Internet Archive.
 
-### HTTP Server
-The HTTP server plays several roles. It:
+### Server Emulator
+The server emulator plays several roles. It:
 - Serves all the asset files from the database so that you can retrieve them from the Roblox client
 - Mimics the Roblox API so that everything in-game can work as intended
 - Lets you view and administer the current state of the program remotely (adding new assets, starting/stopping game servers, etc.)
@@ -81,9 +78,11 @@ Note that only certain builds of Roblox can be used for this feature, as the req
     - This unfortunately means that you will have to login to your Roblox account using your email and password. If you don't trust this program, then don't log in. You are free to audit the source code and compile it yourself if you wish.
 
 ### Is this safe?
-All source code is viewable and compiled binaries have not been tampered with. I do not expect everyone to know how to read code, so if you do not trust this program then don't use it.
+All source code is viewable and pre-compiled binaries have not been tampered with. I do not expect everyone to know how to read code, so if you do not trust this program then don't use it.
 
 Also, if I ever added any malware to this program, then my reputation would be ruined by now.
 
-## Disclaimer
-This was made to help prevent media from becoming lost, and to provide an alternative to the official Roblox services for people who do not wish to use them; I do not condone the use of this project for nefarious activites, and would actively discourage you from doing so. Remember, it is a computer software that is indifferent to both good and bad actors.
+## Really Important Disclaimer That Exists Because People Suck
+This was made to help prevent media from becoming lost, and to provide an alternative to the official Roblox services for people who do not wish to use them; I do not condone the use of this project for nefarious activites, and I actively discourage you from doing so. Remember, it is computer software that is indifferent to both good and bad actors. If you see anyone using this program for any illegal activities, I recommend you report it to law enforcement immediately.
+
+I also do not recommend children to connect to random servers using this program. The internet was never intended to be used by children, and Roblox proves that. Can parents parent again?
