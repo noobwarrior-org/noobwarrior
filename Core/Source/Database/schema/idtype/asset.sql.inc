@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	"Updated"	INTEGER,
 	"Type"	INTEGER NOT NULL,
 	"Image"	INTEGER,
-	"Thumbnails"	TEXT,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"CurrencyType"	INTEGER,
@@ -44,8 +43,9 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     "Historical_Likes"	INTEGER,
 	"Historical_Dislikes"	INTEGER,
 	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
+	FOREIGN KEY("Image") REFERENCES "Asset"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	CONSTRAINT "TYPE_CANNOT_BE_NULL" CHECK(Type IS NOT NULL AND Type > 0),
     CONSTRAINT "ONLY_ONE_CREATOR_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
 );

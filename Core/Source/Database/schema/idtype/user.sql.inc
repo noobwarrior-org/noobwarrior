@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "Historical_FriendCount"	INTEGER,
     "Historical_FollowersCount"	INTEGER,
 	"Historical_FollowingCount"	INTEGER,
-	"Admin"	INTEGER,
+	"Rank"	INTEGER,
 	"HeadshotThumbnail"	BLOB,
 	"BustThumbnail"	BLOB,
 	PRIMARY KEY("Id","Version"),

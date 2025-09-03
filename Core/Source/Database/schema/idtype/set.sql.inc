@@ -1,5 +1,5 @@
-static const char *schema_badge = R"***(
-CREATE TABLE IF NOT EXISTS "Badge" (
+static const char *schema_set = R"***(
+CREATE TABLE IF NOT EXISTS "Set" (
     "Id"	INTEGER NOT NULL,
 	"Version"	INTEGER DEFAULT 1,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
@@ -8,17 +8,14 @@ CREATE TABLE IF NOT EXISTS "Badge" (
 	"Description"	TEXT,
 	"Created"	INTEGER,
 	"Updated"	INTEGER,
-	"Image"	INTEGER,
-	"Awarded"	INTEGER,
-    "AwardedYesterday"	INTEGER,
+    "Image"	INTEGER,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
-	"UniverseId"	INTEGER NOT NULL,
+	"Historical_Subscribers"	INTEGER,
 	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("Image") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+    FOREIGN KEY("Image") REFERENCES "Asset"("Id"),
+    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
 );
 )***";

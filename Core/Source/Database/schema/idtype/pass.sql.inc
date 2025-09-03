@@ -17,9 +17,10 @@ CREATE TABLE IF NOT EXISTS "Pass" (
     "Likes"	INTEGER,
 	"Dislikes"	INTEGER,
 	PRIMARY KEY("Id","Version"),
+	FOREIGN KEY("Image") REFERENCES "Asset"("Id"),
+	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
 );
 )***";

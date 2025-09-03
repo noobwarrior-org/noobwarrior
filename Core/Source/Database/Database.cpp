@@ -16,6 +16,8 @@
 
 // table schemas that are just sql statements describing how the table should be created.
 #include "schema/meta.sql.inc"
+#include "schema/hash_blob.sql.inc"
+#include "schema/login_session.sql.inc"
 #include "schema/transaction.sql.inc"
 
 #include "schema/idtype/asset.sql.inc"
@@ -24,10 +26,12 @@
 #include "schema/idtype/devproduct.sql.inc"
 #include "schema/idtype/group.sql.inc"
 #include "schema/idtype/pass.sql.inc"
+#include "schema/idtype/set.sql.inc"
 #include "schema/idtype/universe.sql.inc"
 #include "schema/idtype/user.sql.inc"
 
 #include "schema/idtype/asset/asset_data.sql.inc"
+#include "schema/idtype/asset/asset_place_thumbnail.sql.inc"
 
 #include "schema/idtype/user/user_friends.sql.inc"
 #include "schema/idtype/user/user_followers.sql.inc"
@@ -43,6 +47,8 @@
 #include "schema/idtype/group/group_log.sql.inc"
 #include "schema/idtype/group/group_ally.sql.inc"
 #include "schema/idtype/group/group_enemy.sql.inc"
+
+#include "schema/idtype/set/set_asset.sql.inc"
 
 // sql code for migrating so that when the database file has to be updated it can apply these patches in order.
 #include "migrations/v2.sql.inc"
@@ -106,6 +112,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // create all tables that do not exist
     CREATE_TABLE(schema_meta)
+	CREATE_TABLE(schema_hash_blob)
+	CREATE_TABLE(schema_login_session)
 	CREATE_TABLE(schema_transaction)
 
 	// id type tables
@@ -115,11 +123,13 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_devproduct)
 	CREATE_TABLE(schema_group)
 	CREATE_TABLE(schema_pass)
+	CREATE_TABLE(schema_set)
 	CREATE_TABLE(schema_universe)
 	CREATE_TABLE(schema_user)
 
 	// tables that are directly related to an id type
 	CREATE_TABLE(schema_asset_data)
+	CREATE_TABLE(schema_asset_place_thumbnail)
 
 	CREATE_TABLE(schema_user_friends)
 	CREATE_TABLE(schema_user_followers)
@@ -135,6 +145,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_group_log)
 	CREATE_TABLE(schema_group_ally)
 	CREATE_TABLE(schema_group_enemy)
+
+	CREATE_TABLE(schema_set_asset)
 
 #undef CREATE_TABLE
 
