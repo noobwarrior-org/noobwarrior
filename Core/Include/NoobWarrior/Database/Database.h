@@ -258,7 +258,7 @@ namespace NoobWarrior {
             std::string keyword = overwrite ? "REPLACE" : "INSERT";
 
             if constexpr (std::is_same_v<T, Asset>) {
-                std::string stmtStr = std::format("{} INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Image, UserId, GroupId, CurrencyType, Price, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Historical_Sales, Historical_Favorites, Historical_Likes, Historical_Dislikes) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", keyword);
+                std::string stmtStr = std::format("{} INTO Asset (Id, Version, Name, Description, Created, Updated, Type, Image, UserId, GroupId, CurrencyType, Price, ContentRatingTypeId, MinimumMembershipLevel, IsPublicDomain, IsForSale, IsNew, LimitedType, Remaining, Historical_Sales, Historical_Favorites, Historical_Likes, Historical_Dislikes) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", keyword);
                 sqlite3_prepare_v2(
                     mDatabase,
                     stmtStr.c_str(),

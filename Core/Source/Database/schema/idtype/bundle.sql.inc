@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS "Bundle" (
 	"Remaining"	INTEGER,
 	"Historical_Sales"	INTEGER,
     "Historical_Favorites"	INTEGER,
-	"Items"	TEXT,
 	PRIMARY KEY("Id","Version"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),

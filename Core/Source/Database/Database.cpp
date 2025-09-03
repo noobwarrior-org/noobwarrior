@@ -16,7 +16,7 @@
 
 // table schemas that are just sql statements describing how the table should be created.
 #include "schema/meta.sql.inc"
-#include "schema/hash_blob.sql.inc"
+#include "schema/blob_hash.sql.inc"
 #include "schema/login_session.sql.inc"
 #include "schema/transaction.sql.inc"
 
@@ -33,7 +33,10 @@
 #include "schema/idtype/asset/asset_data.sql.inc"
 #include "schema/idtype/asset/asset_place_thumbnail.sql.inc"
 
+#include "schema/idtype/bundle/bundle_asset.sql.inc"
+
 #include "schema/idtype/user/user_friends.sql.inc"
+#include "schema/idtype/user/user_groups.sql.inc"
 #include "schema/idtype/user/user_followers.sql.inc"
 #include "schema/idtype/user/user_following.sql.inc"
 #include "schema/idtype/user/user_inventory.sql.inc"
@@ -42,7 +45,6 @@
 #include "schema/idtype/user/user_names.sql.inc"
 
 #include "schema/idtype/group/group_role.sql.inc"
-#include "schema/idtype/group/group_member.sql.inc"
 #include "schema/idtype/group/group_wall.sql.inc"
 #include "schema/idtype/group/group_log.sql.inc"
 #include "schema/idtype/group/group_ally.sql.inc"
@@ -112,7 +114,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // create all tables that do not exist
     CREATE_TABLE(schema_meta)
-	CREATE_TABLE(schema_hash_blob)
+	CREATE_TABLE(schema_blob_hash)
 	CREATE_TABLE(schema_login_session)
 	CREATE_TABLE(schema_transaction)
 
@@ -131,7 +133,10 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_asset_data)
 	CREATE_TABLE(schema_asset_place_thumbnail)
 
+	CREATE_TABLE(schema_bundle_asset)
+
 	CREATE_TABLE(schema_user_friends)
+	CREATE_TABLE(schema_user_groups)
 	CREATE_TABLE(schema_user_followers)
 	CREATE_TABLE(schema_user_following)
 	CREATE_TABLE(schema_user_inventory)
@@ -140,7 +145,6 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_user_names)
 
 	CREATE_TABLE(schema_group_role)
-	CREATE_TABLE(schema_group_member)
 	CREATE_TABLE(schema_group_wall)
 	CREATE_TABLE(schema_group_log)
 	CREATE_TABLE(schema_group_ally)

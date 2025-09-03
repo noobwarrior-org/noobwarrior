@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS "User" (
     "Historical_FollowersCount"	INTEGER,
 	"Historical_FollowingCount"	INTEGER,
 	"Rank"	INTEGER,
-	"HeadshotThumbnail"	BLOB,
-	"BustThumbnail"	BLOB,
+	"HeadshotThumbnailHash"	TEXT,
+	"BustThumbnailHash"	TEXT,
 	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("Name") REFERENCES "UserNames"("Name")
+	FOREIGN KEY("Name") REFERENCES "UserNames"("Name"),
+	FOREIGN KEY("HeadshotThumbnailHash") REFERENCES "HashBlob"("Hash"),
+	FOREIGN KEY("BustThumbnailHash") REFERENCES "HashBlob"("Hash")
 );
 )***";

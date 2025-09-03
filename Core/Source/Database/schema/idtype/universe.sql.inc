@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS "Universe" (
 	"Historical_Dislikes"	INTEGER,
 	"Visits"	INTEGER,
 	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("GroupId") REFERENCES "User"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
 );
 )***";
