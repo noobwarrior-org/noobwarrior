@@ -13,7 +13,7 @@ set(SOURCES
     Settings/InstallationPage.cpp
     Settings/AccountPage.cpp
     Settings/HttpServerPage.cpp
-    AssetDownloader.cpp
+    Dialog/AssetDownloaderDialog.cpp
     Dialog/AboutDialog.cpp
     Dialog/AuthBaseDialog.cpp
     Dialog/AuthTokenDialog.cpp

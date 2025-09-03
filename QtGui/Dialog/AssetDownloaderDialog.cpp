@@ -1,9 +1,9 @@
 // === noobWarrior ===
-// File: AssetDownloader.cpp
+// File: AssetDownloaderDialog.cpp
 // Started by: Hattozo
 // Started on: 3/13/2025
 // Description: A Qt GUI dialog that invokes the noobWarrior API to download a Roblox asset
-#include "AssetDownloader.h"
+#include "AssetDownloaderDialog.h"
 #include "Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "DatabaseEditor/DatabaseEditor.h"
-#include "AssetDownloader.h"
+#include "Dialog/AssetDownloaderDialog.h"
 #include "Settings/SettingsDialog.h"
 #include "Dialog/AboutDialog.h"
 

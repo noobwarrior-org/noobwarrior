@@ -1,5 +1,5 @@
 // === noobWarrior ===
-// File: AssetDownloader.h
+// File: AssetDownloaderDialog.h
 // Started by: Hattozo
 // Started on: 3/13/2025
 // Description:

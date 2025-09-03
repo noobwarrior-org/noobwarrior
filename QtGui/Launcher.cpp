@@ -8,8 +8,7 @@
 #include "Launcher.h"
 #include "Application.h"
 #include "Dialog/AboutDialog.h"
-#include "AssetDownloader.h"
-#include "Ui/ui_Launcher.h"
+#include "Dialog/AssetDownloaderDialog.h"
 
 #include <QLabel>
 #include <QMessageBox>
