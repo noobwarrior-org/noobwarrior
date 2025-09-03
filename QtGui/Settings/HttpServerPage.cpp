@@ -16,7 +16,7 @@ const QString HttpServerPage::GetTitle() {
 }
 
 const QString HttpServerPage::GetDescription() {
-    return "Anything that is related to your HTTP server (and only your HTTP server) goes in here.";
+    return "Used for modifying the state of any HTTP servers that noobWarrior is able to host.";
 }
 
 const QIcon HttpServerPage::GetIcon() {
