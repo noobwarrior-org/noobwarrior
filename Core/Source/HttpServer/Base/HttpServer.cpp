@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 3/10/2025
 // Description: A HTTP server that is responsible for mimicking the Roblox API and serving files from noobWarrior archives
-#include <NoobWarrior/HttpServer/HttpServer.h>
+#include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
@@ -12,12 +12,11 @@
 
 #include "NoobWarrior/NoobWarrior.h"
 
-#define SET_URI(uri, handler)
-#define LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler, (void*)fileName);
-
 using namespace NoobWarrior::HttpServer;
 
-HttpServer::HttpServer(Core *core) :
+HttpServer::HttpServer(Core *core, std::string name) :
+    Running(false),
+    Name(std::move(name)),
     mCore(core),
     Directory(mCore->GetInstallationDir() / "httpserver"),
     Server(nullptr)
@@ -35,14 +34,6 @@ static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) 
     return (handler->*classFunc)(conn, userdataFromArray);
 }
 
-void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
-    // pass an array containing our handler object and user data so that it knows what the object is.
-    // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
-    void** userdataArray = new void*[2]{handler, userdata};
-    HandlerUserdata.push_back(userdataArray); // remember to push this to our vector array so that we know that we have to free it during cleanup
-    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, userdataArray);
-}
-
 int HttpServer::Start(uint16_t port) {
     // GetConfig()->Open();
     // GetConfig()->Port = port;
@@ -58,21 +49,15 @@ int HttpServer::Start(uint16_t port) {
     Server = mg_start(nullptr, nullptr, configOptions);
 
     mWebHandler = new WebHandler(mCore->GetConfig(), Directory);
-    mAssetHandler = new AssetHandler(this, mCore->GetDatabaseManager());
 
-    SetRequestHandler("/asset", mAssetHandler);
-    SetRequestHandler("/v1/asset", mAssetHandler);
-
-    // LINK_URI_TO_TEMPLATE("/", "guest.jinja")
-    LINK_URI_TO_TEMPLATE("/login", "login.jinja")
-    LINK_URI_TO_TEMPLATE("/home", "home.jinja")
-
-    Out("HttpServer", "Started server on port {}", port);
+    Out(Name, "Started server on port {}", port);
+    Running = true;
     return 1;
 }
 
 int HttpServer::Stop() {
-    Out("HttpServer", "Stopping server...");
+    Running = false;
+    Out(Name, "Stopping server...");
 
     // GetConfig()->Close();
     // NOOBWARRIOR_FREE_PTR(mConfig)
@@ -80,10 +65,21 @@ int HttpServer::Stop() {
     mg_stop(Server);
     Server = nullptr;
 
-    NOOBWARRIOR_FREE_PTR(mAssetHandler)
     NOOBWARRIOR_FREE_PTR(mWebHandler)
     for (void** arr : HandlerUserdata) {
         NOOBWARRIOR_FREE_PTR(arr)
     }
     return 1;
+}
+
+void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
+    // pass an array containing our handler object and user data so that it knows what the object is.
+    // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
+    void** userdataArray = new void*[2]{handler, userdata};
+    HandlerUserdata.push_back(userdataArray); // remember to push this to our vector array so that we know that we have to free it during cleanup
+    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, userdataArray);
+}
+
+bool HttpServer::IsRunning() {
+    return Running;
 }

@@ -131,8 +131,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
     Layout->addWidget(AuthenticationStatusLabel);
 
-    auto *httpServerLabel = new QLabel("HTTP Server: Stopped");
-    Layout->addWidget(httpServerLabel);
+    ServerEmulatorStatusLabel = new QLabel("Server Emulator: Stopped");
+    Layout->addWidget(ServerEmulatorStatusLabel);
 
     auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
     Layout->addWidget(robloxServersLabel);
@@ -144,6 +144,9 @@ Launcher::~Launcher() {}
 
 void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
+
     Auth *auth = gApp->GetCore()->GetAuth();
     AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(auth->GetActiveAccount()->Name) : "Not authenticated with Roblox");
+
+    ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

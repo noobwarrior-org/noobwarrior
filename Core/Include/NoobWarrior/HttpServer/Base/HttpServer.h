@@ -6,7 +6,6 @@
 #pragma once
 #include "Handler.h"
 #include "WebHandler.h"
-#include "Api/Roblox/AssetHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -14,26 +13,32 @@
 #include <queue>
 #include <utility>
 
+#define NOOBWARRIOR_SET_URI(uri, handler)
+#define NOOBWARRIOR_LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler, (void*)fileName);
+
 struct mg_context;
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
     class HttpServer {
     public:
-        HttpServer(Core *core);
-        void SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
-        int Start(uint16_t port);
-        int Stop();
-    private:
+        HttpServer(Core *core, std::string name = "HttpServer");
+        
+        virtual int Start(uint16_t port);
+        virtual int Stop();
+
+        bool        IsRunning();
+        void        SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
+    protected:
+        bool Running;
+
+        std::string Name;
         Core *mCore;
         std::filesystem::path Directory;
         mg_context *Server;
 
         //////////////// Handlers ////////////////
         WebHandler *mWebHandler;
-        AssetHandler *mAssetHandler;
 
         std::vector<void**> HandlerUserdata;
-
-        std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
     };
 }

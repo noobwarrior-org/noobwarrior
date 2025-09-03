@@ -41,7 +41,8 @@ int Application::Run() {
 
     mCore = new Core(mInit);
     mCore->CreateStandardUserDataDirectories();
-    mCore->StartHttpServer(8080);
+    mCore->StartServerEmulator(8080);
+
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {
         QMessageBox::critical(nullptr, "Error", "Could not initialize curl");
@@ -90,7 +91,7 @@ cleanup:
     mLauncher = nullptr;
 
     curl_global_cleanup();
-    mCore->StopHttpServer();
+    mCore->StopServerEmulator();
 
     NOOBWARRIOR_FREE_PTR(mCore)
     return ret;

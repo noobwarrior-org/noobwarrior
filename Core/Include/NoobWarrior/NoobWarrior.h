@@ -13,7 +13,7 @@
 #include "Database/DatabaseManager.h"
 #include "RccServiceManager.h"
 #include "RobloxClient.h"
-#include "HttpServer/HttpServer.h"
+#include "HttpServer/Emulator/ServerEmulator.h"
 #include "Roblox/DataModel/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
@@ -76,8 +76,9 @@ public:
 
     void CreateStandardUserDataDirectories();
 
-    int StartHttpServer(uint16_t port = 8080);
-    int StopHttpServer();
+    int StartServerEmulator(uint16_t port = 8080);
+    int StopServerEmulator();
+    bool IsServerEmulatorRunning();
 
     /**
      * @brief Lets you download a batch of Roblox assets to a directory.
@@ -108,7 +109,9 @@ private:
     lua_State*                      mLuaState;
     Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;
-    HttpServer::HttpServer*         mHttpServer;
+
+    HttpServer::ServerEmulator*     mServerEmulator;
+
     Auth*                           mAuth;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;

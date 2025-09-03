@@ -33,6 +33,7 @@ namespace NoobWarrior {
         void paintEvent(QPaintEvent *event) override;
     private:
         QVBoxLayout*    Layout;
-        QLabel*         AuthenticationStatusLabel; 
+        QLabel*         AuthenticationStatusLabel;
+        QLabel*         ServerEmulatorStatusLabel;
     };
 }

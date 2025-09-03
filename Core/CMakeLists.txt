@@ -59,10 +59,11 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/RccServiceManager.cpp
     Source/RobloxClient.cpp
     Source/AssetRequest.cpp
-    Source/HttpServer/HttpServer.cpp
-    Source/HttpServer/Handler.cpp
-    Source/HttpServer/WebHandler.cpp
-    Source/HttpServer/Api/Roblox/AssetHandler.cpp
+    Source/HttpServer/Base/HttpServer.cpp
+    Source/HttpServer/Base/Handler.cpp
+    Source/HttpServer/Base/WebHandler.cpp
+    Source/HttpServer/Emulator/ServerEmulator.cpp
+    Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
     Source/Roblox/DataModel/RobloxFile.cpp
     Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/DataModel/Tree/Instance.cpp

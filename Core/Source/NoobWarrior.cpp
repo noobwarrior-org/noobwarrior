@@ -25,7 +25,7 @@ using namespace NoobWarrior;
 Core::Core(Init init) :
     mInit(std::move(init)),
     mLuaState(nullptr),
-    mHttpServer(nullptr),
+    mServerEmulator(nullptr),
     mPortable(mInit.Portable),
     mIndexDirty(true)
 {
@@ -44,7 +44,7 @@ Core::~Core() {
     if (mInit.EnableKeychain)
         GetAuth()->WriteToKeychain();
 
-    StopHttpServer();
+    StopServerEmulator();
     sqlite3_shutdown();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
@@ -146,21 +146,27 @@ void Core::CreateStandardUserDataDirectories() {
 #undef NW_CREATE
 }
 
-int Core::StartHttpServer(uint16_t port) {
-    if (mHttpServer != nullptr && !StopHttpServer()) { // try stopping the HTTP server if it's already on
+int Core::StartServerEmulator(uint16_t port) {
+    if (mServerEmulator != nullptr && !StopServerEmulator()) { // try stopping the HTTP server if it's already on
         return -2;
     }
 
-    mHttpServer = new HttpServer::HttpServer(this);
-    return mHttpServer->Start(port);
+    mServerEmulator = new HttpServer::ServerEmulator(this);
+    return mServerEmulator->Start(port);
 }
 
-int Core::StopHttpServer() {
-    if (mHttpServer != nullptr && !mHttpServer->Stop()) {
+int Core::StopServerEmulator() {
+    if (mServerEmulator != nullptr && !mServerEmulator->Stop()) {
         return 0;
     }
-    NOOBWARRIOR_FREE_PTR(mHttpServer)
+    NOOBWARRIOR_FREE_PTR(mServerEmulator)
     return 1;
+}
+
+bool Core::IsServerEmulatorRunning() {
+    if (mServerEmulator == nullptr)
+        return false;
+    return mServerEmulator->IsRunning();
 }
 
 static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
