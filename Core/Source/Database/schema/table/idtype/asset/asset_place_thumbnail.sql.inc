@@ -4,8 +4,7 @@ CREATE TABLE IF NOT EXISTS "AssetPlaceThumbnail" (
 	"Version"	INTEGER NOT NULL,
 	"Thumbnail"	INTEGER NOT NULL,
 	PRIMARY KEY("Id","Version","Thumbnail"),
-	FOREIGN KEY("Id") REFERENCES "Asset"("Id"),
-	FOREIGN KEY("Version") REFERENCES "Asset"("Version"),
+	FOREIGN KEY("Id", "Version") REFERENCES "Asset"("Id", "Version"),
 	FOREIGN KEY("Thumbnail") REFERENCES "Asset"("Id")
 );
 )***";

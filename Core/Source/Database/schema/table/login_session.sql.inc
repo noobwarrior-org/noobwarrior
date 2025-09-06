@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "LoginSession" (
     "CreationTimestamp"	INTEGER DEFAULT (unixepoch()),
     "LastUsedTimestamp"	INTEGER DEFAULT (unixepoch()),
 	"UserId"	INTEGER NOT NULL,
+    "Ip"     TEXT,
     "Location"     TEXT,
     "Device"     TEXT,
 	PRIMARY KEY("Token"),
