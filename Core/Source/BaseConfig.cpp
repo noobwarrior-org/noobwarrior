@@ -84,11 +84,7 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
         return ConfigResponse::ErrorDuringExecution;
     }
 
-    // now init our default key values
-    SetKeyValue("meta.version", "v1.0.0");
-
     Out("Config", "Opened config");
-
     return ConfigResponse::Success;
 }
 

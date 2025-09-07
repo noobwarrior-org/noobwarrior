@@ -107,7 +107,11 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
         char* fileName = (char*)malloc(idDigits + 1);
         snprintf(fileName, idDigits + 1, "%i", (int)id);
 
-        std::string fmtApiCall = std::vformat(GetConfig()->Api_AssetDownload, std::make_format_args(id));
+        std::optional<std::string> download_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
+        if (!download_url.has_value())
+            return -2;
+
+        std::string fmtApiCall = std::vformat(download_url.value(), std::make_format_args(id));
         std::string fileDir = args.OutDir + "/" + fileName;
 
         FILE* filePointer = fopen(fileDir.c_str(), "wb");
@@ -147,6 +151,10 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
 
 int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     int ret = 0;
+    std::optional<std::string> details_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_details");
+    if (!details_url.has_value())
+        return -2;
+
     std::vector<char> buffer;
     CURL *handle = curl_easy_init();
     if (!handle)
@@ -154,7 +162,7 @@ int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet");
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToBuf);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(GetConfig()->Api_AssetDetails, std::make_format_args(id)).c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(details_url.value(), std::make_format_args(id)).c_str());
     CURLcode res = curl_easy_perform(handle);
     if (res == CURLE_OK) {
         json data = json::parse(buffer, nullptr, false);

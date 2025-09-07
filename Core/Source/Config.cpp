@@ -11,16 +11,12 @@
 
 using namespace NoobWarrior;
 
-Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig("config", filePath, luaState),
-    Version(NOOBWARRIOR_CONFIG_VERSION),
-    Api_AssetDownload("https://assetdelivery.roblox.com/v1/asset/?id={}"),
-    Api_AssetDetails("https://economy.roblox.com/v2/assets/{}/details"),
-    Binaries_WineExe("wine"),
-    Gui_Theme(Theme::Default)
+Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig("config", filePath, luaState)
 {}
 
 ConfigResponse Config::Open() {
     if (const ConfigResponse res = BaseConfig::Open(); res != ConfigResponse::Success) return res;
+    SetKeyValue("meta.version", NOOBWARRIOR_CONFIG_VERSION);
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "default");
 
@@ -36,6 +32,24 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.branding.favicon", "/img/favicon.ico");
     SetKeyValueIfNotSet("httpserver.branding.description", "My noobWarrior server");
     SetKeyComment("httpserver.branding", "The branding that people will see when they connect to your website.");
+
+    SetKeyValueIfNotSet("httpserver.auth.type", "master");
+    SetKeyComment("httpserver.auth.type", "If set to \"master\", your server is responsible for all authentication. If set to \"slave\", the server URL set in the \"master\" variable will be responsible for all authentication.");
+
+    SetKeyValueIfNotSet("httpserver.auth.master", "https://servers.noobwarrior.org");
+    SetKeyComment("httpserver.auth.master", "The URL of the server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
+
+    SetKeyValueIfNotSet("httpserver.auth.allow_registration", false);
+    SetKeyComment("httpserver.auth.allow_registration", "If this is set to false, registrations for guests will be disabled and administrators must manually create accounts in a database.");
+
+    SetKeyValueIfNotSet("httpserver.auth.password_based", true);
+    SetKeyComment("httpserver.auth.password_based", "If true, enables password-based authentication. If set to false, then the only way the user will be allowed to login is if they use OAuth2 based services.");
+
+    SetKeyValueIfNotSet("httpserver.auth.enable_login_filter", false);
+    SetKeyComment("httpserver.auth.enable_login_filter", "Makes it so that any users who are blacklisted or not whitelisted will not be able to log in.");
+
+    SetKeyValueIfNotSet("httpserver.auth.login_filter_type", "whitelist");
+    SetKeyComment("httpserver.auth.login_filter_type", "This setting only applies if enable_login_filter is set to true. You can set this to either \"blacklist\" or \"whitelist\"");
 
     SetKeyValueIfNotSet("httpserver.emulator.port", 53640);
     SetKeyComment("httpserver.emulator.port", "The port that the server emulator should listen on.");
@@ -63,15 +77,6 @@ ConfigResponse Config::Open() {
 
     If you are hosting this on a dedicated server, it is likely that you are running it on a Linux server without a GUI. Stop the service responsible for running the program, use "sudo -u (the user you are using to run the program) noobwarrior-cli". After entering the interactive shell, use "db --file master --add user --id 0 --name Admin --password yourpasswordhere --admin" to make a new account. Restart the service and login with that account and you should be good to go.
     )");
-
-    SetKeyValueIfNotSet("httpserver.emulator.permissions.allow_registration", false);
-    SetKeyComment("httpserver.emulator.permissions.allow_registration", "If this is set to true, registrations for guests will be disabled and administrators must manually create accounts in a database.");
-
-    SetKeyValueIfNotSet("httpserver.emulator.permissions.enable_login_filter", false);
-    SetKeyComment("httpserver.emulator.permissions.enable_login_filter", "Makes it so that any users who are blacklisted or not whitelisted will not be able to log in.");
-
-    SetKeyValueIfNotSet("httpserver.emulator.permissions.login_filter_type", "whitelist");
-    SetKeyComment("httpserver.emulator.permissions.login_filter_type", "This setting only applies if enable_login_filter is set to true. You can set this to either \"blacklist\" or \"whitelist\"");
 
     SetKeyValueIfNotSet("httpserver.emulator.permissions.upload_ugc", "user");
     SetKeyComment("httpserver.emulator.permissions.upload_ugc", "What rank is able to upload user generated content to the website?");
