@@ -56,7 +56,7 @@ Auth::Auth(Config *config) :
 
 AuthResponse Auth::ReadFromKeychain() {
     keychain::Error err;
-    std::string jsonStr = keychain::getPassword("org.noobwarrior", "rbx-acc", "all", err);
+    std::string jsonStr = keychain::getPassword("org.noobwarrior", "roblox", "accounts", err);
     if (err.type == keychain::ErrorType::NotFound)
         return AuthResponse::Success;
     if (err.type != keychain::ErrorType::NoError)
@@ -96,7 +96,7 @@ AuthResponse Auth::WriteToKeychain() {
     }
 
     keychain::Error err;
-    keychain::setPassword("org.noobwarrior", "rbx-acc", "all", accountsJson.dump(), err);
+    keychain::setPassword("org.noobwarrior", "roblox", "accounts", accountsJson.dump(), err);
     if (err.type != keychain::ErrorType::NoError)
         return AuthResponse::KeychainFailed;
     return AuthResponse::Success;
