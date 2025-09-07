@@ -196,13 +196,18 @@ void DatabaseEditor::InitMenus() {
 
     mBackupGameAction = new QAction("Backup Game");
 
+#if !defined(__APPLE__) // disable this on mac since it creates fucky behaviors and crashes
     mExitAction = new QAction("Exit");
+    mExitAction->setShortcut(QKeySequence("Alt+F4"));
+    connect(mExitAction, &QAction::triggered, [this]() {
+        close();
+    });
+#endif
 
     mNewDatabaseAction->setShortcut(QKeySequence("Ctrl+N"));
     mOpenDatabaseAction->setShortcut(QKeySequence("Ctrl+O"));
     mCloseDatabaseAction->setShortcut(QKeySequence("Ctrl+W"));
     mSaveDatabaseAction->setShortcut(QKeySequence("Ctrl+S"));
-    mExitAction->setShortcut(QKeySequence("Alt+F4"));
 
     mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
     mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
@@ -284,10 +289,6 @@ void DatabaseEditor::InitMenus() {
         auto backupDialog = new ContentBackupDialog<Universe>(this);
         backupDialog->setAttribute(Qt::WA_DeleteOnClose);
         backupDialog->show();
-    });
-
-    connect(mExitAction, &QAction::triggered, [this]() {
-        close();
     });
 }
 

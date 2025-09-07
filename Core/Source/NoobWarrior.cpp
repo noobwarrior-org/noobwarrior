@@ -15,10 +15,9 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include <shlobj.h>
-#elif defined(__APPLE__)
-#include <CoreServices/CoreServices.h>
-#include <utility>
 #endif
+
+#include <utility>
 
 using namespace NoobWarrior;
 
@@ -105,31 +104,30 @@ std::filesystem::path Core::GetInstallationDir() const {
 }
 
 std::filesystem::path Core::GetUserDataDir() {
-#if defined(_WIN32)
     if (!mPortable) {
-        // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
-        // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
-        // Typically it won't actually do this and it will instead move it away to a Windows.old folder
-        // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
-        WCHAR *path;
-        SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
-        std::filesystem::path documentsDir(path);
-        std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
-        CoTaskMemFree(path);
-        return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
-    }
-#elif defined(__APPLE__)
+#if defined(_WIN32)
+    // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
+    // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
+    // Typically it won't actually do this and it will instead move it away to a Windows.old folder
+    // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
+    WCHAR *path;
+    SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
+    std::filesystem::path documentsDir(path);
+    std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
+    CoTaskMemFree(path);
+    return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
+#elif defined(__unix__) || defined(__APPLE__)
     // portable versions aren't allowed. cause, reasons.
-    char path[PATH_MAX];
-    FSRef ref;
-    OSType type = kApplicationSupportFolderType;
-    OSStatus ret = FSFindFolder(kUserDomain, type, kCreateFolder, &ref); // Apparently this is deprecated, but it's the only way to do it without Objective-C so whatever.
-    FSRefMakePath(&ref, (UInt8*)&path, PATH_MAX);
-
-    std::filesystem::path appSupportDir(path);
-    std::filesystem::create_directory(appSupportDir / NOOBWARRIOR_USERDATA_DIRNAME);
-    return appSupportDir / NOOBWARRIOR_USERDATA_DIRNAME;
+    std::filesystem::path home_path(getenv("HOME"));
+    #if defined(__APPLE__)
+        std::filesystem::path user_data_path(home_path / "Library" / "Application Support" / NOOBWARRIOR_USERDATA_DIRNAME);
+    #else
+        std::filesystem::path user_data_path(home_path / ".local" / "share" / NOOBWARRIOR_USERDATA_DIRNAME);
+    #endif
+    std::filesystem::create_directory(user_data_path);
+    return user_data_path;
 #endif
+    }
     return GetInstallationDir();
 }
 

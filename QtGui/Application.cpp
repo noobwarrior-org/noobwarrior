@@ -167,7 +167,7 @@ void Application::DownloadAndInstallClient(const RobloxClient &client, std::func
                     dialogPtr->SetProgress(-1);
                     break;
                 case ClientInstallState::DownloadingFiles:
-                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(ClientTypeAsTranslatableString(client.Type), client.Version, QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
+                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(ClientTypeAsTranslatableString(client.Type)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
                     if (totalSizeMb > 0) // pls dont ever divide by 0
                         dialogPtr->SetProgress(sizeMb / totalSizeMb);
                     break;
@@ -196,7 +196,7 @@ void Application::LaunchClient(const RobloxClient &client) {
         auto *dialog = new LoadingDialog(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModal(false);
-        dialog->SetText(QString("Loading Roblox %1 %2...").arg(ClientTypeAsTranslatableString(client.Type), client.Version));
+        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(ClientTypeAsTranslatableString(client.Type)), QString::fromStdString(client.Version)));
         dialog->DisableCancel(true);
         dialog->show();
 

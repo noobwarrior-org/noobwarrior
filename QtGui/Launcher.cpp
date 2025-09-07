@@ -145,7 +145,7 @@ void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
 
     Auth *auth = gApp->GetCore()->GetAuth();
-    AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(auth->GetActiveAccount()->Name) : "Not authenticated with Roblox");
+    AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
 
     ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

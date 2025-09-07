@@ -94,7 +94,7 @@ void InstallationPage::Refresh() {
         auto url = gApp->GetCore()->GetConfig()->GetKeyValue<std::string>("internet.index");
         QString errMsg;
         switch (res) {
-            default: errMsg = QString("Could not connect to server for file \"\"").arg(url.value()); break;
+            default: errMsg = QString("Could not connect to server for file \"\"").arg(QString::fromStdString(url.value())); break;
             case -1: errMsg = "Could not connect to server to retrieve clients; no URL is set!"; break;
         }
         CannotConnectLabel->setText(errMsg);
