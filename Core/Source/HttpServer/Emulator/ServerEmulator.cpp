@@ -4,6 +4,7 @@
 // Started on: 9/2/2025
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Base/WebHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;

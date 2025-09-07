@@ -3,7 +3,9 @@
 // Started by: Hattozo
 // Started on: 6/19/2025
 // Description:
+#include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Base/WebHandler.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Log.h>
 
 #include <civetweb.h>
@@ -16,13 +18,13 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-WebHandler::WebHandler(Config *config, const std::filesystem::path &dir) : mConfig(config), Directory(dir) {}
+WebHandler::WebHandler(HttpServer *server) : mConfig(server->mCore->GetConfig()), Directory(server->Directory) {}
 
 int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     const mg_request_info *request_info = mg_get_request_info(conn);
     const char* cookie_header = mg_get_header(conn, "Cookie");
     char session_token[1024];
-    if (cookie_header) mg_get_cookie(cookie_header, ".SESSION", session_token, sizeof(session_token));
+    if (cookie_header) mg_get_cookie(cookie_header, ".LOGINSESSION", session_token, sizeof(session_token));
 
     char *fileName = static_cast<char*>(userdata);
 
@@ -30,8 +32,8 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     Out("HttpServer::WebHandler", "Accessing file {}", fileName);
 #endif
 
-    std::filesystem::path mainFilePath = Directory / "web/templates/main.jinja";
-    std::filesystem::path filePath = Directory / "web/templates/" / fileName;
+    std::filesystem::path mainFilePath = Directory / "web" / "templates" / "main.jinja";
+    std::filesystem::path filePath = Directory / "web" / "templates" / fileName;
 
     std::string mainFileString = mainFilePath.string();
     std::string fileString = filePath.string();
@@ -67,8 +69,8 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     data["permissions"]["access"]["control_panel"] = permissions_access_control_panel.has_value() ? permissions_access_control_panel.value() : "admin";
     data["game_view_mode"] = game_view_mode.has_value() ? game_view_mode.value() : "server";
 
-    if (session_token) {
-
+    if (!session_token) {
+        
     }
 
     data["user"]["id"] = -1;

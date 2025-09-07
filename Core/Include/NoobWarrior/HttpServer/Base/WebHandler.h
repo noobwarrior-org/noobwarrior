@@ -10,9 +10,10 @@
 #include <filesystem>
 
 namespace NoobWarrior::HttpServer {
+class HttpServer;
 class WebHandler : public Handler {
 public:
-    WebHandler(Config *config, const std::filesystem::path &dir);
+    WebHandler(HttpServer *server);
     int OnRequest(mg_connection *conn, void *userdata) override;
 private:
     Config *mConfig;

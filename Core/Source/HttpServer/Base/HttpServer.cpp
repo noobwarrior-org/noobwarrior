@@ -4,6 +4,7 @@
 // Started on: 3/10/2025
 // Description: A HTTP server that is responsible for mimicking the Roblox API and serving files from noobWarrior archives
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
+#include <NoobWarrior/HttpServer/Base/WebHandler.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
@@ -48,7 +49,7 @@ int HttpServer::Start(uint16_t port) {
     const char* configOptions[] = {"listening_ports", portStr, "document_root", staticDirStr.c_str(), nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
-    mWebHandler = new WebHandler(mCore->GetConfig(), Directory);
+    mWebHandler = new WebHandler(this);
 
     Out(Name, "Started server on port {}", port);
     Running = true;

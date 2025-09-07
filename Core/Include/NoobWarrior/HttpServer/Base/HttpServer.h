@@ -5,7 +5,6 @@
 // Description:
 #pragma once
 #include "Handler.h"
-#include "WebHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -19,7 +18,9 @@
 struct mg_context;
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
+    class WebHandler;
     class HttpServer {
+    friend class WebHandler;
     public:
         HttpServer(Core *core, std::string name = "HttpServer");
         
