@@ -32,6 +32,7 @@ Core::Core(Init init) :
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
     mAuth = new Auth(mConfig);
     ConfigReturnCode = mConfig->Open();
+    curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
     mg_init_library(0);
 
@@ -44,7 +45,9 @@ Core::~Core() {
         GetAuth()->WriteToKeychain();
 
     StopServerEmulator();
+    mg_exit_library();
     sqlite3_shutdown();
+    curl_global_cleanup();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
     lua_close(mLuaState);

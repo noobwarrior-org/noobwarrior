@@ -1,8 +1,8 @@
 // === noobWarrior ===
-// File: AssetRequest.cpp
+// File: Backup.cpp
 // Started by: Hattozo
 // Started on: 3/5/2025
-// Description: Handles functions that retrieve data about Roblox assets
+// Description: All functions that concern backing up data from Roblox servers to your computer belong here
 #include <NoobWarrior/Config.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
@@ -201,4 +201,29 @@ int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
 cleanup:
     curl_easy_cleanup(handle);
     return ret;
+}
+
+BackupResponse Core::BackupFromFile(const std::filesystem::path &inputDir, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+
+}
+
+BackupResponse Core::BackupAsset(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+    std::optional<std::string> asset_download_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
+
+    if (!asset_download_url.has_value())
+        return BackupResponse::UrlNotSet;
+
+    NetClient client(GetAuth()->GetActiveAccount());
+    if (client.Failed())
+        return BackupResponse::Failed;
+    client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
+        
+    });
+    client.Request(asset_download_url.value());
+    return BackupResponse::Ok;
+}
+
+BackupResponse Core::BackupGame(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+
+    return BackupResponse::Ok;
 }

@@ -100,18 +100,7 @@ namespace NoobWarrior {
         bool IsMemory();
 
         std::string GetSqliteErrorMsg();
-
         std::string GetMetaKeyValue(const std::string &key);
-
-        std::string GetTitle();
-
-        std::string GetDescription();
-
-        std::string GetVersion();
-
-        std::string GetAuthor();
-
-        std::vector<unsigned char> GetIcon();
 
         /**
          * @return Returns the file name of the database's currently loaded file.
@@ -119,15 +108,17 @@ namespace NoobWarrior {
            This does not return a file path, do not confuse this function with returning one.
          */
         std::string GetFileName();
-
         std::filesystem::path GetFilePath();
 
+        std::string GetTitle();
+        std::string GetDescription();
+        std::string GetVersion();
+        std::string GetAuthor();
+        std::vector<unsigned char> GetIcon();
+
         DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
-
         DatabaseResponse SetTitle(const std::string &title);
-
         DatabaseResponse SetAuthor(const std::string &author);
-
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
 
         /**
