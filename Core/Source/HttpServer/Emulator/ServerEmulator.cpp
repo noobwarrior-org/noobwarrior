@@ -10,7 +10,7 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator") {
+ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator", "emulator") {
 
 }
 

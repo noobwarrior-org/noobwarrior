@@ -18,7 +18,7 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-WebHandler::WebHandler(HttpServer *server) : mConfig(server->mCore->GetConfig()), Directory(server->Directory) {}
+WebHandler::WebHandler(HttpServer *server) : mServer(server) {}
 
 int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     const mg_request_info *request_info = mg_get_request_info(conn);
@@ -32,8 +32,12 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     Out("HttpServer::WebHandler", "Accessing file {}", fileName);
 #endif
 
-    std::filesystem::path mainFilePath = Directory / "web" / "templates" / "main.jinja";
-    std::filesystem::path filePath = Directory / "web" / "templates" / fileName;
+    Config *config = mServer->mCore->GetConfig();
+
+    std::filesystem::path serverDir = mServer->Directory / mServer->DirName;
+
+    std::filesystem::path mainFilePath = serverDir / "templates" / "main.jinja";
+    std::filesystem::path filePath = serverDir / "templates" / fileName;
 
     std::string mainFileString = mainFilePath.string();
     std::string fileString = filePath.string();
@@ -49,40 +53,11 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
         return 500;
     }
 
-    std::optional title = mConfig->GetKeyValue<std::string>("httpserver.branding.title");
-    std::optional logo = mConfig->GetKeyValue<std::string>("httpserver.branding.logo");
-    std::optional favicon = mConfig->GetKeyValue<std::string>("httpserver.branding.favicon");
-
-    std::optional game_view_mode = mConfig->GetKeyValue<std::string>("httpserver.game_view_mode");
-    std::optional permissions_access_home = mConfig->GetKeyValue<std::string>("httpserver.permissions.access.home");
-    std::optional permissions_access_library = mConfig->GetKeyValue<std::string>("httpserver.permissions.access.library");
-    std::optional permissions_access_control_panel = mConfig->GetKeyValue<std::string>("httpserver.permissions.access.control_panel");
-
-    // generate the template
-    nlohmann::json data;
-    data["title"] = "RegularPage";
-    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
-    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
-    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
-    data["permissions"]["access"]["home"] = permissions_access_home.has_value() ? permissions_access_home.value() : "user";
-    data["permissions"]["access"]["library"] = permissions_access_library.has_value() ? permissions_access_library.value() : "user";
-    data["permissions"]["access"]["control_panel"] = permissions_access_control_panel.has_value() ? permissions_access_control_panel.value() : "admin";
-    data["game_view_mode"] = game_view_mode.has_value() ? game_view_mode.value() : "server";
-
     if (!session_token) {
         
     }
 
-    data["user"]["id"] = -1;
-    data["user"]["name"] = "Guest";
-    data["user"]["rank"] = "guest";
-    data["user"]["headshot_thumbnail"] = "";
-
-    data["servers"] = {
-        {
-            {"name", "My Server"}
-        }
-    };
+    nlohmann::json data = GetContextData();
 
     std::stringstream bodyFileBuf;
     bodyFileBuf << fileInput.rdbuf();
@@ -118,4 +93,25 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     mainFileInput.close();
     fileInput.close();
     return 200;
+}
+
+nlohmann::json WebHandler::GetContextData() {
+    Config *config = mServer->mCore->GetConfig();
+
+    std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");
+    std::optional logo = config->GetKeyValue<std::string>("httpserver.branding.logo");
+    std::optional favicon = config->GetKeyValue<std::string>("httpserver.branding.favicon");
+
+    nlohmann::json data;
+    data["title"] = "RegularPage";
+    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
+    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
+    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
+
+    data["user"]["id"] = -1;
+    data["user"]["name"] = "Guest";
+    data["user"]["rank"] = "guest";
+    data["user"]["headshot_thumbnail"] = "";
+
+    return data;
 }

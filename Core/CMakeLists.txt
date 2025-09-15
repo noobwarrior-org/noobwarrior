@@ -61,6 +61,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Backup.cpp
     Source/HttpServer/Base/HttpServer.cpp
     Source/HttpServer/Base/Handler.cpp
+    Source/HttpServer/Base/RootHandler.cpp
+    Source/HttpServer/Base/TestHandler.cpp
     Source/HttpServer/Base/WebHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
     Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp

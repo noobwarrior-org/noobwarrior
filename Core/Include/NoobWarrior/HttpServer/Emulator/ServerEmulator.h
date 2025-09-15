@@ -5,6 +5,7 @@
 // Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
+#include "EmulatorWebHandler.h"
 #include "Api/Roblox/AssetHandler.h"
 
 #include <cstdint>
@@ -16,6 +17,7 @@
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
     class ServerEmulator : public HttpServer {
+        friend class EmulatorWebHandler;
     public:
         ServerEmulator(Core *core);
         ~ServerEmulator();
@@ -24,6 +26,7 @@ namespace NoobWarrior::HttpServer {
         int Stop() override;
     private:
         //////////////// Handlers ////////////////
+        EmulatorWebHandler *mWebHandler;
         AssetHandler *mAssetHandler;
         std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
     };
