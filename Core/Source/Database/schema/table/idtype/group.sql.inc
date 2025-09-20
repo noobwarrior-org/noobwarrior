@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS "Group" (
 	"Description"	TEXT,
     "Created"	INTEGER,
 	"OwnerId"	INTEGER,
-	"EmblemId"	INTEGER,
+	"ImageId"	INTEGER,
+	"ImageVersion"	INTEGER,
     "Historical_MemberCount"	INTEGER,
     "SocialLinks"	TEXT,
     "Funds"	INTEGER,
@@ -25,6 +26,6 @@ CREATE TABLE IF NOT EXISTS "Group" (
 	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("OwnerId") REFERENCES "User"("Id"),
 	FOREIGN KEY("ShoutUserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("EmblemId") REFERENCES "Asset"("Id")
+	FOREIGN KEY("ImageId", "ImageVersion") REFERENCES "Asset"("Id", "Version")
 );
 )***";

@@ -3,8 +3,9 @@ CREATE TABLE IF NOT EXISTS "BundleAsset" (
     "Id"	INTEGER NOT NULL,
 	"Version"	INTEGER NOT NULL,
 	"AssetId"	INTEGER NOT NULL,
-	PRIMARY KEY("Id","Version","AssetId"),
+	"AssetVersion"	INTEGER NOT NULL,
+	PRIMARY KEY("Id","Version","AssetId","AssetVersion"),
 	FOREIGN KEY("Id", "Version") REFERENCES "Bundle"("Id", "Version"),
-	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id")
+	FOREIGN KEY("AssetId", "AssetVersion") REFERENCES "Asset"("Id", "Version")
 );
 )***";
