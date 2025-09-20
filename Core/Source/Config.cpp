@@ -30,7 +30,7 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.branding.title", "noobWarrior");
     SetKeyValueIfNotSet("httpserver.branding.logo", "/img/icon1024.png");
     SetKeyValueIfNotSet("httpserver.branding.favicon", "/img/favicon.ico");
-    SetKeyValueIfNotSet("httpserver.branding.description", "My noobWarrior server");
+    SetKeyValueIfNotSet("httpserver.branding.tagline", "My noobWarrior server");
     SetKeyComment("httpserver.branding", "The branding that people will see when they connect to your website.");
 
     SetKeyValueIfNotSet("httpserver.auth.type", "master");
@@ -50,6 +50,11 @@ ConfigResponse Config::Open() {
 
     SetKeyValueIfNotSet("httpserver.auth.login_filter_type", "whitelist");
     SetKeyComment("httpserver.auth.login_filter_type", "This setting only applies if enable_login_filter is set to true. You can set this to either \"blacklist\" or \"whitelist\"");
+
+    SetKeyValueIfNotSet("httpserver.auth.enable_custom_pfp", false);
+    SetKeyComment("httpserver.auth.enable_custom_pfp", "Allows users to upload their own profile pictures instead of using their avatar headshot.");
+
+    SetKeyValueIfNotSet("httpserver.emulator.motd", "<h1>Welcome</h1><br><p>Welcome to my noobWarrior server.</p><br><h2>Rules</h2><br><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
     SetKeyValueIfNotSet("httpserver.emulator.port", 53640);
     SetKeyComment("httpserver.emulator.port", "The port that the server emulator should listen on.");
@@ -113,6 +118,13 @@ ConfigResponse Config::Open() {
 
     SetKeyValueIfNotSet("httpserver.emulator.currency.daily_robux", 0);
     SetKeyValueIfNotSet("httpserver.emulator.currency.daily_tix", 0);
+
+    SetKeyComment("httpserver.master", "Options to configure the master server. The master server handles the server listings and authentication for all server emulators attached to it.");
+    
+    SetKeyValueIfNotSet("httpserver.master.port", 9999);
+    SetKeyComment("httpserver.master.port", "The port that the master server should listen on.");
+
+    SetKeyValueIfNotSet("httpserver.master.motd", "<h1>Welcome</h1><br><p>Hi, welcome to my server list.</p><br><h2>Rules</h2><br><p>The operator of this server list has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
     SetKeyValueIfNotSet("wine.exe", "wine");
     SetKeyValueIfNotSet("wine.prefix", "");
