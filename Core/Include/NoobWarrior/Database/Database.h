@@ -200,7 +200,8 @@ namespace NoobWarrior {
 
                 if constexpr (std::is_same_v<T, Asset>) {
                     content.Type = static_cast<Roblox::AssetType>(GetValueFromColumnName<int>(stmt, "Type"));
-                    content.Icon = GetValueFromColumnName<int64_t>(stmt, "Icon");
+                    content.ImageId = GetValueFromColumnName<int64_t>(stmt, "ImageId");
+                    content.ImageVersion = GetValueFromColumnName<int64_t>(stmt, "ImageVersion");
                     {
                         // The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
                         content.CreatorType = GetTypeFromColumnName(stmt, "UserId") != SQLITE_NULL
@@ -261,26 +262,27 @@ namespace NoobWarrior {
                 sqlite3_bind_int64(stmt, 5, content.Created);
                 sqlite3_bind_int64(stmt, 6, content.Updated);
                 sqlite3_bind_int(stmt, 7, static_cast<int>(content.Type));
-                sqlite3_bind_int64(stmt, 8, content.Icon);
+                sqlite3_bind_int64(stmt, 8, content.ImageId);
+                sqlite3_bind_int64(stmt, 9, content.ImageVersion);
                 content.CreatorType == Roblox::CreatorType::User
-                    ? sqlite3_bind_int64(stmt, 9, content.CreatorId)
-                    : sqlite3_bind_null(stmt, 9);
-                content.CreatorType == Roblox::CreatorType::Group
                     ? sqlite3_bind_int64(stmt, 10, content.CreatorId)
                     : sqlite3_bind_null(stmt, 10);
-                sqlite3_bind_int(stmt, 11, static_cast<int>(content.CurrencyType));
-                sqlite3_bind_int(stmt, 12, content.Price);
-                sqlite3_bind_int(stmt, 13, content.ContentRatingTypeId);
-                sqlite3_bind_int(stmt, 14, content.MinimumMembershipLevel);
-                sqlite3_bind_int(stmt, 15, content.IsPublicDomain);
-                sqlite3_bind_int(stmt, 16, content.IsForSale);
-                sqlite3_bind_int(stmt, 17, content.IsNew);
-                sqlite3_bind_int(stmt, 18, static_cast<int>(content.LimitedType));
-                sqlite3_bind_int(stmt, 19, content.Remaining);
-                sqlite3_bind_int(stmt, 20, content.Sales);
-                sqlite3_bind_int(stmt, 21, content.Favorites);
-                sqlite3_bind_int(stmt, 22, content.Likes);
-                sqlite3_bind_int(stmt, 23, content.Dislikes);
+                content.CreatorType == Roblox::CreatorType::Group
+                    ? sqlite3_bind_int64(stmt, 11, content.CreatorId)
+                    : sqlite3_bind_null(stmt, 11);
+                sqlite3_bind_int(stmt, 12, static_cast<int>(content.CurrencyType));
+                sqlite3_bind_int(stmt, 13, content.Price);
+                sqlite3_bind_int(stmt, 14, content.ContentRatingTypeId);
+                sqlite3_bind_int(stmt, 15, content.MinimumMembershipLevel);
+                sqlite3_bind_int(stmt, 16, content.IsPublicDomain);
+                sqlite3_bind_int(stmt, 17, content.IsForSale);
+                sqlite3_bind_int(stmt, 18, content.IsNew);
+                sqlite3_bind_int(stmt, 19, static_cast<int>(content.LimitedType));
+                sqlite3_bind_int(stmt, 20, content.Remaining);
+                sqlite3_bind_int(stmt, 21, content.Historical_Sales);
+                sqlite3_bind_int(stmt, 22, content.Historical_Favorites);
+                sqlite3_bind_int(stmt, 23, content.Historical_Likes);
+                sqlite3_bind_int(stmt, 24, content.Historical_Dislikes);
             } else if constexpr (std::is_same_v<T, Badge>) {
                 std::string stmtStr = std::format("{} INTO Badge (Id, Name, UserId, GroupId) VALUES(?, ?, ?, ?);", keyword);
                 sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1,

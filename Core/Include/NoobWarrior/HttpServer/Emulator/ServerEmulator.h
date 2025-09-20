@@ -6,7 +6,7 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include "Api/Roblox/AssetHandler.h"
-#include "LibraryPageHandler.h"
+#include "ContentPageHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -17,7 +17,7 @@
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
 class ServerEmulator : public HttpServer {
-    friend class LibraryPageHandler;
+    friend class ContentPageHandler;
 public:
     ServerEmulator(Core *core);
     ~ServerEmulator();
@@ -28,7 +28,7 @@ public:
 private:
     //////////////// Handlers ////////////////
     std::unique_ptr<AssetHandler> mAssetHandler;
-    std::unique_ptr<LibraryPageHandler> mLibraryPageHandler;
+    std::unique_ptr<ContentPageHandler> mContentPageHandler;
     std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
 };
 }

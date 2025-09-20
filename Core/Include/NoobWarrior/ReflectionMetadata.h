@@ -17,7 +17,9 @@
     /* This is used as a cheap way to autorun our code */ \
     struct idType##Registrar { \
         idType##Registrar() { \
-            NoobWarrior::Reflection::GetReflectedIdTypes()[#idType] = { \
+            NoobWarrior::Reflection::GetIdTypes()[#idType] = { \
+                .Name = #idType, \
+                .Class = &typeid(idType), \
                 .Create = []() { \
                     return idType(); \
                 } \
@@ -27,12 +29,19 @@
     static idType##Registrar s##idType##RegistrarInstance; \
 
 namespace NoobWarrior::Reflection {
-struct ReflectedIdType {
+struct IdType {
+    std::string Name;
+    const std::type_info *Class { nullptr };
     std::function<IdRecord()> Create;
 };
 
-inline std::map<std::string, ReflectedIdType> &GetReflectedIdTypes() {
-    static std::map<std::string, ReflectedIdType> m;
+inline std::map<std::string, IdType> &GetIdTypes() {
+    static std::map<std::string, IdType> m;
     return m;
+}
+
+template<typename T>
+std::string GetIdTypeName() {
+    return typeid(T).name();
 }
 }

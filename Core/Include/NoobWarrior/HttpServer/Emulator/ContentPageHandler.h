@@ -1,5 +1,5 @@
 // === noobWarrior ===
-// File: LibraryPageHandler.h
+// File: ContentPageHandler.h
 // Started by: Hattozo
 // Started on: 9/19/2025
 // Description:
@@ -8,9 +8,9 @@
 
 namespace NoobWarrior::HttpServer {
 class ServerEmulator;
-class LibraryPageHandler : public WebHandler {
+class ContentPageHandler : public WebHandler {
 public:
-    LibraryPageHandler(ServerEmulator *server);
+    ContentPageHandler(ServerEmulator *server);
 protected:
     nlohmann::json GetContextData() override;
 };

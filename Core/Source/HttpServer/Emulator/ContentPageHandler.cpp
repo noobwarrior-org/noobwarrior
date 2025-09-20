@@ -1,28 +1,31 @@
 // === noobWarrior ===
-// File: LibraryPageHandler.cpp
+// File: ContentPageHandler.cpp
 // Started by: Hattozo
 // Started on: 9/19/2025
 // Description:
-#include <NoobWarrior/HttpServer/Emulator/LibraryPageHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-LibraryPageHandler::LibraryPageHandler(ServerEmulator *server) : WebHandler(server) {
+ContentPageHandler::ContentPageHandler(ServerEmulator *server) : WebHandler(server) {
     
 }
 
-nlohmann::json LibraryPageHandler::GetContextData() {
+nlohmann::json ContentPageHandler::GetContextData() {
     auto data = WebHandler::GetContextData();
     Config *config = mServer->GetCore()->GetConfig();
 
     data["idtypes"] = nlohmann::json::array();
-    for (std::pair pair : Reflection::GetReflectedIdTypes()) {
+    Out("ContentPageHandler", "Yahe");
+    for (std::pair pair : Reflection::GetIdTypes()) {
+        Out("ContentPageHandler", "ID Type {}", pair.first);
         data["idtypes"].push_back(pair.first);
     }
 
