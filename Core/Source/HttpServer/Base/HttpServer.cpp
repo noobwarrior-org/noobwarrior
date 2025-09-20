@@ -7,13 +7,16 @@
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
 #include <NoobWarrior/HttpServer/Base/WebHandler.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
 #include <filesystem>
 #include <cassert>
+#include <sstream>
 
-#include "NoobWarrior/NoobWarrior.h"
+#include <nlohmann/json.hpp>
+#include <inja/inja.hpp>
 
 using namespace NoobWarrior::HttpServer;
 
@@ -28,15 +31,8 @@ HttpServer::HttpServer(Core *core, std::string name, std::string dirName) :
 }
 
 static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) {
-    auto arrayOfData = (void**)userdata;
-    auto handler = (Handler*)arrayOfData[0]; // handler should be the first thing passed to the void pointer array.
-
-    typedef int (Handler::*classFunc_t)(mg_connection*, void*);
-    classFunc_t classFunc = &Handler::OnRequest;
-
-    void *userdataFromArray = arrayOfData[1]; // and also any extra userdata.
-
-    return (handler->*classFunc)(conn, userdataFromArray);
+    auto pair = static_cast<std::pair<Handler*, void*>*>(userdata);
+    return pair->first->OnRequest(conn, pair->second);
 }
 
 int HttpServer::Start(uint16_t port) {
@@ -49,10 +45,10 @@ int HttpServer::Start(uint16_t port) {
     const char* configOptions[] = {"listening_ports", portStr, nullptr};
     Server = mg_start(nullptr, nullptr, configOptions);
 
-    mRootHandler = new RootHandler(this);
-    mWebHandler = new WebHandler(this);
+    mRootHandler = std::make_unique<RootHandler>(this);
+    mWebHandler = std::make_unique<WebHandler>(this);
     
-    SetRequestHandler("/", mRootHandler);
+    SetRequestHandler("/", mRootHandler.get());
 
     Out(Name, "Started server on port {}", port);
     Running = true;
@@ -65,21 +61,16 @@ int HttpServer::Stop() {
 
     mg_stop(Server);
     Server = nullptr;
-
-    NOOBWARRIOR_FREE_PTR(mWebHandler)
-    NOOBWARRIOR_FREE_PTR(mRootHandler)
-    for (void** arr : HandlerUserdata) {
-        NOOBWARRIOR_FREE_PTR(arr)
-    }
     return 1;
 }
 
 void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
-    // pass an array containing our handler object and user data so that it knows what the object is.
+    // pass a std pair containing our handler object and user data so that it knows what the object is.
     // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
-    void** userdataArray = new void*[2]{handler, userdata};
-    HandlerUserdata.push_back(userdataArray); // remember to push this to our vector array so that we know that we have to free it during cleanup
-    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, userdataArray);
+    auto handler_userdata_pair = std::make_unique<std::pair<Handler*, void*>>(handler, userdata);
+    auto *raw = handler_userdata_pair.get();
+    HandlerUserdata.push_back(std::move(handler_userdata_pair));
+    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
 }
 
 static bool IsPathEscaping(const std::filesystem::path &path) {
@@ -107,6 +98,83 @@ std::filesystem::path HttpServer::GetFilePath(std::string relativeFilePath, cons
         return std::filesystem::path();
 }
 
+RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json data, std::string *output) {
+    std::filesystem::path serverDir = Directory / DirName;
+
+    std::filesystem::path mainFilePath = GetFilePath("main.jinja", "templates");
+    std::filesystem::path filePath = GetFilePath(pageLoc, "templates");
+
+    std::string mainFileString = mainFilePath.string();
+    std::string fileString = filePath.string();
+
+    std::ifstream mainFileInput;
+    std::ifstream fileInput;
+
+    mainFileInput.open(mainFilePath);
+    fileInput.open(filePath);
+
+    if (mainFileInput.fail() || fileInput.fail()) {
+        return RenderResponse::FailedOpeningTemplateFile;
+    }
+
+    std::stringstream bodyFileBuf;
+    bodyFileBuf << fileInput.rdbuf();
+
+    std::string generatedBodyTemplate;
+    try {
+        generatedBodyTemplate = inja::render(bodyFileBuf.str(), data);
+    } catch (const inja::InjaError &e) {
+        *output = e.message;
+        return RenderResponse::FailedRenderingBody;
+    }
+    
+    // now generate the main template, and send it to client
+    std::stringstream mainFileBuf;
+    mainFileBuf << mainFileInput.rdbuf();
+
+    data["body"] = generatedBodyTemplate;
+
+    std::string generatedMainTemplate;
+    try {
+        generatedMainTemplate = inja::render(mainFileBuf.str(), data);
+    } catch (const inja::InjaError &e) {
+        *output = e.message;
+        return RenderResponse::FailedRenderingMain;
+    }
+
+    *output = generatedMainTemplate;
+
+    // cleanup
+    mainFileInput.close();
+    fileInput.close();
+    return RenderResponse::Success;
+}
+
+nlohmann::json HttpServer::GetBaseContextData() {
+    Config *config = mCore->GetConfig();
+
+    std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");
+    std::optional logo = config->GetKeyValue<std::string>("httpserver.branding.logo");
+    std::optional favicon = config->GetKeyValue<std::string>("httpserver.branding.favicon");
+
+    nlohmann::json data;
+    data["title"] = "RegularPage";
+    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
+    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
+    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
+
+    data["user"]["id"] = -1;
+    data["user"]["name"] = "Guest";
+    data["user"]["rank"] = "guest";
+    data["user"]["headshot_thumbnail"] = "";
+
+    return data;
+}
+
 bool HttpServer::IsRunning() {
     return Running;
+}
+
+NoobWarrior::Core *HttpServer::GetCore() {
+    return mCore;
 }

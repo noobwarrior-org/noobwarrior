@@ -55,6 +55,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Config.cpp
     Source/Log.cpp
     Source/Shell.cpp
+    Source/ReflectionMetadata.cpp
     Source/RccServiceManager.cpp
     Source/RobloxClient.cpp
     Source/NetClient.cpp
@@ -65,7 +66,9 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Base/TestHandler.cpp
     Source/HttpServer/Base/WebHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
+    Source/HttpServer/Emulator/LibraryPageHandler.cpp
     Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
+    Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
     Source/Roblox/DataModel/RobloxFile.cpp
     Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/DataModel/Tree/Instance.cpp

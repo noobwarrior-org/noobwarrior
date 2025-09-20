@@ -34,84 +34,37 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
 
     Config *config = mServer->mCore->GetConfig();
 
-    std::filesystem::path serverDir = mServer->Directory / mServer->DirName;
+    std::string pageOutput;
+    RenderResponse res = mServer->RenderPage(fileName, GetContextData(), &pageOutput);
 
-    std::filesystem::path mainFilePath = serverDir / "templates" / "main.jinja";
-    std::filesystem::path filePath = serverDir / "templates" / fileName;
+    std::string resMsg = "Unknown error";
+    int resCode = 500;
+    switch (res) {
+    default: break;
+    case RenderResponse::FailedOpeningTemplateFile:
+        resMsg = "Failed to open template file on server";
+        break;
+    case RenderResponse::FailedRenderingBody:
+        resMsg = "Failed to render the body of this page";
+        break;
+    case RenderResponse::FailedRenderingMain:
+        resMsg = "Failed to render the main section of this page";
+        break;
+    }
 
-    std::string mainFileString = mainFilePath.string();
-    std::string fileString = filePath.string();
-
-    std::ifstream mainFileInput;
-    std::ifstream fileInput;
-
-    mainFileInput.open(mainFilePath);
-    fileInput.open(filePath);
-
-    if (mainFileInput.fail() || fileInput.fail()) {
-        mg_send_http_error(conn, 500, "Failed to open \"%ls\". The website cannot be accessed.", mainFileInput.fail() ? mainFileString.c_str() : fileString.c_str());
+    if (res != RenderResponse::Success) {
+        mg_send_http_error(conn, resCode, res == RenderResponse::FailedRenderingMain || res == RenderResponse::FailedRenderingBody ? "%s\nJinja error message: \"%s\"" : "%s", resMsg.c_str(), pageOutput.c_str());
         return 500;
     }
 
-    if (!session_token) {
-        
-    }
+    resMsg = "OK";
+    resCode = 200;
 
-    nlohmann::json data = GetContextData();
-
-    std::stringstream bodyFileBuf;
-    bodyFileBuf << fileInput.rdbuf();
-
-    std::string generatedBodyTemplate;
-    try {
-        generatedBodyTemplate = inja::render(bodyFileBuf.str(), data);
-    } catch (const inja::InjaError &e) {
-        OutEx(&std::cerr, "HttpServer::WebHandler", "Failed to render body template \"{}\" for IP address {}\nException Message: {}", fileName, request_info->remote_addr, e.what());
-        mg_send_http_error(conn, 500, "Failed to render body template \"%s\"\nException Message: %s", fileName, e.what());
-        return 500;
-    }
-    
-    // now generate the main template, and send it to client
-    std::stringstream mainFileBuf;
-    mainFileBuf << mainFileInput.rdbuf();
-
-    data["body"] = generatedBodyTemplate;
-
-    std::string generatedMainTemplate;
-    try {
-        generatedMainTemplate = inja::render(mainFileBuf.str(), data);
-    } catch (const inja::InjaError &e) {
-        OutEx(&std::cerr, "HttpServer::WebHandler", "Failed to render body template \"{}\" for IP address {}\nException Message: {}", fileName, request_info->remote_addr, e.what());
-        mg_send_http_error(conn, 500, "Failed to render main template\nException Message: %s", e.what());
-        return 500;
-    }
-
-    mg_send_http_ok(conn, "text/html", generatedMainTemplate.length());
-	mg_write(conn, generatedMainTemplate.c_str(), generatedMainTemplate.length());
-
-    // cleanup
-    mainFileInput.close();
-    fileInput.close();
-    return 200;
+    mg_send_http_ok(conn, "text/html", pageOutput.length());
+	mg_write(conn, pageOutput.c_str(), pageOutput.length());
+    return resCode;
 }
 
 nlohmann::json WebHandler::GetContextData() {
-    Config *config = mServer->mCore->GetConfig();
-
-    std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");
-    std::optional logo = config->GetKeyValue<std::string>("httpserver.branding.logo");
-    std::optional favicon = config->GetKeyValue<std::string>("httpserver.branding.favicon");
-
-    nlohmann::json data;
-    data["title"] = "RegularPage";
-    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
-    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
-    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
-
-    data["user"]["id"] = -1;
-    data["user"]["name"] = "Guest";
-    data["user"]["rank"] = "guest";
-    data["user"]["headshot_thumbnail"] = "";
-
-    return data;
+    return mServer->GetBaseContextData();
 }

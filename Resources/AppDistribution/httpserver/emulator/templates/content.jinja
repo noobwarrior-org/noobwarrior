@@ -1,0 +1,10 @@
+<h1>Content</h1>
+{% if exists("idtypes") %}
+    <div class="sidebar">
+        {% for idtype in idtypes %}
+            <a href="./{{ idtype }}">{{ idtype }}</a>
+        {% endfor %}
+    </div>
+{% else %}
+    <h3>There are no ID types for some reason. This should not happen.</h3>
+{% endif %}

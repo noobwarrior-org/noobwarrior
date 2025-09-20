@@ -5,8 +5,8 @@
 // Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "EmulatorWebHandler.h"
 #include "Api/Roblox/AssetHandler.h"
+#include "LibraryPageHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -16,18 +16,19 @@
 
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
-    class ServerEmulator : public HttpServer {
-        friend class EmulatorWebHandler;
-    public:
-        ServerEmulator(Core *core);
-        ~ServerEmulator();
+class ServerEmulator : public HttpServer {
+    friend class LibraryPageHandler;
+public:
+    ServerEmulator(Core *core);
+    ~ServerEmulator();
 
-        int Start(uint16_t port) override;
-        int Stop() override;
-    private:
-        //////////////// Handlers ////////////////
-        EmulatorWebHandler *mWebHandler;
-        AssetHandler *mAssetHandler;
-        std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
-    };
+    int Start(uint16_t port) override;
+    int Stop() override;
+    nlohmann::json GetBaseContextData() override;
+private:
+    //////////////// Handlers ////////////////
+    std::unique_ptr<AssetHandler> mAssetHandler;
+    std::unique_ptr<LibraryPageHandler> mLibraryPageHandler;
+    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
+};
 }

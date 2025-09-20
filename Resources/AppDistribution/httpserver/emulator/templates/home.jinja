@@ -3,6 +3,7 @@
     <h2>Hello, {{ user.name }}!</h2>
 {% else %}
     <h2>You are not logged in!</h2>
+    <h3>This server requires registration.</h3>
 {% endif %}
 {% if game_view_mode == "server" %}
     {% if servers %}
