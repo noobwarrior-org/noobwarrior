@@ -14,6 +14,7 @@ struct OwnedIdRecord : IdRecord {
     std::string         Description;
     int64_t             Created;
     int64_t             Updated;
-    int64_t             Icon;
+    int64_t             ImageId;
+    int                 ImageVersion;
 };
 }
