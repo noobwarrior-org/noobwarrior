@@ -26,7 +26,6 @@
                 } \
             }; \
             NoobWarrior::Reflection::GetIdTypeNames()[std::type_index(typeid(idType))] = #idType; \
-            std::puts("Registrar ctor ran for " #idType); \
         } \
     }; \
     static idType##Registrar s##idType##RegistrarInstance;
