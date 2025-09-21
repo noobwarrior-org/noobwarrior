@@ -21,12 +21,17 @@
 
 using namespace NoobWarrior;
 
-REFLECT_ID_TYPE(Asset)
-REFLECT_ID_TYPE(Badge)
-REFLECT_ID_TYPE(Bundle)
-REFLECT_ID_TYPE(DevProduct)
-REFLECT_ID_TYPE(Group)
-REFLECT_ID_TYPE(Pass)
-REFLECT_ID_TYPE(Set)
-REFLECT_ID_TYPE(Universe)
-REFLECT_ID_TYPE(User)
+NOOBWARRIOR_REFLECT_ID_TYPE(Asset)
+NOOBWARRIOR_REFLECT_ID_TYPE(Badge)
+NOOBWARRIOR_REFLECT_ID_TYPE(Bundle)
+NOOBWARRIOR_REFLECT_ID_TYPE(DevProduct)
+NOOBWARRIOR_REFLECT_ID_TYPE(Group)
+NOOBWARRIOR_REFLECT_ID_TYPE(Pass)
+NOOBWARRIOR_REFLECT_ID_TYPE(Set)
+NOOBWARRIOR_REFLECT_ID_TYPE(Universe)
+NOOBWARRIOR_REFLECT_ID_TYPE(User)
+
+void NoobWarrior::Reflection::hi() {
+    // put this here so that this source file can be referenced outside and therefore the compiler will be forced to link it and it wont be discarded
+    // ps: this function is called in the constructor in Core.cpp
+}

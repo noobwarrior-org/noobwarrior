@@ -12,9 +12,10 @@
 
 #include <functional>
 #include <map>
+#include <string>
+#include <typeindex>
 
-#define REFLECT_ID_TYPE(idType) \
-    /* This is used as a cheap way to autorun our code */ \
+#define NOOBWARRIOR_REFLECT_ID_TYPE(idType) \
     struct idType##Registrar { \
         idType##Registrar() { \
             NoobWarrior::Reflection::GetIdTypes()[#idType] = { \
@@ -24,9 +25,11 @@
                     return idType(); \
                 } \
             }; \
+            NoobWarrior::Reflection::GetIdTypeNames()[std::type_index(typeid(idType))] = #idType; \
+            std::puts("Registrar ctor ran for " #idType); \
         } \
     }; \
-    static idType##Registrar s##idType##RegistrarInstance; \
+    static idType##Registrar s##idType##RegistrarInstance;
 
 namespace NoobWarrior::Reflection {
 struct IdType {
@@ -36,12 +39,21 @@ struct IdType {
 };
 
 inline std::map<std::string, IdType> &GetIdTypes() {
-    static std::map<std::string, IdType> m;
-    return m;
+    static std::map<std::string, IdType> IdTypeMap;
+    return IdTypeMap;
+}
+
+inline std::unordered_map<std::type_index, std::string> &GetIdTypeNames() {
+    static std::unordered_map<std::type_index, std::string> IdTypeNameMap;
+    return IdTypeNameMap;
 }
 
 template<typename T>
 std::string GetIdTypeName() {
-    return typeid(T).name();
+    auto &m = GetIdTypeNames();
+    auto it = m.find(std::type_index(typeid(T)));
+    return (it != m.end()) ? it->second : std::string {};
 }
+
+void hi();
 }

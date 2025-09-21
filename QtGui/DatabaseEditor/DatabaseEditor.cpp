@@ -10,6 +10,7 @@
 #include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/ReflectionMetadata.h>
 
 #include <QMenuBar>
 #include <QLabel>
@@ -26,7 +27,7 @@
 #include <format>
 #include <qnamespace.h>
 
-#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = IdType::TableName; \
+#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = QString::fromStdString(Reflection::GetIdTypeName<IdType>()); \
     \
     auto IdType##_InsertAction = new QAction(QIcon(iconPath), QString("Create\n%1").arg(IdType##_Str), mInsertToolBar); \
     IdType##_InsertAction->setObjectName("RequiresDatabaseButton"); \

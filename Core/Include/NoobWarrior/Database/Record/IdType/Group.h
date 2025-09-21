@@ -22,7 +22,5 @@ struct Group : OwnedIdRecord {
     int64_t                     ShoutTimestamp;
 
     bool                        EnemyDeclarationsEnabled;
-
-    static constexpr const char* TableName = "Group";
 };
 }

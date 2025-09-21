@@ -5,6 +5,7 @@
 // Description: Contains code for the main class used to utilize the noobWarrior library
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
+#include <NoobWarrior/ReflectionMetadata.h>
 
 #include <civetweb.h>
 #include <sqlite3.h>
@@ -28,6 +29,7 @@ Core::Core(Init init) :
     mPortable(mInit.Portable),
     mIndexDirty(true)
 {
+    Reflection::hi();
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
     mAuth = new Auth(mConfig);

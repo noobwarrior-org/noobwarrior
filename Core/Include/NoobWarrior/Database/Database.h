@@ -4,6 +4,7 @@
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 #pragma once
+#include <NoobWarrior/ReflectionMetadata.h>
 #include "Record/IdType/Asset.h"
 #include "Record/IdType/Badge.h"
 #include "Record/IdType/Universe.h"
@@ -135,7 +136,7 @@ namespace NoobWarrior {
         template<typename T>
         std::vector<unsigned char> RetrieveContentBlob(int64_t id, const std::string &columnName) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-            return RetrieveBlobFromTableName(id, T::TableName, columnName);
+            return RetrieveBlobFromTableName(id, Reflection::GetIdTypeName<T>(), columnName);
         }
 
         template<typename T>
@@ -144,7 +145,7 @@ namespace NoobWarrior {
             if (!mInitialized) return {};
 
             std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;",
-                                              T::TableName);
+                                              Reflection::GetIdTypeName<T>());
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -176,7 +177,7 @@ namespace NoobWarrior {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
             if (!mInitialized) return std::nullopt;
 
-            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", T::TableName, version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
+            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", Reflection::GetIdTypeName<T>(), version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -321,10 +322,10 @@ namespace NoobWarrior {
 
             std::vector<T> list;
 
-            std::string stmtStr = std::format("SELECT * FROM {} LIMIT ? OFFSET ?;", T::TableName);
+            std::string stmtStr = std::format("SELECT * FROM {} LIMIT ? OFFSET ?;", Reflection::GetIdTypeName<T>());
 
             if (std::is_same_v<T, Asset> && opt.AssetType != Roblox::AssetType::None)
-                stmtStr = std::format("SELECT * FROM {} LIMIT ? OFFSET ? WHERE Type = ?;", T::TableName);
+                stmtStr = std::format("SELECT * FROM {} LIMIT ? OFFSET ? WHERE Type = ?;", Reflection::GetIdTypeName<T>());
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -350,7 +351,7 @@ namespace NoobWarrior {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
             if (!mInitialized) return false;
 
-            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? AND Version = ?;", T::TableName);
+            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? AND Version = ?;", Reflection::GetIdTypeName<T>());
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);

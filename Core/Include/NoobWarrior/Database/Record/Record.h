@@ -13,7 +13,5 @@ struct Record {
     virtual ~Record() = default;
     int64_t             FirstRecorded;
     int64_t             LastRecorded;
-
-    static constexpr const char* TableName = "?";
 };
 }

@@ -4,6 +4,7 @@
 // Started on: 7/2/2025
 // Description: Dialog window that allows you to edit the details of a piece of content.
 #pragma once
+#include <NoobWarrior/ReflectionMetadata.h>
 #include <NoobWarrior/Database/Record/IdType/Asset.h>
 #include <NoobWarrior/Database/Record/IdType/User.h>
 #include <NoobWarrior/Database/AssetCategory.h>
@@ -39,7 +40,7 @@ public:
 
     void RegenWidgets() override {
         ContentEditorDialogBase::RegenWidgets();
-        setWindowTitle(mId.has_value() ? tr("Configure %1").arg(T::TableName) : tr("Create New %1").arg(T::TableName));
+        setWindowTitle(mId.has_value() ? tr("Configure %1").arg(Reflection::GetIdTypeName<T>()) : tr("Create New %1").arg(Reflection::GetIdTypeName<T>()));
 
         ////////////////////////////////////////////////////////////////////////
         /// icon

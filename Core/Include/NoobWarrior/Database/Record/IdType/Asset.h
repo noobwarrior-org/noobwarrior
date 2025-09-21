@@ -25,7 +25,5 @@ struct Asset : StatisticalIdRecord {
     bool                        IsNew;
     Roblox::LimitedType         LimitedType;
     int64_t                     Remaining;
-
-    static constexpr const char* TableName = "Asset";
 };
 }

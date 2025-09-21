@@ -13,7 +13,7 @@
 #include <string>
 
 namespace NoobWarrior {
-    struct User : IdRecord {
-        static constexpr const char* TableName = "User";
-    };
+struct User : IdRecord {
+    
+};
 }

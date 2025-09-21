@@ -10,7 +10,5 @@
 namespace NoobWarrior {
 struct Set : OwnedIdRecord {
     std::vector<Asset>          Items;
-
-    static constexpr const char* TableName = "Set";
 };
 }

@@ -4,6 +4,7 @@
 // Started on: 2/17/2025
 // Description: Dockable Qt widget that allows the user to explore the contents of an archive in an easily-digestible format
 #pragma once
+#include <NoobWarrior/ReflectionMetadata.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 
@@ -45,7 +46,7 @@ protected:
         mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
         mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
-        IdTypeDropdown->setCurrentText(QString::fromStdString(T::TableName));
+        IdTypeDropdown->setCurrentText(QString::fromStdString(Reflection::GetIdTypeName<T>()));
         AssetCategoryDropdown->setVisible(std::is_same_v<T, Asset>);
         AssetTypeDropdown->setVisible(std::is_same_v<T, Asset>);
 

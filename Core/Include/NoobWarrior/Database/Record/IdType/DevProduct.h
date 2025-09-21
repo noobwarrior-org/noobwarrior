@@ -10,7 +10,5 @@ namespace NoobWarrior {
 struct DevProduct : UniverseIdRecord {
     Roblox::CurrencyType        CurrencyType;
     int                         Price;
-
-    static constexpr const char* TableName = "DevProduct";
 };
 }

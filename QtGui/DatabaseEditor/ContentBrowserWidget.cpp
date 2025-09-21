@@ -10,6 +10,7 @@
 #include "DatabaseEditor.h"
 
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/ReflectionMetadata.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 
@@ -18,7 +19,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = IdType::TableName; \
+#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = QString::fromStdString(Reflection::GetIdTypeName<IdType>()); \
     IdTypeDropdown->addItem(QIcon(iconPath), IdType##_Str); \
     mRefreshFunctions.emplace_back([this]{ RefreshWithNewIdRecord<IdType>(); });
 

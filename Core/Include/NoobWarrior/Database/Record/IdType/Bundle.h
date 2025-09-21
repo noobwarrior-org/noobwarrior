@@ -27,7 +27,5 @@ struct Bundle : StatisticalIdRecord {
 
     /* This cannot be modified through AddContent(), please find another way. */
     std::vector<Asset>          Items;
-
-    static constexpr const char* TableName = "Bundle";
 };
 }

@@ -11,7 +11,5 @@ struct Pass : UniverseIdRecord {
     Roblox::CurrencyType        CurrencyType;
     int                         Price;
     bool                        IsForSale;
-
-    static constexpr const char* TableName = "Pass";
 };
 }

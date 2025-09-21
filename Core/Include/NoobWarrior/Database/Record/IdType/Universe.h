@@ -13,6 +13,6 @@
 
 namespace NoobWarrior {
 struct Universe : OwnedIdRecord {
-    static constexpr const char* TableName = "Universe";
+    
 };
 }

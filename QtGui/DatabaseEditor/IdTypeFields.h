@@ -5,10 +5,13 @@
 // Description: Fields for id types, cause you need to show what things the user can edit for this certain id.
 // And we're using a fucking language that still doesn't have reflection so everything is retarded
 #pragma once
+#include <NoobWarrior/ReflectionMetadata.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/Record/IdType/Asset.h>
 #include <NoobWarrior/Database/Record/IdType/Badge.h>
 #include <NoobWarrior/Database/Record/IdType/User.h>
+#include <NoobWarrior/Database/AssetCategory.h>
+#include <NoobWarrior/Roblox/Api/Asset.h>
 
 #include "ContentEditorDialogBase.h"
 
@@ -70,7 +73,7 @@ auto GetFields() {
             // But this new asset you are trying to make has an id that already exists in our database? You must warn them so that they dont fuck up!
             if (!parent->GetId().has_value() && parent->GetDatabase()->DoesContentExist<T>(id)) {
                 QMessageBox::StandardButton res = QMessageBox::question(parent, "Warning",
-            QString("The %1 ID you are inputting (%2) already exists in the database.\nIf you click \"Yes\", your %3 will override the previous one.").arg(T::TableName, le->text(), T::TableName),
+            QString("The %1 ID you are inputting (%2) already exists in the database.\nIf you click \"Yes\", your %3 will override the previous one.").arg(Reflection::GetIdTypeName<T>(), le->text(), Reflection::GetIdTypeName<T>()),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
                 if (res != QMessageBox::Yes) {
