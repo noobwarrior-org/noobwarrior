@@ -38,7 +38,7 @@ class HttpServer {
     friend class RootHandler;
     friend class WebHandler;
 public:
-    HttpServer(Core *core, std::string name = "HttpServer", std::string dirName = "");
+    HttpServer(Core *core, std::string logName = "HttpServer", std::string name = "");
     
     virtual int Start(uint16_t port);
     virtual int Stop();
@@ -81,11 +81,11 @@ protected:
     bool Running;
 
     // This is used in logging.
-    std::string Name;
+    std::string LogName;
 
-    // This is supposed to be the name of the folder that this specific http server's assets are located in.
-    // So if this is a server emulator, this should be the "emulator" folder and such.
-    std::string DirName;
+    // Internal name of the server itself, used for locating the folder that this specific http server's assets are located in.
+    // So if this is a server emulator, this should named "emulator" in order to find the appropriate folder.
+    std::string Name;
 
     // This is supposed to be the baseline for where all the http server folders are located.
     // In it should contain folders like "common", "emulator", "meta", etc.

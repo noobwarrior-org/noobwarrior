@@ -20,10 +20,10 @@
 
 using namespace NoobWarrior::HttpServer;
 
-HttpServer::HttpServer(Core *core, std::string name, std::string dirName) :
+HttpServer::HttpServer(Core *core, std::string logName, std::string name) :
     Running(false),
+    LogName(std::move(logName)),
     Name(std::move(name)),
-    DirName(std::move(dirName)),
     mCore(core),
     Server(nullptr)
 {
@@ -52,14 +52,14 @@ int HttpServer::Start(uint16_t port) {
     SetRequestHandler("/", mRootHandler.get());
     SetRequestHandler("/control-panel", mRootHandler.get());
 
-    Out(Name, "Started server on port {}", port);
+    Out(LogName, "Started server on port {}", port);
     Running = true;
     return 1;
 }
 
 int HttpServer::Stop() {
     Running = false;
-    Out(Name, "Stopping server...");
+    Out(LogName, "Stopping server...");
 
     mg_stop(Server);
     Server = nullptr;
@@ -86,7 +86,7 @@ std::filesystem::path HttpServer::GetFilePath(std::string relativeFilePath, cons
     while (relativeFilePath.starts_with('/'))
         relativeFilePath = relativeFilePath.substr(1);
 
-    std::filesystem::path file_path = (Directory / DirName / secondDirName / relativeFilePath);
+    std::filesystem::path file_path = (Directory / Name / secondDirName / relativeFilePath);
     std::filesystem::path file_path_common = (Directory / "common" / secondDirName / relativeFilePath);
 
     if (IsPathEscaping(file_path) || IsPathEscaping(file_path_common))
@@ -101,7 +101,7 @@ std::filesystem::path HttpServer::GetFilePath(std::string relativeFilePath, cons
 }
 
 RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json data, std::string *output) {
-    std::filesystem::path serverDir = Directory / DirName;
+    std::filesystem::path serverDir = Directory / Name;
 
     std::filesystem::path mainFilePath = GetFilePath("main.jinja", "templates");
     std::filesystem::path filePath = GetFilePath(pageLoc, "templates");
