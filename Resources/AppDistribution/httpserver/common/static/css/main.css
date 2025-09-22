@@ -12,6 +12,19 @@
     font-style: normal;
 }
 
+body {
+    margin: 0;
+    padding: 0;
+
+    background-color: #3d3f40;
+    color: #aeadac;
+    font-family: "Source Sans Pro", "Helvetica", "Arial", "Noto Sans", serif;
+}
+
+a:link {
+    
+}
+
 .navbar {
     width: 100%;
     height: 64px;
@@ -54,13 +67,34 @@
     padding-right: 16px;
 }
 
-body {
-    margin: 0;
-    padding: 0;
+.sidebar {
+    width: 100%;
+    height: 64px;
+    background-color: #292b2b;
 
-    background-color: #3d3f40;
-    color: #aeadac;
-    font-family: "Source Sans Pro", "Helvetica", "Arial", "Noto Sans", serif;
+    display: flex;
+    align-items: left;
+}
+
+.sidebar a {
+    padding-left: 16px;
+}
+
+#login {
+    border: 3px solid #f1f1f1;
+    background-color: #292b2b;
+    width: 100%;
+}
+form {
+    
+}
+
+#login input[type=text], input[type=password] {
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
 }
 
 #content {

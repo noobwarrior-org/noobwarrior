@@ -10,6 +10,7 @@
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
+using json = nlohmann::json;
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator", "emulator") {
 
@@ -58,6 +59,23 @@ nlohmann::json ServerEmulator::GetBaseContextData() {
             {"name", "My Server"}
         }
     };
+
+    json home_button = {};
+    home_button["name"] = "Home";
+    home_button["uri"] = "/home";
+
+    json content_button = {};
+    content_button["name"] = "Content";
+    content_button["uri"] = "/content";
+
+    json controlpanel_button = {};
+    controlpanel_button["name"] = "Control Panel";
+    controlpanel_button["uri"] = "/control-panel";
+
+    data["buttons"] = json::array();
+    data["buttons"].push_back(home_button);
+    data["buttons"].push_back(content_button);
+    data["buttons"].push_back(controlpanel_button);
 
     return data;
 }

@@ -7,6 +7,7 @@
 #include "Handler.h"
 #include "WebHandler.h"
 #include "RootHandler.h"
+#include "ControlPanelHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -98,6 +99,7 @@ protected:
     //////////////// Handlers ////////////////
     std::unique_ptr<RootHandler> mRootHandler;
     std::unique_ptr<WebHandler> mWebHandler;
+    std::unique_ptr<ControlPanelHandler> mControlPanelHandler;
 
     std::vector<std::unique_ptr<std::pair<Handler*, void*>>> HandlerUserdata;
 };

@@ -13,6 +13,9 @@
 	<body>
 	    <div class="navbar">
 	        <img src="{{ branding.logo }}" alt="Logo" width="48" height="48"><p>{{ branding.title }}</p>
+			{% for button in buttons %}
+				<a href="{{ button.uri }}">{{ button.name }}</a>
+			{% endfor %}
 	    </div>
 		<div id="content">
 		    {% if exists("banner") %}
