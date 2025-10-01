@@ -50,7 +50,7 @@ int HttpServer::Start(uint16_t port) {
     mControlPanelHandler = std::make_unique<ControlPanelHandler>(this);
     
     SetRequestHandler("/", mRootHandler.get());
-    SetRequestHandler("/control-panel", mRootHandler.get());
+    SetRequestHandler("/control-panel", mControlPanelHandler.get());
 
     Out(LogName, "Started server on port {}", port);
     Running = true;

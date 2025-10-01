@@ -38,6 +38,8 @@ Core::Core(Init init) :
     sqlite3_initialize();
     mg_init_library(0);
 
+    mDatabaseManager.AutocreateMasterDatabase();
+
     if (mInit.EnableKeychain)
         GetAuth()->ReadFromKeychain();
 }

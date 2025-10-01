@@ -5,6 +5,8 @@
 // Description: Loads in multiple databases with different priorities over one another.
 // This is used in situations where you want to have multiple databases loaded at the same time for different reasons,
 // but these databases may have conflicting IDs in them. In this case, a system to manage priority is required.
+//
+// This also handles authentication, but will outsource it to a master server if set.
 #include <NoobWarrior/Database/DatabaseManager.h>
 #include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/Config.h>
@@ -13,18 +15,26 @@
 
 using namespace NoobWarrior;
 
+DatabaseResponse DatabaseManager::AutocreateMasterDatabase() {
+    if (GetMasterDatabase() != nullptr)
+        return DatabaseResponse::Success;
+
+}
+
 DatabaseResponse DatabaseManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
     auto *database = new Database();
     DatabaseResponse res = database->Open(filePath.string());
     if (res != DatabaseResponse::Success) return res;
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
-    // gConfig.MountedArchives.push_back(database->GetFilePath());
     return DatabaseResponse::Success;
 }
 
 void DatabaseManager::Mount(Database *database, unsigned int priority) {
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
-    // gConfig.MountedArchives.push_back(database->GetFilePath());
+}
+
+Database *DatabaseManager::GetMasterDatabase() {
+    return MountedDatabases.size() > 0 ? MountedDatabases.at(0) : nullptr;
 }
 
 std::vector<unsigned char> DatabaseManager::RetrieveAssetData(int64_t id) {

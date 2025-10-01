@@ -13,9 +13,13 @@
 namespace NoobWarrior {
 class DatabaseManager {
 public:
+    DatabaseResponse AutocreateMasterDatabase();
+
     DatabaseResponse Mount(const std::filesystem::path &filePath, unsigned int priority);
     void Mount(Database *database, unsigned int priority);
     int Unmount(Database *database);
+
+    Database *GetMasterDatabase();
 
     std::vector<unsigned char> RetrieveAssetData(int64_t id);
 

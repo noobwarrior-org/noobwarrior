@@ -66,11 +66,15 @@ nlohmann::json ServerEmulator::GetBaseContextData() {
 
     json content_button = {};
     content_button["name"] = "Content";
-    content_button["uri"] = "/content";
+    content_button["uri"] = "/develop";
 
     json controlpanel_button = {};
     controlpanel_button["name"] = "Control Panel";
     controlpanel_button["uri"] = "/control-panel";
+
+    json controlpanel_account = {};
+    controlpanel_account["name"] = "Log In";
+    controlpanel_account["uri"] = "/login";
 
     data["buttons"] = json::array();
     data["buttons"].push_back(home_button);
