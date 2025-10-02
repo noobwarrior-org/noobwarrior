@@ -75,17 +75,90 @@ a:link {
     align-items: center;
 }
 
-.sidebar {
-    width: 100%;
-    height: 64px;
-    background-color: #292b2b;
-
+.sidebar-container {
     display: flex;
+    width: 100%;
+}
+
+.sidebar {
+    width: 250px;
+    background-color: #292b2b;
+    display: flex;
+    flex-direction: column;
     align-items: left;
+    overflow: auto;
+}
+
+.sidebar * {
+    padding: 8px;
+    display: block;
+}
+
+.sidebar hr {
+    border: none;
+    height: 1px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: #202020;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: normal;
+}
+
+.sidebar h1, .sidebar h2, .sidebar h3, .sidebar h4, .sidebar h5, .sidebar h6 {
+    margin-top: 4px;
+    margin-bottom: 4px;
 }
 
 .sidebar a {
-    padding-left: 16px;
+    text-decoration: none;
+    color: #aeadac;
+}
+
+.sidebar a.active {
+    background-color: lightgray;
+    color: darkslategray;
+}
+
+.sidebar a:hover:not(.active) {
+    background-color: #555;
+    color: white
+}
+
+.sidebar-content {
+    flex-grow: 1;
+    padding: 20px;
+}
+
+.tabs {
+    overflow: hidden;
+    border: 1px solid #202020;
+    background-color: #292b2b;
+}
+
+.tabs a {
+    background-color: inherit;
+    color: #aeadac;
+    float: left;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    padding: 16px 8px;
+}
+
+.tabs a:visited {
+    color: #aeadac;
+}
+
+.tabs a:hover {
+  background-color: #555;
+  color: white;
+}
+
+.tabs a:active {
+  background-color: lightgray;
+  color: darkslategray;
 }
 
 #login {
@@ -93,6 +166,7 @@ a:link {
     background-color: #292b2b;
     width: 100%;
 }
+
 form {
     
 }
@@ -106,6 +180,7 @@ form {
 }
 
 #content {
-    margin: 8px;
-    padding: 8px;
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 0.5em;
 }

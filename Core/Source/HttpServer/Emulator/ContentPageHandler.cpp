@@ -29,5 +29,9 @@ nlohmann::json ContentPageHandler::GetContextData() {
         data["idtypes"].push_back(pair.first);
     }
 
+    data["currentpage"] = 1;
+    data["totalpages"] = 1;
+    data["idtype"] = "Asset";
+
     return data;
 }
