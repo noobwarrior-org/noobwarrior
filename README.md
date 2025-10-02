@@ -2,24 +2,33 @@
 noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for the Roblox community, serving players, developers, content creators, and archivists.
 
 You can:
-- Back up and preserve your own games, accessories & models so that they won't be crippled by Roblox updates
+- Back up and preserve your own games, accessories & models so that you have a frozen state of your game that can't be crippled by Roblox updates or moderation
+    - It backs up EVERYTHING. Place files (and all of their contained assets,) thumbnails, badges, gamepasses, game description, visit count, like/dislikes, whatever you can name.
+    - It compiles all of this data into an archive database where it can be easily retrieved using the built in archive editor.
+    - Provides a built-in feature to convert archives into human-readable folders.
+    - Provides a built-in feature to upload it to the Internet Archive so that other people can enjoy it
+    - If you do not have edit access to the game you are trying to backup, it will not back up the place files and the assets within them, but it will still try to save all other publically available content.
+    - You can also use local place files outside of the Roblox website and it'll try to download the assets and import it as an archive.
     - You can also upload your games (containing all assets & full game functionality) to other websites, so that other people can download your stuff and host it on their servers.
     - And you can play it offline, or with friends!
     - And you'll be able to play them even while Roblox is down, or when it ceases to exist.
     - The forced privatization of audios and removal of unrated experiences comes to mind...
+- Access Studio without an internet connection by mimicking the Roblox servers
 - Run your own servers and participate in server lists, reminicisent of the now-forgotten decentralized nature of the Internet
 - Create mods for existing games using the database & plugins system, and share them with others
 - Freely upload your own assets without an AI moderator deleting your entire account over a false positive
 - Play any version of Roblox, in case a game you want to play is broken on newer versions, or if you just want nostalgia
 - Easily participate in communities that encourage hobbyist creativity instead of for-profit creations that exploit children
 - Create your own "revivals" by tinkering the settings of the server emulator to function like a Roblox website clone
+- View the tree of models and place files and write to them without having to open Studio
+- Download and save any asset(s) you want, guaranteed you have viewing permissions to the specified assets in question (although you could easily just do this without having to install this program)
 
 May I say more?
 
 ## Manifesto
 Roblox has had a history of imposing certain features or updates on their website that have severely crippled the state of many games, most of them abandoned. The forced privatization of audios and the removal of unrated experiences comes to mind. A single company cannot just take away the only copy of a beloved game and say, "oh, you can't play this anymore." You'd say that's bullshit. Of course it is. So why not try to prevent that from happening?
 
-I started realizing that no one in the community was actually taking measures to have any sort of failsafes in place for when these sorts of things happen. You complain and pray, but a solution is never thought of. So I took it upon myself to actually do something about it because it was frustrating me.
+I started noticing that no one in the community was actually taking measures to have any sort of failsafes in place for when these sorts of things happen. You complain and pray, but a solution is never thought of. So I took it upon myself to actually do something about it because it was frustrating me.
 
 noobWarrior tries to address all of these problems by not relying on any sort of online Roblox infrastracture as much as possible. It aims to be decentralized by delegating many of its online capabilities to separated services that either you yourself or other volunteers are able to maintain, without putting all of those features to the power of a mega-corporation.
 
@@ -85,22 +94,6 @@ Allows you to use Roblox Studio entirely offline by mimicking the Roblox servers
 Allows you to play Roblox games entirely offline using the data that is provided by your saved archives.
 
 Note that only certain builds of Roblox can be used for this feature, as the required server software for most versions is not publically available, plus the addition of the Hyperion anti-cheat in 2023-now.
-
-## Examples
-- Backup your own Roblox games and all of the assets they use so that you have a frozen state of your game
-    - It backs up EVERYTHING. Place files (and all of their contained assets,) thumbnails, badges, gamepasses, game description, visit count, like/dislikes, whatever you can name.
-    - It compiles all of this data into an archive database where it can be easily retrieved using the built in archive editor.
-    - Provides a built-in feature to convert archives into human-readable folders.
-    - Provides a built-in feature to upload it to the Internet Archive so that other people can enjoy it
-    - If you do not have edit access to the game you are trying to backup, it will not back up the place files and the assets within them, but it will still try to save all other publically available content.
-    - You can also use local place files outside of the Roblox website and it'll try to download the assets and import it as an archive.
-- Lets you access Studio without an internet connection by mimicking the Roblox servers
-- Lets you play an older offline build of Roblox without an internet connection by mimicking the Roblox servers
-    - This lets you play your archives, as it will redirect all assets to your backed up local versions of them. Even gamepasses and badges will be functional, since all of the data has been backed up.
-    - This uses an older version of Roblox from 2021 since newer versions have anti-cheat (Hyperion) and they cannot be modified as easily.
-        - I have no idea how to approach this, but right now it's not really a problem.
-- Lets you view the tree of models and place files and write to them without having to open Studio
-- Lets you download and save any asset(s) you want, guaranteed you have viewing permissions to the specified assets in question (although you could easily just do this without having to install this program)
 
 ## Frequently Asked Questions
 ### Are there any current issues with this program?
