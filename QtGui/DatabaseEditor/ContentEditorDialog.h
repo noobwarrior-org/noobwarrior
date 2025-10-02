@@ -40,7 +40,7 @@ public:
 
     void RegenWidgets() override {
         ContentEditorDialogBase::RegenWidgets();
-        setWindowTitle(mId.has_value() ? tr("Configure %1").arg(Reflection::GetIdTypeName<T>()) : tr("Create New %1").arg(Reflection::GetIdTypeName<T>()));
+        setWindowTitle(mId.has_value() ? tr("Configure %1").arg(QString::fromStdString(Reflection::GetIdTypeName<T>())) : tr("Create New %1").arg(QString::fromStdString(Reflection::GetIdTypeName<T>())));
 
         ////////////////////////////////////////////////////////////////////////
         /// icon

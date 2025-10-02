@@ -73,7 +73,7 @@ auto GetFields() {
             // But this new asset you are trying to make has an id that already exists in our database? You must warn them so that they dont fuck up!
             if (!parent->GetId().has_value() && parent->GetDatabase()->DoesContentExist<T>(id)) {
                 QMessageBox::StandardButton res = QMessageBox::question(parent, "Warning",
-            QString("The %1 ID you are inputting (%2) already exists in the database.\nIf you click \"Yes\", your %3 will override the previous one.").arg(Reflection::GetIdTypeName<T>(), le->text(), Reflection::GetIdTypeName<T>()),
+            QString("The %1 ID you are inputting (%2) already exists in the database.\nIf you click \"Yes\", your %3 will override the previous one.").arg(QString::fromStdString(Reflection::GetIdTypeName<T>()), le->text(), QString::fromStdString(Reflection::GetIdTypeName<T>())),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
                 if (res != QMessageBox::Yes) {

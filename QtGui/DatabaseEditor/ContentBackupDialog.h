@@ -11,7 +11,7 @@ template<class T>
 class ContentBackupDialog : public QDialog {
 public:
     ContentBackupDialog(QWidget *parent = nullptr) : QDialog(parent) {
-        setWindowTitle(tr("Backup %1").arg(Reflection::GetIdTypeName<T>()));
+        setWindowTitle(tr("Backup %1").arg(QString::fromStdString(Reflection::GetIdTypeName<T>())));
     }
 };
 }
