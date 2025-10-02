@@ -12,6 +12,7 @@ You can:
 - Freely upload your own assets without an AI moderator deleting your entire account over a false positive
 - Play any version of Roblox, in case a game you want to play is broken on newer versions, or if you just want nostalgia
 - Easily participate in communities that encourage hobbyist creativity instead of for-profit creations that exploit children
+- Create your own "revivals" by tinkering the settings of the server emulator to function like a Roblox website clone
 
 May I say more?
 
