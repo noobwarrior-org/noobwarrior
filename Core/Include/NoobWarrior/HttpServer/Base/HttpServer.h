@@ -72,9 +72,10 @@ public:
      * render a blank page containing the website topbar without erroring.
      * Ideally, handlers should use their own method called GetContextData() which initially calls this.
      * 
+     * @param conn An opaque handle representing a CivetWeb connection to a client. This can be nullable.
      * @return Returns a JSON object
      */
-    virtual nlohmann::json GetBaseContextData();
+    virtual nlohmann::json GetBaseContextData(mg_connection *conn = nullptr);
 
     Core *GetCore();
 protected:

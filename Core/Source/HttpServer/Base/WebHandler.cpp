@@ -65,6 +65,6 @@ int WebHandler::OnRequest(mg_connection *conn, void *userdata) {
     return resCode;
 }
 
-nlohmann::json WebHandler::GetContextData() {
-    return mServer->GetBaseContextData();
+nlohmann::json WebHandler::GetContextData(mg_connection *conn) {
+    return mServer->GetBaseContextData(conn);
 }

@@ -16,7 +16,7 @@ class WebHandler : public Handler {
 public:
     WebHandler(HttpServer *server);
     int OnRequest(mg_connection *conn, void *userdata) override;
-    virtual nlohmann::json GetContextData();
+    virtual nlohmann::json GetContextData(mg_connection *conn = nullptr);
 protected:
     HttpServer *mServer;
 };

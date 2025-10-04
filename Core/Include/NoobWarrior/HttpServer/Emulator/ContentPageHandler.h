@@ -12,6 +12,6 @@ class ContentPageHandler : public WebHandler {
 public:
     ContentPageHandler(ServerEmulator *server);
 protected:
-    nlohmann::json GetContextData() override;
+    nlohmann::json GetContextData(mg_connection *conn = nullptr) override;
 };
 }

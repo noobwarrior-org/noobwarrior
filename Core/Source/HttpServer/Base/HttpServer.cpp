@@ -152,7 +152,7 @@ RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json
     return RenderResponse::Success;
 }
 
-nlohmann::json HttpServer::GetBaseContextData() {
+nlohmann::json HttpServer::GetBaseContextData(mg_connection *conn) {
     Config *config = mCore->GetConfig();
 
     std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");

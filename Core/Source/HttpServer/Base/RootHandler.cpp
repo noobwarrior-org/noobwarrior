@@ -29,7 +29,7 @@ int RootHandler::OnRequest(mg_connection *conn, void *userdata) {
         // Page should either be a 404 if the user intentionally tried to load in a non-empty URL that doesnt exist
         // But if its just the root point and nothing more, follow standard convention and load the home page.
         pageName = *request_info->local_uri == '/' && *(request_info->local_uri + 1) == '\0' ? "home.jinja" : "not_found.jinja";
-        RenderResponse res = mServer->RenderPage(pageName, mServer->GetBaseContextData(), &pageOutput);
+        RenderResponse res = mServer->RenderPage(pageName, mServer->GetBaseContextData(conn), &pageOutput);
 
         if (res != RenderResponse::Success) {
             mg_send_http_error(conn, 500, "Failed to render page");

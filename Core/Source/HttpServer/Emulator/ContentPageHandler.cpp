@@ -18,7 +18,7 @@ ContentPageHandler::ContentPageHandler(ServerEmulator *server) : WebHandler(serv
     
 }
 
-nlohmann::json ContentPageHandler::GetContextData() {
+nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     auto data = WebHandler::GetContextData();
     Config *config = mServer->GetCore()->GetConfig();
 

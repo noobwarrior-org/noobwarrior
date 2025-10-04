@@ -24,7 +24,7 @@ public:
 
     int Start(uint16_t port) override;
     int Stop() override;
-    nlohmann::json GetBaseContextData() override;
+    nlohmann::json GetBaseContextData(mg_connection *conn = nullptr) override;
 private:
     //////////////// Handlers ////////////////
     std::unique_ptr<AssetHandler> mAssetHandler;

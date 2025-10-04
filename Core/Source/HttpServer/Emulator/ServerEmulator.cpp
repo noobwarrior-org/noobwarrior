@@ -40,8 +40,8 @@ int ServerEmulator::Stop() {
     return HttpServer::Stop();
 }
 
-nlohmann::json ServerEmulator::GetBaseContextData() {
-    auto data = HttpServer::GetBaseContextData();
+nlohmann::json ServerEmulator::GetBaseContextData(mg_connection *conn) {
+    auto data = HttpServer::GetBaseContextData(conn);
     Config *config = mCore->GetConfig();
 
     std::optional game_view_mode = config->GetKeyValue<std::string>("httpserver.game_view_mode");
@@ -72,14 +72,25 @@ nlohmann::json ServerEmulator::GetBaseContextData() {
     controlpanel_button["name"] = "Control Panel";
     controlpanel_button["uri"] = "/control-panel";
 
-    json controlpanel_account = {};
-    controlpanel_account["name"] = "Log In";
-    controlpanel_account["uri"] = "/login";
+    json account_button = {};
+    account_button["name"] = "Log In";
+    account_button["uri"] = "/login";
+
+    if (conn != nullptr) {
+        const mg_request_info *request_info = mg_get_request_info(conn);
+        const char* cookie_header = mg_get_header(conn, "Cookie");
+        char session_token[1024];
+        if (cookie_header) {
+            mg_get_cookie(cookie_header, ".LOGINSESSION", session_token, sizeof(session_token));
+            
+        }
+    }
 
     data["buttons"] = json::array();
     data["buttons"].push_back(home_button);
     data["buttons"].push_back(content_button);
     data["buttons"].push_back(controlpanel_button);
+    data["buttons"].push_back(account_button);
 
     return data;
 }
