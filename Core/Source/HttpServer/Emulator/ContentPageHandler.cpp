@@ -23,11 +23,8 @@ nlohmann::json ContentPageHandler::GetContextData() {
     Config *config = mServer->GetCore()->GetConfig();
 
     data["idtypes"] = nlohmann::json::array();
-    Out("ContentPageHandler", "Yahe");
-    for (std::pair pair : Reflection::GetIdTypes()) {
-        Out("ContentPageHandler", "ID Type {}", pair.first);
+    for (std::pair pair : Reflection::GetIdTypes())
         data["idtypes"].push_back(pair.first);
-    }
 
     data["currentpage"] = 1;
     data["totalpages"] = 1;
