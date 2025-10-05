@@ -37,6 +37,11 @@ Database *DatabaseManager::GetMasterDatabase() {
     return MountedDatabases.size() > 0 ? MountedDatabases.at(0) : nullptr;
 }
 
+bool DatabaseManager::GetUserFromToken(User *user, const std::string &token) {
+    *user = User {};
+    return true;
+}
+
 std::vector<unsigned char> DatabaseManager::RetrieveAssetData(int64_t id) {
     for (int i = 0; i < MountedDatabases.size(); i++) {
         Database *database = MountedDatabases[i];

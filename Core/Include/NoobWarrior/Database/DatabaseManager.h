@@ -6,6 +6,7 @@
 #pragma once
 
 #include <NoobWarrior/Database/Database.h>
+#include <NoobWarrior/Database/Record/IdType/User.h>
 
 #include <filesystem>
 #include <vector>
@@ -20,6 +21,8 @@ public:
     int Unmount(Database *database);
 
     Database *GetMasterDatabase();
+
+    bool GetUserFromToken(User *user, const std::string &token);
 
     std::vector<unsigned char> RetrieveAssetData(int64_t id);
 

@@ -31,6 +31,7 @@ int ServerEmulator::Start(uint16_t port) {
     SetRequestHandler("/develop", mContentPageHandler.get(), (void*)"content.jinja");
     
     NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/login", "login.jinja")
+    NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/register", "register.jinja")
     NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/home", "home.jinja")
 finish:
     return res;
@@ -81,8 +82,16 @@ nlohmann::json ServerEmulator::GetBaseContextData(mg_connection *conn) {
         const char* cookie_header = mg_get_header(conn, "Cookie");
         char session_token[1024];
         if (cookie_header) {
-            mg_get_cookie(cookie_header, ".LOGINSESSION", session_token, sizeof(session_token));
-            
+            int res = mg_get_cookie(cookie_header, ".LOGINSESSION", session_token, sizeof(session_token));
+            if (res > 0) {
+                User user;
+                bool success = mCore->GetDatabaseManager()->GetUserFromToken(&user, session_token);
+
+                if (success) {
+                    account_button["name"] = user.Name;
+                    account_button["uri"] = "/users/" + std::to_string(user.Id) + "/profile";
+                }
+            }
         }
     }
 
