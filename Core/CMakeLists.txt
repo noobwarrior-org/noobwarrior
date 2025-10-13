@@ -9,8 +9,8 @@ CPMAddPackage(
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
 )
 CPMAddPackage(
-    URI "gh:nih-at/libzip#542fc1c"
-    OPTIONS "BUILD_SHARED_LIBS OFF ENABLE_ZSTD OFF"
+    URI "gh:nih-at/libzip#e16526d"
+    OPTIONS "BUILD_SHARED_LIBS OFF" "LIBZIP_DO_INSTALL OFF" "ENABLE_ZSTD OFF"
 )
 CPMAddPackage(
     URI "gh:hrantzsch/keychain#8846e78"

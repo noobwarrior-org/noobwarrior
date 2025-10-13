@@ -81,6 +81,8 @@ struct BackupArgs {
     std::vector<std::pair<int64_t, int64_t>>    IdAndVersion {};
 };
 
+std::string WideCharToUTF8(wchar_t* wc);
+
 class Core {
 public:
     Core(Init init = {});

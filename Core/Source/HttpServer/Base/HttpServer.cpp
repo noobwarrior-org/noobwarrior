@@ -75,7 +75,8 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
     mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
 }
 
-static bool IsPathEscaping(const std::filesystem::path &path) {
+static bool IsPathInvalidOrEscaping(const std::filesystem::path &path) {
+    if (!std::filesystem::exists(path)) return false;
     return std::filesystem::weakly_canonical(path).string().compare(path.string()) != 0;
 }
 
@@ -86,18 +87,28 @@ std::filesystem::path HttpServer::GetFilePath(std::string relativeFilePath, cons
     while (relativeFilePath.starts_with('/'))
         relativeFilePath = relativeFilePath.substr(1);
 
-    std::filesystem::path file_path = (Directory / Name / secondDirName / relativeFilePath);
-    std::filesystem::path file_path_common = (Directory / "common" / secondDirName / relativeFilePath);
+#if defined(_WIN32)
+    // replace all forward slashes with backwards ones since windows is a steaming pile of shit
+    for (auto it = relativeFilePath.begin(); it != relativeFilePath.end(); ++it) {
+        if (*it == '/')
+            *it = '\\';
+    }
+#endif
 
-    if (IsPathEscaping(file_path) || IsPathEscaping(file_path_common))
-        return std::filesystem::path(); // return nothing for safety reasons
+    std::filesystem::path dir = (Directory / Name / secondDirName);
+    std::filesystem::path common_dir = (Directory / "common" / secondDirName);
+
+    std::filesystem::path file_path = dir / relativeFilePath;
+    std::filesystem::path file_path_common = common_dir / relativeFilePath;
+
+    if (IsPathInvalidOrEscaping(file_path) || IsPathInvalidOrEscaping(file_path_common))
+        return {}; // return nothing for safety reasons
 
     if (!std::filesystem::exists(file_path) && std::filesystem::exists(file_path_common))
         return file_path_common;
     else if (std::filesystem::exists(file_path))
         return file_path;
-    else
-        return std::filesystem::path();
+    return {};
 }
 
 RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json data, std::string *output) {

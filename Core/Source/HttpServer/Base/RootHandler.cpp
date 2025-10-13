@@ -3,6 +3,7 @@
 // Started by: Hattozo
 // Started on: 9/13/2025
 // Description:
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 
@@ -40,6 +41,10 @@ int RootHandler::OnRequest(mg_connection *conn, void *userdata) {
 	    mg_write(conn, pageOutput.c_str(), pageOutput.length());
         return 404;
     }
+#if !defined(_WIN32)
     mg_send_mime_file(conn, file_path.c_str(), nullptr);
+#else
+    mg_send_mime_file(conn, WideCharToUTF8(const_cast<wchar_t*>(file_path.c_str())).c_str(), nullptr);
+#endif
     return 200;
 }

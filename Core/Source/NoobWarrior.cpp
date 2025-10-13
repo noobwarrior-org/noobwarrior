@@ -215,3 +215,23 @@ std::string Core::GetIndexMessage() {
         return index["Message"].get<std::string>();
     return "";
 }
+
+std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {
+#if defined(_WIN32)
+    std::vector<char> buf;
+    while (*wc != '\0') {
+        int utf8_len = WideCharToMultiByte(CP_UTF8, 0, wc, 1, NULL, 0, NULL, NULL);
+        if (utf8_len == 0) {
+            wc++;
+            continue;
+        }
+        std::vector<char> utf8_buffer(utf8_len);
+        WideCharToMultiByte(CP_UTF8, 0, wc, 1, utf8_buffer.data(), utf8_len, NULL, NULL);
+        buf.insert(buf.end(), utf8_buffer.begin(), utf8_buffer.end());
+        wc++;
+    }
+    return std::string(buf.begin(), buf.end());
+#else
+    return "";
+#endif
+}

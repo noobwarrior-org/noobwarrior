@@ -18,7 +18,7 @@ using namespace NoobWarrior;
 DatabaseResponse DatabaseManager::AutocreateMasterDatabase() {
     if (GetMasterDatabase() != nullptr)
         return DatabaseResponse::Success;
-
+    return DatabaseResponse::Success;
 }
 
 DatabaseResponse DatabaseManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
