@@ -1,7 +1,5 @@
 # noobWarrior
-noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for anyone who has to frequently work with Roblox, serving players, developers, content creators, archivists, the employees who work there, basically everyone.
-
-If you make games on Roblox, or even just play it without ever making anything on the site, there is a chance that you'll benefit one way or another from this project.
+noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for anyone who has to frequently work with Roblox. This includes the players, developers, content creators, archivists, the employees who work there, basically anyone; if you make games on Roblox, or even just play it without ever making anything on the site, there is a chance that you'll benefit one way or another from this project.
 
 You can:
 - Visit games without having any fears that they will eventually be broken in one way or another because of a change made by Roblox
