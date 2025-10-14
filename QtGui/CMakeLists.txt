@@ -22,7 +22,7 @@ set(SOURCES
     DatabaseEditor/OverviewWidget.cpp
     DatabaseEditor/ContentEditorDialogBase.cpp
     DatabaseEditor/ContentBrowserWidget.cpp
-    DatabaseEditor/OrganizerWidget.cpp
+    DatabaseEditor/FileManagerWidget.cpp
     DatabaseEditor/PreviewItemWidget.cpp
     DatabaseEditor/PreviewWidget.cpp
     Ui/Launcher.ui

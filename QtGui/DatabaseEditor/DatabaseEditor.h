@@ -9,7 +9,7 @@
 
 #include "BackgroundTask.h"
 #include "OverviewWidget.h"
-#include "OrganizerWidget.h"
+#include "FileManagerWidget.h"
 
 #include <QMainWindow>
 #include <QMenu>
@@ -74,7 +74,7 @@ namespace NoobWarrior {
 
         //////////////////// Dockable Widgets ////////////////////
         ContentBrowserWidget *mContentBrowser;
-        OrganizerWidget *mOrganizer;
+        FileManagerWidget *mFileManager;
 
         Database *mCurrentDatabase;
 

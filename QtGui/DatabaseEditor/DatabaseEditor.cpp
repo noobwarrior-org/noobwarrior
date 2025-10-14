@@ -44,6 +44,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mCurrentDatabase(nullptr),
     mOverviewWidget(nullptr),
     mContentBrowser(nullptr),
+    mFileManager(nullptr),
     mBackgroundTasksStatusBarWidget(nullptr)
 {
     setWindowTitle("Database Editor - noobWarrior");
@@ -376,7 +377,7 @@ void DatabaseEditor::InitWidgets() {
     mContentBrowser->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mContentBrowser);
 
-    mOrganizer = new OrganizerWidget(this);
-    mOrganizer->setAllowedAreas(Qt::AllDockWidgetAreas);
-    addDockWidget(Qt::LeftDockWidgetArea, mOrganizer);
+    mFileManager = new FileManagerWidget(this);
+    mFileManager->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::LeftDockWidgetArea, mFileManager);
 }
