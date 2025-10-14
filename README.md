@@ -1,7 +1,10 @@
 # noobWarrior
-noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for the Roblox community, serving players, developers, content creators, and archivists.
+noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for anyone who has to frequently work with it, serving players, developers, content creators, archivists, the employees who work there, basically everyone.
+
+If you make games on Roblox, or even just play it without ever making anything on the site, there is a chance that you'll benefit one way or another from this project.
 
 You can:
+- Visit games without having any fears that they will eventually be broken in one way or another because of a change made by Roblox
 - Back up and preserve your own games, accessories & models so that you have a frozen state of your game that can't be crippled by Roblox updates or moderation
     - It backs up EVERYTHING. Place files (and all of their contained assets,) thumbnails, badges, gamepasses, game description, visit count, like/dislikes, whatever you can name.
     - It compiles all of this data into an archive database where it can be easily retrieved using the built in archive editor.
@@ -13,34 +16,20 @@ You can:
     - And you can play it offline, or with friends!
     - And you'll be able to play them even while Roblox is down, or when it ceases to exist.
     - The forced privatization of audios and removal of unrated experiences comes to mind...
+- Play any version of Roblox before 2021, in case a game you want to play is broken on newer versions, or if you just want nostalgia
+- Freely upload your own assets without an AI moderator deleting your entire account over a false positive
 - Access Studio without an internet connection by mimicking the Roblox servers
+- View the tree of models and place files and write to them without having to open Studio
+- Download and save any asset(s) you want, guaranteed you have viewing permissions to the specified assets in question
 - Run your own servers and participate in server lists, reminicisent of the now-forgotten decentralized nature of the Internet
 - Create mods for existing games using the database & plugins system, and share them with others
-- Freely upload your own assets without an AI moderator deleting your entire account over a false positive
-- Play any version of Roblox, in case a game you want to play is broken on newer versions, or if you just want nostalgia
+- Administer servers at ease using a web-based interface
 - Easily participate in communities that encourage hobbyist creativity instead of for-profit creations that exploit children
+- Re-enable previously removed features as they have been re-implemented for experimental purposes
+    - Sets, tickets, group walls, comments on games, profile status, etc.
 - Create your own "revivals" by tinkering the settings of the server emulator to function like a Roblox website clone
-- View the tree of models and place files and write to them without having to open Studio
-- Download and save any asset(s) you want, guaranteed you have viewing permissions to the specified assets in question (although you could easily just do this without having to install this program)
 
 May I say more?
-
-## Manifesto
-Roblox has had a history of imposing certain features or updates on their website that have severely crippled the state of many games, most of them abandoned. The forced privatization of audios and the removal of unrated experiences comes to mind. A single company cannot just take away the only copy of a beloved game and say, "oh, you can't play this anymore." You'd say that's bullshit. Of course it is. So why not try to prevent that from happening?
-
-I started noticing that no one in the community was actually taking measures to have any sort of failsafes in place for when these sorts of things happen. You complain and pray, but a solution is never thought of. So I took it upon myself to actually do something about it because it was frustrating me.
-
-noobWarrior tries to address all of these problems by not relying on any sort of online Roblox infrastracture as much as possible. It aims to be decentralized by delegating many of its online capabilities to separated services that either you or other volunteers are able to maintain, without putting all of those features to the power of a mega-corporation.
-
-For example, a typical Roblox game has all of its places, images, and audios hosted on the Roblox website, with that being the only source of data. Once that is gone, it's very hard to get it back, especially because retrieving the IDs and files for these assets is getting harder than ever. No one was able to back it up because they couldn't; it was all streamed online and cached to random files on their disk, and later deleted in order to save space. With noobWarrior, it's being done the right way like God intended. You share copies of your games to your friends by distributing the files, others host servers using those copies, those other people find it interesting and share it to more people. Now you have thousands of copies in circulation that otherwise would've never seen the light of day had it been on Roblox. Sound familiar? Because that's literally how the Internet works. You might as well work with a system instead of going against it. noobWarrior tries to make Roblox work like this.
-
-And then we get into the general problem of Big Tech. You can apply what's happening with Roblox to pretty much all of the big websites. YouTube, Reddit, Discord, Facebook, Twitter (not X,) whatever. No one likes getting their account deleted and deplatformed because a faulty algorithm decided that would be the correct punishment for doing something that it thought you did wrong. These websites are just way too large to be moderated by actual people, not robots. Roblox is no exception; do you seriously think there are human workers manually checking the hundreds of assets that are uploaded every single second? Exactly, no. Everything goes through a process of complicated algorithms that checks how loud your audio is, if it can read the text on an image, if it somehow finds your audio in a content ID database, whatever. How about the chat logs? Human moderators cannot be doing all of that for trillions of messages, sent by hundreds of millions of active users, in hundreds of thousands of games. It's just not possible.
-
-Well, once upon a time, you'd be banned from a small forum, or a community game server, because the human moderators thought you were being an ass. And then you would just move onto a different server that respected you. That's what decentralization and delegation of authority gives you. There wasn't a big website owning a million servers like it is now. noobWarrior aims to go back to the old ways and have people self-govern their own servers.
-
-I hope you can see where I'm going by saying this.
-
-"A computer can never be held accountable, therefore a computer must never make a management decision" -IBM, 1979
 
 ## Technicals
 Items like games, images, audios, or accessories on Roblox are organized into databases, which can be mounted and layered on top of each other.
