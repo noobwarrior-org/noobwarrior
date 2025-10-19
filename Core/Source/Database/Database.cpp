@@ -20,6 +20,8 @@
 #include "schema/table/login_session.sql.inc"
 #include "schema/table/transaction.sql.inc"
 
+#include "schema/table/fs/node.sql.inc"
+
 #include "schema/table/idtype/asset.sql.inc"
 #include "schema/table/idtype/badge.sql.inc"
 #include "schema/table/idtype/bundle.sql.inc"
@@ -117,6 +119,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_blob_hash)
 	CREATE_TABLE(schema_login_session)
 	CREATE_TABLE(schema_transaction)
+
+	CREATE_TABLE(schema_fs_node)
 
 	// id type tables
 	CREATE_TABLE(schema_asset)
@@ -358,6 +362,18 @@ DatabaseResponse Database::SetAuthor(const std::string &author) {
 
 DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
+}
+
+std::vector<Node> Database::FS_EnumerateNodesInDir(const std::string &dir) {
+	return {};
+}
+
+void Database::FS_CreateNewDir(const std::string &path) {
+	
+}
+
+void Database::FS_CreateNewFile(const std::string &path) {
+	
 }
 
 std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,

@@ -9,6 +9,7 @@
 #include "Record/IdType/Badge.h"
 #include "Record/IdType/Universe.h"
 #include "Record/IdType/User.h"
+#include "FileSystem/Node.h"
 #include "ContentImages.h"
 
 #include "../Roblox/Api/Asset.h"
@@ -121,6 +122,16 @@ namespace NoobWarrior {
         DatabaseResponse SetTitle(const std::string &title);
         DatabaseResponse SetAuthor(const std::string &author);
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        // BEGINNING OF FILE-SYSTEM RELATED FUNCTIONS
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        std::vector<Node> FS_EnumerateNodesInDir(const std::string &dir = "/");
+        void FS_CreateNewDir(const std::string &path);
+        void FS_CreateNewFile(const std::string &path);
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        // END OF FILE-SYSTEM RELATED FUNCTIONS
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief Gets the size of the asset's data in bytes
