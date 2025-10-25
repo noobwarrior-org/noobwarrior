@@ -14,7 +14,7 @@
 
 #include "../base64.h"
 
-// table schemas that are just sql statements describing how the table should be created.
+// header files containing strings of SQL schemas describing how each table should be created.
 #include "schema/table/meta.sql.inc"
 #include "schema/table/blob_hash.sql.inc"
 #include "schema/table/login_session.sql.inc"
@@ -31,6 +31,9 @@
 #include "schema/table/idtype/user.sql.inc"
 
 #include "schema/table/idtype/asset/asset_data.sql.inc"
+#include "schema/table/idtype/asset/asset_historical.sql.inc"
+#include "schema/table/idtype/asset/asset_microtransaction.sql.inc"
+#include "schema/table/idtype/asset/asset_misc.sql.inc"
 #include "schema/table/idtype/asset/asset_place_thumbnail.sql.inc"
 
 #include "schema/table/idtype/bundle/bundle_asset.sql.inc"
@@ -131,6 +134,9 @@ DatabaseResponse Database::Open(const std::string &path) {
 
 	// tables that are directly related to an id type
 	CREATE_TABLE(schema_asset_data)
+	CREATE_TABLE(schema_asset_historical)
+	CREATE_TABLE(schema_asset_microtransaction)
+	CREATE_TABLE(schema_asset_misc)
 	CREATE_TABLE(schema_asset_place_thumbnail)
 
 	CREATE_TABLE(schema_bundle_asset)

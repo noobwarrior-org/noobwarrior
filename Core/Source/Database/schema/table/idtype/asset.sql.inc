@@ -9,11 +9,6 @@
  *
  * Also, just because an asset is owned by a "UserId" or "GroupId" does not necessarily mean it is in their
  * corresponding inventories.
- *
- * The following fields aim to represent historical data and are not meant to be updated in a live database:
- * "Sales", "Favorites", "Likes", "Dislikes"
- * If such an item is mutable, these values will be added on top of through conventional means, like storing them
- * in a separate table (ex: "UserLikesDislikes", or "Transaction")
  */
 static const char *schema_asset = R"***(
 CREATE TABLE IF NOT EXISTS "Asset" (
@@ -30,19 +25,7 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	"ImageVersion"	INTEGER,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
-	"CurrencyType"	INTEGER,
-	"Price"	INTEGER,
-	"ContentRatingTypeId"	INTEGER,
-	"MinimumMembershipLevel"	INTEGER,
-	"IsPublicDomain"	INTEGER,
-	"IsForSale"	INTEGER,
-	"IsNew"	INTEGER,
-	"LimitedType"	INTEGER,
-	"Remaining"	INTEGER,
-	"Historical_Sales"	INTEGER,
-    "Historical_Favorites"	INTEGER,
-    "Historical_Likes"	INTEGER,
-	"Historical_Dislikes"	INTEGER,
+	"Public"	INTEGER,
 	PRIMARY KEY("Id","Version"),
 	FOREIGN KEY("ImageId", "ImageVersion") REFERENCES "Asset"("Id", "Version"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),

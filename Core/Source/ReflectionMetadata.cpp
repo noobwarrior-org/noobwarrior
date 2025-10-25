@@ -7,6 +7,9 @@
 //
 // ID types for example; you don't want to add checks in 30 different code paths because you added a new ID type.
 // Just declare it here and those code paths will automatically discover it.
+//
+// Note: If you are adding a new ID type, you will still have to manually add glue code between the SQL database schema and
+// the actual C structs. Check the Database.cpp & Database.h file in order to see how we did this.
 #include <NoobWarrior/ReflectionMetadata.h>
 
 #include <NoobWarrior/Database/Record/IdType/Asset.h>
