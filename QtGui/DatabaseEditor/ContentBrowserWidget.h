@@ -4,7 +4,7 @@
 // Started on: 2/17/2025
 // Description: Dockable Qt widget that allows the user to explore the contents of an archive in an easily-digestible format
 #pragma once
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 

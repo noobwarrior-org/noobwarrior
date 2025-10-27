@@ -55,7 +55,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Config.cpp
     Source/Log.cpp
     Source/Shell.cpp
-    Source/ReflectionMetadata.cpp
+    Source/Reflection.cpp
     Source/RccServiceManager.cpp
     Source/RobloxClient.cpp
     Source/NetClient.cpp

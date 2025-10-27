@@ -6,7 +6,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>

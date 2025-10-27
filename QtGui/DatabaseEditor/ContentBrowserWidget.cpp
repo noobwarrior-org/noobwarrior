@@ -10,7 +10,7 @@
 #include "DatabaseEditor.h"
 
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 

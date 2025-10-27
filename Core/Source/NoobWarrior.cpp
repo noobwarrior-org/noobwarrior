@@ -5,7 +5,7 @@
 // Description: Contains code for the main class used to utilize the noobWarrior library
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 
 #include <civetweb.h>
 #include <sqlite3.h>

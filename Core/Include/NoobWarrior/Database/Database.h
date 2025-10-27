@@ -4,7 +4,7 @@
 // Started on: 2/17/2025
 // A high-level interface to access a specialized noobWarrior SQLite database that contains Roblox items and other data
 #pragma once
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include "Record/IdType/Asset.h"
 #include "Record/IdType/Badge.h"
 #include "Record/IdType/Universe.h"
@@ -132,6 +132,53 @@ namespace NoobWarrior {
          * @return The raw data that the asset contains
          */
         std::vector<unsigned char> RetrieveAssetData(int64_t id);
+
+        template<typename T>
+        DatabaseResponse UpdateIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> version, const std::string &columnName, T val) {
+            auto res = DatabaseResponse::Failed;
+            std::string stmtStr = std::format("UPDATE {} SET {} = ? WHERE Id = ? {};", tableName, columnName, version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
+            
+            sqlite3_stmt *stmt;
+            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+
+            if constexpr (std::is_same_v<T, int> || std::is_same_v<T, bool>)
+                sqlite3_bind_int(stmt, 1, std::any_cast<int>(val));
+            else if constexpr (std::is_same_v<T, int64_t>)
+                sqlite3_bind_int64(stmt, 1, std::any_cast<int64_t>(val));
+            else if constexpr (std::is_same_v<T, std::string>)
+                sqlite3_bind_text(stmt, 1, std::any_cast<std::string>(val).c_str(), -1, nullptr);
+            else if constexpr (std::is_same_v<T, std::vector<unsigned char>>)
+                sqlite_bind_blob(stmt, 1, std::any_cast<std::vector<unsigned char>>(val).data());
+                    
+            sqlite3_bind_int64(stmt, 2, id);
+
+            if (version.has_value())
+                sqlite3_bind_int(stmt, 3, version.value());
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+                res = DatabaseResponse::Success;
+
+            sqlite3_finalize(stmt);
+
+            return res;
+        }
+        
+        template<typename T>
+        T GetIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> version, const std::string &columnName) {
+            std::string stmtStr = std::format("SELECT {} FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", columnName, tableName);
+
+            sqlite3_stmt *stmt;
+            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+
+            sqlite3_bind_int64(stmt, 1, id);
+
+            T val {};
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+                val = GetValueFromColumnIndex<T>(stmt, 0);
+
+            sqlite3_finalize(stmt);
+            return val;
+        }
 
         template<typename T>
         std::vector<unsigned char> RetrieveContentBlob(int64_t id, const std::string &columnName) {
@@ -387,24 +434,31 @@ namespace NoobWarrior {
 
         std::vector<unsigned char> RetrieveBlobFromTableName(int64_t id, const std::string &tableName, const std::string &columnName);
 
+        template<typename T>
+        T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {
+            if constexpr (std::is_same_v<T, int> || std::is_same_v<T, bool>)
+                return sqlite3_column_int(stmt, columnIndex);
+            if constexpr (std::is_same_v<T, int64_t>)
+                return sqlite3_column_int64(stmt, columnIndex);
+            if constexpr (std::is_same_v<T, std::string>) {
+                return std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, columnIndex)));
+            }
+            if constexpr (std::is_same_v<T, std::vector<unsigned char>>) {
+                std::vector<unsigned char> data;
+                auto *buf = static_cast<unsigned char*>(const_cast<void*>(sqlite3_column_blob(stmt, columnIndex)));
+                data.assign(buf, buf + sqlite3_column_bytes(stmt, columnIndex));
+                return data;
+            }
+            T def {};
+            return def;
+        }
+
         // TODO: Optimize this so that it caches the results instead of having to go through the for loop everytime.
         template<typename T>
         T GetValueFromColumnName(sqlite3_stmt *stmt, const std::string &columnName) {
             for (int i = 0; i < sqlite3_column_count(stmt); i++) {
                 if (strncmp(sqlite3_column_name(stmt, i), columnName.c_str(), strlen(columnName.c_str())) == 0) {
-                    if constexpr (std::is_same_v<T, int> || std::is_same_v<T, bool>)
-                        return sqlite3_column_int(stmt, i);
-                    if constexpr (std::is_same_v<T, int64_t>)
-                        return sqlite3_column_int64(stmt, i);
-                    if constexpr (std::is_same_v<T, std::string>) {
-                        return std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, i)));
-                    }
-                    if constexpr (std::is_same_v<T, std::vector<unsigned char>>) {
-                        std::vector<unsigned char> data;
-                        auto *buf = static_cast<unsigned char*>(const_cast<void*>(sqlite3_column_blob(stmt, i)));
-                        data.assign(buf, buf + sqlite3_column_bytes(stmt, i));
-                        return data;
-                    }
+                    return GetValueFromColumnIndex<T>(stmt, i);
                 }
             }
             T def {};

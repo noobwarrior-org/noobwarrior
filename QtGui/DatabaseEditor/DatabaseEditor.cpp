@@ -10,7 +10,7 @@
 #include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 
 #include <QMenuBar>
 #include <QLabel>

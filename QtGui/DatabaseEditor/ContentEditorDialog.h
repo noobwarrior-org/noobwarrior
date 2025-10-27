@@ -4,7 +4,7 @@
 // Started on: 7/2/2025
 // Description: Dialog window that allows you to edit the details of a piece of content.
 #pragma once
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Database/Record/IdType/Asset.h>
 #include <NoobWarrior/Database/Record/IdType/User.h>
 #include <NoobWarrior/Database/AssetCategory.h>
