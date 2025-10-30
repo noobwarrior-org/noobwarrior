@@ -1,5 +1,7 @@
 # noobWarrior
-noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for anyone who has to frequently work with the Roblox platform. This includes the players, developers, content creators, archivists, the employees who work there, et cetera. If you make games on Roblox, or even just play it without ever making anything on the site, I guarantee that you'll find something of value in this project.
+noobWarrior is a self-contained toolkit & decentralized platform for everything Roblox. It aims to be an incredibly invaluable tool for anyone who has to frequently work with the Roblox platform. This includes the players, developers, content creators, archivists, the employees who work there, et cetera.
+
+If you make games on Roblox, or even just play it without ever making anything on the site, I guarantee that you'll find something of value in this project.
 
 You can:
 - Back up and preserve your own games, accessories & models so that you have a frozen state of your game that can't be crippled by Roblox updates or moderation
@@ -41,7 +43,7 @@ The Roblox client is patched on the fly to have all asset and API requests redir
 A master database is used to automatically store all user-generated actions/content that can occur from players interacting in your game servers, like friending each other.
 
 ## Features
-### Database Utility
+### Database Editor
 All noobWarrior database files are edited and viewed using this tool, and it allows you to backup almost any form of user-generated content on the Roblox website, granted you have the appropriate permissions.
 
 This includes entire Roblox games (thumbnails, places, visits, badges, etc), assets (models, clothing, gear, ...), user profiles (outfits, inventories), whatever the hell you can name.
@@ -103,7 +105,7 @@ Did you not read the beginning of the text?
 Good samitarians, private investigators & law enforcement. This is discussed in the disclaimer below. I made this program for a legitimate use case, and if there are people who abuse it in order to commit crimes, then maybe it makes more sense to put them behind bars instead of blaming the people who created the program.
 
 ### How can I contribute to the project?
-Great question. Having knowledge of both C++ and how the guts of Roblox work would help a lot. Raising awareness for the project also works. Please make sure you're talking about it to people who would actually seem like they're interested, not someone who would be there just to annoy us all.
+Great question. Having knowledge of both C++ and the guts of Roblox would help a lot. Raising awareness for the project also works. Please make sure you're talking about it to people who would actually seem like they're interested, not someone who would be there just to annoy people.
 
 If you meet the criteria for programming as I mentioned, well, I don't have a Discord server for this right now. Sorry
 
