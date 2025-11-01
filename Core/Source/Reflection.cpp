@@ -25,11 +25,15 @@
 
 using namespace NoobWarrior;
 
+// do this as the reflection macros do not support scope operators
+using AssetType = Roblox::AssetType;
+
 NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
     NOOBWARRIOR_REFLECT_FIELD(
         Name, // Field Name
         std::string, // Field Datatype
         "The name of this asset. Self-explanatory.", // Field Description
+        "", // Default Value
         // Getter
         [](Database *db, int64_t id, std::optional<int64_t> version) -> std::any {
             return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Name"));
@@ -40,11 +44,18 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         }
     )
 
-    NOOBWARRIOR_REFLECT_FIELD(Description, std::string, "A few sentences that describe what this asset does.", [](Database *db, int64_t id, std::optional<int64_t> version) -> std::any {
-        return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Description"));
-    }, [](Database *db, int64_t id, std::optional<int64_t> version, std::any val) -> DatabaseResponse {
-        return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Description", std::any_cast<std::string>(val));
-    })
+    NOOBWARRIOR_REFLECT_FIELD(
+        Description,
+        std::string,
+        "A few sentences that describe what this asset does.",
+        "",
+        [](Database *db, int64_t id, std::optional<int64_t> version) -> std::any {
+            return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Description"));
+        },
+        [](Database *db, int64_t id, std::optional<int64_t> version, std::any val) -> DatabaseResponse {
+            return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Description", std::any_cast<std::string>(val));
+        }
+    )
 
     /*
     NOOBWARRIOR_REFLECT_FIELD(CreatorId, User, "The ID of the entity that created this asset.", [](Database *db, int64_t id, int64_t version) -> std::any {
@@ -95,6 +106,13 @@ NOOBWARRIOR_REFLECT_COMMON_BEGIN
     })
 NOOBWARRIOR_REFLECT_COMMON_END
 */
+
+NOOBWARRIOR_REFLECT_ENUM_BEGIN(AssetType)
+    NOOBWARRIOR_REFLECT_ENUM_VALUE(None, AssetType::None)
+    NOOBWARRIOR_REFLECT_ENUM_VALUE(Image, AssetType::Image)
+    NOOBWARRIOR_REFLECT_ENUM_VALUE(TShirt, AssetType::TShirt)
+    NOOBWARRIOR_REFLECT_ENUM_VALUE(Audio, AssetType::Audio)
+NOOBWARRIOR_REFLECT_ENUM_END(AssetType)
 
 void NoobWarrior::Reflection::hi() {
     // put this here so that this source file can be referenced outside and therefore the compiler will be forced to link it and it wont be discarded

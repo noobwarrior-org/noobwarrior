@@ -22,14 +22,14 @@
 #define NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(idType) \
     struct idType##Registrar { \
         idType##Registrar() { \
-            NoobWarrior::Reflection::GetIdTypes()[#idType] = { \
+            NoobWarrior::Reflection::GetIdTypes().push_back({ \
                 .Name = #idType, \
                 .Class = &typeid(idType), \
                 .Create = []() { \
                     return idType(); \
                 } \
-            }; \
-            NoobWarrior::Reflection::GetIdTypeNames()[std::type_index(typeid(idType))] = #idType; \
+            }); \
+            NoobWarrior::Reflection::GetIdTypeMap()[typeid(idType)] = NoobWarrior::Reflection::GetIdTypes().back(); \
             auto *fields = NoobWarrior::Reflection::GetFields<idType>();
 
 #define NOOBWARRIOR_REFLECT_ID_TYPE_END(idType) \
@@ -37,8 +37,24 @@
     }; \
     static idType##Registrar s##idType##RegistrarInstance;
 
-#define NOOBWARRIOR_REFLECT_FIELD(fieldName, datatype, desc, getter, setter) \
+#define NOOBWARRIOR_REFLECT_FIELD(fieldName, datatype, desc, defaultVal, getter, setter) \
     (*fields)[#fieldName] = { .Name = #fieldName, .Description = desc, .Type = &typeid(datatype), .Getter = getter, .Setter = setter };
+
+#define NOOBWARRIOR_REFLECT_ENUM_BEGIN(enumName) \
+    struct enumName##Registrar { \
+        enumName##Registrar() { \
+            NoobWarrior::Reflection::Enum enumeration {}; \
+            enumeration.Name = #enumName;
+
+#define NOOBWARRIOR_REFLECT_ENUM_END(enumName) \
+            NoobWarrior::Reflection::GetEnums().push_back(enumeration); \
+            NoobWarrior::Reflection::GetEnumMap()[typeid(enumName)] = NoobWarrior::Reflection::GetEnums().back(); \
+        } \
+    }; \
+    static enumName##Registrar s##enumName##RegistrarInstance;
+
+#define NOOBWARRIOR_REFLECT_ENUM_VALUE(enumName, enumVal) \
+    enumeration.Values[#enumName] = static_cast<int>(enumVal);
 
 /*
 #define NOOBWARRIOR_REFLECT_COMMON_BEGIN \
@@ -61,7 +77,6 @@ enum class DatabaseResponse;
 }
 namespace NoobWarrior::Reflection {
 struct Field {
-    std::string TableName; // To what SQL table does this field belong to?
     std::string Name;
     std::string Description;
     const std::type_info* Type { nullptr };
@@ -76,32 +91,55 @@ struct IdType {
     std::unordered_map<std::string, Field> Fields;
 };
 
-inline std::map<std::string, IdType> &GetIdTypes() {
-    static std::map<std::string, IdType> IdTypeMap;
-    return IdTypeMap;
+struct Enum {
+    std::string Name;
+    std::map<std::string, int> Values;
+};
+
+inline std::vector<IdType> &GetIdTypes() {
+    static std::vector<IdType> IdTypes;
+    return IdTypes;
 }
 
-inline std::unordered_map<std::type_index, std::string> &GetIdTypeNames() {
-    static std::unordered_map<std::type_index, std::string> IdTypeNameMap;
+inline std::unordered_map<std::type_index, IdType> &GetIdTypeMap() {
+    static std::unordered_map<std::type_index, IdType> IdTypeNameMap;
     return IdTypeNameMap;
 }
 
 template<typename T>
-std::string GetIdTypeName() {
-    auto &m = GetIdTypeNames();
-    auto it = m.find(std::type_index(typeid(T)));
-    return (it != m.end()) ? it->second : std::string {};
+IdType &GetIdType() {
+    return GetIdTypeMap()[std::type_index(typeid(T))];
 }
 
 template<typename T>
-IdType &GetIdType() {
-    return GetIdTypes()[GetIdTypeName<T>()];
+std::string GetIdTypeName() {
+    return GetIdType<T>().Name;
 }
 
 template<typename T>
 std::unordered_map<std::string, Field> *GetFields() {
     IdType &reflectedType = GetIdType<T>();
     return &reflectedType.Fields;
+}
+
+inline std::vector<Enum> &GetEnums() {
+    static std::vector<Enum> Enums;
+    return Enums;
+}
+
+inline std::unordered_map<std::type_index, Enum> &GetEnumMap() {
+    static std::unordered_map<std::type_index, Enum> EnumMap;
+    return EnumMap;
+}
+
+template<typename T>
+Enum &GetEnum() {
+    return GetEnumMap()[std::type_index(typeid(T))];
+}
+
+template<typename T>
+std::string GetEnumName() {
+    return GetEnum<T>().Name;
 }
 
 void hi();
