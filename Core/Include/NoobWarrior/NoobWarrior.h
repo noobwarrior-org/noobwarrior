@@ -14,7 +14,7 @@
 #include "RccServiceManager.h"
 #include "RobloxClient.h"
 #include "HttpServer/Emulator/ServerEmulator.h"
-#include "Roblox/DataModel/RobloxFile.h"
+#include "Roblox/FileFormat/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
 #include "NetClient.h"

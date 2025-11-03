@@ -78,9 +78,11 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/UserProfileViewHandler.cpp
     Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
     Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
-    Source/Roblox/DataModel/RobloxFile.cpp
-    Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
-    Source/Roblox/DataModel/Tree/Instance.cpp
+    Source/Roblox/FileFormat/RobloxFile.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
+    Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
