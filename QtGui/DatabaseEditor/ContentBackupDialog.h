@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 9/2/2025
 // Description:
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <QDialog>
 
 namespace NoobWarrior {

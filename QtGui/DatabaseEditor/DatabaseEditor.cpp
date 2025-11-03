@@ -6,11 +6,12 @@
 #include "DatabaseEditor.h"
 #include "ContentBrowserWidget.h"
 #include "ContentEditorDialog.h"
+#include "ItemDialog.h"
 #include "ContentBackupDialog.h"
 #include "../Application.h"
 
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 
 #include <QMenuBar>
 #include <QLabel>
@@ -305,7 +306,7 @@ void DatabaseEditor::InitWidgets() {
     setCentralWidget(mTabWidget);
 
     auto *hi = new QLabel("New Database  Ctrl-N\nOpen Database  Ctrl-O");
-    hi->setFont(QFont(QApplication::font().family(), 14));
+    hi->setFont(QFont(QApplication::font().family(), 20));
     hi->setAlignment(Qt::AlignCenter);
     hi->setWordWrap(true);
 
@@ -358,9 +359,23 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mInsertToolBar->setWindowIconText("Insert");
 
-    ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
-    ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
-    ADD_ID_TYPE(User, ":/images/silk/user_add.png")
+    for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
+        QString name = QString::fromStdString(idtype->Name);
+
+        auto insertAction = new QAction(QIcon(""), QString("Create\n%1").arg(name), mInsertToolBar);
+        insertAction->setObjectName("RequiresDatabaseButton");
+        mInsertToolBar->addAction(insertAction);
+        
+        connect(insertAction, &QAction::triggered, [this, idtype]() {
+            ItemDialog dialog(this, *idtype.get());
+            dialog.exec();
+            // ContentEditorDialog<> dialog(this);
+            // dialog.exec();
+        });
+    }
+    // ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
+    // ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
+    // ADD_ID_TYPE(User, ":/images/silk/user_add.png")
 
     for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
         button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now

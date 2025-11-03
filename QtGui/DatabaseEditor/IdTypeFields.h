@@ -5,7 +5,7 @@
 // Description: Fields for id types, cause you need to show what things the user can edit for this certain id.
 // And we're using a fucking language that still doesn't have reflection so everything is retarded
 #pragma once
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/Record/IdType/Asset.h>
 #include <NoobWarrior/Database/Record/IdType/Badge.h>

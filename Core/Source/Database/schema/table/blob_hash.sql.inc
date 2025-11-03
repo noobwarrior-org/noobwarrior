@@ -1,4 +1,5 @@
 /**
+ * All binary blobs for multimedia should be stored here, with their corresponding hashed value as the key.
  * The hash algorithm is SHA-256
  */
 static const char *schema_blob_hash = R"***(

@@ -6,7 +6,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/ReflectionMetadata.h>
+#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
@@ -23,8 +23,8 @@ nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     Config *config = mServer->GetCore()->GetConfig();
 
     data["idtypes"] = nlohmann::json::array();
-    for (std::pair pair : Reflection::GetIdTypes())
-        data["idtypes"].push_back(pair.first);
+    for (Reflection::IdType &idtype : Reflection::GetIdTypes())
+        data["idtypes"].push_back(idtype.Name);
 
     data["currentpage"] = 1;
     data["totalpages"] = 1;

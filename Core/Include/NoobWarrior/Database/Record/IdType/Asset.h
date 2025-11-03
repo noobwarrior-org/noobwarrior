@@ -20,8 +20,7 @@ struct Asset : StatisticalIdRecord {
     int                         Price;
     int                         ContentRatingTypeId;
     int                         MinimumMembershipLevel;
-    bool                        IsPublicDomain;
-    bool                        IsForSale;
+    bool                        Public;
     bool                        IsNew;
     Roblox::LimitedType         LimitedType;
     int64_t                     Remaining;
