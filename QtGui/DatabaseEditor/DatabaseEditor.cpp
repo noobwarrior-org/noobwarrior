@@ -359,15 +359,15 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     mInsertToolBar->setWindowIconText("Insert");
 
-    for (Reflection::IdType &idtype : Reflection::GetIdTypes()) {
-        QString name = QString::fromStdString(idtype.Name);
+    for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
+        QString name = QString::fromStdString(idtype->Name);
 
         auto insertAction = new QAction(QIcon(""), QString("Create\n%1").arg(name), mInsertToolBar);
         insertAction->setObjectName("RequiresDatabaseButton");
         mInsertToolBar->addAction(insertAction);
         
-        connect(insertAction, &QAction::triggered, [&, this]() {
-            ItemDialog dialog(this, idtype);
+        connect(insertAction, &QAction::triggered, [this, idtype]() {
+            ItemDialog dialog(this, *idtype.get());
             dialog.exec();
             // ContentEditorDialog<> dialog(this);
             // dialog.exec();

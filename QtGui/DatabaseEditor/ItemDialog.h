@@ -18,7 +18,7 @@ namespace NoobWarrior {
 class ItemDialog : public QDialog {
     Q_OBJECT
 public:
-    ItemDialog(QWidget *parent = nullptr, Reflection::IdType &idType = Reflection::GetIdType<Asset>(), const std::optional<int> id = std::nullopt, const std::optional<int> version = std::nullopt);
+    ItemDialog(QWidget *parent = nullptr, Reflection::IdType &idType = Reflection::GetIdType<Asset>(), const std::optional<int64_t> id = std::nullopt, const std::optional<int> version = std::nullopt);
     virtual void RegenWidgets();
     std::optional<int> GetId();
     std::optional<int> GetVersion();
@@ -26,7 +26,7 @@ public:
 
     QLabel *mIcon;
 protected:
-    Reflection::IdType mIdType;
+    Reflection::IdType &mIdType;
     std::optional<int> mId;
     std::optional<int> mVersion;
 

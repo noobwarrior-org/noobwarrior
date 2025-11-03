@@ -33,13 +33,16 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         Name, // Field Name
         std::string, // Field Datatype
         "The name of this asset. Self-explanatory.", // Field Description
-        "", // Default Value
+        // Default Value
+        []() -> std::any {
+            return "";
+        },
         // Getter
-        [](Database *db, int64_t id, std::optional<int64_t> version) -> std::any {
+        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
             return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Name"));
         },
         // Setter
-        [](Database *db, int64_t id, std::optional<int64_t> version, std::any val) -> DatabaseResponse {
+        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
             return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Name", std::any_cast<std::string>(val));
         }
     )
@@ -48,12 +51,44 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         Description,
         std::string,
         "A few sentences that describe what this asset does.",
-        "",
-        [](Database *db, int64_t id, std::optional<int64_t> version) -> std::any {
+        []() -> std::any {
+            return "";
+        },
+        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
             return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Description"));
         },
-        [](Database *db, int64_t id, std::optional<int64_t> version, std::any val) -> DatabaseResponse {
+        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
             return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Description", std::any_cast<std::string>(val));
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
+        ImageId,
+        int64_t,
+        "The ID of the image that this asset will display. Does not apply for asset types that use auto-generated thumbnails.",
+        []() -> std::any {
+            return {}; // initialize as empty object to return null
+        },
+        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
+            return std::any(db->GetIdRowColumn<int64_t>("Asset", id, version, "ImageId"));
+        },
+        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
+            return db->UpdateIdRowColumn<int64_t>("Asset", id, version, "ImageId", std::any_cast<int64_t>(val));
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
+        ImageVersion,
+        int,
+        "The version of the image ID. Does not apply for asset types that use auto-generated thumbnails.",
+        []() -> std::any {
+            return {};
+        },
+        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
+            return std::any(db->GetIdRowColumn<int>("Asset", id, version, "ImageVersion"));
+        },
+        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
+            return db->UpdateIdRowColumn<int>("Asset", id, version, "ImageVersion", std::any_cast<int>(val));
         }
     )
 

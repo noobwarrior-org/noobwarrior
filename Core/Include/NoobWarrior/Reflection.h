@@ -18,43 +18,42 @@
 #include <string>
 #include <typeindex>
 #include <any>
+#include <optional>
+#include <memory>
 
 #define NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(idType) \
     struct idType##Registrar { \
         idType##Registrar() { \
-            NoobWarrior::Reflection::GetIdTypes().push_back({ \
-                .Name = #idType, \
-                .Class = &typeid(idType), \
-                .Create = []() { \
-                    return idType(); \
-                } \
-            }); \
-            NoobWarrior::Reflection::GetIdTypeMap()[typeid(idType)] = NoobWarrior::Reflection::GetIdTypes().back(); \
-            auto *fields = NoobWarrior::Reflection::GetFields<idType>();
+            auto idTypePtr = std::make_shared<NoobWarrior::Reflection::IdType>(); \
+            idTypePtr->Name = #idType; \
+            idTypePtr->Class = &typeid(idType); \
+            idTypePtr->Create = []() { return idType(); }; \
+            NoobWarrior::Reflection::GetIdTypesInternal().push_back(idTypePtr); \
+            NoobWarrior::Reflection::GetIdTypeMap()[typeid(idType)] = NoobWarrior::Reflection::GetIdTypesInternal().back();
 
 #define NOOBWARRIOR_REFLECT_ID_TYPE_END(idType) \
         } \
     }; \
     static idType##Registrar s##idType##RegistrarInstance;
 
-#define NOOBWARRIOR_REFLECT_FIELD(fieldName, datatype, desc, defaultVal, getter, setter) \
-    (*fields)[#fieldName] = { .Name = #fieldName, .Description = desc, .Type = &typeid(datatype), .Getter = getter, .Setter = setter };
+#define NOOBWARRIOR_REFLECT_FIELD(fieldName, datatype, desc, getDefaultVal, getter, setter) \
+    idTypePtr->Fields[#fieldName] = { .Name = #fieldName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal, .Getter = getter, .Setter = setter };
 
 #define NOOBWARRIOR_REFLECT_ENUM_BEGIN(enumName) \
     struct enumName##Registrar { \
         enumName##Registrar() { \
-            NoobWarrior::Reflection::Enum enumeration {}; \
-            enumeration.Name = #enumName;
+            auto enumeration = std::make_shared<NoobWarrior::Reflection::Enum>(); \
+            enumeration->Name = #enumName;
 
 #define NOOBWARRIOR_REFLECT_ENUM_END(enumName) \
-            NoobWarrior::Reflection::GetEnums().push_back(enumeration); \
-            NoobWarrior::Reflection::GetEnumMap()[typeid(enumName)] = NoobWarrior::Reflection::GetEnums().back(); \
+            NoobWarrior::Reflection::GetEnumsInternal().push_back(enumeration); \
+            NoobWarrior::Reflection::GetEnumMap()[typeid(enumName)] = NoobWarrior::Reflection::GetEnumsInternal().back(); \
         } \
     }; \
     static enumName##Registrar s##enumName##RegistrarInstance;
 
 #define NOOBWARRIOR_REFLECT_ENUM_VALUE(enumName, enumVal) \
-    enumeration.Values[#enumName] = static_cast<int>(enumVal);
+    enumeration->Values[#enumName] = static_cast<int>(enumVal);
 
 /*
 #define NOOBWARRIOR_REFLECT_COMMON_BEGIN \
@@ -80,8 +79,9 @@ struct Field {
     std::string Name;
     std::string Description;
     const std::type_info* Type { nullptr };
-    std::function<std::any(Database *db, int64_t id, std::optional<int64_t> version)> Getter;
-    std::function<DatabaseResponse(Database *db, int64_t id, std::optional<int64_t> version, std::any val)> Setter;
+    std::function<std::any()> GetDefaultValue;
+    std::function<std::any(Database *db, int64_t id, std::optional<int> version)> Getter;
+    std::function<DatabaseResponse(Database *db, int64_t id, std::optional<int> version, std::any val)> Setter;
 };
 
 struct IdType {
@@ -96,19 +96,38 @@ struct Enum {
     std::map<std::string, int> Values;
 };
 
-inline std::vector<IdType> &GetIdTypes() {
-    static std::vector<IdType> IdTypes;
+/**
+ * @brief Raw version of GetIdTypes() meant only for internal use. The difference is that it contains a vector of shared pointers.
+ * This is so that the memory locations of each reflected IdType will always stay the same, even if the vector reallocates elements to different memory locations.
+ * @return std::vector<std::shared_ptr<IdType>>& 
+ */
+inline std::vector<std::shared_ptr<IdType>> &GetIdTypesInternal() {
+    static std::vector<std::shared_ptr<IdType>> IdTypes;
     return IdTypes;
 }
 
-inline std::unordered_map<std::type_index, IdType> &GetIdTypeMap() {
-    static std::unordered_map<std::type_index, IdType> IdTypeNameMap;
+/**
+ * @brief A vector that consists of each available IdType. 
+ * 
+ * @return std::vector<IdType>& 
+ */
+inline std::vector<IdType> GetIdTypes() {
+    std::vector<IdType> IdTypes;
+    auto idTypesRaw = GetIdTypesInternal();
+    for (auto &idtype : idTypesRaw) {
+        IdTypes.push_back(*idtype.get());
+    }
+    return IdTypes;
+}
+
+inline std::unordered_map<std::type_index, std::shared_ptr<IdType>> &GetIdTypeMap() {
+    static std::unordered_map<std::type_index, std::shared_ptr<IdType>> IdTypeNameMap;
     return IdTypeNameMap;
 }
 
 template<typename T>
 IdType &GetIdType() {
-    return GetIdTypeMap()[std::type_index(typeid(T))];
+    return *GetIdTypeMap()[std::type_index(typeid(T))].get();
 }
 
 template<typename T>
@@ -117,24 +136,33 @@ std::string GetIdTypeName() {
 }
 
 template<typename T>
-std::unordered_map<std::string, Field> *GetFields() {
+std::unordered_map<std::string, Field> &GetFields() {
     IdType &reflectedType = GetIdType<T>();
-    return &reflectedType.Fields;
+    return reflectedType.Fields;
 }
 
-inline std::vector<Enum> &GetEnums() {
-    static std::vector<Enum> Enums;
+inline std::vector<std::shared_ptr<Enum>> &GetEnumsInternal() {
+    static std::vector<std::shared_ptr<Enum>> Enums;
     return Enums;
 }
 
-inline std::unordered_map<std::type_index, Enum> &GetEnumMap() {
-    static std::unordered_map<std::type_index, Enum> EnumMap;
+inline std::vector<Enum> GetEnums() {
+    std::vector<Enum> Enums;
+    auto enumsRaw = GetEnumsInternal();
+    for (auto &enumeration : enumsRaw) {
+        Enums.push_back(*enumeration.get());
+    }
+    return Enums;
+}
+
+inline std::unordered_map<std::type_index, std::shared_ptr<Enum>> &GetEnumMap() {
+    static std::unordered_map<std::type_index, std::shared_ptr<Enum>> EnumMap;
     return EnumMap;
 }
 
 template<typename T>
 Enum &GetEnum() {
-    return GetEnumMap()[std::type_index(typeid(T))];
+    return *GetEnumMap()[std::type_index(typeid(T))].get();
 }
 
 template<typename T>

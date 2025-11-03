@@ -12,7 +12,7 @@
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(QWidget *parent, Reflection::IdType &idType, const std::optional<int> id, const std::optional<int> version) : QDialog(parent),
+ItemDialog::ItemDialog(QWidget *parent, Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> version) : QDialog(parent),
     mIdType(idType),
     mId(id),
     mVersion(version)
@@ -80,12 +80,15 @@ void ItemDialog::RegenWidgets() {
 
     mSidebarLayout->addStretch();
 
+    Out("ItemDialog", "id type name {}", mIdType.Name);
+
     ////////////////////////////////////////////////////////////////////////
     /// main content containing all the fields and stuff
     ////////////////////////////////////////////////////////////////////////
     for (const auto &fieldpair : mIdType.Fields) {
         std::string name = fieldpair.first;
         Reflection::Field field = fieldpair.second;
+        Out("ItemDialog", "{} - {}", field.Name, field.Description);
 
         void* widget = nullptr;
 
