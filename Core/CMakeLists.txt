@@ -16,6 +16,9 @@ CPMAddPackage(
     URI "gh:hrantzsch/keychain#8846e78"
 )
 CPMAddPackage(
+    URI "gh:zeux/pugixml#61c9448"
+)
+CPMAddPackage(
     URI "gh:rm5248/libcppgenerate#6bf89d9"
 )
 
@@ -81,7 +84,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain cppgenerate_static)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain pugixml-static cppgenerate_static)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
