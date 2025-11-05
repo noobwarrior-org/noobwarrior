@@ -4,7 +4,6 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #pragma once
-
 #include <NoobWarrior/Database/Database.h>
 
 #include "BackgroundTask.h"
@@ -44,6 +43,8 @@ namespace NoobWarrior {
         void dragEnterEvent(QDragEnterEvent *event) override;
         void dragMoveEvent(QDragMoveEvent *event) override;
         void dropEvent(QDropEvent *event) override;
+
+        void DisableRequiredDatabaseButtons(bool val);
     private:
         void InitMenus();
         void InitStatusBarWidgets();
@@ -60,7 +61,7 @@ namespace NoobWarrior {
 
         QAction *mCloseDatabaseAction;
 
-        QAction *mBackupGameAction;
+        QAction *mBackupAction;
 
         QAction* mExitAction;
 
