@@ -15,6 +15,12 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:hrantzsch/keychain#8846e78"
 )
+CPMAddPackage(
+    URI "gh:zeux/pugixml#61c9448"
+)
+CPMAddPackage(
+    URI "gh:rm5248/libcppgenerate#6bf89d9"
+)
 
 #if (LuaJIT_ADDED)
 #    FILE(GLOB LuaJIT_sources ${LuaJIT_SOURCE_DIR}/src/*.c)
@@ -72,13 +78,15 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/UserProfileViewHandler.cpp
     Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
     Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
-    Source/Roblox/DataModel/RobloxFile.cpp
-    Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
-    Source/Roblox/DataModel/Tree/Instance.cpp
+    Source/Roblox/FileFormat/RobloxFile.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
+    Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain pugixml-static cppgenerate_static)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
