@@ -71,7 +71,8 @@ static constexpr const char* MetaKv[][2] = {
 	/** Should parts of the database be able to be modified by guests during runtime?
 	 * (Ex: Adding records to friend table by friending someone in-game, liking/disliking a game, uploading UGC, etc.)
 	 */
-	{"Mutable", "false"}
+	{"Mutable", "false"},
+	{"CompressionType", "0"} // Corresponds to CompressionType enum
 };
 
 using namespace NoobWarrior;
