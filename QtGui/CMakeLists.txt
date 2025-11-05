@@ -26,6 +26,7 @@ set(SOURCES
     DatabaseEditor/ContentBrowserWidget.cpp
     DatabaseEditor/FileManagerWidget.cpp
     DatabaseEditor/PreviewItemWidget.cpp
+    DatabaseEditor/Backup/BackupDialog.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
 )

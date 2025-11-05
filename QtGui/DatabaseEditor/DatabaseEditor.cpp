@@ -7,8 +7,9 @@
 #include "ContentBrowserWidget.h"
 #include "ContentEditorDialog.h"
 #include "ItemDialog.h"
-#include "ContentBackupDialog.h"
+#include "Backup/BackupDialog.h"
 #include "../Application.h"
+#include "../Dialog/AuthTokenDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Reflection.h>
@@ -139,8 +140,7 @@ close:
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         mContentBrowser->Refresh();
 
-        for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
-            button->setDisabled(true);
+        DisableRequiredDatabaseButtons(true);
     }
     return 1;
 }
@@ -176,8 +176,7 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
 
     mContentBrowser->Refresh();
 
-    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
-        button->setDisabled(false);
+    DisableRequiredDatabaseButtons(false);
 }
 
 Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
@@ -189,15 +188,20 @@ ContentBrowserWidget *DatabaseEditor::GetContentBrowser() {
 }
 
 void DatabaseEditor::InitMenus() {
-    mNewDatabaseAction = new QAction("New Database");
-    mOpenDatabaseAction = new QAction("Open Database");
-    mSaveDatabaseAction = new QAction("Save Database");
+    mNewDatabaseAction = new QAction(QIcon(":/images/silk/database_add.png"), "New Database");
+    mOpenDatabaseAction = new QAction(QIcon(":/images/silk/database_edit.png"), "Open Database");
 
-    mSaveAsDatabaseAction = new QAction("Save Database As...");
+    mSaveDatabaseAction = new QAction(QIcon(":/images/silk/database_save.png"), "Save Database");
+    mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
 
-    mCloseDatabaseAction = new QAction("Close Current Database");
+    mSaveAsDatabaseAction = new QAction(QIcon(":/images/silk/database_save.png"), "Save Database As...");
+    mSaveAsDatabaseAction->setObjectName("RequiresDatabaseButton");
 
-    mBackupGameAction = new QAction("Backup Game");
+    mBackupAction = new QAction(QIcon(":/images/roblox_backup.png"), "Backup from Roblox");
+    mBackupAction->setObjectName("RequiresDatabaseButton");
+
+    mCloseDatabaseAction = new QAction(QIcon(":/images/silk/database_delete.png"), "Close Current Database");
+    mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
 
 #if !defined(__APPLE__) // disable this on mac since it creates fucky behaviors and crashes
     mExitAction = new QAction("Exit");
@@ -223,9 +227,9 @@ void DatabaseEditor::InitMenus() {
         mFileMenu->addAction(mSaveDatabaseAction);
         mFileMenu->addAction(mSaveAsDatabaseAction);
     mFileMenu->addSeparator();
-        mFileMenu->addAction(mCloseDatabaseAction);
+        mFileMenu->addAction(mBackupAction);
     mFileMenu->addSeparator();
-        mFileMenu->addAction(mBackupGameAction);
+        mFileMenu->addAction(mCloseDatabaseAction);
     mFileMenu->addSeparator();
         mFileMenu->addAction(mExitAction);
 
@@ -288,10 +292,20 @@ void DatabaseEditor::InitMenus() {
         repaint(); // trigger a repaint, because we update the window title there.
     });
 
-    connect(mBackupGameAction, &QAction::triggered, [this]() {
-        auto backupDialog = new ContentBackupDialog<Universe>(this);
-        backupDialog->setAttribute(Qt::WA_DeleteOnClose);
-        backupDialog->show();
+    connect(mBackupAction, &QAction::triggered, [this]() {
+        if (!gApp->GetCore()->GetAuth()->IsLoggedIn()) {
+            QMessageBox::StandardButton res = QMessageBox::question(this,
+                "Not Logged In",
+                "You currently don't have a Roblox account authenticated with noobWarrior.\n\nStarting April 2nd 2025, Roblox requires an account in order to download any assets from their services. Would you like to authenticate your Roblox account with noobWarrior in order to use this feature?",
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes
+            );
+            if (res == QMessageBox::Yes) {
+                AuthTokenDialog dialog(this);
+                dialog.exec();
+            }
+        }
+        BackupDialog backupDialog(this);
+        backupDialog.exec();
     });
 }
 
@@ -377,11 +391,7 @@ void DatabaseEditor::InitWidgets() {
     // ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
     // ADD_ID_TYPE(User, ":/images/silk/user_add.png")
 
-    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
-        button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now
-
-    for (auto button : menuBar()->findChildren<QAction*>("RequiresDatabaseButton"))
-        button->setDisabled(true); // Disable all buttons that require a database since one isn't loaded right now
+    DisableRequiredDatabaseButtons(true);
 
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mFileToolBar);
     // addToolBarBreak();
@@ -395,4 +405,17 @@ void DatabaseEditor::InitWidgets() {
     mFileManager = new FileManagerWidget(this);
     mFileManager->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mFileManager);
+}
+
+void DatabaseEditor::DisableRequiredDatabaseButtons(bool val) {
+    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
+        button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
+
+    for (auto button : menuBar()->findChildren<QAction*>("RequiresDatabaseButton"))
+        button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
+
+    for (auto button : mFileMenu->actions()) {
+        if (button->objectName().contains("RequiresDatabaseButton"))
+            button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
+    }
 }
