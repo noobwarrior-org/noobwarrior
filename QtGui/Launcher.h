@@ -4,11 +4,12 @@
 // Started on: 12/15/2024
 // Description:
 #pragma once
-
 #include "DatabaseEditor/DatabaseEditor.h"
 #include "Dialog/AssetDownloaderDialog.h"
 #include "Settings/SettingsDialog.h"
 #include "Dialog/AboutDialog.h"
+#include "ServerHost/HostServerDialog.h"
+#include "MasterServer/MasterServerWindow.h"
 
 #include <QDialog>
 #include <QVBoxLayout>
@@ -29,6 +30,8 @@ namespace NoobWarrior {
         SettingsDialog *mSettings;
         DatabaseEditor *mDatabaseEditor;
         AssetDownloader *mAssetDownload;
+        HostServerDialog *mHostServerDialog;
+        MasterServerWindow *mMasterServerWindow;
     protected:
         void paintEvent(QPaintEvent *event) override;
     private:

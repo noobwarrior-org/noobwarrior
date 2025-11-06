@@ -19,6 +19,7 @@ ConfigResponse Config::Open() {
     SetKeyValue("meta.version", NOOBWARRIOR_CONFIG_VERSION);
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "default");
+    SetKeyValueIfNotSet("gui.master_servers", table);
 
     SetKeyValueIfNotSet("databases", table);
     SetKeyValueIfNotSet("plugins", table);

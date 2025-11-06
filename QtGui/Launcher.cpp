@@ -9,6 +9,7 @@
 #include "Application.h"
 #include "Dialog/AboutDialog.h"
 #include "Dialog/AssetDownloaderDialog.h"
+#include "ServerHost/HostServerDialog.h"
 
 #include <QLabel>
 #include <QMessageBox>
@@ -36,7 +37,9 @@
 
 using namespace NoobWarrior;
 
-static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
+// static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
+static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostServerDialog, HostServerDialog) }
+static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mMasterServerWindow, MasterServerWindow) }
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
@@ -44,29 +47,30 @@ static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launche
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
-    "Roblox",
+    "Play",
     "Tools",
     "Application"
 };
 
-static const void* sRoblox[][3] = {
+static const void* sPlay[][3] = {
+    {"Servers", (void*)&ShowJoinServer, ":/images/silk/server_go.png"},
     {"Start Game", (void*)&ShowStartGame, ":/images/silk/controller.png"},
-    {"Join Server", nullptr, ":/images/silk/server_go.png"},
-    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
 };
 
 static const void* sTools[][3] = {
     {"Database Editor", (void*)&LaunchDatabaseEditor, ":/images/silk/database_gear.png"},
-    {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
-    {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
-    {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
-    // {"Import Game As Database", nullptr, ":/images/silk/folder_go.png"}, // find this in the Database Utility instead
-    {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
+    // WIP, uncomment these when they are completed for later
+    // {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
+    // {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
+    // {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
+    // {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
+    // {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
 };
 
 static const void* sApplication[][3] = {
-    {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
-    {"Lua Shell", nullptr, ":/images/lua16.png"},
+    // WIP, uncomment these when they are completed for later
+    // {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
+    // {"Lua Shell", nullptr, ":/images/lua16.png"},
     {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
@@ -75,7 +79,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mAboutDialog(nullptr),
     mSettings(nullptr),
     mDatabaseEditor(nullptr),
-    mAssetDownload(nullptr)
+    mAssetDownload(nullptr),
+    mMasterServerWindow(nullptr)
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
@@ -121,7 +126,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         frameGrid->addWidget(label);
 
         switch (i) {
-        case 0: ADD_BUTTONS(sRoblox) break;
+        case 0: ADD_BUTTONS(sPlay) break;
         case 1: ADD_BUTTONS(sTools) break;
         case 2: ADD_BUTTONS(sApplication) break;
         }
