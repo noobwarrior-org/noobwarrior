@@ -7,6 +7,7 @@
 #include <NoobWarrior/Database/DatabaseManager.h>
 
 #include <fstream>
+#include <nlohmann/json_fwd.hpp>
 #include <unistd.h>
 
 using namespace NoobWarrior;
@@ -19,10 +20,14 @@ ConfigResponse Config::Open() {
     SetKeyValue("meta.version", NOOBWARRIOR_CONFIG_VERSION);
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "default");
-    SetKeyValueIfNotSet("gui.master_servers", table);
 
-    SetKeyValueIfNotSet("databases", table);
-    SetKeyValueIfNotSet("plugins", table);
+    nlohmann::json defaultMasterServer = nlohmann::json::object();
+    defaultMasterServer["url"] = "https://community.noobwarrior.org";
+
+    SetKeyValueIfNotSet<nlohmann::json>("gui.master_servers", { defaultMasterServer });
+
+    SetKeyValueIfNotSet<nlohmann::json>("databases", {});
+    SetKeyValueIfNotSet<nlohmann::json>("plugins", {});
 
     SetKeyValueIfNotSet("internet.index", "https://raw.githubusercontent.com/noobwarrior-org/index/refs/heads/main/index.json");
     SetKeyValueIfNotSet("internet.roblox.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
@@ -60,7 +65,7 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.emulator.port", 53640);
     SetKeyComment("httpserver.emulator.port", "The port that the server emulator should listen on.");
 
-    SetKeyValueIfNotSet("httpserver.emulator.proxies", table);
+    SetKeyValueIfNotSet<nlohmann::json>("httpserver.emulator.proxies", {});
     SetKeyComment("httpserver.emulator.proxies", "Any proxies in this list will be used as a fallback reverse proxy for API requests in case yours fail.");
 
     SetKeyValueIfNotSet("httpserver.emulator.enable_roblox_proxy", true);

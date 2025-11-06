@@ -12,6 +12,8 @@
 
 #include "lua/lock_global_env.lua.inc"
 #include "lua/rawget_path.lua.inc"
+#include "lua/serpent.lua.inc"
+#include "lua/json.lua.inc"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -76,6 +78,17 @@ int Core::InitLuaState() {
     // Run lua code to define some functions without having to hassle with Lua C API
     luaL_dostring(mLuaState, rawget_path_lua);
     luaL_dostring(mLuaState, lock_global_env_lua);
+
+#define LOADLIBRARY(strVar, name) \
+    int strVar##_exec_res = luaL_dostring(mLuaState, strVar); \
+    if (!strVar##_exec_res && lua_istable(mLuaState, -1)) { \
+        lua_setglobal(mLuaState, name); \
+    } else lua_pop(mLuaState, 1);
+    
+    LOADLIBRARY(serpent_lua, "serpent")
+    LOADLIBRARY(json_lua, "json")
+
+#undef LOADLIBRARY
     return 1;
 }
 

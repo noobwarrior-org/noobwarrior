@@ -4,8 +4,11 @@
 // Started on: 6/23/2025
 // Description:
 #pragma once
+#include <NoobWarrior/Log.h>
 
 #include <lua.hpp>
+#include <nlohmann/json.hpp>
+
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -39,8 +42,6 @@
     }
 
 namespace NoobWarrior {
-typedef std::vector<std::any> table_t;
-inline constexpr table_t table { };
 enum class ConfigResponse {
     Failed,
     Success,
@@ -68,8 +69,8 @@ public:
             str = std::format("{}.{} = {}", mGlobalName, key, std::format("\"{}\"", value).c_str());
         else if constexpr (std::is_same_v<T, std::nullopt_t>)
             str = std::format("{}.{} = nil", mGlobalName, key);
-        else if constexpr (std::is_same_v<T, table_t>)
-            str = std::format("{}.{} = {{}}", mGlobalName, key);
+        else if constexpr (std::is_same_v<T, nlohmann::json>)
+            str = std::format("{}.{} = {}", mGlobalName, key, ConvertJsonStrToLuaStr(value.dump()));
         else
             str = std::format("{}.{} = {}", mGlobalName, key, value);
         luaL_dostring(mLuaState, str.c_str());
@@ -98,6 +99,28 @@ public:
             result = lua_type(mLuaState, -1) == LUA_TNUMBER ? static_cast<T>(lua_tonumber(mLuaState, -1)) : 0;
         else if constexpr (std::is_same_v<T, bool>)
             result = lua_type(mLuaState, -1) == LUA_TBOOLEAN ? lua_toboolean(mLuaState, -1) : false;
+        else if constexpr (std::is_same_v<T, nlohmann::json>) {
+            if (lua_type(mLuaState, -1) == LUA_TTABLE) {
+                lua_getglobal(mLuaState, "json");
+
+                lua_pushstring(mLuaState, "stringify");
+                lua_gettable(mLuaState, -2);
+
+                lua_pushvalue(mLuaState, -3); // retrieve the key value and push it to the stack again
+
+                int res = lua_pcall(mLuaState, 1, 1, 0);
+
+                if (res != LUA_OK) {
+                    Out("Config", "Failed to convert Lua table to JSON string: {}", lua_tostring(mLuaState, -1));
+                    lua_pop(mLuaState, 2); // you still have this error message and the json table on the stack so pop those 2
+                }
+                try {
+                    result = nlohmann::json(lua_tostring(mLuaState, -1));
+                } catch (std::exception &ex) {
+                    Out("Config", "Failed to convert string to C++ JSON object");
+                }
+            }
+        }
         lua_pop(mLuaState, 1);
         AccessConfigMutex.unlock();
         return result;
@@ -108,6 +131,8 @@ public:
         if (!GetKeyValue<T>(key).has_value())
             SetKeyValue<T>(key, value);
     }
+
+    std::string ConvertJsonStrToLuaStr(const std::string &jsonStr);
 protected:
     std::string             mGlobalName;
     std::string             mLastError;
