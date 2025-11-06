@@ -80,6 +80,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mSettings(nullptr),
     mDatabaseEditor(nullptr),
     mAssetDownload(nullptr),
+    mHostServerDialog(nullptr),
     mMasterServerWindow(nullptr)
 {
     // ui->setupUi(this);
