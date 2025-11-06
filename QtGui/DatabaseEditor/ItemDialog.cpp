@@ -12,7 +12,7 @@
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(QWidget *parent, Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> version) : QDialog(parent),
+ItemDialog::ItemDialog(QWidget *parent, const Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> version) : QDialog(parent),
     mIdType(idType),
     mId(id),
     mVersion(version)
@@ -46,12 +46,18 @@ void ItemDialog::RegenWidgets() {
 
     QImage image;
 
-    if (mId.has_value()) {
-        // image.loadFromData(mDatabase->RetrieveContentImageData<T>(mId.value()));
+    std::vector<unsigned char> data;
 
-        // QPixmap pixmap = QPixmap::fromImage(image);
-        // mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    if (mId.has_value()) {
+        data = std::move(mDatabase->RetrieveContentImageData(mIdType, mId.has_value() ? mId.value() : -1));
+    } else {
+        data.assign(mIdType.DefaultImage, mIdType.DefaultImage + mIdType.DefaultImageSize);
     }
+
+    image.loadFromData(data);
+
+    QPixmap pixmap = QPixmap::fromImage(image);
+    mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     if (!(mIdType.Name.compare("Asset") == 0 || mIdType.Name.compare("User") == 0)) {
         auto *changeIcon = new QPushButton("Change Icon");
@@ -90,6 +96,10 @@ void ItemDialog::RegenWidgets() {
         Reflection::Field field = fieldpair.second;
         Out("ItemDialog", "{} - {}", field.Name, field.Description);
 
+        if (field.Name.compare("ImageId") == 0 || field.Name.compare("ImageVersion") == 0) {
+            continue;
+        }
+
         void* widget = nullptr;
 
         if (field.Type == &typeid(int)) {
@@ -99,7 +109,7 @@ void ItemDialog::RegenWidgets() {
         }
 
         if (widget != nullptr)
-            mContentLayout->addWidget(static_cast<QWidget*>(widget));
+            mContentLayout->addRow(QString::fromStdString(field.PrettyName), static_cast<QWidget*>(widget));
 
         if (mId.has_value()) {
             std::any val = field.Getter(mDatabase, mId.value(), std::nullopt);
@@ -143,11 +153,13 @@ void ItemDialog::RegenWidgets() {
             );
         });
     }
+    */
 
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
     mContentLayout->addWidget(mButtonBox);
 
     connect(mButtonBox, &QDialogButtonBox::accepted, this, [this] () mutable {
+        /*
         // validate everything first
         for (int i = 0; i < mFields.size(); i++) {
             FieldDesc field = mFields[i];
@@ -178,12 +190,12 @@ void ItemDialog::RegenWidgets() {
             mDatabaseEditor->Refresh();
             close();
         } else QMessageBox::critical(this, "Failed To Add Content", errMsg);
+        */
     });
 
     connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
         close();
     });
-    */
 }
 
 std::optional<int> ItemDialog::GetId() {

@@ -23,14 +23,18 @@
 #include <NoobWarrior/Database/Record/IdType/Universe.h>
 #include <NoobWarrior/Database/Record/IdType/User.h>
 
+#include <NoobWarrior/Database/ContentImages.h>
+
 using namespace NoobWarrior;
 
 // do this as the reflection macros do not support scope operators
 using AssetType = Roblox::AssetType;
 
 NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
+    NOOBWARRIOR_REFLECT_DEFAULT_IMAGE(const_cast<int*>(g_question_mark_png), g_question_mark_png_size)
     NOOBWARRIOR_REFLECT_FIELD(
         Name, // Field Name
+        "Name",
         std::string, // Field Datatype
         "The name of this asset. Self-explanatory.", // Field Description
         // Default Value
@@ -49,6 +53,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
 
     NOOBWARRIOR_REFLECT_FIELD(
         Description,
+        "Description",
         std::string,
         "A few sentences that describe what this asset does.",
         []() -> std::any {
@@ -64,6 +69,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
 
     NOOBWARRIOR_REFLECT_FIELD(
         ImageId,
+        "Image ID",
         int64_t,
         "The ID of the image that this asset will display. Does not apply for asset types that use auto-generated thumbnails.",
         []() -> std::any {
@@ -79,6 +85,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
 
     NOOBWARRIOR_REFLECT_FIELD(
         ImageVersion,
+        "Image Version",
         int,
         "The version of the image ID. Does not apply for asset types that use auto-generated thumbnails.",
         []() -> std::any {

@@ -408,3 +408,34 @@ int Database::GetAssetSize(int64_t id) {
 std::vector<unsigned char> Database::RetrieveAssetData(int64_t id) {
 	return RetrieveBlobFromTableName(id, "AssetData", "Data");
 }
+
+std::vector<unsigned char> Database::RetrieveContentImageData(const Reflection::IdType &type, int64_t id) {
+	if (!mInitialized) return {};
+
+	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", type.Name);
+
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
+		const auto iconId = GetValueFromColumnName<int64_t>(stmt, "Image");
+		if (std::vector<unsigned char> imageData = RetrieveAssetData(iconId); !imageData.empty()) {
+			sqlite3_finalize(stmt);
+			return imageData;
+		}
+	}
+	sqlite3_finalize(stmt);
+
+	std::vector<unsigned char> data;
+
+	if (&type == &Reflection::GetIdType<Asset>()) {
+		std::optional<Asset> asset = GetContent<Asset>(id);
+		if (asset.has_value()) {
+			data = GetImageForAssetType(asset.value().Type);
+		}
+	}
+
+	if (data.empty()) data.assign(type.DefaultImage, type.DefaultImage + type.DefaultImageSize);
+	Out("Database", "Hello, {}", data.size());
+	return data;
+}

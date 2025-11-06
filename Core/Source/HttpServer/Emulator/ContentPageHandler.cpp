@@ -23,7 +23,7 @@ nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     Config *config = mServer->GetCore()->GetConfig();
 
     data["idtypes"] = nlohmann::json::array();
-    for (Reflection::IdType &idtype : Reflection::GetIdTypes())
+    for (const Reflection::IdType &idtype : Reflection::GetIdTypes())
         data["idtypes"].push_back(idtype.Name);
 
     data["currentpage"] = 1;

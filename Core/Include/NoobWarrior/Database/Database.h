@@ -138,6 +138,8 @@ namespace NoobWarrior {
          */
         std::vector<unsigned char> RetrieveAssetData(int64_t id);
 
+        std::vector<unsigned char> RetrieveContentImageData(const Reflection::IdType &type, int64_t id);
+
         template<typename T>
         DatabaseResponse UpdateIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> version, const std::string &columnName, T val) {
             auto res = DatabaseResponse::Failed;
@@ -194,34 +196,7 @@ namespace NoobWarrior {
         template<typename T>
         std::vector<unsigned char> RetrieveContentImageData(int64_t id) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-            if (!mInitialized) return {};
-
-            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;",
-                                              Reflection::GetIdTypeName<T>());
-
-            sqlite3_stmt *stmt;
-            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-            sqlite3_bind_int64(stmt, 1, id);
-            if (sqlite3_step(stmt) == SQLITE_ROW) {
-                const auto iconId = GetValueFromColumnName<int64_t>(stmt, "Image");
-                if (std::vector<unsigned char> imageData = RetrieveAssetData(iconId); !imageData.empty()) {
-                    sqlite3_finalize(stmt);
-                    return imageData;
-                }
-            }
-            sqlite3_finalize(stmt);
-
-            std::vector<unsigned char> data;
-
-            if (std::is_same_v<T, Asset>) {
-                std::optional<Asset> asset = GetContent<Asset>(id);
-                if (asset.has_value()) {
-                    data = GetImageForAssetType(asset.value().Type);
-                }
-            }
-
-            if (data.empty()) data.assign(T::DefaultImage, T::DefaultImage + T::DefaultImageSize);
-            return data;
+            return RetrieveContentImageData(Reflection::GetIdType<T>(), id);
         }
 
         template<typename T>
