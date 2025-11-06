@@ -5,7 +5,7 @@
 // Description: Contains useful macros
 #pragma once
 
-#define NOOBWARRIOR_VERSION "0.0.3"
+#define NOOBWARRIOR_VERSION "0.0.4"
 #define NOOBWARRIOR_AUTHORS \
 "Hattozo - Creator of the noobWarrior project and software\n"
 #define NOOBWARRIOR_CONTRIBUTORS \

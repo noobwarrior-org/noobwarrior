@@ -42,7 +42,7 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.auth.type", "master");
     SetKeyComment("httpserver.auth.type", "If set to \"master\", your server is responsible for all authentication. If set to \"slave\", the server URL set in the \"master\" variable will be responsible for all authentication.");
 
-    SetKeyValueIfNotSet("httpserver.auth.master", "https://servers.noobwarrior.org");
+    SetKeyValueIfNotSet("httpserver.auth.master", "https://community.noobwarrior.org");
     SetKeyComment("httpserver.auth.master", "The URL of the server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
 
     SetKeyValueIfNotSet("httpserver.auth.allow_registration", false);
