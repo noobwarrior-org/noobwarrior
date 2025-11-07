@@ -34,7 +34,7 @@ Core::Core(Init init) :
     Reflection::hi();
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
-    mAuth = new Auth(mConfig);
+    mRobloxAuth = new RobloxAuth(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
@@ -43,12 +43,12 @@ Core::Core(Init init) :
     mDatabaseManager.AutocreateMasterDatabase();
 
     if (mInit.EnableKeychain)
-        GetAuth()->ReadFromKeychain();
+        GetRobloxAuth()->ReadFromKeychain();
 }
 
 Core::~Core() {
     if (mInit.EnableKeychain)
-        GetAuth()->WriteToKeychain();
+        GetRobloxAuth()->WriteToKeychain();
 
     StopServerEmulator();
     mg_exit_library();
@@ -104,8 +104,8 @@ DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
 }
 
-Auth *Core::GetAuth() {
-    return mAuth;
+RobloxAuth *Core::GetRobloxAuth() {
+    return mRobloxAuth;
 }
 
 std::filesystem::path Core::GetInstallationDir() const {

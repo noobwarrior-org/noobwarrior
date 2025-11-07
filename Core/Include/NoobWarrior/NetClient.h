@@ -4,7 +4,7 @@
 // Started on: 3/15/2025
 // Description: A thin layer over libcurl that makes it less annoying to use
 #pragma once
-#include "Auth.h"
+#include "Auth/RobloxAuth.h"
 
 #include <curl/curl.h>
 

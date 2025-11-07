@@ -213,7 +213,7 @@ BackupResponse Core::BackupAsset(int64_t id, Database *db, std::function<void(Ba
     if (!asset_download_url.has_value())
         return BackupResponse::UrlNotSet;
 
-    NetClient client(GetAuth()->GetActiveAccount());
+    NetClient client(GetRobloxAuth()->GetActiveAccount());
     if (client.Failed())
         return BackupResponse::Failed;
     client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {

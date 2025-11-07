@@ -293,7 +293,7 @@ void DatabaseEditor::InitMenus() {
     });
 
     connect(mBackupAction, &QAction::triggered, [this]() {
-        if (!gApp->GetCore()->GetAuth()->IsLoggedIn()) {
+        if (!gApp->GetCore()->GetRobloxAuth()->IsLoggedIn()) {
             QMessageBox::StandardButton res = QMessageBox::question(this,
                 "Not Logged In",
                 "You currently don't have a Roblox account authenticated with noobWarrior.\n\nStarting April 2nd 2025, Roblox requires an account in order to download any assets from their services. Would you like to authenticate your Roblox account with noobWarrior in order to use this feature?",

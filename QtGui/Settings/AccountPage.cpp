@@ -50,7 +50,7 @@ void AccountPage::InitWidgets() {
             if (!selectedIndexes.empty()) {
                 QStandardItem *primaryItem = ListModel->itemFromIndex(selectedIndexes.at(0));
                 if (!primaryItem->data().isNull()) {
-                    Auth *auth = gApp->GetCore()->GetAuth();
+                    RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
                     Account *acc = &auth->GetAccounts().at(primaryItem->data().toInt());
                     auth->SetActiveAccount(acc);
                     Refresh();
@@ -71,7 +71,7 @@ void AccountPage::Refresh() {
     ListModel->removeRows(0, ListModel->rowCount());
     ListModel->setRowCount(0);
 
-    Auth *auth = gApp->GetCore()->GetAuth();
+    RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
     std::vector<Account> &accounts = auth->GetAccounts();
     for (int i = 0; i < static_cast<int>(accounts.size()); ++i) {
         Account &acc = accounts[i];
@@ -84,7 +84,7 @@ void AccountPage::Refresh() {
             << new QStandardItem(acc.Id > -1 ? QString::number(acc.Id) : "N/A")
             << new QStandardItem(!acc.Name.empty() ? QString::fromStdString(acc.Name) : "N/A")
             << new QStandardItem(acc.ExpireTimestamp > -1 ? "idk" : "N/A")
-            << new QStandardItem(Auth::HasAccountExpired(acc) ? "Yes" : "No");
+            << new QStandardItem(auth->HasAccountExpired(acc) ? "Yes" : "No");
         ListModel->appendRow(accRow);
     }
     for (auto &acc : accounts) {

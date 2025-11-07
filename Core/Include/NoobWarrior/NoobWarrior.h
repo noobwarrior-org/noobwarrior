@@ -8,7 +8,6 @@
 #include "Macros.h"
 #include "Log.h"
 #include "Database/Database.h"
-#include "Auth.h"
 #include "Config.h"
 #include "Database/DatabaseManager.h"
 #include "RccServiceManager.h"
@@ -18,6 +17,8 @@
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
 #include "NetClient.h"
+#include "Auth/RobloxAuth.h"
+#include "Auth/MasterServerAuth.h"
 
 #include <lua.hpp>
 #include <curl/curl.h>
@@ -93,7 +94,7 @@ public:
     lua_State *GetLuaState();
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
-    Auth *GetAuth();
+    RobloxAuth *GetRobloxAuth();
 
     std::filesystem::path GetInstallationDir() const;
 
@@ -175,7 +176,7 @@ private:
 
     HttpServer::ServerEmulator*     mServerEmulator;
 
-    Auth*                           mAuth;
+    RobloxAuth*                     mRobloxAuth;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;
 
