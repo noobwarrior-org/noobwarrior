@@ -6,6 +6,7 @@
 #pragma once
 #include <QDockWidget>
 #include <QTreeView>
+#include <QStandardItemModel>
 
 namespace NoobWarrior {
 class MasterServerSidebar : public QDockWidget {
@@ -16,5 +17,6 @@ private:
     void InitWidgets();
 
     QTreeView* mView;
+    QStandardItemModel* mModel;
 };
 }

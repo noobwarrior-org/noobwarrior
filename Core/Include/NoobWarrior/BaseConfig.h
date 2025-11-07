@@ -102,9 +102,7 @@ public:
         else if constexpr (std::is_same_v<T, nlohmann::json>) {
             if (lua_type(mLuaState, -1) == LUA_TTABLE) {
                 lua_getglobal(mLuaState, "json");
-
-                lua_pushstring(mLuaState, "stringify");
-                lua_gettable(mLuaState, -2);
+                lua_getfield(mLuaState, -1, "stringify");
 
                 lua_pushvalue(mLuaState, -3); // retrieve the key value and push it to the stack again
 
@@ -112,13 +110,13 @@ public:
 
                 if (res != LUA_OK) {
                     Out("Config", "Failed to convert Lua table to JSON string: {}", lua_tostring(mLuaState, -1));
-                    lua_pop(mLuaState, 2); // you still have this error message and the json table on the stack so pop those 2
                 }
                 try {
-                    result = nlohmann::json(lua_tostring(mLuaState, -1));
+                    result = nlohmann::json::parse(lua_tostring(mLuaState, -1));
                 } catch (std::exception &ex) {
                     Out("Config", "Failed to convert string to C++ JSON object");
                 }
+                lua_pop(mLuaState, 1);
             }
         }
         lua_pop(mLuaState, 1);
