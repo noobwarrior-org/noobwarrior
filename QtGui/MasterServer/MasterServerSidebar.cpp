@@ -11,7 +11,7 @@
 using namespace NoobWarrior;
 
 MasterServerSidebar::MasterServerSidebar(QWidget* parent) : QDockWidget(parent) {
-    setWindowTitle("Master Servers");
+    setWindowTitle("Sidebar");
     InitWidgets();
 }
 
@@ -21,6 +21,12 @@ void MasterServerSidebar::InitWidgets() {
 
     mModel = new QStandardItemModel(this);
 
+    auto *favoritesRow = new QStandardItem(QIcon(":/images/silk/house.png"), QString::fromStdString("Favorites & LAN Servers"));
+    auto *recentsRow = new QStandardItem(QIcon(":/images/silk/time.png"), QString::fromStdString("Recently Played Servers"));
+
+    mModel->invisibleRootItem()->appendRow(favoritesRow);
+    mModel->invisibleRootItem()->appendRow(recentsRow);
+    
     std::optional<nlohmann::json> servers = gApp->GetCore()->GetConfig()->GetKeyValue<nlohmann::json>("gui.master_servers");
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
@@ -30,9 +36,9 @@ void MasterServerSidebar::InitWidgets() {
 
             });
             std::string name = server.contains("name") ? server["name"].get<std::string>() : "Loading...";
-            QStandardItem *serverRow = new QStandardItem(QIcon(":/images/silk/drive_network.png"), QString::fromStdString(name));
+            QStandardItem *serverRow = new QStandardItem(QIcon(":/images/silk/server.png"), QString::fromStdString(name));
 
-            QStandardItem *serversRow = new QStandardItem(QIcon(":/images/silk/server.png"), "Servers");
+            QStandardItem *serversRow = new QStandardItem(QIcon(":/images/silk/controller.png"), "Servers");
             QStandardItem *newsRow = new QStandardItem(QIcon(":/images/silk/newspaper.png"), "News");
             QStandardItem *accountRow = new QStandardItem(QIcon(":/images/silk/report_user.png"), "Account");
             QStandardItem *avatarRow = new QStandardItem(QIcon(":/images/silk/user_suit.png"), "Avatar");
