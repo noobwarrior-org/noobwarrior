@@ -5,7 +5,7 @@
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "DatabaseEditor.h"
 #include "ContentBrowserWidget.h"
-#include "ItemDialog.h"
+#include "Item/ItemDialog.h"
 #include "Backup/BackupDialog.h"
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"

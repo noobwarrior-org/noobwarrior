@@ -12,7 +12,7 @@
 #include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/Reflection.h>
 
-#include "DatabaseEditor.h"
+#include "../DatabaseEditor.h"
 
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
