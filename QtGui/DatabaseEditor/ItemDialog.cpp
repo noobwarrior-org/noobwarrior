@@ -4,6 +4,7 @@
 // Started on: 10/27/2025
 // Description: Dialog window that allows you to edit or create an item.
 #include "ItemDialog.h"
+#include "NoobWarrior/Database/Database.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -12,12 +13,14 @@
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(QWidget *parent, const Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> version) : QDialog(parent),
+typedef std::variant<QLineEdit*> InputWidget;
+
+ItemDialog::ItemDialog(QWidget *parent, const Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> snapshot) : QDialog(parent),
     mIdType(idType),
     mId(id),
-    mVersion(version)
+    mSnapshot(snapshot)
 {
-    assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ContentEditorDialog should not be parented to anything other than DatabaseEditor");
+    assert(dynamic_cast<DatabaseEditor*>(this->parent()) != nullptr && "ItemDialog should not be parented to anything other than DatabaseEditor");
     mDatabaseEditor = dynamic_cast<DatabaseEditor*>(this->parent());
     mDatabase = mDatabaseEditor->GetCurrentlyEditingDatabase();
 
@@ -48,11 +51,10 @@ void ItemDialog::RegenWidgets() {
 
     std::vector<unsigned char> data;
 
-    if (mId.has_value()) {
+    if (mId.has_value())
         data = std::move(mDatabase->RetrieveContentImageData(mIdType, mId.has_value() ? mId.value() : -1));
-    } else {
+    else
         data.assign(mIdType.DefaultImage, mIdType.DefaultImage + mIdType.DefaultImageSize);
-    }
 
     image.loadFromData(data);
 
@@ -88,36 +90,45 @@ void ItemDialog::RegenWidgets() {
 
     Out("ItemDialog", "id type name {}", mIdType.Name);
 
+    mIdInput = new QLineEdit();
+    mContentLayout->addRow("Id", mIdInput);
+
     ////////////////////////////////////////////////////////////////////////
     /// main content containing all the fields and stuff
     ////////////////////////////////////////////////////////////////////////
+    std::map<std::string, InputWidget> columnNameAndWidgets;
     for (const auto &fieldpair : mIdType.Fields) {
         std::string name = fieldpair.first;
         Reflection::Field field = fieldpair.second;
         Out("ItemDialog", "{} - {}", field.Name, field.Description);
 
-        if (field.Name.compare("ImageId") == 0 || field.Name.compare("ImageVersion") == 0) {
+        // These fields are excluded from being automatically included in this list.
+        // We instead have our own toggles for editing them, like how Id has mIdInput.
+        if (field.Name.compare("Id") == 0 || field.Name.compare("Snapshot") == 0 || field.Name.compare("ImageId") == 0 || field.Name.compare("ImageSnapshot") == 0) {
             continue;
         }
 
-        void* widget = nullptr;
+        QWidget* widget = nullptr;
 
         if (field.Type == &typeid(int)) {
             widget = new QLineEdit(this);
+            columnNameAndWidgets.emplace(name, static_cast<QLineEdit*>(widget));
         } else if (field.Type == &typeid(std::string)) {
             widget = new QLineEdit(this);
+            columnNameAndWidgets.emplace(name, static_cast<QLineEdit*>(widget));
         }
 
         if (widget != nullptr)
-            mContentLayout->addRow(QString::fromStdString(field.PrettyName), static_cast<QWidget*>(widget));
+            mContentLayout->addRow(QString::fromStdString(field.PrettyName), widget);
 
         if (mId.has_value()) {
-            std::any val = field.Getter(mDatabase, mId.value(), std::nullopt);
-            if (field.Type == &typeid(int)) {
-                static_cast<QLineEdit*>(widget)->setText(QString::number(std::any_cast<int>(val)));
-            } else if (field.Type == &typeid(std::string)) {
-                static_cast<QLineEdit*>(widget)->setText(QString::fromStdString(std::any_cast<std::string>(val)));
-            }
+            mDatabase->RetrieveColumnsFromItem(mIdType, mId.value(), mSnapshot);
+            // std::any val = field.Getter(mDatabase, mId.value(), std::nullopt);
+            // if (field.Type == &typeid(int)) {
+            //     static_cast<QLineEdit*>(widget)->setText(QString::number(std::any_cast<int>(val)));
+            // } else if (field.Type == &typeid(std::string)) {
+            //     static_cast<QLineEdit*>(widget)->setText(QString::fromStdString(std::any_cast<std::string>(val)));
+            // }
         }
     }
 
@@ -158,7 +169,45 @@ void ItemDialog::RegenWidgets() {
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
     mContentLayout->addWidget(mButtonBox);
 
-    connect(mButtonBox, &QDialogButtonBox::accepted, this, [this] () mutable {
+    connect(mButtonBox, &QDialogButtonBox::accepted, this, [this, columnNameAndWidgets] () mutable {
+        int64_t newId = static_cast<int64_t>(mIdInput->text().toInt());
+        if (mId.has_value() && newId != mId.value()) {
+            // the user has changed the ID of the item, account for this so that it doesn't try to create an entirely new row.
+            DatabaseResponse res = mDatabase->ChangeItemId(mIdType, mId.value(), newId);
+            if (res != DatabaseResponse::Success) {
+                // this will totally not infuriate people when seen
+                QMessageBox::critical(this, "Failed to Configure Item", "You changed the ID of the item, but the database failed when trying to internally change the ID.");
+                return;
+            }
+        }
+        std::map<std::string, SqlValue> columnsToChange;
+
+        for (auto &columnNameAndWidget : columnNameAndWidgets) {
+            std::string columnName = columnNameAndWidget.first;
+            InputWidget widget = columnNameAndWidget.second;
+            if (std::holds_alternative<QLineEdit*>(widget)) {
+                auto* lineEdit = std::get<QLineEdit*>(widget);
+                if (mIdType.Fields.at(columnName).Type == &typeid(int))
+                    columnsToChange[columnName] = lineEdit->text().toInt();
+                else if (mIdType.Fields.at(columnName).Type == &typeid(int64_t))
+                    columnsToChange[columnName] = static_cast<int64_t>(lineEdit->text().toInt());
+                else if (mIdType.Fields.at(columnName).Type == &typeid(std::string))
+                    columnsToChange[columnName] = lineEdit->text().toStdString();
+                else Out("ItemDialog", "Cannot convert the text from QT input widget to the field's datatype.");
+            } else {
+
+            }
+        }
+
+        mDatabase->UpsertItem(mIdType, newId, std::nullopt, columnsToChange);
+        // mDatabase->InsertItemWithDefaultsIfNotFound(mIdType, mId.value());
+        // for (const auto &fieldpair : mIdType.Fields) {
+        //     std::string name = fieldpair.first;
+        //     Reflection::Field field = fieldpair.second;
+
+        //     field.Setter(mDatabase, mId.value(), std::nullopt, 123);
+        // }
+
         /*
         // validate everything first
         for (int i = 0; i < mFields.size(); i++) {
@@ -202,8 +251,8 @@ std::optional<int> ItemDialog::GetId() {
     return mId;
 }
 
-std::optional<int> ItemDialog::GetVersion() {
-    return mVersion;
+std::optional<int> ItemDialog::GetSnapshot() {
+    return mSnapshot;
 }
 
 Database *ItemDialog::GetDatabase() {

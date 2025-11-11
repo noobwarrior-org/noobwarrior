@@ -1,7 +1,7 @@
 static const char *schema_universe = R"***(
 CREATE TABLE IF NOT EXISTS "Universe" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
+	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS "Universe" (
 	"Historical_Likes"	INTEGER,
 	"Historical_Dislikes"	INTEGER,
 	"Visits"	INTEGER,
-	PRIMARY KEY("Id","Version"),
+	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))

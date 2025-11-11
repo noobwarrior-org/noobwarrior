@@ -36,8 +36,8 @@
     }; \
     static idType##Registrar s##idType##RegistrarInstance;
 
-#define NOOBWARRIOR_REFLECT_FIELD(fieldName, prettyName, datatype, desc, getDefaultVal, getter, setter) \
-    idTypePtr->Fields[#fieldName] = { .Name = #fieldName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal, .Getter = getter, .Setter = setter };
+#define NOOBWARRIOR_REFLECT_FIELD(fieldName, tableName, prettyName, datatype, desc, getDefaultVal) \
+    idTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
 
 #define NOOBWARRIOR_REFLECT_DEFAULT_IMAGE(data, dataSize) \
     idTypePtr->DefaultImage = data; \
@@ -59,7 +59,6 @@
 #define NOOBWARRIOR_REFLECT_ENUM_VALUE(enumName, enumVal) \
     enumeration->Values[#enumName] = static_cast<int>(enumVal);
 
-/*
 #define NOOBWARRIOR_REFLECT_COMMON_BEGIN \
     struct CommonRegistrar { \
         CommonRegistrar() {
@@ -69,10 +68,9 @@
     }; \
     static CommonRegistrar sCommonRegistrarInstance;
 
-#define NOOBWARRIOR_REFLECT_COMMON_FIELD(fieldName, datatype, desc, getter, setter) \
-    for (auto &pair : NoobWarrior::Reflection::GetIdTypes()) \
-        pair.second.Fields[#fieldName] = { .Name = #fieldName, .Description = desc, .Type = &typeid(datatype), .Getter = getter, .Setter = setter };
-*/
+#define NOOBWARRIOR_REFLECT_COMMON_FIELD(fieldName, tableName, prettyName, datatype, desc, getDefaultVal) \
+    for (auto idTypePtr : NoobWarrior::Reflection::GetIdTypesInternal()) \
+        idTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
 
 namespace NoobWarrior {
 class Database;
@@ -81,12 +79,11 @@ enum class DatabaseResponse;
 namespace NoobWarrior::Reflection {
 struct Field {
     std::string Name;
+    std::string TableName;
     std::string PrettyName;
     std::string Description;
     const std::type_info* Type { nullptr };
-    std::function<std::any()> GetDefaultValue;
-    std::function<std::any(Database *db, int64_t id, std::optional<int> version)> Getter;
-    std::function<DatabaseResponse(Database *db, int64_t id, std::optional<int> version, std::any val)> Setter;
+    std::function<std::any(Database *db)> GetDefaultValue;
 };
 
 struct IdType {

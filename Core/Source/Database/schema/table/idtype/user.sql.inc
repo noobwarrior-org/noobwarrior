@@ -7,7 +7,7 @@
 static const char *schema_user = R"***(
 CREATE TABLE IF NOT EXISTS "User" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
+	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS "User" (
 	"Rank"	INTEGER,
 	"HeadshotThumbnailHash"	TEXT,
 	"BustThumbnailHash"	TEXT,
-	PRIMARY KEY("Id","Version"),
+	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("Name") REFERENCES "UserNames"("Name"),
 	FOREIGN KEY("HeadshotThumbnailHash") REFERENCES "HashBlob"("Hash"),
 	FOREIGN KEY("BustThumbnailHash") REFERENCES "HashBlob"("Hash")

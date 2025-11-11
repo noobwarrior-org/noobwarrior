@@ -1,6 +1,6 @@
 static const char *schema_group_log = R"***(
 CREATE TABLE IF NOT EXISTS "GroupLog" (
-    "GroupId"	INTEGER NOT NULL,
+    "Id"	INTEGER NOT NULL,
 	"LogId"	INTEGER,
     "UserId"	INTEGER,
 	"LogType"	INTEGER,
@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS "GroupLog" (
 	"Date"	INTEGER,
     "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("GroupId","LogId"),
+	PRIMARY KEY("Id","LogId"),
     FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
+	FOREIGN KEY("Id") REFERENCES "Group"("Id")
 );
 )***";

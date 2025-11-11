@@ -61,7 +61,7 @@ protected:
         opt.Limit = 100;
         opt.AssetType = mAssetType;
 
-        std::vector<T> list = db->SearchContent<T>(opt);
+        std::vector<T> list = db->SearchItemType<T>(opt);
         for (auto &item : list) {
             new ContentListItem<T>(item, db, List);
             // cool->setIcon(QIcon(item.Icon));

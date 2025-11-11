@@ -33,88 +33,110 @@ using AssetType = Roblox::AssetType;
 NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
     NOOBWARRIOR_REFLECT_DEFAULT_IMAGE(const_cast<int*>(g_question_mark_png), g_question_mark_png_size)
     NOOBWARRIOR_REFLECT_FIELD(
+        Id, // Field Name
+        Asset, // Table Name
+        "Id", // Pretty Name
+        int64_t, // Field Datatype
+        "The ID of this asset.", // Field Description
+        // Default Value
+        [](Database *db) -> std::any {
+            db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
+            return "";
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
+        Snapshot, // Field Name
+        Asset, // Table Name
+        "Snapshot", // Pretty Name
+        int, // Field Datatype
+        "The snapshot number.", // Field Description
+        // Default Value
+        [](Database *db) -> std::any {
+            db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
+            return "";
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
         Name, // Field Name
+        Asset,
         "Name",
         std::string, // Field Datatype
         "The name of this asset. Self-explanatory.", // Field Description
         // Default Value
-        []() -> std::any {
+        [](Database *db) -> std::any {
             return "";
-        },
-        // Getter
-        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
-            return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Name"));
-        },
-        // Setter
-        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
-            return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Name", std::any_cast<std::string>(val));
         }
     )
 
     NOOBWARRIOR_REFLECT_FIELD(
         Description,
+        Asset,
         "Description",
         std::string,
         "A few sentences that describe what this asset does.",
-        []() -> std::any {
+        [](Database *db) -> std::any {
             return "";
-        },
-        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
-            return std::any(db->GetIdRowColumn<std::string>("Asset", id, version, "Description"));
-        },
-        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
-            return db->UpdateIdRowColumn<std::string>("Asset", id, version, "Description", std::any_cast<std::string>(val));
         }
     )
 
     NOOBWARRIOR_REFLECT_FIELD(
         ImageId,
+        Asset,
         "Image ID",
         int64_t,
         "The ID of the image that this asset will display. Does not apply for asset types that use auto-generated thumbnails.",
-        []() -> std::any {
+        [](Database *db) -> std::any {
             return {}; // initialize as empty object to return null
-        },
-        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
-            return std::any(db->GetIdRowColumn<int64_t>("Asset", id, version, "ImageId"));
-        },
-        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
-            return db->UpdateIdRowColumn<int64_t>("Asset", id, version, "ImageId", std::any_cast<int64_t>(val));
         }
     )
 
     NOOBWARRIOR_REFLECT_FIELD(
-        ImageVersion,
-        "Image Version",
+        ImageSnapshot,
+        Asset,
+        "Image Snapshot",
         int,
-        "The version of the image ID. Does not apply for asset types that use auto-generated thumbnails.",
-        []() -> std::any {
+        "The snapshot number of the image ID. Does not apply for asset types that use auto-generated thumbnails.",
+        [](Database *db) -> std::any {
             return {};
-        },
-        [](Database *db, int64_t id, std::optional<int> version) -> std::any {
-            return std::any(db->GetIdRowColumn<int>("Asset", id, version, "ImageVersion"));
-        },
-        [](Database *db, int64_t id, std::optional<int> version, std::any val) -> DatabaseResponse {
-            return db->UpdateIdRowColumn<int>("Asset", id, version, "ImageVersion", std::any_cast<int>(val));
         }
     )
-
-    /*
-    NOOBWARRIOR_REFLECT_FIELD(CreatorId, User, "The ID of the entity that created this asset.", [](Database *db, int64_t id, int64_t version) -> std::any {
-        return db->GetIdRowColumn("Asset", id, version, "Description");
-    }, [](Database *db, int64_t id, int64_t version, std::any val) -> void {
-        db->UpdateIdRowColumn("Asset", id, version, "Description", val);
-    })
-
-    NOOBWARRIOR_REFLECT_FIELD(CreatorType, User, "Is this asset owned by an individual user or a group?", [](Database *db, int64_t id, int64_t version) -> std::any {
-        return db->GetIdRowColumn("Asset", id, version, "Description");
-    }, [](Database *db, int64_t id, int64_t version, std::any val) -> void {
-        db->UpdateIdRowColumn("Asset", id, version, "Description", val);
-    })
-    */
 NOOBWARRIOR_REFLECT_ID_TYPE_END(Asset)
 
 NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Badge)
+    NOOBWARRIOR_REFLECT_FIELD(
+        Description,
+        Badge,
+        "Description",
+        std::string,
+        "A few sentences that describe what this badge does.",
+        [](Database *db) -> std::any {
+            return "";
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
+        ImageId,
+        Badge,
+        "Image ID",
+        int64_t,
+        "The ID of the image that this badge displays.",
+        [](Database *db) -> std::any {
+            return {}; // initialize as empty object to return null
+        }
+    )
+
+    NOOBWARRIOR_REFLECT_FIELD(
+        ImageSnapshot,
+        Badge,
+        "Image Snapshot",
+        int,
+        "The snapshot number of the image ID.",
+        [](Database *db) -> std::any {
+            return {};
+        }
+    )
 NOOBWARRIOR_REFLECT_ID_TYPE_END(Badge)
 
 NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Bundle)
@@ -141,11 +163,24 @@ NOOBWARRIOR_REFLECT_ID_TYPE_END(User)
 /*
 // start creating common fields in all of them now because we now have the list of reflected id types
 NOOBWARRIOR_REFLECT_COMMON_BEGIN
-    NOOBWARRIOR_REFLECT_COMMON_FIELD(Name, std::string, "The name of this item. Self-explanatory.", [](Database *db) -> std::any {
-
-    }, [](Database *db, std::any) -> void {
-
-    })
+    NOOBWARRIOR_REFLECT_COMMON_FIELD(
+        Name, // Field Name
+        "Name",
+        std::string, // Field Datatype
+        "The name of this item. Self-explanatory.", // Field Description
+        // Default Value
+        [](Database *db) -> std::any {
+            return "";
+        },
+        // Getter
+        [](Database *db, int64_t id, std::optional<int> snapshot) -> std::any {
+            return std::any(db->GetIdRowColumn<std::string>("Asset", id, snapshot, "Name"));
+        },
+        // Setter
+        [](Database *db, int64_t id, std::optional<int> snapshot, std::any val) -> DatabaseResponse {
+            return db->UpdateIdRowColumn<std::string>("Asset", id, snapshot, "Name", std::any_cast<std::string>(val));
+        }
+    )
 NOOBWARRIOR_REFLECT_COMMON_END
 */
 

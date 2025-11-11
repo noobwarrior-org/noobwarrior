@@ -6,7 +6,6 @@
 // It's very similar to the Roblox Studio toolbox widget.
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include "ContentBrowserWidget.h"
-#include "ContentEditorDialog.h"
 #include "DatabaseEditor.h"
 
 #include <NoobWarrior/NoobWarrior.h>

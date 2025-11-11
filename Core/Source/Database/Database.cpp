@@ -11,6 +11,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <sqlite3.h>
 
 #include "../base64.h"
 
@@ -93,20 +94,27 @@ DatabaseResponse Database::Open(const std::string &path) {
 		// disable auto-commit mode by explicitly initiating a transaction
 		val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
 		if (val != SQLITE_OK) {
+			Out("Database", "Failed to begin new transaction!");
 			sqlite3_close_v2(mDatabase);
 			return DatabaseResponse::Failed;
 		}
 	}
 
-    switch (GetDatabaseVersion()) {
-    case -1: // -1 indicates that something has went terribly wrong. how did that happen?
-        sqlite3_close_v2(mDatabase);
+	int dbVer = GetDatabaseVersion();
+	if (dbVer > 0 && dbVer != NOOBWARRIOR_DATABASE_VERSION) {
+		Out("Database", "Database file is out of date because it is on version {}! Must be upgraded to version {}.", dbVer, NOOBWARRIOR_DATABASE_VERSION);
+	} else if (dbVer == -1) { // -1 indicates that something has went terribly wrong. how did that happen?
+		Out("Database", "Failed to open database file because the version number could not retrieved!");
+		sqlite3_close_v2(mDatabase);
         return DatabaseResponse::CouldNotGetVersion;
-    case 0: // 0 indicates to us that we have a brand new SQLite database, as there is no noobWarrior version that starts at 0.
-        // no migrating required, just set the database version and go
+	}
+
+    switch (dbVer) {
+    case 0: // 0 indicates to us that we have a brand new SQLite database, as there is no file version that starts at 0.
+        // no migrating required because we are on a clean slate, just set the database version and go
         if (SetDatabaseVersion(NOOBWARRIOR_DATABASE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return DatabaseResponse::CouldNotSetVersion; }
         break;
-	case 1: ;
+	case 1: ; // No migration scripts for v1, it's the first version.
     }
 
 #define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
@@ -216,7 +224,10 @@ cleanup:
 
 int Database::SetDatabaseVersion(int version) {
 	std::string stmtStr = std::format("PRAGMA user_version={}", version);
-    return sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
+	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
+	if (res == SQLITE_OK)
+		MarkDirty();
+    return res;
 }
 
 DatabaseResponse Database::SaveAs(const std::string &path) {
@@ -292,6 +303,21 @@ bool Database::IsMemory() {
 	return mPath.compare(":memory:") == 0;
 }
 
+bool Database::DoesItemExist(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot) {
+	if (!mInitialized) return false;
+
+	std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? {};", idType.Name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
+
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+	sqlite3_bind_int(stmt, 2, snapshot.value());
+
+	int res = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	return res == SQLITE_ROW;
+}
+
 std::string Database::GetSqliteErrorMsg() {
     return sqlite3_errmsg(mDatabase);
 }
@@ -313,34 +339,34 @@ std::string Database::GetMetaKeyValue(const std::string &key) {
 	return "";
 }
 
-std::string Database::GetTitle() {
-	return GetMetaKeyValue("Title");
-}
-
-std::string Database::GetDescription() {
-	return GetMetaKeyValue("Description");
-}
-
-std::string Database::GetVersion() {
-	return GetMetaKeyValue("Version");
-}
-
-std::string Database::GetAuthor() {
-	return GetMetaKeyValue("Author");
-}
-
-std::vector<unsigned char> Database::GetIcon() {
-	return base64_decode(GetMetaKeyValue("Icon"));
-}
+std::string Database::GetTitle() { return GetMetaKeyValue("Title"); }
+std::string Database::GetDescription() { return GetMetaKeyValue("Description"); }
+std::string Database::GetVersion() { return GetMetaKeyValue("Version"); }
+std::string Database::GetAuthor() { return GetMetaKeyValue("Author"); }
+std::vector<unsigned char> Database::GetIcon() { return base64_decode(GetMetaKeyValue("Icon")); }
 
 std::string Database::GetFileName() {
-    return mPath.filename().string();
+	if (mPath.compare(":memory:"))
+		return "Unsaved Database";
+	return mPath.filename().string();
 }
 
 std::filesystem::path Database::GetFilePath() {
     if (mPath.compare(":memory:"))
         return "";
     return mPath;
+}
+
+DatabaseResponse Database::ExecSqlStatement(const std::string &stmtStr) {
+	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
+	auto ret = DatabaseResponse::Failed;
+	switch (res) {
+	case SQLITE_OK:
+		ret = DatabaseResponse::Success;
+		break;
+	default: break;
+	}
+	return ret;
 }
 
 DatabaseResponse Database::SetMetaKeyValue(const std::string &key, const std::string &value) {
@@ -367,11 +393,230 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
+std::vector<SqlColumn> Database::RetrieveColumnsFromRow(const std::string &tableName, const std::vector<std::string> &cols) {
+	std::string sql = "";
+	return {};
+}
+
+/*
+DatabaseResponse Database::InsertItemWithDefaultsIfNotFound(const Reflection::IdType &type, int64_t id, std::optional<int> snapshot) {
+	auto res = DatabaseResponse::Failed;
+	if (DoesItemExist(type, id, snapshot))
+		return DatabaseResponse::Success; // whatever lmao
+
+	std::string sql = std::format("INSERT INTO {} (", type.Name);
+	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
+		const Reflection::Field &field = it->second;
+		sql += field.Name;
+		if (std::next(it) != type.Fields.end())
+			sql += ", ";
+	}
+	sql += ") VALUES (";
+	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
+		sql += "?";
+		if (std::next(it) != type.Fields.end())
+			sql += ", ";
+		else sql += ");";
+	}
+
+	Out("Database", "{}", sql);
+	
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
+
+	int fieldNum = 0;
+	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
+		fieldNum++;
+		const Reflection::Field &field = it->second;
+
+		if (field.Name.compare("Id") == 0) {
+			sqlite3_bind_int64(stmt, fieldNum, id);
+			continue;
+		}
+
+		if (field.Name.compare("Snapshot") == 0 && snapshot.has_value()) {
+			sqlite3_bind_int(stmt, fieldNum, snapshot.value());
+			continue;
+		}
+
+		std::any val = field.GetDefaultValue(this);
+
+		if (!val.has_value())
+			sqlite3_bind_null(stmt, fieldNum);
+		else if (val.type() == typeid(int))
+			sqlite3_bind_int(stmt, fieldNum, std::any_cast<int>(val));
+		else if (val.type() == typeid(bool))
+			sqlite3_bind_int(stmt, fieldNum, std::any_cast<bool>(val));
+		else if (val.type() == typeid(int64_t))
+			sqlite3_bind_int64(stmt, fieldNum, std::any_cast<int64_t>(val));
+		else if (val.type() == typeid(std::string))
+			sqlite3_bind_text(stmt, fieldNum, std::any_cast<std::string>(val).c_str(), -1, nullptr);
+		else if (val.type() == typeid(std::vector<unsigned char>)) {
+			auto vec = std::any_cast<std::vector<unsigned char>>(val);
+			sqlite3_bind_blob(stmt, fieldNum, vec.data(), vec.size(), SQLITE_TRANSIENT);
+		} else
+			Out("Database", "Could not bind datatype to default ID record constructor as it is not compatible.");
+	}
+
+	if (sqlite3_step(stmt) == SQLITE_DONE)
+		res = DatabaseResponse::Success;
+
+	sqlite3_finalize(stmt);
+	MarkDirty();
+	return res;
+}
+*/
+
+DatabaseResponse Database::UpsertItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::map<std::string, SqlValue> &columnNamesAndNewValues) {
+	// contains a list of each table that needs to be changed, and what columns within them should be changed.
+	std::map<std::string, std::map<std::string, SqlValue>> tableColumns;
+	for (auto &[columnName, desiredColumnValue] : columnNamesAndNewValues) {
+		Reflection::Field field = idType.Fields.at(columnName);
+		tableColumns[field.TableName].emplace(columnName, desiredColumnValue);
+	}
+
+	for (auto &[tableName, columnMap] : tableColumns) {
+		std::string sql = std::format("INSERT INTO {} (", tableName);
+
+		if (!columnNamesAndNewValues.contains("Id"))
+			sql += "Id, ";
+		if (!columnNamesAndNewValues.contains("Snapshot"))
+			sql += "Snapshot, ";
+
+		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
+			const Reflection::Field &field = idType.Fields.at(it->first);
+			sql += field.Name;
+			if (std::next(it) != columnMap.end())
+				sql += ", ";
+		}
+		sql += ") VALUES (";
+
+		if (!columnNamesAndNewValues.contains("Id"))
+			sql += "?, ";
+		if (!columnNamesAndNewValues.contains("Snapshot"))
+			sql += "?, ";
+
+		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
+			sql += "?";
+			if (std::next(it) != columnMap.end())
+				sql += ", ";
+		}
+		sql += ") ON CONFLICT (Id, Snapshot) DO UPDATE SET ";
+
+		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
+			const Reflection::Field &field = idType.Fields.at(it->first);
+			sql += field.Name + "=?";
+			if (std::next(it) != columnMap.end())
+				sql += ", ";
+		}
+		sql += ";";
+		Out("Database", "Upserting into item with statement: {}", sql);
+	}
+	// TODO: use mDatabase->GetLatestItemSnapshot(mIdType, newId) for determining which snapshot to use
+	MarkDirty();
+	return DatabaseResponse::Success;
+}
+
+DatabaseResponse Database::ChangeItemId(const Reflection::IdType &idType, int64_t currentId, int64_t newId) {
+	auto res = DatabaseResponse::Success;
+	// To start, we just see what fields this IdType contains and collect each table seen in the fields.
+	std::map<std::string, std::vector<std::string>> tableColumns;
+	for (auto &[columnName, field] : idType.Fields) {
+		tableColumns[field.TableName].push_back(columnName);
+	}
+
+	// Then we just get all those tables and change their Id column,
+	// because surely they must be associated with our IdType's main table?
+	if (mAutoCommit)
+		ExecSqlStatement(mAutoCommit ? "BEGIN TRANSACTION;" : "SAVEPOINT ChangeItemId;");
+
+	for (auto &[tableName, columnMap] : tableColumns) {
+		std::string sql = std::format("UPDATE {} SET Id = {} WHERE Id = {};", tableName, newId, currentId);
+		DatabaseResponse tableUpdateRes = ExecSqlStatement(sql);
+		if (tableUpdateRes != DatabaseResponse::Success) {
+			// we fucked up, undo everything
+			res = DatabaseResponse::Failed;
+			break;
+		}
+	}
+
+	if (mAutoCommit)
+		ExecSqlStatement(res == DatabaseResponse::Success ? "COMMIT;" : "ROLLBACK;");
+	else
+		ExecSqlStatement(res == DatabaseResponse::Success ? "RELEASE SAVEPOINT ChangeItemId;" : "ROLLBACK TO SAVEPOINT ChangeItemId;");
+	
+	if (res == DatabaseResponse::Success)
+		MarkDirty();
+	return res;
+}
+
+std::vector<SqlColumn> Database::RetrieveColumnsFromItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::vector<std::string> &columnNames) {
+	// contains a list of each table that needs to be changed, and what columns within them should be changed.
+	std::map<std::string, std::vector<std::string>> tableColumns;
+	if (!columnNames.empty()) {
+		for (auto &columnName : columnNames) {
+			Reflection::Field field = idType.Fields.at(columnName);
+			tableColumns[field.TableName].push_back(columnName);
+		}
+	} else {
+		// if no columns are passed, we will just assume the user wants all of them.
+		for (auto &[columnName, field] : idType.Fields) {
+			tableColumns[field.TableName].push_back(columnName);
+		}
+	}
+
+	for (auto &[tableName, columnNameVec] : tableColumns) {
+		std::string sql = "SELECT ";
+
+		for (auto it = columnNameVec.begin(); it != columnNameVec.end(); ++it) {
+			sql += (*it);
+			sql += std::next(it) != columnNameVec.end() ? ", " : " ";
+		}
+
+		sql += std::format("FROM {} WHERE Id = ? {};", tableName, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
+		
+		Out("Database", "Retrieving columns from item with statement: {}", sql);
+
+		sqlite3_stmt *stmt;
+		sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
+
+		sqlite3_bind_int64(stmt, 1, id);
+		if (snapshot.has_value())
+			sqlite3_bind_int(stmt, 2, snapshot.value());
+
+		while (sqlite3_step(stmt) == SQLITE_ROW) {
+
+		}
+
+		sqlite3_finalize(stmt);
+	}
+
+	return {};
+}
+
+std::vector<SqlRow> SearchItemType(const Reflection::IdType &idType) {
+	return {};
+}
+
+int Database::GetLatestItemSnapshot(const Reflection::IdType &idType, int64_t id) {
+	int num = 1;
+	std::string sql = std::format("SELECT MAX(Snapshot) FROM {} WHERE Id = ?;", idType.Name);
+	sqlite3_stmt *stmt;
+	sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
+	sqlite3_bind_int64(stmt, 1, id);
+	if (sqlite3_step(stmt) == SQLITE_ROW) {
+		// hopefully this code path always executes. otherwise, wtf?
+		num = sqlite3_column_int(stmt, 0);
+	} else Out("Database", "Database::GetLatestItemSnapshot() was called with {} ID {} but it does not contain a snapshot number!", idType.Name, id);
+	sqlite3_finalize(stmt);
+	return num;
+}
+
 std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,
 	const std::string &columnName) {
 	if (!mInitialized) return {};
 
-	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", tableName);
+	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
 
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -392,7 +637,7 @@ int Database::GetAssetSize(int64_t id) {
 	if (!mInitialized) return -1;
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT Data FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDatabase, "SELECT Data FROM AssetData WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", -1, &stmt, nullptr);
 	sqlite3_bind_int64(stmt, 1, id);
 
 	if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -412,7 +657,7 @@ std::vector<unsigned char> Database::RetrieveAssetData(int64_t id) {
 std::vector<unsigned char> Database::RetrieveContentImageData(const Reflection::IdType &type, int64_t id) {
 	if (!mInitialized) return {};
 
-	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", type.Name);
+	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", type.Name);
 
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);

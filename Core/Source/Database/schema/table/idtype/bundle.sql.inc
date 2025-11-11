@@ -1,7 +1,7 @@
 static const char *schema_bundle = R"***(
 CREATE TABLE IF NOT EXISTS "Bundle" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
+	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS "Bundle" (
 	"Remaining"	INTEGER,
 	"Historical_Sales"	INTEGER,
     "Historical_Favorites"	INTEGER,
-	PRIMARY KEY("Id","Version"),
+	PRIMARY KEY("Id","Snapshot"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))

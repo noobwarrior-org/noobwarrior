@@ -1,8 +1,8 @@
 /**
  * Notes
  *
- * There can be multiple records with the same Id, but with different version numbers.
- * It is used for storing multiple versions of an item.
+ * There can be multiple records with the same Id, but with different snapshots.
+ * It is used for storing backups of an item.
  *
  * For the "UserId" and "GroupId" fields, either one of these two fields have to be null, and the other must not be null.
  * There cannot be a scenario where both the "UserId" and "GroupId" fields are filled in.
@@ -13,7 +13,7 @@
 static const char *schema_asset = R"***(
 CREATE TABLE IF NOT EXISTS "Asset" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
+	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -22,12 +22,12 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	"Updated"	INTEGER,
 	"Type"	INTEGER NOT NULL,
 	"ImageId"	INTEGER,
-	"ImageVersion"	INTEGER,
+	"ImageSnapshot"	INTEGER,
 	"UserId"	INTEGER,
 	"GroupId"	INTEGER,
 	"Public"	INTEGER,
-	PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("ImageId", "ImageVersion") REFERENCES "Asset"("Id", "Version"),
+	PRIMARY KEY("Id","Snapshot"),
+	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
 	CONSTRAINT "TYPE_CANNOT_BE_NULL" CHECK(Type IS NOT NULL AND Type > 0),

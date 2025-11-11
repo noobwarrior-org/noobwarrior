@@ -5,13 +5,13 @@
 static const char *schema_asset_historical = R"***(
 CREATE TABLE IF NOT EXISTS "AssetHistorical" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER NOT NULL,
+	"Snapshot"	INTEGER NOT NULL,
     "IsNew"	INTEGER,
 	"Sales"	INTEGER,
     "Favorites"	INTEGER,
     "Likes"	INTEGER,
 	"Dislikes"	INTEGER,
-    PRIMARY KEY("Id","Version"),
-	FOREIGN KEY("Id", "Version") REFERENCES "Asset"("Id", "Version")
+    PRIMARY KEY("Id","Snapshot"),
+	FOREIGN KEY("Id", "Snapshot") REFERENCES "Asset"("Id", "Snapshot")
 );
 )***";

@@ -4,8 +4,8 @@
  */
 static const char *schema_user_favorites = R"***(
 CREATE TABLE IF NOT EXISTS "UserFavorites" (
-    "UserId"	INTEGER NOT NULL,
-	"UserVersion"	INTEGER NOT NULL,
+    "Id"	INTEGER NOT NULL,
+	"Snapshot"	INTEGER NOT NULL,
 
 	"AssetId"	INTEGER,
 	"BadgeId"	INTEGER,
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS "UserFavorites" (
 	"FavoritedTimestamp"	INTEGER,
     "FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	PRIMARY KEY("UserId","UserVersion","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
-    FOREIGN KEY("UserId", "UserVersion") REFERENCES "User"("Id", "Version"),
+	PRIMARY KEY("Id","Snapshot","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
+    FOREIGN KEY("Id", "Snapshot") REFERENCES "User"("Id", "Snapshot"),
 
 	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
 	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),

@@ -4,7 +4,7 @@
  */
 static const char *schema_user_likes_dislikes = R"***(
 CREATE TABLE IF NOT EXISTS "UserLikesDislikes" (
-    "UserId"	INTEGER NOT NULL,
+    "Id"	INTEGER NOT NULL,
 
 	"LikedSince"	INTEGER,
 	"UnlikedSince"	INTEGER,
@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS "UserLikesDislikes" (
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 
-	PRIMARY KEY("UserId","LikedSince","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
-    FOREIGN KEY("UserId") REFERENCES "User"("Id"),
+	PRIMARY KEY("Id","LikedSince","AssetId","BadgeId","BundleId","GroupId","PassId","UniverseId"),
+    FOREIGN KEY("Id") REFERENCES "User"("Id"),
 
 	FOREIGN KEY("AssetId") REFERENCES "Asset"("Id"),
 	FOREIGN KEY("BadgeId") REFERENCES "Badge"("Id"),

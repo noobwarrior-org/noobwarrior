@@ -8,7 +8,6 @@
 #include <NoobWarrior/Database/Record/IdRecord.h>
 
 #include "ContentListItemBase.h"
-#include "ContentEditorDialog.h"
 
 namespace NoobWarrior {
 template<class T>
@@ -32,8 +31,8 @@ public:
     }
 
     void Configure(DatabaseEditor *editor) override {
-        auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
-        editDialog.exec();
+        // auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
+        // editDialog.exec();
     }
 private:
     T mRecord;

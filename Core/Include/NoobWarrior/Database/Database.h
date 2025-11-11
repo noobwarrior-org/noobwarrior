@@ -57,6 +57,10 @@ namespace NoobWarrior {
         Misuse
     };
 
+    typedef std::variant<std::monostate, int, bool, int64_t, double, std::string, std::vector<unsigned char>> SqlValue;
+    typedef std::pair<std::string, SqlValue> SqlColumn;
+    typedef std::vector<SqlColumn> SqlRow;
+
     /**
      * @brief A noobWarrior database that can contain Roblox assets, users, games, etc.
      */
@@ -66,6 +70,13 @@ namespace NoobWarrior {
         enum class CompressionType {
             None,
             ZStandard
+        };
+
+        enum class Engine { // This is currently unused, SQLite is the only supported engine for now.
+            SQLite,
+            PostgreSQL,
+            MariaDB,
+            MySQL
         };
 
         /**
@@ -105,6 +116,8 @@ namespace NoobWarrior {
          */
         bool IsMemory();
 
+        bool DoesItemExist(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot = std::nullopt);
+
         std::string GetSqliteErrorMsg();
         std::string GetMetaKeyValue(const std::string &key);
 
@@ -122,10 +135,16 @@ namespace NoobWarrior {
         std::string GetAuthor();
         std::vector<unsigned char> GetIcon();
 
+        DatabaseResponse ExecSqlStatement(const std::string &stmtStr);
         DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
         DatabaseResponse SetTitle(const std::string &title);
         DatabaseResponse SetAuthor(const std::string &author);
         DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
+
+        std::vector<SqlColumn> RetrieveColumnsFromRow(const std::string &tableName, const std::vector<std::string> &cols);
+
+        // Removing this later because IT SUCKS!!!!
+        /* DatabaseResponse InsertItemWithDefaultsIfNotFound(const Reflection::IdType &type, int64_t id, std::optional<int> snapshot); */
 
         /**
          * @brief Gets the size of the asset's data in bytes
@@ -140,10 +159,30 @@ namespace NoobWarrior {
 
         std::vector<unsigned char> RetrieveContentImageData(const Reflection::IdType &type, int64_t id);
 
+        /**
+         * @brief This destroys any trace of an item, as if it never existed. Use with caution.
+         * By the way, this deletes all snapshots associated with the item.
+         * If you only want to delete a single snapshot, use DestroyItemSnapshot()
+         * 
+         * @param idType 
+         * @param id 
+         * @return DatabaseResponse 
+         */
+        DatabaseResponse DestroyItem(const Reflection::IdType &idType, int64_t id);
+        DatabaseResponse DestroyItemSnapshot(const Reflection::IdType &idType, int64_t id, int snapshot);
+        DatabaseResponse UpsertItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::map<std::string, SqlValue> &columnNamesAndNewValues);
+        DatabaseResponse ChangeItemId(const Reflection::IdType &idType, int64_t currentId, int64_t newId);
+        std::vector<SqlColumn> RetrieveColumnsFromItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::vector<std::string> &columnNames = {});
+        std::vector<SqlRow> SearchItemType(const Reflection::IdType &idType, const SearchOptions &opt);
+
+        int GetLatestItemSnapshot(const Reflection::IdType &idType, int64_t id);
+
+        // Removing these later because THEY SUCK!!
+        /*
         template<typename T>
-        DatabaseResponse UpdateIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> version, const std::string &columnName, T val) {
+        DatabaseResponse UpdateIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> snapshot, const std::string &columnName, T val) {
             auto res = DatabaseResponse::Failed;
-            std::string stmtStr = std::format("UPDATE {} SET {} = ? WHERE Id = ? {};", tableName, columnName, version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
+            std::string stmtStr = std::format("UPDATE {} SET {} = ? WHERE Id = ? {};", tableName, columnName, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
             
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -159,20 +198,21 @@ namespace NoobWarrior {
                     
             sqlite3_bind_int64(stmt, 2, id);
 
-            if (version.has_value())
-                sqlite3_bind_int(stmt, 3, version.value());
+            if (snapshot.has_value())
+                sqlite3_bind_int(stmt, 3, snapshot.value());
 
             if (sqlite3_step(stmt) == SQLITE_DONE)
                 res = DatabaseResponse::Success;
 
             sqlite3_finalize(stmt);
-
+            MarkDirty();
             return res;
         }
-        
+        */
+        /*
         template<typename T>
-        T GetIdRowColumn(const std::string &tableName, int64_t id, std::optional<int64_t> version, const std::string &columnName) {
-            std::string stmtStr = std::format("SELECT {} FROM {} WHERE Id = ? ORDER BY Version DESC LIMIT 1;", columnName, tableName);
+        T GetIdRowColumn(const std::string &tableName, int64_t id, std::optional<int> snapshot, const std::string &columnName) {
+            std::string stmtStr = std::format("SELECT {} FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", columnName, tableName);
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
@@ -186,6 +226,7 @@ namespace NoobWarrior {
             sqlite3_finalize(stmt);
             return val;
         }
+        */
 
         template<typename T>
         std::vector<unsigned char> RetrieveContentBlob(int64_t id, const std::string &columnName) {
@@ -200,18 +241,18 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        std::optional<T> GetContent(const int64_t id, const std::optional<int> version = std::nullopt) {
+        std::optional<T> GetContent(const int64_t id, const std::optional<int> snapshot = std::nullopt) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
             if (!mInitialized) return std::nullopt;
 
-            sqlite3_stmt *stmt = ConstructIdRecordStmtFromName(Reflection::GetIdTypeName<T>(), id, version);
+            sqlite3_stmt *stmt = ConstructIdRecordStmtFromName(Reflection::GetIdTypeName<T>(), id, snapshot);
 
             if (sqlite3_step(stmt) != SQLITE_ROW)
                 return std::nullopt;
 
             T content {};
             content.Id = GetValueFromColumnName<int64_t>(stmt, "Id");
-            content.Version = GetValueFromColumnName<int>(stmt, "Version");
+            content.Snapshot = GetValueFromColumnName<int>(stmt, "Snapshot");
             content.FirstRecorded = GetValueFromColumnName<int64_t>(stmt, "FirstRecorded");
             content.LastRecorded = GetValueFromColumnName<int64_t>(stmt, "LastRecorded");
             content.Name = GetValueFromColumnName<std::string>(stmt, "Name");
@@ -225,7 +266,7 @@ namespace NoobWarrior {
             if constexpr (std::is_same_v<T, Asset>) {
                 content.Type = static_cast<Roblox::AssetType>(GetValueFromColumnName<int>(stmt, "Type"));
                 content.ImageId = GetValueFromColumnName<int64_t>(stmt, "ImageId");
-                content.ImageVersion = GetValueFromColumnName<int64_t>(stmt, "ImageVersion");
+                content.ImageSnapshot = GetValueFromColumnName<int64_t>(stmt, "ImageSnapshot");
                 {
                     // The database table has separate fields for the creator ID, "UserId" and "GroupId", so that referencing foreign keys can be possible.
                     content.CreatorType = GetTypeFromColumnName(stmt, "UserId") != SQLITE_NULL
@@ -243,7 +284,7 @@ namespace NoobWarrior {
             sqlite3_finalize(stmt);
 
             if constexpr (std::is_same_v<T, Asset>) {
-                stmt = ConstructIdRecordStmtFromName("AssetHistorical", id, version);
+                stmt = ConstructIdRecordStmtFromName("AssetHistorical", id, snapshot);
                 if (sqlite3_step(stmt) == SQLITE_ROW) {
                     content.IsNew = GetValueFromColumnName<bool>(stmt, "IsNew");
                     content.Sales += GetValueFromColumnName<int64_t>(stmt, "Sales");
@@ -253,7 +294,7 @@ namespace NoobWarrior {
                 }
                 sqlite3_finalize(stmt);
 
-                stmt = ConstructIdRecordStmtFromName("AssetMicrotransaction", id, version);
+                stmt = ConstructIdRecordStmtFromName("AssetMicrotransaction", id, snapshot);
                 if (sqlite3_step(stmt) == SQLITE_ROW) {
                     content.CurrencyType = static_cast<Roblox::CurrencyType>(GetValueFromColumnName<int>(stmt, "CurrencyType"));
                     content.Price = GetValueFromColumnName<int>(stmt, "Price");
@@ -262,7 +303,7 @@ namespace NoobWarrior {
                 }
                 sqlite3_finalize(stmt);
 
-                stmt = ConstructIdRecordStmtFromName("AssetMisc", id, version);
+                stmt = ConstructIdRecordStmtFromName("AssetMisc", id, snapshot);
                 if (sqlite3_step(stmt) == SQLITE_ROW) {
                     content.MinimumMembershipLevel = GetValueFromColumnName<int>(stmt, "MinimumMembershipLevel");
                     content.ContentRatingTypeId = GetValueFromColumnName<int>(stmt, "ContentRatingTypeId");
@@ -284,34 +325,34 @@ namespace NoobWarrior {
             std::string keyword = overwrite ? "REPLACE" : "INSERT";
 
             if constexpr (std::is_same_v<T, Asset>) {
-                std::string stmtStr = std::format("{} INTO Asset (Id, Version, Name, Description, Created, Updated, Type, ImageId, ImageVersion, UserId, GroupId, Public) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", keyword);
+                std::string stmtStr = std::format("{} INTO Asset (Id, Snapshot, Name, Description, Created, Updated, Type, ImageId, ImageSnapshot, UserId, GroupId, Public) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", keyword);
                 sqlite3_prepare_v2(
                     mDatabase,
                     stmtStr.c_str(),
                     -1, &stmt, nullptr);
 
                 int id_idx = sqlite3_bind_parameter_index(stmt, ":Id");
-                int version_idx = sqlite3_bind_parameter_index(stmt, ":Version");
+                int snapshot_idx = sqlite3_bind_parameter_index(stmt, ":Snapshot");
                 int name_idx = sqlite3_bind_parameter_index(stmt, ":Name");
                 int description_idx = sqlite3_bind_parameter_index(stmt, ":Description");
                 int created_idx = sqlite3_bind_parameter_index(stmt, ":Created");
                 int updated_idx = sqlite3_bind_parameter_index(stmt, ":Updated");
                 int type_idx = sqlite3_bind_parameter_index(stmt, ":Type");
                 int imageid_idx = sqlite3_bind_parameter_index(stmt, ":ImageId");
-                int imageversion_idx = sqlite3_bind_parameter_index(stmt, ":ImageVersion");
+                int imagesnapshot_idx = sqlite3_bind_parameter_index(stmt, ":ImageSnapshot");
                 int userid_idx = sqlite3_bind_parameter_index(stmt, ":UserId");
                 int groupid_idx = sqlite3_bind_parameter_index(stmt, ":GroupId");
                 int public_idx = sqlite3_bind_parameter_index(stmt, ":Public");
 
                 sqlite3_bind_int64(stmt, id_idx, content.Id);
-                sqlite3_bind_int(stmt, version_idx, content.Version);
+                sqlite3_bind_int(stmt, snapshot_idx, content.Snapshot);
                 sqlite3_bind_text(stmt, name_idx, content.Name.c_str(), -1, nullptr);
                 sqlite3_bind_text(stmt, description_idx, content.Description.c_str(), -1, nullptr);
                 sqlite3_bind_int64(stmt, created_idx, content.Created);
                 sqlite3_bind_int64(stmt, updated_idx, content.Updated);
                 sqlite3_bind_int(stmt, type_idx, static_cast<int>(content.Type));
                 sqlite3_bind_int64(stmt, imageid_idx, content.ImageId);
-                sqlite3_bind_int64(stmt, imageversion_idx, content.ImageVersion);
+                sqlite3_bind_int64(stmt, imagesnapshot_idx, content.ImageSnapshot);
                 content.CreatorType == Roblox::CreatorType::User
                     ? sqlite3_bind_int64(stmt, userid_idx, content.CreatorId)
                     : sqlite3_bind_null(stmt, userid_idx);
@@ -362,7 +403,7 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        std::vector<T> SearchContent(const SearchOptions &opt) {
+        std::vector<T> SearchItemType(const SearchOptions &opt) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
 
             if (!mInitialized) return {};
@@ -394,20 +435,9 @@ namespace NoobWarrior {
         }
 
         template<typename T>
-        bool DoesContentExist(const int64_t &id, const int64_t &version = 1) {
+        bool DoesItemExist(int64_t id, std::optional<int> snapshot = std::nullopt) {
             static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-            if (!mInitialized) return false;
-
-            std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? AND Version = ?;", Reflection::GetIdTypeName<T>());
-
-            sqlite3_stmt *stmt;
-            sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-            sqlite3_bind_int64(stmt, 1, id);
-            sqlite3_bind_int(stmt, 2, version);
-
-            int res = sqlite3_step(stmt);
-            sqlite3_finalize(stmt);
-            return res == SQLITE_ROW;
+            return DoesItemExist(Reflection::GetIdType<T>(), id, snapshot);
         }
     protected:
         int SetDatabaseVersion(int version);
@@ -463,14 +493,14 @@ namespace NoobWarrior {
             return 0;
         }
 
-        inline sqlite3_stmt* ConstructIdRecordStmtFromName(const std::string name, const int64_t id, const std::optional<int> &version) {
-            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", name, version.has_value() ? "AND Version = ?" : "ORDER BY Version DESC LIMIT 1");
+        inline sqlite3_stmt* ConstructIdRecordStmtFromName(const std::string name, const int64_t id, const std::optional<int> &snapshot) {
+            std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
             sqlite3_bind_int64(stmt, 1, id);
-            if (version.has_value())
-                sqlite3_bind_int(stmt, 2, version.value());
+            if (snapshot.has_value())
+                sqlite3_bind_int(stmt, 2, snapshot.value());
 
             return stmt;
         }

@@ -4,6 +4,8 @@
 // Started on: 8/2/2025
 // Description: The one true base for the ContentListItem template class, so that I can type cast to it
 #pragma once
+#include "DatabaseEditor.h"
+
 #include <QListWidgetItem>
 
 namespace NoobWarrior {

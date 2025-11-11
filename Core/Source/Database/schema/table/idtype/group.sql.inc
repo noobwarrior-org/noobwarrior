@@ -7,7 +7,7 @@
 static const char *schema_group = R"***(
 CREATE TABLE IF NOT EXISTS "Group" (
     "Id"	INTEGER NOT NULL,
-	"Version"	INTEGER DEFAULT 1,
+	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
 	"Name"	TEXT,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS "Group" (
     "Created"	INTEGER,
 	"OwnerId"	INTEGER,
 	"ImageId"	INTEGER,
-	"ImageVersion"	INTEGER,
+	"ImageSnapshot"	INTEGER,
     "Historical_MemberCount"	INTEGER,
     "SocialLinks"	TEXT,
     "Funds"	INTEGER,
@@ -23,9 +23,9 @@ CREATE TABLE IF NOT EXISTS "Group" (
     "ShoutUserId"	INTEGER,
     "ShoutTimestamp"	INTEGER,
 	"EnemyDeclarationsEnabled"	INTEGER DEFAULT 0,
-	PRIMARY KEY("Id","Version"),
+	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("OwnerId") REFERENCES "User"("Id"),
 	FOREIGN KEY("ShoutUserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("ImageId", "ImageVersion") REFERENCES "Asset"("Id", "Version")
+	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot")
 );
 )***";

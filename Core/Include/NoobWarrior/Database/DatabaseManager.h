@@ -30,7 +30,7 @@ public:
     bool DoesContentExist(const int64_t &id) {
         for (int i = 0; i < MountedDatabases.size(); i++) {
             Database *database = MountedDatabases[i];
-            if (const bool exists = database->DoesContentExist<T>(id))
+            if (const bool exists = database->DoesItemExist<T>(id))
                 return exists;
         }
         return false;

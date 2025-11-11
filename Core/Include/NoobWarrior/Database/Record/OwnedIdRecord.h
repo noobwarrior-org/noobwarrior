@@ -15,6 +15,6 @@ struct OwnedIdRecord : IdRecord {
     int64_t             Created;
     int64_t             Updated;
     int64_t             ImageId;
-    int                 ImageVersion;
+    int                 ImageSnapshot;
 };
 }
