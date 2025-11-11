@@ -7,12 +7,20 @@
 
 using namespace NoobWarrior;
 
-Statement::Statement(Database *db, const std::string &str): mDatabase(db) {
+Statement::Statement(Database *db, const std::string &str): mDatabase(db), mFailed(false) {
     if (sqlite3_prepare_v2(db->mDatabase, str.c_str(), -1, &mStmt, nullptr) != SQLITE_OK) {
-        throw std::runtime_error("Failed to prepare statement");
+        mFailed = true;
     }
 }
 
 Statement::~Statement() {
     sqlite3_finalize(mStmt);
+}
+
+int Statement::Step() {
+    return sqlite3_step(mStmt);
+}
+
+bool Statement::Failed() {
+    return mFailed;
 }
