@@ -10,6 +10,8 @@
 #include <civetweb.h>
 #include <sqlite3.h>
 
+#include "NoobWarrior/Auth/MasterServerAuth.h"
+#include "NoobWarrior/Auth/ServerEmulatorAuth.h"
 #include "lua/lock_global_env.lua.inc"
 #include "lua/rawget_path.lua.inc"
 #include "lua/serpent.lua.inc"
@@ -102,6 +104,14 @@ Config *Core::GetConfig() {
 
 DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
+}
+
+MasterServerAuth *Core::GetMasterServerAuth() {
+    return mMasterServerAuth;
+}
+
+ServerEmulatorAuth *Core::GetServerEmulatorAuth() {
+    return mServerEmulatorAuth;
 }
 
 RobloxAuth *Core::GetRobloxAuth() {

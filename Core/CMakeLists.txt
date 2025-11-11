@@ -56,7 +56,9 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Database/Database.cpp
     Source/Database/DatabaseManager.cpp
     Source/Database/ContentImages.cpp
+    Source/Auth/NoobWarriorAuth.cpp
     Source/Auth/MasterServerAuth.cpp
+    Source/Auth/ServerEmulatorAuth.cpp
     Source/Auth/RobloxAuth.cpp
     Source/BaseConfig.cpp
     Source/Config.cpp

@@ -95,6 +95,9 @@ public:
     lua_State *GetLuaState();
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
+
+    MasterServerAuth *GetMasterServerAuth();
+    ServerEmulatorAuth *GetServerEmulatorAuth();
     RobloxAuth *GetRobloxAuth();
 
     std::filesystem::path GetInstallationDir() const;
