@@ -8,7 +8,15 @@
 #include <NoobWarrior/Auth/BaseAuth.h>
 
 namespace NoobWarrior {
-class RobloxAuth : public BaseAuth<Account> {
+struct RobloxAccount {
+    int64_t Id;
+    std::string Name;
+    std::string Token; // .ROBLOSECURITY token
+    std::string Url;
+    long ExpireTimestamp { -1 }; // Defaults to -1 if the expiration date is unknown.
+};
+
+class RobloxAuth : public BaseAuth<RobloxAccount> {
 public:
     RobloxAuth(Config *config);
     std::string GetName() override;

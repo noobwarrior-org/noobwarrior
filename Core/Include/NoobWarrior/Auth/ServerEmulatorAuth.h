@@ -1,16 +1,16 @@
 // === noobWarrior ===
-// File: MasterServerAuth.h
+// File: ServerEmulatorAuth.h
 // Started by: Hattozo
-// Started on: 11/7/2025
+// Started on: 11/10/2025
 // Description:
 #pragma once
 #include <NoobWarrior/Config.h>
 #include <NoobWarrior/Auth/NoobWarriorAuth.h>
 
 namespace NoobWarrior {
-class MasterServerAuth : public NoobWarriorAuth {
+class ServerEmulatorAuth : public NoobWarriorAuth {
 public:
-    MasterServerAuth(Config *config);
+    ServerEmulatorAuth(Config *config);
     std::string GetName() override;
 };
 }

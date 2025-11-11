@@ -17,8 +17,9 @@
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
 #include "NetClient.h"
-#include "Auth/RobloxAuth.h"
 #include "Auth/MasterServerAuth.h"
+#include "Auth/ServerEmulatorAuth.h"
+#include "Auth/RobloxAuth.h"
 
 #include <lua.hpp>
 #include <curl/curl.h>
@@ -176,6 +177,8 @@ private:
 
     HttpServer::ServerEmulator*     mServerEmulator;
 
+    MasterServerAuth*               mMasterServerAuth;
+    ServerEmulatorAuth*             mServerEmulatorAuth;
     RobloxAuth*                     mRobloxAuth;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;

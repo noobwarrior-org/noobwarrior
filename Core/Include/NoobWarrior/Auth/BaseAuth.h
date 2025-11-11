@@ -27,13 +27,6 @@ enum class AuthResponse {
 
 };
 
-struct Account {
-    int64_t Id;
-    std::string Name;
-    std::string Token; // .ROBLOSECURITY token
-    long ExpireTimestamp { -1 }; // Defaults to -1 if the expiration date is unknown.
-};
-
 template<typename AccountClass>
 class BaseAuth {
 public:
@@ -82,7 +75,7 @@ public:
         try {
             nlohmann::json accountsJson = nlohmann::json::parse(jsonStr);
             for (auto &accJson : accountsJson) {
-                Account acc = AccJsonToStruct(accJson);
+                AccountClass acc = AccJsonToStruct(accJson);
                 Accounts.push_back(acc);
 
                 std::optional<std::string> active_account_thing = mConfig->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
@@ -119,7 +112,7 @@ public:
     AuthResponse AddAccountFromToken(const std::string &token, AccountClass **acc = nullptr) {
         if (acc != nullptr) *acc = nullptr;
 
-        Account accStack {};
+        AccountClass accStack {};
         accStack.Token = token;
 
         nlohmann::json userInfo = GetJsonFromToken(token);

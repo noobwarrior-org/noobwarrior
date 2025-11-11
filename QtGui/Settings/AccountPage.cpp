@@ -51,7 +51,7 @@ void AccountPage::InitWidgets() {
                 QStandardItem *primaryItem = ListModel->itemFromIndex(selectedIndexes.at(0));
                 if (!primaryItem->data().isNull()) {
                     RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-                    Account *acc = &auth->GetAccounts().at(primaryItem->data().toInt());
+                    RobloxAccount *acc = &auth->GetAccounts().at(primaryItem->data().toInt());
                     auth->SetActiveAccount(acc);
                     Refresh();
                 }
@@ -72,9 +72,9 @@ void AccountPage::Refresh() {
     ListModel->setRowCount(0);
 
     RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-    std::vector<Account> &accounts = auth->GetAccounts();
+    std::vector<RobloxAccount> &accounts = auth->GetAccounts();
     for (int i = 0; i < static_cast<int>(accounts.size()); ++i) {
-        Account &acc = accounts[i];
+        RobloxAccount &acc = accounts[i];
         QList<QStandardItem*> accRow;
         auto *emptyFieldThatContainsData = new QStandardItem();
         emptyFieldThatContainsData->setData(i);

@@ -26,7 +26,7 @@ struct Transfer {
 
 class NetClient {
 public:
-    NetClient(Account *account = nullptr, const std::filesystem::path &outputDir = "");
+    NetClient(RobloxAccount *account = nullptr, const std::filesystem::path &outputDir = "");
     ~NetClient();
 
     bool Failed();
@@ -40,7 +40,7 @@ private:
     bool mFailed;
     const std::filesystem::path &mOutputDir;
     std::vector<unsigned char> mData;
-    Account *mAccount;
+    RobloxAccount *mAccount;
     CURL *mHandle;
 };
 }
