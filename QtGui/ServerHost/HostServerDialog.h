@@ -5,6 +5,8 @@
 // Description: Dialog that allows for starting a Roblox game server
 #pragma once
 #include <QDialog>
+#include <QHBoxLayout>
+#include <QPushButton>
 
 namespace NoobWarrior {
 class HostServerDialog : public QDialog {
@@ -13,5 +15,7 @@ public:
     HostServerDialog(QWidget* parent = nullptr);
 private:
     void InitWidgets();
+    QHBoxLayout *mMainLayout;
+    QPushButton *mStartServer;
 };
 }

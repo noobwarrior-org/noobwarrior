@@ -3,8 +3,9 @@
 // Started by: Hattozo
 // Started on: 9/2/2025
 // Description:
-#include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/Api/Roblox/ClientSettingsHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Base/WebHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -23,10 +24,13 @@ int ServerEmulator::Start(uint16_t port) {
     if (!res) goto finish;
 
     mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetDatabaseManager());
+    mClientSettingsHandler = std::make_unique<ClientSettingsHandler>(this);
     mContentPageHandler = std::make_unique<ContentPageHandler>(this);
 
     SetRequestHandler("/asset", mAssetHandler.get());
     SetRequestHandler("/v1/asset", mAssetHandler.get());
+
+    SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
 
     SetRequestHandler("/develop", mContentPageHandler.get(), (void*)"content.jinja");
     

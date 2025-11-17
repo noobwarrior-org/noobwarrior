@@ -1,4 +1,13 @@
-CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+CPMAddPackage(
+    URI "gh:WohlSoft/LuaJIT#59d961b"
+    OPTIONS "LUAJIT_DISABLE_SSE2 ON"
+)
+else()
+CPMAddPackage(
+    URI "gh:WohlSoft/LuaJIT#59d961b"
+)
+endif()
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:civetweb/civetweb#5864b55"
@@ -80,6 +89,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/AssetViewHandler.cpp
     Source/HttpServer/Emulator/UserProfileViewHandler.cpp
     Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
+    Source/HttpServer/Emulator/Api/Roblox/ClientSettingsHandler.cpp
     Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
