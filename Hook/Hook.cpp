@@ -129,13 +129,6 @@ static void SuspendAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThre
             {
                 if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID)) 
                 {
-                    /*
-                    TCHAR szBuffer[29];
-                    HRESULT hr = StringCchPrintf(szBuffer, ARRAYSIZE(szBuffer), TEXT("Process 0x%04x Thread 0x%04x"), te.th32OwnerProcessID, te.th32ThreadID);
-
-                    HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-                    WriteConsoleA(stdOut, szBuffer, ARRAYSIZE(szBuffer), NULL, NULL); */
-
                     // Suspend all threads EXCEPT the one we want to keep running
                     if (te.th32ThreadID != targetThreadId && te.th32OwnerProcessID == targetProcessId)
                     {
@@ -203,24 +196,45 @@ DWORD WINAPI Thread(LPVOID param) {
         return 0xB16B00B5;
     }
 
-    DWORD base_address = 0;
-    switch (GetRobloxVersion()) {
-    case VER_UNKNOWN:
-        MessageBoxA(NULL, "noobHook does not support this version of Roblox. Exiting!", "noobHook", MB_ICONASTERISK | MB_OK);
+    RobloxVersion ver = GetRobloxVersion();
+    if (ver == VER_UNKNOWN) {
+        MessageBoxA(NULL, "noobHook does not support this version of Roblox. Exiting!", "noobHook", MB_ICONERROR | MB_OK);
         TerminateProcess(GetCurrentProcess(), 0xDEADBEEF);
         return 0xDEADBEEF;
-    case VER_0_463_0_417004:
+    } else if (ver == VER_0_463_0_417004) {
         // Bypasses "Settings key must be defined" error for RCCService. I have no idea why it does this.
-        base_address = FindPattern(mem, modSize, "\x0F\xB6\xC8\x85\xC9\x74\x2A", "xxxxxxx");
-        MessageBoxA(NULL, base_address != NULL ? "Found base address!" : "Could not find base address. :(", "noobHook", MB_ICONASTERISK | MB_OK);
+        DWORD signature_address = FindPattern(mem, modSize, "\x0F\xB6\xC8\x85\xC9\x74\x2A", "xxxxxxx");
+        DWORD full_signature_address = reinterpret_cast<DWORD>(modBase) + signature_address;
+        DWORD address = full_signature_address + 6;
+
+        for (int i = 0; i < 8; i++) {
+            int poop = *(reinterpret_cast<int*>(full_signature_address + i));
+
+            TCHAR szBuffer1[4];
+            HRESULT hr1 = StringCchPrintf(szBuffer1, ARRAYSIZE(szBuffer1), TEXT("%i "), poop);
+
+            HANDLE stdOut1 = GetStdHandle(STD_OUTPUT_HANDLE);
+            WriteConsoleA(stdOut1, szBuffer1, ARRAYSIZE(szBuffer1), NULL, NULL);
+        }
+
+        DWORD old_protection;
+        VirtualProtect(reinterpret_cast<LPVOID>(address), 1, PAGE_EXECUTE_READWRITE, &old_protection);
+        memset(reinterpret_cast<LPVOID>(address), 0xEB, 1);
+        VirtualProtect(reinterpret_cast<LPVOID>(address), 1, old_protection, NULL);
+
+        TCHAR szBuffer[20];
+        HRESULT hr = StringCchPrintf(szBuffer, ARRAYSIZE(szBuffer), TEXT("Base Address 0x%08x"), signature_address);
+
+        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        WriteConsoleA(stdOut, szBuffer, ARRAYSIZE(szBuffer), NULL, NULL);
+
+        MessageBoxA(NULL, signature_address != NULL ? "Found base address!" : "Could not find base address. :(", "noobHook", MB_ICONASTERISK | MB_OK);
 
         // MH_CreateHook();
         
         MessageBoxA(NULL, "I am running on version 0.463.0.417004", "noobHook", MB_ICONASTERISK | MB_OK);
-        break;
-    default:
+    } else if (ver == VER_0_449_0_411458) {
         MessageBoxA(NULL, "I am running on version 0.449.0.411458", "noobHook", MB_ICONASTERISK | MB_OK);
-        break;
     }
     delete[] mem;
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
