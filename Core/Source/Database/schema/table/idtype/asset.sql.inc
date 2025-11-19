@@ -9,6 +9,8 @@
  *
  * Also, just because an asset is owned by a "UserId" or "GroupId" does not necessarily mean it is in their
  * corresponding inventories.
+ *
+ * "Public" makes the asset uncopylocked if it is a Place. For other kinds of assets, it just makes it off-sale and undownloadable.
  */
 static const char *schema_asset = R"***(
 CREATE TABLE IF NOT EXISTS "Asset" (
@@ -16,7 +18,7 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	"Snapshot"	INTEGER NOT NULL,
 	"FirstRecorded"	INTEGER DEFAULT (unixepoch()),
 	"LastRecorded"	INTEGER DEFAULT (unixepoch()),
-	"Name"	TEXT,
+	"Name"	TEXT NOT NULL,
 	"Description"	TEXT,
 	"Created"	INTEGER,
 	"Updated"	INTEGER,

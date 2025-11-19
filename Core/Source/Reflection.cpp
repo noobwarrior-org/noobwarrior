@@ -13,15 +13,15 @@
 #include <NoobWarrior/Reflection.h>
 
 #include <NoobWarrior/Database/Database.h>
-#include <NoobWarrior/Database/Record/IdType/Asset.h>
-#include <NoobWarrior/Database/Record/IdType/Badge.h>
-#include <NoobWarrior/Database/Record/IdType/Bundle.h>
-#include <NoobWarrior/Database/Record/IdType/DevProduct.h>
-#include <NoobWarrior/Database/Record/IdType/Group.h>
-#include <NoobWarrior/Database/Record/IdType/Pass.h>
-#include <NoobWarrior/Database/Record/IdType/Set.h>
-#include <NoobWarrior/Database/Record/IdType/Universe.h>
-#include <NoobWarrior/Database/Record/IdType/User.h>
+#include <NoobWarrior/Database/Item/Asset.h>
+#include <NoobWarrior/Database/Item/Badge.h>
+#include <NoobWarrior/Database/Item/Bundle.h>
+#include <NoobWarrior/Database/Item/DevProduct.h>
+#include <NoobWarrior/Database/Item/Group.h>
+#include <NoobWarrior/Database/Item/Pass.h>
+#include <NoobWarrior/Database/Item/Set.h>
+#include <NoobWarrior/Database/Item/Universe.h>
+#include <NoobWarrior/Database/Item/User.h>
 
 #include <NoobWarrior/Database/ContentImages.h>
 
@@ -39,7 +39,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         int64_t, // Field Datatype
         "The ID of this asset.", // Field Description
         // Default Value
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
             return "";
         }
@@ -52,7 +52,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         int, // Field Datatype
         "The snapshot number.", // Field Description
         // Default Value
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
             return "";
         }
@@ -65,7 +65,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         std::string, // Field Datatype
         "The name of this asset. Self-explanatory.", // Field Description
         // Default Value
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return "";
         }
     )
@@ -76,7 +76,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         "Description",
         std::string,
         "A few sentences that describe what this asset does.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return "";
         }
     )
@@ -87,7 +87,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         "Image ID",
         int64_t,
         "The ID of the image that this asset will display. Does not apply for asset types that use auto-generated thumbnails.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return {}; // initialize as empty object to return null
         }
     )
@@ -98,7 +98,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         "Image Snapshot",
         int,
         "The snapshot number of the image ID. Does not apply for asset types that use auto-generated thumbnails.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return {};
         }
     )
@@ -111,7 +111,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Badge)
         "Description",
         std::string,
         "A few sentences that describe what this badge does.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return "";
         }
     )
@@ -122,7 +122,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Badge)
         "Image ID",
         int64_t,
         "The ID of the image that this badge displays.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return {}; // initialize as empty object to return null
         }
     )
@@ -133,7 +133,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Badge)
         "Image Snapshot",
         int,
         "The snapshot number of the image ID.",
-        [](Database *db) -> std::any {
+        [](Database *db) -> SqlValue {
             return {};
         }
     )

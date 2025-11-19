@@ -4,10 +4,10 @@
 // Started on: 9/20/2025
 // Description: A C-struct representation of what the database would give you when you ask it for a pass.
 #pragma once
-#include <NoobWarrior/Database/Record/UniverseIdRecord.h>
+#include <NoobWarrior/Database/Item/UniverseItem.h>
 
 namespace NoobWarrior {
-struct Pass : UniverseIdRecord {
+struct Pass : UniverseItem {
     Roblox::CurrencyType        CurrencyType;
     int                         Price;
     bool                        IsForSale;

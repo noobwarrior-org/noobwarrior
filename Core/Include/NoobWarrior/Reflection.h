@@ -11,7 +11,8 @@
 // Note: If you are adding a new ID type, you will still have to manually add glue code between the SQL database schema and
 // the actual C structs. Check the Database.cpp & Database.h file in order to see how we did this.
 #pragma once
-#include "Database/Record/IdRecord.h"
+#include "Database/Item/Item.h"
+#include "Database/Common.h"
 
 #include <functional>
 #include <map>
@@ -83,13 +84,13 @@ struct Field {
     std::string PrettyName;
     std::string Description;
     const std::type_info* Type { nullptr };
-    std::function<std::any(Database *db)> GetDefaultValue;
+    std::function<NoobWarrior::SqlValue(Database *db)> GetDefaultValue;
 };
 
 struct IdType {
     std::string Name {};
     const std::type_info *Class { nullptr };
-    std::function<IdRecord()> Create;
+    std::function<Item()> Create;
     std::map<std::string, Field> Fields;
     int* DefaultImage = nullptr;
     int DefaultImageSize {};

@@ -8,18 +8,13 @@ CREATE TABLE IF NOT EXISTS "DevProduct" (
 	"Description"	TEXT,
 	"Created"	INTEGER,
 	"Updated"	INTEGER,
-	"CurrencyType"	INTEGER,
-	"Price"	INTEGER,
+	"CurrencyType"	INTEGER NOT NULL,
+	"Price"	INTEGER NOT NULL,
 	"ImageId"	INTEGER,
 	"ImageSnapshot"	INTEGER,
-	"UserId"	INTEGER,
-	"GroupId"	INTEGER,
 	"UniverseId"	INTEGER NOT NULL,
 	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
     FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
 );
 )***";
