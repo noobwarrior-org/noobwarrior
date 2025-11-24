@@ -3,14 +3,23 @@
 // Started by: Hattozo
 // Started on: 11/11/2025
 // Description:
-#include "NoobWarrior/Roblox/Api/User.h"
 #include <NoobWarrior/Database/Repository/Item/AssetRepository.h>
 #include <NoobWarrior/Database/Database.h>
+#include <NoobWarrior/Database/Common.h>
+#include <NoobWarrior/Roblox/Api/User.h>
 
 using namespace NoobWarrior;
 
 AssetRepository::AssetRepository(Database *db) : ItemRepository<Asset>(db) {
 
+}
+
+std::vector<unsigned char> AssetRepository::RetrieveData(int64_t id, int snapshot) {
+    return {};
+}
+
+std::vector<unsigned char> AssetRepository::RetrieveData(int64_t id) {
+    return {};
 }
 
 DatabaseResponse AssetRepository::SaveItem(const Asset &asset) {
@@ -27,6 +36,8 @@ DatabaseResponse AssetRepository::SaveItem(const Asset &asset) {
     Public=EXCLUDED.Public
     WHERE Id = ?;
     ***)");
+    if (stmt.Failed())
+        return DatabaseResponse::Failed;
     stmt.Bind(1, asset.Id);
     stmt.Bind(2, asset.Snapshot);
     stmt.Bind(3, asset.Name);
@@ -39,6 +50,15 @@ DatabaseResponse AssetRepository::SaveItem(const Asset &asset) {
     asset.CreatorType == Roblox::CreatorType::User && asset.CreatorId.has_value() ? stmt.Bind(10, asset.CreatorId.value()) : stmt.Bind(10);
     asset.CreatorType == Roblox::CreatorType::Group && asset.CreatorId.has_value() ? stmt.Bind(11, asset.CreatorId.value()) : stmt.Bind(11);
     asset.Public.has_value() ? stmt.Bind(12, asset.Public.value()) : stmt.Bind(12);
+    
+    if (stmt.Step() == SQLITE_DONE)
+        return DatabaseResponse::Success;
+    return DatabaseResponse::Failed;
+}
+
+DatabaseResponse AssetRepository::RemoveItem(int64_t id) {
+
+    return DatabaseResponse::Success;
 }
 
 std::optional<Asset> AssetRepository::GetItemById(int64_t id) {
@@ -72,6 +92,6 @@ std::optional<Asset> AssetRepository::GetItemById(int64_t id) {
     if (columnMap["UserId"].index() == 0) {
         
     }
-    asset.CreatorType = std::get<int>(columnName["UserId"]);
+    // asset.CreatorType = std::get<int>(columnName["UserId"]);
     return asset;
 }
