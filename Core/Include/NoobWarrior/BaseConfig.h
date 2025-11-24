@@ -140,6 +140,14 @@ protected:
 
     std::mutex AccessConfigMutex;
 
+    class Namespace {
+    public:
+        Namespace();
+
+    };
+
+    Namespace &GetNamespace(const std::string &namespaceStr);
+
     /*std::map<std::any, std::pair<const char*, const char*>> mSerializedProperties;
 
     template <typename T>
