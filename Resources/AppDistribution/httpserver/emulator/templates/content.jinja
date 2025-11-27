@@ -1,19 +1,19 @@
 <h1>Content</h1>
 <h3>All user-generated content (games, images, audio, meshes, accessories, groups, etc.) stored on this server can be located here.</h3>
 <div class="sidebar-container">
-    {% if exists("idtypes") %}
+    {% if exists("itemtypes") %}
         <aside class="sidebar">
             <h3>Types</h3>
             <hr>
-            {% for this_idtype in idtypes %}
-                <a {% if idtype == this_idtype %} class="active" {% endif %} href="/develop?idtype={{ this_idtype }}&page=1">{{ this_idtype }}</a>
+            {% for this_itemtype in itemtypes %}
+                <a {% if itemtype == this_itemtype %} class="active" {% endif %} href="/develop?itemtype={{ this_itemtype }}&page=1">{{ this_itemtype }}</a>
             {% endfor %}
         </aside>
     {% else %}
         <h3>There are no ID types for some reason. This should not happen.</h3>
     {% endif %}
-    {% if exists("idtype") %}
-        {% if idtype == "Asset" %}
+    {% if exists("itemtype") %}
+        {% if itemtype == "Asset" %}
             <aside class="sidebar">
                 <h3>Asset Types</h3>
                 <hr>
@@ -32,7 +32,7 @@
             {% for item in items %}
                 <div class="item">
                     <a href="/library/{{ item.id }}">
-                        <img src="/content-image?idtype={{ idtype }}&id={{ item.id }}" alt={{ item.name }} width="600" height="400">
+                        <img src="/content-image?itemtype={{ itemtype }}&id={{ item.id }}" alt={{ item.name }} width="600" height="400">
                         {{ item.name }}
                     </a>
                     By <a href="/users/{{ item.author.id }}/profile">@{{ item.author.name }}</a>

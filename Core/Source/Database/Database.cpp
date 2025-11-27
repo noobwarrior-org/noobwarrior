@@ -21,46 +21,46 @@
 #include "schema/table/login_session.sql.inc"
 #include "schema/table/transaction.sql.inc"
 
-#include "schema/table/idtype/asset.sql.inc"
-#include "schema/table/idtype/badge.sql.inc"
-#include "schema/table/idtype/bundle.sql.inc"
-#include "schema/table/idtype/devproduct.sql.inc"
-#include "schema/table/idtype/group.sql.inc"
-#include "schema/table/idtype/pass.sql.inc"
-#include "schema/table/idtype/set.sql.inc"
-#include "schema/table/idtype/universe.sql.inc"
-#include "schema/table/idtype/user.sql.inc"
+#include "schema/table/item/asset.sql.inc"
+#include "schema/table/item/badge.sql.inc"
+#include "schema/table/item/bundle.sql.inc"
+#include "schema/table/item/devproduct.sql.inc"
+#include "schema/table/item/group.sql.inc"
+#include "schema/table/item/pass.sql.inc"
+#include "schema/table/item/set.sql.inc"
+#include "schema/table/item/universe.sql.inc"
+#include "schema/table/item/user.sql.inc"
 
-#include "schema/table/idtype/asset/asset_data.sql.inc"
-#include "schema/table/idtype/asset/asset_historical.sql.inc"
-#include "schema/table/idtype/asset/asset_microtransaction.sql.inc"
-#include "schema/table/idtype/asset/asset_misc.sql.inc"
-#include "schema/table/idtype/asset/asset_place_thumbnail.sql.inc"
+#include "schema/table/item/asset/asset_data.sql.inc"
+#include "schema/table/item/asset/asset_historical.sql.inc"
+#include "schema/table/item/asset/asset_microtransaction.sql.inc"
+#include "schema/table/item/asset/asset_misc.sql.inc"
+#include "schema/table/item/asset/asset_place_thumbnail.sql.inc"
 
-#include "schema/table/idtype/bundle/bundle_asset.sql.inc"
+#include "schema/table/item/bundle/bundle_asset.sql.inc"
 
-#include "schema/table/idtype/universe/universe_misc.sql.inc"
-#include "schema/table/idtype/universe/universe_historical.sql.inc"
-#include "schema/table/idtype/universe/universe_social_link.sql.inc"
+#include "schema/table/item/universe/universe_misc.sql.inc"
+#include "schema/table/item/universe/universe_historical.sql.inc"
+#include "schema/table/item/universe/universe_social_link.sql.inc"
 
-#include "schema/table/idtype/user/user_friends.sql.inc"
-#include "schema/table/idtype/user/user_groups.sql.inc"
-#include "schema/table/idtype/user/user_followers.sql.inc"
-#include "schema/table/idtype/user/user_following.sql.inc"
-#include "schema/table/idtype/user/user_inventory.sql.inc"
-#include "schema/table/idtype/user/user_favorites.sql.inc"
-#include "schema/table/idtype/user/user_likes_dislikes.sql.inc"
-#include "schema/table/idtype/user/user_names.sql.inc"
+#include "schema/table/item/user/user_friends.sql.inc"
+#include "schema/table/item/user/user_groups.sql.inc"
+#include "schema/table/item/user/user_followers.sql.inc"
+#include "schema/table/item/user/user_following.sql.inc"
+#include "schema/table/item/user/user_inventory.sql.inc"
+#include "schema/table/item/user/user_favorites.sql.inc"
+#include "schema/table/item/user/user_likes_dislikes.sql.inc"
+#include "schema/table/item/user/user_names.sql.inc"
 
-#include "schema/table/idtype/group/group_role.sql.inc"
-#include "schema/table/idtype/group/group_wall.sql.inc"
-#include "schema/table/idtype/group/group_log.sql.inc"
-#include "schema/table/idtype/group/group_ally.sql.inc"
-#include "schema/table/idtype/group/group_enemy.sql.inc"
-#include "schema/table/idtype/group/group_historical.sql.inc"
-#include "schema/table/idtype/group/group_social_link.sql.inc"
+#include "schema/table/item/group/group_role.sql.inc"
+#include "schema/table/item/group/group_wall.sql.inc"
+#include "schema/table/item/group/group_log.sql.inc"
+#include "schema/table/item/group/group_ally.sql.inc"
+#include "schema/table/item/group/group_enemy.sql.inc"
+#include "schema/table/item/group/group_historical.sql.inc"
+#include "schema/table/item/group/group_social_link.sql.inc"
 
-#include "schema/table/idtype/set/set_asset.sql.inc"
+#include "schema/table/item/set/set_asset.sql.inc"
 
 // sql code for migrating so that when the database file has to be updated it can apply these patches in order.
 #include "migrations/v2.sql.inc"
@@ -325,10 +325,10 @@ bool Database::IsMemory() {
 	return mPath.compare(":memory:") == 0;
 }
 
-bool Database::DoesItemExist(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot) {
+bool Database::DoesItemExist(const Reflection::ItemType &itemType, int64_t id, std::optional<int> snapshot) {
 	if (!mInitialized) return false;
 
-	std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? {};", idType.Name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
+	std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? {};", itemType.Name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
 
 	sqlite3_stmt *stmt;
 	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);

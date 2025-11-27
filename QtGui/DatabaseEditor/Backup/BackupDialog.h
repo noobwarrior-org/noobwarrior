@@ -51,12 +51,12 @@ private:
     QButtonGroup* mItemSourceButtonGroup;
     QHBoxLayout* mItemSourceRowLayout;
 
-    QLabel* mIdTypeCaption;
-    QButtonGroup* mIdTypeButtonGroup;
-    QHBoxLayout* mIdTypeRowLayout;
-    QRadioButton* mIdTypeUniverse;
-    QRadioButton* mIdTypeAsset;
-    QRadioButton* mIdTypeUser;
+    QLabel* mItemTypeCaption;
+    QButtonGroup* mItemTypeButtonGroup;
+    QHBoxLayout* mItemTypeRowLayout;
+    QRadioButton* mItemTypeUniverse;
+    QRadioButton* mItemTypeAsset;
+    QRadioButton* mItemTypeUser;
 
     QLabel* mIdCaption;
     QLineEdit* mIdField;

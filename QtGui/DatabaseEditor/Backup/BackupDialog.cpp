@@ -44,25 +44,25 @@ void BackupDialog::InitWidgets() {
         UpdateWidgets();
     });
 
-    mIdTypeRowLayout = new QHBoxLayout();
-    mIdTypeButtonGroup = new QButtonGroup(this);
+    mItemTypeRowLayout = new QHBoxLayout();
+    mItemTypeButtonGroup = new QButtonGroup(this);
 
-    mIdTypeCaption = new QLabel("Select which type of item you'd like to back up.\nIt is important to understand that a Place and a Universe are not the same thing.\nUniverses are the entire game, while places are just individual levels.");
+    mItemTypeCaption = new QLabel("Select which type of item you'd like to back up.\nIt is important to understand that a Place and a Universe are not the same thing.\nUniverses are the entire game, while places are just individual levels.");
 
-    mIdTypeUniverse = new QRadioButton("Universe (Game)");
-    mIdTypeAsset = new QRadioButton("Model/Place");
-    mIdTypeUser = new QRadioButton("User");
+    mItemTypeUniverse = new QRadioButton("Universe (Game)");
+    mItemTypeAsset = new QRadioButton("Model/Place");
+    mItemTypeUser = new QRadioButton("User");
 
-    mIdTypeButtonGroup->addButton(mIdTypeUniverse, static_cast<int>(OnlineItemType::Universe));
-    mIdTypeButtonGroup->addButton(mIdTypeAsset, static_cast<int>(OnlineItemType::Asset));
-    mIdTypeButtonGroup->addButton(mIdTypeUser, static_cast<int>(OnlineItemType::User));
+    mItemTypeButtonGroup->addButton(mItemTypeUniverse, static_cast<int>(OnlineItemType::Universe));
+    mItemTypeButtonGroup->addButton(mItemTypeAsset, static_cast<int>(OnlineItemType::Asset));
+    mItemTypeButtonGroup->addButton(mItemTypeUser, static_cast<int>(OnlineItemType::User));
 
-    mIdTypeRowLayout->addWidget(mIdTypeUniverse);
-    mIdTypeRowLayout->addWidget(mIdTypeAsset);
-    mIdTypeRowLayout->addWidget(mIdTypeUser);
+    mItemTypeRowLayout->addWidget(mItemTypeUniverse);
+    mItemTypeRowLayout->addWidget(mItemTypeAsset);
+    mItemTypeRowLayout->addWidget(mItemTypeUser);
 
-    connect(mIdTypeButtonGroup, &QButtonGroup::buttonToggled, [this](QAbstractButton *button, bool checked) {
-        mItemType = static_cast<OnlineItemType>(mIdTypeButtonGroup->id(button));
+    connect(mItemTypeButtonGroup, &QButtonGroup::buttonToggled, [this](QAbstractButton *button, bool checked) {
+        mItemType = static_cast<OnlineItemType>(mItemTypeButtonGroup->id(button));
         UpdateWidgets();
     });
 
@@ -85,8 +85,8 @@ void BackupDialog::InitWidgets() {
 
     mMainLayout->addWidget(itemSourceCaption);
     mMainLayout->addLayout(mItemSourceRowLayout);
-    mMainLayout->addWidget(mIdTypeCaption);
-    mMainLayout->addLayout(mIdTypeRowLayout);
+    mMainLayout->addWidget(mItemTypeCaption);
+    mMainLayout->addLayout(mItemTypeRowLayout);
     mMainLayout->addWidget(mIdCaption);
     mMainLayout->addWidget(mIdField);
     mMainLayout->addWidget(mFrame);
@@ -94,7 +94,7 @@ void BackupDialog::InitWidgets() {
 
     // defaults
     // onlineItem->toggle();
-    // mIdTypeUniverse->toggle();
+    // mItemTypeUniverse->toggle();
     UpdateWidgets();
 }
 
@@ -103,10 +103,10 @@ void BackupDialog::UpdateWidgets() {
     qDeleteAll(mFrame->findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
 
     // initially hide all of these at first since we want each of these to individually pop up one by one as the user flows through the dialog
-    mIdTypeCaption->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeUniverse->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeAsset->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeUser->setVisible(mSource == ItemSource::OnlineItem);
+    mItemTypeCaption->setVisible(mSource == ItemSource::OnlineItem);
+    mItemTypeUniverse->setVisible(mSource == ItemSource::OnlineItem);
+    mItemTypeAsset->setVisible(mSource == ItemSource::OnlineItem);
+    mItemTypeUser->setVisible(mSource == ItemSource::OnlineItem);
 
     mIdCaption->setVisible(mSource == ItemSource::OnlineItem && mItemType != OnlineItemType::Undecided);
     mIdField->setVisible(mSource == ItemSource::OnlineItem && mItemType != OnlineItemType::Undecided);

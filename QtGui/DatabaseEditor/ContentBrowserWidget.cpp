@@ -17,20 +17,16 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = QString::fromStdString(Reflection::GetIdTypeName<IdType>()); \
-    IdTypeDropdown->addItem(QIcon(iconPath), IdType##_Str); \
-    mRefreshFunctions.emplace_back([this]{ RefreshWithNewIdRecord<IdType>(); });
-
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
-    mIdType(const_cast<Reflection::IdType&>(Reflection::GetIdType<Asset>())),
+    mItemType(const_cast<Reflection::ItemType&>(Reflection::GetItemType<Asset>())),
     mAssetCategory(AssetCategory::DevelopmentItem),
     mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
     MainLayout(nullptr),
     AssetFilterDropdownLayout(nullptr),
-    IdTypeDropdown(nullptr),
+    ItemTypeDropdown(nullptr),
     AssetTypeDropdown(nullptr),
     AssetCategoryDropdown(nullptr),
     SearchBox(nullptr),
@@ -66,17 +62,17 @@ void ContentBrowserWidget::RefreshAssetCategory() {
     Refresh();
 }
 
-void ContentBrowserWidget::RefreshEx(const Reflection::IdType &idType) {
+void ContentBrowserWidget::RefreshEx(const Reflection::ItemType &itemType) {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
     Database *db = editor->GetCurrentlyEditingDatabase();
 
-    mIdType = idType;
+    mItemType = itemType;
     mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
     mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
-    IdTypeDropdown->setCurrentText(QString::fromStdString(idType.Name));
-    AssetCategoryDropdown->setVisible(idType.Name.compare("Asset") == 0);
-    AssetTypeDropdown->setVisible(idType.Name.compare("Asset") == 0);
+    ItemTypeDropdown->setCurrentText(QString::fromStdString(itemType.Name));
+    AssetCategoryDropdown->setVisible(itemType.Name.compare("Asset") == 0);
+    AssetTypeDropdown->setVisible(itemType.Name.compare("Asset") == 0);
 
     NoDatabaseFoundLabel->setVisible(db == nullptr);
     List->setVisible(db != nullptr);
@@ -89,17 +85,17 @@ void ContentBrowserWidget::RefreshEx(const Reflection::IdType &idType) {
     opt.Limit = 100;
     opt.AssetType = mAssetType;
 
-    if (idType.Name.compare("Asset") == 0) {
+    if (itemType.Name.compare("Asset") == 0) {
         std::vector<Asset> list = db->GetAssetRepository().List();
         for (auto &item : list) {
-            new ContentListItem(idType, item.Id, db, List);
+            new ContentListItem(itemType, item.Id, db, List);
             // cool->setIcon(QIcon(item.Icon));
         }
     }
 }
 
 void ContentBrowserWidget::Refresh() {
-    RefreshEx(mIdType);
+    RefreshEx(mItemType);
 }
 
 void ContentBrowserWidget::InitWidgets() {
@@ -110,7 +106,7 @@ void ContentBrowserWidget::InitWidgets() {
 
     MainLayout = new QVBoxLayout(MainWidget);
 
-    IdTypeDropdown = new QComboBox();
+    ItemTypeDropdown = new QComboBox();
 
     AssetFilterDropdownLayout = new QHBoxLayout(MainWidget);
 
@@ -119,9 +115,9 @@ void ContentBrowserWidget::InitWidgets() {
 
     AssetTypeDropdown = new QComboBox();
 
-    for (const Reflection::IdType &idType : Reflection::GetIdTypes()) {
-        QString str = QString::fromStdString(idType.Name);
-        IdTypeDropdown->addItem(QIcon(""), str, QVariant::fromValue((Reflection::IdType*)&idType));
+    for (const Reflection::ItemType &itemType : Reflection::GetItemTypes()) {
+        QString str = QString::fromStdString(itemType.Name);
+        ItemTypeDropdown->addItem(QIcon(""), str, QVariant::fromValue((Reflection::ItemType*)&itemType));
     }
 
     for (int i = 0; i <= AssetCategoryCount; i++) {
@@ -145,14 +141,14 @@ void ContentBrowserWidget::InitWidgets() {
     List->setWordWrap(true);
     SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
 
-    MainLayout->addWidget(IdTypeDropdown);
+    MainLayout->addWidget(ItemTypeDropdown);
     MainLayout->addLayout(AssetFilterDropdownLayout);
     MainLayout->addWidget(SearchBox);
     MainLayout->addWidget(NoDatabaseFoundLabel);
     MainLayout->addWidget(List);
 
-    connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
-        RefreshEx(*IdTypeDropdown->currentData().value<Reflection::IdType*>());
+    connect(ItemTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
+        RefreshEx(*ItemTypeDropdown->currentData().value<Reflection::ItemType*>());
     });
     connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
         RefreshAssetCategory();

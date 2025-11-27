@@ -28,17 +28,6 @@
 #include <format>
 #include <qnamespace.h>
 
-#define ADD_ID_TYPE(IdType, iconPath) QString IdType##_Str = QString::fromStdString(Reflection::GetIdTypeName<IdType>()); \
-    \
-    auto IdType##_InsertAction = new QAction(QIcon(iconPath), QString("Create\n%1").arg(IdType##_Str), mInsertToolBar); \
-    IdType##_InsertAction->setObjectName("RequiresDatabaseButton"); \
-    mInsertToolBar->addAction(IdType##_InsertAction); \
-    \
-    connect(IdType##_InsertAction, &QAction::triggered, [&, this]() { \
-        ContentEditorDialog<IdType> dialog(this); \
-        dialog.exec(); \
-    });
-
 using namespace NoobWarrior;
 
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
@@ -244,15 +233,15 @@ void DatabaseEditor::InitMenus() {
     mViewMenu->addAction(mFileManagerViewAction);
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
-        QString name = QString::fromStdString(idtype->Name);
+    for (std::shared_ptr<Reflection::ItemType> &itemtype : Reflection::GetItemTypesInternal()) {
+        QString name = QString::fromStdString(itemtype->Name);
 
         auto insertAction = new QAction(QIcon(""), name, mInsertMenu);
         insertAction->setObjectName("RequiresDatabaseButton");
         mInsertMenu->addAction(insertAction);
         
-        connect(insertAction, &QAction::triggered, [this, idtype]() {
-            ItemDialog dialog(this, *idtype.get());
+        connect(insertAction, &QAction::triggered, [this, itemtype]() {
+            ItemDialog dialog(this, *itemtype.get());
             dialog.exec();
         });
     }
@@ -376,15 +365,15 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar = new QToolBar("Insert", this);
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
-    for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
-        QString name = QString::fromStdString(idtype->Name);
+    for (std::shared_ptr<Reflection::ItemType> &itemtype : Reflection::GetItemTypesInternal()) {
+        QString name = QString::fromStdString(itemtype->Name);
 
         auto insertAction = new QAction(QIcon(""), name, mInsertToolBar);
         insertAction->setObjectName("RequiresDatabaseButton");
         mInsertToolBar->addAction(insertAction);
         
-        connect(insertAction, &QAction::triggered, [this, idtype]() {
-            ItemDialog dialog(this, *idtype.get());
+        connect(insertAction, &QAction::triggered, [this, itemtype]() {
+            ItemDialog dialog(this, *itemtype.get());
             dialog.exec();
             // ContentEditorDialog<> dialog(this);
             // dialog.exec();

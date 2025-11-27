@@ -13,11 +13,11 @@
 namespace NoobWarrior {
 class ContentListItem : public QListWidgetItem {
 public:
-    ContentListItem(const Reflection::IdType &idType, int64_t id, Database *db, QListWidget *listview = nullptr);
+    ContentListItem(const Reflection::ItemType &itemType, int64_t id, Database *db, QListWidget *listview = nullptr);
 
     void Configure(DatabaseEditor *editor);
 private:
-    const Reflection::IdType &mIdType;
+    const Reflection::ItemType &mItemType;
     int64_t mId;
 };
 }

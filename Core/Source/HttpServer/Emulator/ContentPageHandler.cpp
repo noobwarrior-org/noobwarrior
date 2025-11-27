@@ -22,13 +22,13 @@ nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     auto data = WebHandler::GetContextData();
     Config *config = mServer->GetCore()->GetConfig();
 
-    data["idtypes"] = nlohmann::json::array();
-    for (const Reflection::IdType &idtype : Reflection::GetIdTypes())
-        data["idtypes"].push_back(idtype.Name);
+    data["itemtypes"] = nlohmann::json::array();
+    for (const Reflection::ItemType &itemtype : Reflection::GetItemTypes())
+        data["itemtypes"].push_back(itemtype.Name);
 
     data["currentpage"] = 1;
     data["totalpages"] = 1;
-    data["idtype"] = "Asset";
+    data["itemtype"] = "Asset";
 
     return data;
 }

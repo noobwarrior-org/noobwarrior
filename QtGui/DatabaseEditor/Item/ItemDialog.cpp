@@ -15,8 +15,8 @@ using namespace NoobWarrior;
 
 typedef std::variant<QLineEdit*> InputWidget;
 
-ItemDialog::ItemDialog(QWidget *parent, const Reflection::IdType &idType, const std::optional<int64_t> id, const std::optional<int> snapshot) : QDialog(parent),
-    mIdType(idType),
+ItemDialog::ItemDialog(QWidget *parent, const Reflection::ItemType &itemType, const std::optional<int64_t> id, const std::optional<int> snapshot) : QDialog(parent),
+    mItemType(itemType),
     mId(id),
     mSnapshot(snapshot)
 {
@@ -29,7 +29,7 @@ ItemDialog::ItemDialog(QWidget *parent, const Reflection::IdType &idType, const 
 }
 
 void ItemDialog::RegenWidgets() {
-    setWindowTitle(mId.has_value() ? tr("Configure %1").arg(QString::fromStdString(mIdType.Name)) : tr("Create New %1").arg(QString::fromStdString(mIdType.Name)));
+    setWindowTitle(mId.has_value() ? tr("Configure %1").arg(QString::fromStdString(mItemType.Name)) : tr("Create New %1").arg(QString::fromStdString(mItemType.Name)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
     mLayout = new QHBoxLayout(this);
@@ -52,17 +52,17 @@ void ItemDialog::RegenWidgets() {
     std::vector<unsigned char> data;
 
     if (mId.has_value())
-        // data = std::move(mDatabase->RetrieveContentImageData(mIdType, mId.has_value() ? mId.value() : -1));
+        // data = std::move(mDatabase->RetrieveContentImageData(mItemType, mId.has_value() ? mId.value() : -1));
         data = {};
     else
-        data.assign(mIdType.DefaultImage, mIdType.DefaultImage + mIdType.DefaultImageSize);
+        data.assign(mItemType.DefaultImage, mItemType.DefaultImage + mItemType.DefaultImageSize);
 
     image.loadFromData(data);
 
     QPixmap pixmap = QPixmap::fromImage(image);
     mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    if (!(mIdType.Name.compare("Asset") == 0 || mIdType.Name.compare("User") == 0)) {
+    if (!(mItemType.Name.compare("Asset") == 0 || mItemType.Name.compare("User") == 0)) {
         auto *changeIcon = new QPushButton("Change Icon");
         mSidebarLayout->addWidget(changeIcon);
         connect(changeIcon, &QPushButton::clicked, [this]() {
@@ -89,7 +89,7 @@ void ItemDialog::RegenWidgets() {
 
     mSidebarLayout->addStretch();
 
-    Out("ItemDialog", "id type name {}", mIdType.Name);
+    Out("ItemDialog", "id type name {}", mItemType.Name);
 
     mIdInput = new QLineEdit();
     mContentLayout->addRow("Id", mIdInput);
@@ -98,7 +98,7 @@ void ItemDialog::RegenWidgets() {
     /// main content containing all the fields and stuff
     ////////////////////////////////////////////////////////////////////////
     std::map<std::string, InputWidget> columnNameAndWidgets;
-    for (const auto &fieldpair : mIdType.Fields) {
+    for (const auto &fieldpair : mItemType.Fields) {
         std::string name = fieldpair.first;
         Reflection::Field field = fieldpair.second;
         Out("ItemDialog", "{} - {}", field.Name, field.Description);
@@ -123,7 +123,7 @@ void ItemDialog::RegenWidgets() {
             mContentLayout->addRow(QString::fromStdString(field.PrettyName), widget);
 
         if (mId.has_value()) {
-            // mDatabase->RetrieveColumnsFromItem(mIdType, mId.value(), mSnapshot);
+            // mDatabase->RetrieveColumnsFromItem(mItemType, mId.value(), mSnapshot);
             
             // std::any val = field.Getter(mDatabase, mId.value(), std::nullopt);
             // if (field.Type == &typeid(int)) {
@@ -175,7 +175,7 @@ void ItemDialog::RegenWidgets() {
         int64_t newId = static_cast<int64_t>(mIdInput->text().toInt());
         if (mId.has_value() && newId != mId.value()) {
             // the user has changed the ID of the item, account for this so that it doesn't try to create an entirely new row.
-            // DatabaseResponse res = mDatabase->ChangeItemId(mIdType, mId.value(), newId);
+            // DatabaseResponse res = mDatabase->ChangeItemId(mItemType, mId.value(), newId);
             // if (res != DatabaseResponse::Success) {
                 // this will totally not infuriate people when seen
                 // QMessageBox::critical(this, "Failed to Configure Item", "You changed the ID of the item, but the database failed when trying to internally change the ID.");
@@ -189,11 +189,11 @@ void ItemDialog::RegenWidgets() {
             InputWidget widget = columnNameAndWidget.second;
             if (std::holds_alternative<QLineEdit*>(widget)) {
                 auto* lineEdit = std::get<QLineEdit*>(widget);
-                if (mIdType.Fields.at(columnName).Type == &typeid(int))
+                if (mItemType.Fields.at(columnName).Type == &typeid(int))
                     columnsToChange[columnName] = lineEdit->text().toInt();
-                else if (mIdType.Fields.at(columnName).Type == &typeid(int64_t))
+                else if (mItemType.Fields.at(columnName).Type == &typeid(int64_t))
                     columnsToChange[columnName] = static_cast<int64_t>(lineEdit->text().toInt());
-                else if (mIdType.Fields.at(columnName).Type == &typeid(std::string))
+                else if (mItemType.Fields.at(columnName).Type == &typeid(std::string))
                     columnsToChange[columnName] = lineEdit->text().toStdString();
                 else Out("ItemDialog", "Cannot convert the text from QT input widget to the field's datatype.");
             } else {
@@ -201,10 +201,10 @@ void ItemDialog::RegenWidgets() {
             }
         }
 
-        // mDatabase->UpsertItem(mIdType, newId, std::nullopt, columnsToChange);?
+        // mDatabase->UpsertItem(mItemType, newId, std::nullopt, columnsToChange);?
 
-        // mDatabase->InsertItemWithDefaultsIfNotFound(mIdType, mId.value());
-        // for (const auto &fieldpair : mIdType.Fields) {
+        // mDatabase->InsertItemWithDefaultsIfNotFound(mItemType, mId.value());
+        // for (const auto &fieldpair : mItemType.Fields) {
         //     std::string name = fieldpair.first;
         //     Reflection::Field field = fieldpair.second;
 

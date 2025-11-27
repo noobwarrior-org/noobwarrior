@@ -28,13 +28,13 @@ public:
     void Refresh();
 protected:
     void RefreshAssetCategory();
-    void RefreshEx(const Reflection::IdType &idType);
+    void RefreshEx(const Reflection::ItemType &itemType);
 private:
     void InitWidgets();
     void InitPageCounter();
     void GoToPage(int num);
 
-    Reflection::IdType &mIdType;
+    Reflection::ItemType &mItemType;
 
     // Similarly to Roblox's Toolbox widget, we have a few dropdowns that allow you to filter out what you don't want.
     AssetCategory       mAssetCategory;
@@ -44,7 +44,7 @@ private:
     QWidget*        MainWidget;
     QVBoxLayout*    MainLayout;
 
-    QComboBox*      IdTypeDropdown;
+    QComboBox*      ItemTypeDropdown;
     QHBoxLayout*    AssetFilterDropdownLayout;
     QComboBox*      AssetTypeDropdown;
     QComboBox*      AssetCategoryDropdown;

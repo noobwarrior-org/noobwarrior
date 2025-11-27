@@ -7,12 +7,12 @@
 
 using namespace NoobWarrior;
 
-ContentListItem::ContentListItem(const Reflection::IdType &idType, int64_t id, Database *db, QListWidget *listview) :
+ContentListItem::ContentListItem(const Reflection::ItemType &itemType, int64_t id, Database *db, QListWidget *listview) :
     QListWidgetItem(listview),
-    mIdType(idType),
+    mItemType(itemType),
     mId(id)
 {
-    setText(QString("%1\n(%2)").arg(QString::fromStdString(mIdType.Name), QString::number(mId)));
+    setText(QString("%1\n(%2)").arg(QString::fromStdString(mItemType.Name), QString::number(mId)));
 
     /*
     std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(mRecord.Id);

@@ -22,27 +22,27 @@
 #include <optional>
 #include <memory>
 
-#define NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(idType) \
-    struct idType##Registrar { \
-        idType##Registrar() { \
-            auto idTypePtr = std::make_shared<NoobWarrior::Reflection::IdType>(); \
-            idTypePtr->Name = #idType; \
-            idTypePtr->Class = &typeid(idType); \
-            idTypePtr->Create = []() { return idType(); }; \
-            NoobWarrior::Reflection::GetIdTypesInternal().push_back(idTypePtr); \
-            NoobWarrior::Reflection::GetIdTypeMap()[typeid(idType)] = NoobWarrior::Reflection::GetIdTypesInternal().back();
+#define NOOBWARRIOR_REFLECT_ITEMTYPE_BEGIN(itemType) \
+    struct itemType##Registrar { \
+        itemType##Registrar() { \
+            auto itemTypePtr = std::make_shared<NoobWarrior::Reflection::ItemType>(); \
+            itemTypePtr->Name = #itemType; \
+            itemTypePtr->Class = &typeid(itemType); \
+            itemTypePtr->Create = []() { return itemType(); }; \
+            NoobWarrior::Reflection::GetItemTypesInternal().push_back(itemTypePtr); \
+            NoobWarrior::Reflection::GetItemTypeMap()[typeid(itemType)] = NoobWarrior::Reflection::GetItemTypesInternal().back();
 
-#define NOOBWARRIOR_REFLECT_ID_TYPE_END(idType) \
+#define NOOBWARRIOR_REFLECT_ITEMTYPE_END(itemType) \
         } \
     }; \
-    static idType##Registrar s##idType##RegistrarInstance;
+    static itemType##Registrar s##itemType##RegistrarInstance;
 
 #define NOOBWARRIOR_REFLECT_FIELD(fieldName, tableName, prettyName, datatype, desc, getDefaultVal) \
-    idTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
+    itemTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
 
 #define NOOBWARRIOR_REFLECT_DEFAULT_IMAGE(data, dataSize) \
-    idTypePtr->DefaultImage = data; \
-    idTypePtr->DefaultImageSize = dataSize;
+    itemTypePtr->DefaultImage = data; \
+    itemTypePtr->DefaultImageSize = dataSize;
 
 #define NOOBWARRIOR_REFLECT_ENUM_BEGIN(enumName) \
     struct enumName##Registrar { \
@@ -70,8 +70,8 @@
     static CommonRegistrar sCommonRegistrarInstance;
 
 #define NOOBWARRIOR_REFLECT_COMMON_FIELD(fieldName, tableName, prettyName, datatype, desc, getDefaultVal) \
-    for (auto idTypePtr : NoobWarrior::Reflection::GetIdTypesInternal()) \
-        idTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
+    for (auto itemTypePtr : NoobWarrior::Reflection::GetItemTypesInternal()) \
+        itemTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
 
 namespace NoobWarrior {
 class Database;
@@ -87,7 +87,7 @@ struct Field {
     std::function<NoobWarrior::SqlValue(Database *db)> GetDefaultValue;
 };
 
-struct IdType {
+struct ItemType {
     std::string Name {};
     const std::type_info *Class { nullptr };
     std::function<Item()> Create;
@@ -102,47 +102,47 @@ struct Enum {
 };
 
 /**
- * @brief Raw version of GetIdTypes() meant only for internal use. The difference is that it contains a vector of shared pointers.
- * This is so that the memory locations of each reflected IdType will always stay the same, even if the vector reallocates elements to different memory locations.
- * @return std::vector<std::shared_ptr<IdType>>& 
+ * @brief Raw version of GetItemTypes() meant only for internal use. The difference is that it contains a vector of shared pointers.
+ * This is so that the memory locations of each reflected ItemType will always stay the same, even if the vector reallocates elements to different memory locations.
+ * @return std::vector<std::shared_ptr<ItemType>>& 
  */
-inline std::vector<std::shared_ptr<IdType>> &GetIdTypesInternal() {
-    static std::vector<std::shared_ptr<IdType>> IdTypes;
-    return IdTypes;
+inline std::vector<std::shared_ptr<ItemType>> &GetItemTypesInternal() {
+    static std::vector<std::shared_ptr<ItemType>> ItemTypes;
+    return ItemTypes;
 }
 
 /**
- * @brief A vector that consists of each available IdType. 
+ * @brief A vector that consists of each available ItemType. 
  * 
- * @return std::vector<IdType>& 
+ * @return std::vector<ItemType>& 
  */
-inline const std::vector<IdType> GetIdTypes() {
-    std::vector<IdType> IdTypes;
-    auto idTypesRaw = GetIdTypesInternal();
-    for (auto &idtype : idTypesRaw) {
-        IdTypes.push_back(*idtype.get());
+inline const std::vector<ItemType> GetItemTypes() {
+    std::vector<ItemType> ItemTypes;
+    auto itemTypesRaw = GetItemTypesInternal();
+    for (auto &itemtype : itemTypesRaw) {
+        ItemTypes.push_back(*itemtype.get());
     }
-    return IdTypes;
+    return ItemTypes;
 }
 
-inline std::unordered_map<std::type_index, std::shared_ptr<IdType>> &GetIdTypeMap() {
-    static std::unordered_map<std::type_index, std::shared_ptr<IdType>> IdTypeNameMap;
-    return IdTypeNameMap;
-}
-
-template<typename T>
-const IdType &GetIdType() {
-    return const_cast<const IdType&>(*GetIdTypeMap()[std::type_index(typeid(T))].get());
+inline std::unordered_map<std::type_index, std::shared_ptr<ItemType>> &GetItemTypeMap() {
+    static std::unordered_map<std::type_index, std::shared_ptr<ItemType>> ItemTypeNameMap;
+    return ItemTypeNameMap;
 }
 
 template<typename T>
-std::string GetIdTypeName() {
-    return GetIdType<T>().Name;
+const ItemType &GetItemType() {
+    return const_cast<const ItemType&>(*GetItemTypeMap()[std::type_index(typeid(T))].get());
+}
+
+template<typename T>
+std::string GetItemTypeName() {
+    return GetItemType<T>().Name;
 }
 
 template<typename T>
 std::map<std::string, Field> &GetFields() {
-    IdType &reflectedType = GetIdType<T>();
+    ItemType &reflectedType = GetItemType<T>();
     return reflectedType.Fields;
 }
 
