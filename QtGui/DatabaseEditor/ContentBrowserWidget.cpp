@@ -138,6 +138,7 @@ void ContentBrowserWidget::InitWidgets() {
     SearchBox = new QLineEdit(MainWidget);
 
     NoDatabaseFoundLabel->setWordWrap(true);
+    List->setAutoFillBackground(true);
     List->setMovement(QListView::Static);
     List->setViewMode(QListView::IconMode);
     List->setIconSize(QSize(64, 64));

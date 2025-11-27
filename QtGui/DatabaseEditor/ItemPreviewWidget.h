@@ -1,5 +1,5 @@
 // === noobWarrior ===
-// File: PreviewItemWidget.h
+// File: ItemPreviewWidget.h
 // Started by: Hattozo
 // Started on: 8/3/2025
 // Description: Qt widget that lets the user view an item, as if they were viewing it on the actual Roblox website itself.
@@ -8,9 +8,9 @@
 
 namespace NoobWarrior {
 template<class T>
-class PreviewItemWidget : public QWidget {
+class ItemPreviewWidget : public QWidget {
 public:
-    PreviewItemWidget(const int64_t &id) :
+    ItemPreviewWidget(const int64_t &id) :
         mId(id)
     {
 

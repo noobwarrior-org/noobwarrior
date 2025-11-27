@@ -43,6 +43,8 @@ using namespace NoobWarrior;
 
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mCurrentDatabase(nullptr),
+    mTabWidget(nullptr),
+    mWelcomeWidget(nullptr),
     mOverviewWidget(nullptr),
     mContentBrowser(nullptr),
     mFileManager(nullptr),
@@ -234,9 +236,26 @@ void DatabaseEditor::InitMenus() {
 
     mEditMenu = menuBar()->addMenu(tr("&Edit"));
 
+    mContentBrowserViewAction = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content Browser");
+    mFileManagerViewAction = new QAction(QIcon(":/images/silk/folder_page.png"), "File Manager");
+
     mViewMenu = menuBar()->addMenu(tr("&View"));
+    mViewMenu->addAction(mContentBrowserViewAction);
+    mViewMenu->addAction(mFileManagerViewAction);
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
+    for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
+        QString name = QString::fromStdString(idtype->Name);
+
+        auto insertAction = new QAction(QIcon(""), name, mInsertMenu);
+        insertAction->setObjectName("RequiresDatabaseButton");
+        mInsertMenu->addAction(insertAction);
+        
+        connect(insertAction, &QAction::triggered, [this, idtype]() {
+            ItemDialog dialog(this, *idtype.get());
+            dialog.exec();
+        });
+    }
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 
@@ -328,64 +347,39 @@ void DatabaseEditor::InitWidgets() {
     mTabWidget = new QTabWidget(this);
     setCentralWidget(mTabWidget);
 
+    /*
     auto *hi = new QLabel("New Database  Ctrl-N\nOpen Database  Ctrl-O");
     hi->setFont(QFont(QApplication::font().family(), 20));
     hi->setAlignment(Qt::AlignCenter);
     hi->setWordWrap(true);
 
     mTabWidget->addTab(hi, "Welcome");
+    */
 
-    mFileToolBar = new QToolBar(this);
-    mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    mFileToolBar->setWindowIconText("File");
+    mWelcomeWidget = new WelcomeWidget();
+    mTabWidget->addTab(mWelcomeWidget, "Welcome");
 
-    auto fileNewButton = new QAction(QIcon(":/images/silk/database_add.png"), "New\nDatabase", mFileToolBar);
-    mFileToolBar->addAction(fileNewButton);
-    connect(fileNewButton, &QAction::triggered, [&]() {
-        mNewDatabaseAction->trigger();
-    });
+    mStandardToolBar = new QToolBar("Standard", this);
+    // mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 
-    auto fileOpenButton = new QAction(QIcon(":/images/silk/database_edit.png"), "Open\nDatabase", mFileToolBar);
-    mFileToolBar->addAction(fileOpenButton);
-    connect(fileOpenButton, &QAction::triggered, [&]() {
-        mOpenDatabaseAction->trigger();
-    });
+    mStandardToolBar->addAction(mNewDatabaseAction);
+    mStandardToolBar->addAction(mOpenDatabaseAction);
+    mStandardToolBar->addAction(mSaveDatabaseAction);
+    mStandardToolBar->addAction(mCloseDatabaseAction);
+    mStandardToolBar->addSeparator();
+    mStandardToolBar->addAction(mBackupAction);
 
-    auto fileSave = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase", mFileToolBar);
-    fileSave->setObjectName("RequiresDatabaseButton");
-    mFileToolBar->addAction(fileSave);
+    mViewToolBar = new QToolBar("View", this);
+    mViewToolBar->addAction(mContentBrowserViewAction);
+    mViewToolBar->addAction(mFileManagerViewAction);
 
-    auto fileSaveAs = new QAction(QIcon(":/images/silk/database_save.png"), "Save\nDatabase As...", mFileToolBar);
-    fileSaveAs->setObjectName("RequiresDatabaseButton");
-    mFileToolBar->addAction(fileSaveAs);
-
-    auto fileClose = new QAction(QIcon(":/images/silk/database_delete.png"), "Close Current\nDatabase", mFileToolBar);
-    fileClose->setObjectName("RequiresDatabaseButton");
-    mFileToolBar->addAction(fileClose);
-    connect(fileClose, &QAction::triggered, [&]() {
-        mCloseDatabaseAction->trigger();
-    });
-
-    mViewToolBar = new QToolBar(this);
-    mViewToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    mViewToolBar->setWindowIconText("View");
-
-    auto viewOutlineButton = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content\nBrowser", mViewToolBar);
-    viewOutlineButton->setObjectName("RequiresDatabaseButton");
-    mViewToolBar->addAction(viewOutlineButton);
-
-    auto viewOrganizerButton = new QAction(QIcon(":/images/silk/folder_page.png"), "Organizer\n", mViewToolBar);
-    viewOrganizerButton->setObjectName("RequiresDatabaseButton");
-    mViewToolBar->addAction(viewOrganizerButton);
-
-    mInsertToolBar = new QToolBar(this);
-    mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    mInsertToolBar->setWindowIconText("Insert");
+    mInsertToolBar = new QToolBar("Insert", this);
+    mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
     for (std::shared_ptr<Reflection::IdType> &idtype : Reflection::GetIdTypesInternal()) {
         QString name = QString::fromStdString(idtype->Name);
 
-        auto insertAction = new QAction(QIcon(""), QString("Create\n%1").arg(name), mInsertToolBar);
+        auto insertAction = new QAction(QIcon(""), name, mInsertToolBar);
         insertAction->setObjectName("RequiresDatabaseButton");
         mInsertToolBar->addAction(insertAction);
         
@@ -402,7 +396,7 @@ void DatabaseEditor::InitWidgets() {
 
     DisableRequiredDatabaseButtons(true);
 
-    addToolBar(Qt::ToolBarArea::TopToolBarArea, mFileToolBar);
+    addToolBar(Qt::ToolBarArea::TopToolBarArea, mStandardToolBar);
     // addToolBarBreak();
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mViewToolBar);
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mInsertToolBar);

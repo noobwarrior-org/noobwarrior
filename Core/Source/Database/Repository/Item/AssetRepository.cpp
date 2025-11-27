@@ -51,6 +51,7 @@ DatabaseResponse AssetRepository::Save(const Asset &asset) {
     asset.CreatorType == Roblox::CreatorType::Group && asset.CreatorId.has_value() ? stmt.Bind(11, asset.CreatorId.value()) : stmt.Bind(11);
     asset.Public.has_value() ? stmt.Bind(12, asset.Public.value()) : stmt.Bind(12);
     
+    mDb->MarkDirty();
     if (stmt.Step() == SQLITE_DONE)
         return DatabaseResponse::Success;
     return DatabaseResponse::Failed;
@@ -60,12 +61,14 @@ DatabaseResponse AssetRepository::Remove(int64_t id, int snapshot) {
     Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ? AND Snapshot = ?;");
     stmt.Bind(1, id);
     stmt.Bind(2, snapshot);
+    mDb->MarkDirty();
     return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
 }
 
 DatabaseResponse AssetRepository::Remove(int64_t id) {
     Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ?;");
     stmt.Bind(1, id);
+    mDb->MarkDirty();
     return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
 }
 

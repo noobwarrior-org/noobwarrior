@@ -7,6 +7,7 @@
 #include <NoobWarrior/Database/Database.h>
 
 #include "BackgroundTask.h"
+#include "WelcomeWidget.h"
 #include "OverviewWidget.h"
 #include "FileManagerWidget.h"
 
@@ -52,35 +53,36 @@ namespace NoobWarrior {
 
         //////////////////// Menu Bar ////////////////////
         QMenu *mFileMenu;
+        QMenu *mEditMenu;
+        QMenu *mViewMenu;
+        QMenu *mInsertMenu;
+        QMenu *mToolsMenu;
+        QMenu *mHelpMenu;
 
-        QAction *mNewDatabaseAction;
-        QAction *mOpenDatabaseAction;
+        QAction* mNewDatabaseAction;
+        QAction* mOpenDatabaseAction;
         
-        QAction *mSaveDatabaseAction;
-        QAction *mSaveAsDatabaseAction;
+        QAction* mSaveDatabaseAction;
+        QAction* mSaveAsDatabaseAction;
 
-        QAction *mCloseDatabaseAction;
+        QAction* mCloseDatabaseAction;
 
-        QAction *mBackupAction;
+        QAction* mBackupAction;
 
         QAction* mExitAction;
 
-        QMenu *mEditMenu;
-
-        QMenu *mViewMenu;
-
-        QMenu *mInsertMenu;
-
-        QMenu *mToolsMenu;
-
-        QMenu *mHelpMenu;
+        QAction* mContentBrowserViewAction;
+        QAction* mFileManagerViewAction;
 
         //////////////////// Tool Bars ////////////////////
-        QToolBar *mFileToolBar;
+        QToolBar *mStandardToolBar;
         QToolBar *mViewToolBar;
         QToolBar *mInsertToolBar;
+
+        //////////////////// Tabs ////////////////////
         QTabWidget *mTabWidget;
 
+        WelcomeWidget* mWelcomeWidget;
         OverviewWidget *mOverviewWidget;
 
         //////////////////// Dockable Widgets ////////////////////
