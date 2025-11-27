@@ -17,7 +17,7 @@
 
 // header files containing strings of SQL schemas describing how each table should be created.
 #include "schema/table/meta.sql.inc"
-#include "schema/table/blob_hash.sql.inc"
+#include "schema/table/blob_storage.sql.inc"
 #include "schema/table/login_session.sql.inc"
 #include "schema/table/transaction.sql.inc"
 
@@ -142,7 +142,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // create all tables that do not exist
     CREATE_TABLE(schema_meta)
-	CREATE_TABLE(schema_blob_hash)
+	CREATE_TABLE(schema_blob_storage)
 	CREATE_TABLE(schema_login_session)
 	CREATE_TABLE(schema_transaction)
 

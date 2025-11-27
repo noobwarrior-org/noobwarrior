@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS "User" (
 	"BustThumbnailHash"	TEXT,
 	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("Name") REFERENCES "UserNames"("Name"),
-	FOREIGN KEY("HeadshotThumbnailHash") REFERENCES "HashBlob"("Hash"),
-	FOREIGN KEY("BustThumbnailHash") REFERENCES "HashBlob"("Hash")
+	FOREIGN KEY("HeadshotThumbnailHash") REFERENCES "BlobStorage"("Hash"),
+	FOREIGN KEY("BustThumbnailHash") REFERENCES "BlobStorage"("Hash")
 );
 )***";
