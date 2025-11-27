@@ -379,7 +379,11 @@ std::filesystem::path Database::GetFilePath() {
     return mPath;
 }
 
-DatabaseResponse Database::ExecSqlStatement(const std::string &stmtStr) {
+Statement Database::PrepareStatement(const std::string &stmtStr) {
+	return Statement(this, stmtStr);
+}
+
+DatabaseResponse Database::ExecStatement(const std::string &stmtStr) {
 	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
 	auto ret = DatabaseResponse::Failed;
 	switch (res) {
@@ -393,12 +397,10 @@ DatabaseResponse Database::ExecSqlStatement(const std::string &stmtStr) {
 
 DatabaseResponse Database::SetMetaKeyValue(const std::string &key, const std::string &value) {
 	if (!mInitialized) return DatabaseResponse::NotInitialized;
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "UPDATE Meta SET Value = ? WHERE Key = ?;", -1, &stmt, nullptr);
-	sqlite3_bind_text(stmt, 1, value.c_str(), -1, nullptr);
-	sqlite3_bind_text(stmt, 2, key.c_str(), -1, nullptr);
-	auto res = sqlite3_step(stmt) == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
-	sqlite3_finalize(stmt);
+	Statement stmt(this, "UPDATE Meta SET Value = ? WHERE Key = ?;");
+	stmt.Bind(1, value);
+	stmt.Bind(2, key);
+	auto res = stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
 	MarkDirty();
 	return res;
 }
@@ -425,17 +427,13 @@ std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const
 
 	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
 
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
+	Statement stmt(this, stmtStr);
+	stmt.Bind(1, id);
 
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt, columnName);
-		sqlite3_finalize(stmt);
+	if (stmt.Step() == SQLITE_ROW) {
+		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt.Get(), columnName);
 		return data;
 	}
-
-	sqlite3_finalize(stmt);
 
 	return {};
 }

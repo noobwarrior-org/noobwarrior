@@ -52,7 +52,8 @@ void ItemDialog::RegenWidgets() {
     std::vector<unsigned char> data;
 
     if (mId.has_value())
-        data = std::move(mDatabase->RetrieveContentImageData(mIdType, mId.has_value() ? mId.value() : -1));
+        // data = std::move(mDatabase->RetrieveContentImageData(mIdType, mId.has_value() ? mId.value() : -1));
+        data = {};
     else
         data.assign(mIdType.DefaultImage, mIdType.DefaultImage + mIdType.DefaultImageSize);
 
@@ -122,7 +123,8 @@ void ItemDialog::RegenWidgets() {
             mContentLayout->addRow(QString::fromStdString(field.PrettyName), widget);
 
         if (mId.has_value()) {
-            mDatabase->RetrieveColumnsFromItem(mIdType, mId.value(), mSnapshot);
+            // mDatabase->RetrieveColumnsFromItem(mIdType, mId.value(), mSnapshot);
+            
             // std::any val = field.Getter(mDatabase, mId.value(), std::nullopt);
             // if (field.Type == &typeid(int)) {
             //     static_cast<QLineEdit*>(widget)->setText(QString::number(std::any_cast<int>(val)));
@@ -173,12 +175,12 @@ void ItemDialog::RegenWidgets() {
         int64_t newId = static_cast<int64_t>(mIdInput->text().toInt());
         if (mId.has_value() && newId != mId.value()) {
             // the user has changed the ID of the item, account for this so that it doesn't try to create an entirely new row.
-            DatabaseResponse res = mDatabase->ChangeItemId(mIdType, mId.value(), newId);
-            if (res != DatabaseResponse::Success) {
+            // DatabaseResponse res = mDatabase->ChangeItemId(mIdType, mId.value(), newId);
+            // if (res != DatabaseResponse::Success) {
                 // this will totally not infuriate people when seen
-                QMessageBox::critical(this, "Failed to Configure Item", "You changed the ID of the item, but the database failed when trying to internally change the ID.");
-                return;
-            }
+                // QMessageBox::critical(this, "Failed to Configure Item", "You changed the ID of the item, but the database failed when trying to internally change the ID.");
+                // return;
+            // }
         }
         std::map<std::string, SqlValue> columnsToChange;
 
@@ -199,7 +201,8 @@ void ItemDialog::RegenWidgets() {
             }
         }
 
-        mDatabase->UpsertItem(mIdType, newId, std::nullopt, columnsToChange);
+        // mDatabase->UpsertItem(mIdType, newId, std::nullopt, columnsToChange);?
+
         // mDatabase->InsertItemWithDefaultsIfNotFound(mIdType, mId.value());
         // for (const auto &fieldpair : mIdType.Fields) {
         //     std::string name = fieldpair.first;

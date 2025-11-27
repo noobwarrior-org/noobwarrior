@@ -10,7 +10,6 @@
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Reflection.h>
-#include <NoobWarrior/Database/Record/IdRecord.h>
 #include <NoobWarrior/Database/AssetCategory.h>
 
 #include <QLabel>
@@ -25,6 +24,7 @@
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
+    mIdType(const_cast<Reflection::IdType&>(Reflection::GetIdType<Asset>())),
     mAssetCategory(AssetCategory::DevelopmentItem),
     mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
@@ -66,6 +66,42 @@ void ContentBrowserWidget::RefreshAssetCategory() {
     Refresh();
 }
 
+void ContentBrowserWidget::RefreshEx(const Reflection::IdType &idType) {
+    auto editor = dynamic_cast<DatabaseEditor*>(parent());
+    Database *db = editor->GetCurrentlyEditingDatabase();
+
+    mIdType = idType;
+    mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
+    mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
+
+    IdTypeDropdown->setCurrentText(QString::fromStdString(idType.Name));
+    AssetCategoryDropdown->setVisible(idType.Name.compare("Asset") == 0);
+    AssetTypeDropdown->setVisible(idType.Name.compare("Asset") == 0);
+
+    NoDatabaseFoundLabel->setVisible(db == nullptr);
+    List->setVisible(db != nullptr);
+    List->clear();
+    if (db == nullptr)
+        return;
+
+    SearchOptions opt {};
+    opt.Offset = 0;
+    opt.Limit = 100;
+    opt.AssetType = mAssetType;
+
+    if (idType.Name.compare("Asset") == 0) {
+        std::vector<Asset> list = db->GetAssetRepository().List();
+        for (auto &item : list) {
+            new ContentListItem(idType, item.Id, db, List);
+            // cool->setIcon(QIcon(item.Icon));
+        }
+    }
+}
+
+void ContentBrowserWidget::Refresh() {
+    RefreshEx(mIdType);
+}
+
 void ContentBrowserWidget::InitWidgets() {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
 
@@ -83,10 +119,10 @@ void ContentBrowserWidget::InitWidgets() {
 
     AssetTypeDropdown = new QComboBox();
 
-    ADD_ID_TYPE(Asset, ":/images/silk/page.png")
-    ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_1.png")
-    ADD_ID_TYPE(User, ":/images/silk/user.png")
-    Refresh = mRefreshFunctions.at(0);
+    for (const Reflection::IdType &idType : Reflection::GetIdTypes()) {
+        QString str = QString::fromStdString(idType.Name);
+        IdTypeDropdown->addItem(QIcon(""), str, QVariant::fromValue((Reflection::IdType*)&idType));
+    }
 
     for (int i = 0; i <= AssetCategoryCount; i++) {
         auto assetTypeCategory = static_cast<AssetCategory>(i);
@@ -115,8 +151,7 @@ void ContentBrowserWidget::InitWidgets() {
     MainLayout->addWidget(List);
 
     connect(IdTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
-        Refresh = mRefreshFunctions.at(index);
-        Refresh();
+        RefreshEx(*IdTypeDropdown->currentData().value<Reflection::IdType*>());
     });
     connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
         RefreshAssetCategory();
@@ -125,7 +160,7 @@ void ContentBrowserWidget::InitWidgets() {
         Refresh();
     });
     connect(List, &QListWidget::itemDoubleClicked, this, [editor](QListWidgetItem *item) {
-        auto *contentItem = dynamic_cast<ContentListItemBase*>(item);
+        auto *contentItem = dynamic_cast<ContentListItem*>(item);
         contentItem->Configure(editor);
     });
 

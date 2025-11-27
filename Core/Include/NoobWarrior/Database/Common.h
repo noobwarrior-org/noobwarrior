@@ -26,6 +26,7 @@ enum class DatabaseResponse {
     NotInitialized,
     StatementConstraintViolation,
     Busy,
-    Misuse
+    Misuse,
+    DoesNotExist
 };
 }

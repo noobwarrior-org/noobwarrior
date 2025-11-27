@@ -19,12 +19,12 @@ template<typename Item>
 class Repository {
 public:
     Repository(Database *db) : mDb(db) {}
-    virtual DatabaseResponse SaveItem(const Item &item) = 0;
-    virtual DatabaseResponse RemoveItem(int64_t id) = 0;
-    virtual DatabaseResponse MoveItem(int64_t currentId, int64_t newId) = 0;
-    virtual std::optional<Item> GetItemById(int64_t id) = 0;
-    virtual std::vector<Item> ListItems() = 0;
-    virtual bool DoesItemExist(int64_t id) = 0;
+    virtual DatabaseResponse Save(const Item &item) = 0;
+    virtual DatabaseResponse Remove(int64_t id) = 0;
+    virtual DatabaseResponse Move(int64_t currentId, int64_t newId) = 0;
+    virtual std::optional<Item> Get(int64_t id) = 0;
+    virtual std::vector<Item> List() = 0;
+    virtual bool Exists(int64_t id) = 0;
 protected:
     Database *mDb;
 };
@@ -33,7 +33,10 @@ template<typename Item>
 class ItemRepository : public Repository<Item> {
 public:
     ItemRepository(Database *db) : Repository<Item>(db) {}
-    virtual DatabaseResponse RemoveItemSnapshot(int64_t id, int snapshot) = 0;
-    virtual std::optional<Item> GetItemById(int64_t id, int snapshot) = 0;
+    virtual DatabaseResponse Remove(int64_t id, int snapshot) = 0;
+    virtual std::optional<Item> Get(int64_t id, int snapshot) = 0;
+    virtual bool Exists(int64_t id, int snapshot) = 0;
+
+    std::vector<unsigned char> GetIconData();
 };
 }

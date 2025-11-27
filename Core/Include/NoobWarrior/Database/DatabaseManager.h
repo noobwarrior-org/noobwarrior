@@ -24,12 +24,11 @@ public:
 
     bool GetUserFromToken(User *user, const std::string &token);
 
-    std::vector<unsigned char> RetrieveAssetData(int64_t id);
-
-    AssetRepositoryManager& GetAssetRepository();
+    // TODO: PLEASE FIX THE CIRCULATORY DEPENDENCIES. FUCK.
+    // AssetRepositoryManager& GetAssetRepository();
 private:
     std::vector<Database*> MountedDatabases;
-    AssetRepositoryManager mAssetRepository;
+    // AssetRepositoryManager mAssetRepository;
 };
 
 template<typename Item, typename RepositoryClass>
@@ -37,44 +36,44 @@ class ItemRepositoryManager : public ItemRepository<Item> {
 public:
     ItemRepositoryManager(DatabaseManager *dbMgr) : mDbMgr(dbMgr) {}
     virtual RepositoryClass& GetRepository(Database *db) = 0;
-    DatabaseResponse SaveItem(const Item &item) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->SaveItem(item);
+    DatabaseResponse Save(const Item &item) override {
+        return GetRepository(mDbMgr->GetMasterDatabase())->Save(item);
     }
-    DatabaseResponse RemoveItem(int64_t id) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->RemoveItem(id);
+    DatabaseResponse Remove(int64_t id) override {
+        return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id);
     }
-    DatabaseResponse RemoveItemSnapshot(int64_t id, int snapshot) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->RemoveItemSnapshot(id, snapshot);
+    DatabaseResponse Remove(int64_t id, int snapshot) override {
+        return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id, snapshot);
     }
-    DatabaseResponse MoveItem(int64_t currentId, int64_t newId) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->MoveItem(currentId, newId);
+    DatabaseResponse Move(int64_t currentId, int64_t newId) override {
+        return GetRepository(mDbMgr->GetMasterDatabase())->Move(currentId, newId);
     }
-    std::optional<Item> GetItemById(int64_t id) override {
+    std::optional<Item> Get(int64_t id) override {
         for (Database *db : mDbMgr->GetMountedDatabases()) {
-            std::optional<Item> item = GetRepository(db)->GetItemById(id);
+            std::optional<Item> item = GetRepository(db)->Get(id);
             if (item.has_value())
                 return item.value();
         }
     }
-    std::optional<Item> GetItemById(int64_t id, int snapshot) override {
+    std::optional<Item> Get(int64_t id, int snapshot) override {
         for (Database *db : mDbMgr->GetMountedDatabases()) {
-            std::optional<Item> item = GetRepository(db)->GetItemById(id, snapshot);
+            std::optional<Item> item = GetRepository(db)->Get(id, snapshot);
             if (item.has_value())
                 return item.value();
         }
     }
-    std::vector<Item> ListItems() override {
+    std::vector<Item> List() override {
         std::vector<Item> allItems;
         for (Database *db : mDbMgr->GetMountedDatabases()) {
-            std::vector<Item> items = GetRepository(db)->ListItems();
+            std::vector<Item> items = GetRepository(db)->List();
             allItems.insert(allItems.end(), items.begin(), items.end());
         }
         return allItems;
     }
-    bool DoesItemExist(int64_t id) override {
+    bool Exists(int64_t id) override {
         for (int i = 0; i < mDbMgr->GetMountedDatabases().size(); i++) {
             Database *database = mDbMgr->GetMountedDatabases()[i];
-            if (const bool exists = GetRepository(database)->DoesItemExist())
+            if (const bool exists = GetRepository(database)->Exists())
                 return exists;
         }
         return false;

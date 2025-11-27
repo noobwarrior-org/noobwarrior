@@ -22,7 +22,7 @@ std::vector<unsigned char> AssetRepository::RetrieveData(int64_t id) {
     return {};
 }
 
-DatabaseResponse AssetRepository::SaveItem(const Asset &asset) {
+DatabaseResponse AssetRepository::Save(const Asset &asset) {
     Statement stmt(mDb, R"(***
     INSERT INTO Asset
     (Id, Snapshot, Name, Description, Created, Updated, Type, ImageId, ImageSnapshot, UserId, GroupId, Public)
@@ -56,12 +56,30 @@ DatabaseResponse AssetRepository::SaveItem(const Asset &asset) {
     return DatabaseResponse::Failed;
 }
 
-DatabaseResponse AssetRepository::RemoveItem(int64_t id) {
-
-    return DatabaseResponse::Success;
+DatabaseResponse AssetRepository::Remove(int64_t id, int snapshot) {
+    Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ? AND Snapshot = ?;");
+    stmt.Bind(1, id);
+    stmt.Bind(2, snapshot);
+    return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
 }
 
-std::optional<Asset> AssetRepository::GetItemById(int64_t id) {
+DatabaseResponse AssetRepository::Remove(int64_t id) {
+    Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ?;");
+    stmt.Bind(1, id);
+    return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
+}
+
+DatabaseResponse AssetRepository::Move(int64_t currentId, int64_t newId) {
+    std::optional<Asset> ass = Get(currentId);
+    if (!ass.has_value())
+        return DatabaseResponse::DoesNotExist;
+    ass.value().Id = newId;
+    DatabaseResponse remove_res = Remove(currentId);
+    if (remove_res != DatabaseResponse::Success) return DatabaseResponse::Failed;
+    return Save(ass.value());
+}
+
+std::optional<Asset> AssetRepository::Get(int64_t id, int snapshot) {
     Statement stmt(mDb, R"(***
     SELECT
         *
@@ -77,9 +95,10 @@ std::optional<Asset> AssetRepository::GetItemById(int64_t id) {
         AssetMisc
     CROSS JOIN
         AssetPlaceThumbnail
-    WHERE Id = ?;
+    WHERE Id = ? AND Snapshot = ?;
     ***)");
     stmt.Bind(1, id);
+    stmt.Bind(2, snapshot);
     if (stmt.Step() != SQLITE_ROW)
         return std::nullopt;
     std::map<std::string, SqlValue> columnMap = stmt.GetColumnMap();
@@ -94,4 +113,32 @@ std::optional<Asset> AssetRepository::GetItemById(int64_t id) {
     }
     // asset.CreatorType = std::get<int>(columnName["UserId"]);
     return asset;
+}
+
+std::optional<Asset> AssetRepository::Get(int64_t id) {
+    return Get(id, 1); // TODO: get latest snapshot instead of using an arbitrary number that may or may not exist.
+}
+
+std::vector<Asset> AssetRepository::List() {
+    std::vector<Asset> list;
+    Statement stmt(mDb, "SELECT * FROM Asset;");
+    while (stmt.Step() == SQLITE_ROW) {
+        int64_t id = std::get<int64_t>(stmt.GetValueFromColumnIndex(0));
+        std::optional<Asset> asset = Get(id);
+        if (asset.has_value()) list.push_back(asset.value());
+    }
+    return list;
+}
+
+bool AssetRepository::Exists(int64_t id, int snapshot) {
+    Statement stmt(mDb, "SELECT Id FROM Asset WHERE Id = ? AND Snapshot = ?;");
+    stmt.Bind(1, id);
+    stmt.Bind(2, snapshot);
+    return stmt.Step() == SQLITE_ROW;
+}
+
+bool AssetRepository::Exists(int64_t id) {
+    Statement stmt(mDb, "SELECT Id FROM Asset WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;");
+    stmt.Bind(1, id);
+    return stmt.Step() == SQLITE_ROW;
 }

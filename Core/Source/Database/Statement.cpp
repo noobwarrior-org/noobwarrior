@@ -30,9 +30,6 @@ SqlValue Statement::GetValueFromColumnIndex(int columnIndex) {
     std::vector<unsigned char> data;
     unsigned char* buf;
 
-    /* Originally the returned datatype depended on the value of the column, but I feel like that would
-       create too many bugs and user errors so now it depends on the declared type of the field itself. */
-    /*
     switch (sqlite3_column_type(mStmt, columnIndex)) {
     default: return std::monostate();
     case SQLITE_NULL: return std::monostate();
@@ -44,7 +41,6 @@ SqlValue Statement::GetValueFromColumnIndex(int columnIndex) {
         data.assign(buf, buf + sqlite3_column_bytes(mStmt, columnIndex));
         return data;
     }
-    */
 }
 
 SqlRow Statement::GetColumns() {

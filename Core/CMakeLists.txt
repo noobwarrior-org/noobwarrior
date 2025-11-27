@@ -56,6 +56,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Database/Database.cpp
     Source/Database/DatabaseManager.cpp
     Source/Database/ContentImages.cpp
+    Source/Database/Repository/Item/AssetRepository.cpp
     Source/Auth/NoobWarriorAuth.cpp
     Source/Auth/MasterServerAuth.cpp
     Source/Auth/ServerEmulatorAuth.cpp

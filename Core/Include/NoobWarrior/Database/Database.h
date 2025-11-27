@@ -112,7 +112,9 @@ public:
     std::string GetAuthor();
     std::vector<unsigned char> GetIcon();
 
-    DatabaseResponse ExecSqlStatement(const std::string &stmtStr);
+    Statement PrepareStatement(const std::string &stmtStr);
+    
+    DatabaseResponse ExecStatement(const std::string &stmtStr);
     DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
     DatabaseResponse SetTitle(const std::string &title);
     DatabaseResponse SetAuthor(const std::string &author);

@@ -4,37 +4,20 @@
 // Started on: 7/26/2025
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
 #pragma once
-#include <NoobWarrior/Database/Database.h>
-#include <NoobWarrior/Database/Record/IdRecord.h>
+#include "DatabaseEditor.h"
 
-#include "ContentListItemBase.h"
+#include <NoobWarrior/Database/Database.h>
+
+#include <QListWidgetItem>
 
 namespace NoobWarrior {
-template<class T>
-class ContentListItem : public ContentListItemBase {
+class ContentListItem : public QListWidgetItem {
 public:
-    ContentListItem(T record, Database *db, QListWidget *listview = nullptr) : ContentListItemBase(listview),
-        mRecord(std::move(record))
-    {
-        static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-        setText(QString("%1\n(%2)").arg(QString::fromStdString(mRecord.Name), QString::number(mRecord.Id)));
+    ContentListItem(const Reflection::IdType &idType, int64_t id, Database *db, QListWidget *listview = nullptr);
 
-        std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(mRecord.Id);
-        if (!imageData.empty()) {
-            QImage image;
-            image.loadFromData(imageData);
-
-            QPixmap pixmap = QPixmap::fromImage(image);
-
-            setIcon(QIcon(pixmap));
-        }
-    }
-
-    void Configure(DatabaseEditor *editor) override {
-        // auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
-        // editDialog.exec();
-    }
+    void Configure(DatabaseEditor *editor);
 private:
-    T mRecord;
+    const Reflection::IdType &mIdType;
+    int64_t mId;
 };
 }

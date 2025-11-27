@@ -232,6 +232,16 @@ void DatabaseEditor::InitMenus() {
     mFileMenu->addSeparator();
         mFileMenu->addAction(mExitAction);
 
+    mEditMenu = menuBar()->addMenu(tr("&Edit"));
+
+    mViewMenu = menuBar()->addMenu(tr("&View"));
+
+    mInsertMenu = menuBar()->addMenu(tr("&Insert"));
+
+    mToolsMenu = menuBar()->addMenu(tr("&Tools"));
+
+    mHelpMenu = menuBar()->addMenu(tr("&Help"));
+
     connect(mNewDatabaseAction, &QAction::triggered, [&]() {
         TryToOpenFile();
     });

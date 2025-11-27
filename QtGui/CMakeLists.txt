@@ -26,6 +26,7 @@ set(SOURCES
     DatabaseEditor/OverviewWidget.cpp
     DatabaseEditor/Item/ItemDialog.cpp
     DatabaseEditor/ContentBrowserWidget.cpp
+    DatabaseEditor/ContentListItem.cpp
     DatabaseEditor/FileManagerWidget.cpp
     DatabaseEditor/PreviewItemWidget.cpp
     DatabaseEditor/Backup/BackupDialog.cpp

@@ -36,6 +36,10 @@ int AssetHandler::OnRequest(mg_connection *conn, void *userdata) {
         return 400;
     }
 
+    mg_send_http_error(conn, 404, "WIP");
+    return 404;
+
+    /*
     if (!mDatabaseManager->DoesContentExist<Asset>(id)) {
         mg_send_http_error(conn, 404, "Asset ID does not exist");
         return 404;
@@ -51,4 +55,5 @@ int AssetHandler::OnRequest(mg_connection *conn, void *userdata) {
     mg_send_http_ok(conn, "application/octet-stream", data.size());
     mg_write(conn, data.data(), data.size());
     return 200;
+    */
 }

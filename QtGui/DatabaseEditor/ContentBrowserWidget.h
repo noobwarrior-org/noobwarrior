@@ -25,54 +25,16 @@ public:
     ContentBrowserWidget(QWidget *parent = nullptr);
     ~ContentBrowserWidget();
 
-    /**
-     * @brief A simple Refresh function that dynamically calls RefreshWithNewIdRecord() depending on what id type the user has
-     * selected in the dropdown menu
-     */
-    std::function<void()> Refresh;
+    void Refresh();
 protected:
     void RefreshAssetCategory();
-
-    /**
-     * @brief Re-generates everything in the list, and uses the according IdRecord to search content.
-     * @tparam T An IdRecord
-     */
-    template<typename T>
-    void RefreshWithNewIdRecord() {
-        static_assert(std::is_base_of_v<IdRecord, T>, "typename must inherit from IdRecord");
-        auto editor = dynamic_cast<DatabaseEditor*>(parent());
-        Database *db = editor->GetCurrentlyEditingDatabase();
-
-        mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
-        mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
-
-        IdTypeDropdown->setCurrentText(QString::fromStdString(Reflection::GetIdTypeName<T>()));
-        AssetCategoryDropdown->setVisible(std::is_same_v<T, Asset>);
-        AssetTypeDropdown->setVisible(std::is_same_v<T, Asset>);
-
-        NoDatabaseFoundLabel->setVisible(db == nullptr);
-        List->setVisible(db != nullptr);
-        List->clear();
-        if (db == nullptr)
-            return;
-
-        SearchOptions opt {};
-        opt.Offset = 0;
-        opt.Limit = 100;
-        opt.AssetType = mAssetType;
-
-        std::vector<T> list = db->SearchItemType<T>(opt);
-        for (auto &item : list) {
-            new ContentListItem<T>(item, db, List);
-            // cool->setIcon(QIcon(item.Icon));
-        }
-    }
+    void RefreshEx(const Reflection::IdType &idType);
 private:
     void InitWidgets();
     void InitPageCounter();
     void GoToPage(int num);
 
-    std::vector<std::function<void()>> mRefreshFunctions;
+    Reflection::IdType &mIdType;
 
     // Similarly to Roblox's Toolbox widget, we have a few dropdowns that allow you to filter out what you don't want.
     AssetCategory       mAssetCategory;

@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS "DevProduct" (
 	"UniverseId"	INTEGER NOT NULL,
 	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
-    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
+    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
 );
 )***";

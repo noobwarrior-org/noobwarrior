@@ -40,7 +40,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         "The ID of this asset.", // Field Description
         // Default Value
         [](Database *db) -> SqlValue {
-            db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
+            db->ExecStatement("SELECT MAX(rowid) FROM Asset");
             return "";
         }
     )
@@ -53,7 +53,7 @@ NOOBWARRIOR_REFLECT_ID_TYPE_BEGIN(Asset)
         "The snapshot number.", // Field Description
         // Default Value
         [](Database *db) -> SqlValue {
-            db->ExecSqlStatement("SELECT MAX(rowid) FROM Asset");
+            db->ExecStatement("SELECT MAX(rowid) FROM Asset");
             return "";
         }
     )

@@ -65,6 +65,16 @@ namespace NoobWarrior {
 
         QAction* mExitAction;
 
+        QMenu *mEditMenu;
+
+        QMenu *mViewMenu;
+
+        QMenu *mInsertMenu;
+
+        QMenu *mToolsMenu;
+
+        QMenu *mHelpMenu;
+
         //////////////////// Tool Bars ////////////////////
         QToolBar *mFileToolBar;
         QToolBar *mViewToolBar;
