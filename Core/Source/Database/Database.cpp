@@ -329,21 +329,6 @@ bool Database::IsMemory() {
 	return mPath.compare(":memory:") == 0;
 }
 
-bool Database::DoesItemExist(const Reflection::ItemType &itemType, int64_t id, std::optional<int> snapshot) {
-	if (!mInitialized) return false;
-
-	std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? {};", itemType.Name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-	sqlite3_bind_int(stmt, 2, snapshot.value());
-
-	int res = sqlite3_step(stmt);
-	sqlite3_finalize(stmt);
-	return res == SQLITE_ROW;
-}
-
 std::string Database::GetSqliteErrorMsg() {
     return sqlite3_errmsg(mDatabase);
 }

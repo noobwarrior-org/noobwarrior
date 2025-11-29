@@ -93,8 +93,6 @@ public:
      */
     bool IsMemory();
 
-    bool DoesItemExist(const Reflection::ItemType &itemType, int64_t id, std::optional<int> snapshot = std::nullopt);
-
     std::string GetSqliteErrorMsg();
     std::string GetMetaKeyValue(const std::string &key);
 
