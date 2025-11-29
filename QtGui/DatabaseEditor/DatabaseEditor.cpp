@@ -233,17 +233,19 @@ void DatabaseEditor::InitMenus() {
     mViewMenu->addAction(mFileManagerViewAction);
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    for (std::shared_ptr<Reflection::ItemType> &itemtype : Reflection::GetItemTypesInternal()) {
-        QString name = QString::fromStdString(itemtype->Name);
+    for (entt::meta_type itemtype : Reflection::GetItemTypes()) {
+        QString name = QString::fromStdString(itemtype.name());
 
         auto insertAction = new QAction(QIcon(""), name, mInsertMenu);
         insertAction->setObjectName("RequiresDatabaseButton");
         mInsertMenu->addAction(insertAction);
         
         connect(insertAction, &QAction::triggered, [this, itemtype]() {
-            ItemDialog dialog(this, *itemtype.get());
+            ItemDialog dialog(this, itemtype);
             dialog.exec();
         });
+
+        mInsertItemTypeActions.push_back(insertAction);
     }
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
@@ -365,19 +367,8 @@ void DatabaseEditor::InitWidgets() {
     mInsertToolBar = new QToolBar("Insert", this);
     mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
 
-    for (std::shared_ptr<Reflection::ItemType> &itemtype : Reflection::GetItemTypesInternal()) {
-        QString name = QString::fromStdString(itemtype->Name);
-
-        auto insertAction = new QAction(QIcon(""), name, mInsertToolBar);
-        insertAction->setObjectName("RequiresDatabaseButton");
-        mInsertToolBar->addAction(insertAction);
-        
-        connect(insertAction, &QAction::triggered, [this, itemtype]() {
-            ItemDialog dialog(this, *itemtype.get());
-            dialog.exec();
-            // ContentEditorDialog<> dialog(this);
-            // dialog.exec();
-        });
+    for (QAction* itemTypeAction : mInsertItemTypeActions) {
+        mInsertToolBar->addAction(itemTypeAction);
     }
     // ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
     // ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")

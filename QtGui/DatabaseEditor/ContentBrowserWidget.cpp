@@ -10,7 +10,7 @@
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Reflection.h>
-#include <NoobWarrior/Database/AssetCategory.h>
+#include <NoobWarrior/Database/Item/Asset.h>
 
 #include <QLabel>
 #include <QPushButton>
@@ -20,7 +20,7 @@
 using namespace NoobWarrior;
 
 ContentBrowserWidget::ContentBrowserWidget(QWidget *parent) : QDockWidget(parent),
-    mItemType(const_cast<Reflection::ItemType&>(Reflection::GetItemType<Asset>())),
+    mItemType(entt::resolve<Asset>()),
     mAssetCategory(AssetCategory::DevelopmentItem),
     mAssetType(Roblox::AssetType::Model),
     MainWidget(nullptr),
@@ -62,17 +62,19 @@ void ContentBrowserWidget::RefreshAssetCategory() {
     Refresh();
 }
 
-void ContentBrowserWidget::RefreshEx(const Reflection::ItemType &itemType) {
+void ContentBrowserWidget::RefreshEx(const entt::meta_type &itemType) {
     auto editor = dynamic_cast<DatabaseEditor*>(parent());
     Database *db = editor->GetCurrentlyEditingDatabase();
+
+    QString itemTypeName = itemType.name();
 
     mItemType = itemType;
     mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
     mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
-    ItemTypeDropdown->setCurrentText(QString::fromStdString(itemType.Name));
-    AssetCategoryDropdown->setVisible(itemType.Name.compare("Asset") == 0);
-    AssetTypeDropdown->setVisible(itemType.Name.compare("Asset") == 0);
+    ItemTypeDropdown->setCurrentText(itemTypeName);
+    AssetCategoryDropdown->setVisible(itemTypeName.compare("Asset") == 0);
+    AssetTypeDropdown->setVisible(itemTypeName.compare("Asset") == 0);
 
     NoDatabaseFoundLabel->setVisible(db == nullptr);
     List->setVisible(db != nullptr);
@@ -85,7 +87,7 @@ void ContentBrowserWidget::RefreshEx(const Reflection::ItemType &itemType) {
     opt.Limit = 100;
     opt.AssetType = mAssetType;
 
-    if (itemType.Name.compare("Asset") == 0) {
+    if (itemTypeName.compare("Asset") == 0) {
         std::vector<Asset> list = db->GetAssetRepository().List();
         for (auto &item : list) {
             new ContentListItem(itemType, item.Id, db, List);
@@ -115,9 +117,9 @@ void ContentBrowserWidget::InitWidgets() {
 
     AssetTypeDropdown = new QComboBox();
 
-    for (const Reflection::ItemType &itemType : Reflection::GetItemTypes()) {
-        QString str = QString::fromStdString(itemType.Name);
-        ItemTypeDropdown->addItem(QIcon(""), str, QVariant::fromValue((Reflection::ItemType*)&itemType));
+    for (const entt::meta_type &itemType : Reflection::GetItemTypes()) {
+        QString str = QString::fromStdString(itemType.name());
+        ItemTypeDropdown->addItem(QIcon(""), str);
     }
 
     for (int i = 0; i <= AssetCategoryCount; i++) {
@@ -129,7 +131,7 @@ void ContentBrowserWidget::InitWidgets() {
     AssetFilterDropdownLayout->addWidget(AssetCategoryDropdown);
     AssetFilterDropdownLayout->addWidget(AssetTypeDropdown);
 
-    NoDatabaseFoundLabel = new QLabel("No database loaded, there is no content to show", MainWidget);
+    NoDatabaseFoundLabel = new QLabel("No database loaded", MainWidget);
     List = new QListWidget(MainWidget);
     SearchBox = new QLineEdit(MainWidget);
 
@@ -139,7 +141,7 @@ void ContentBrowserWidget::InitWidgets() {
     List->setViewMode(QListView::IconMode);
     List->setIconSize(QSize(64, 64));
     List->setWordWrap(true);
-    SearchBox->setPlaceholderText("Search..."); // seeeaaaaaarch.... you know you wanna search...
+    SearchBox->setPlaceholderText("Search...");
 
     MainLayout->addWidget(ItemTypeDropdown);
     MainLayout->addLayout(AssetFilterDropdownLayout);
@@ -148,7 +150,7 @@ void ContentBrowserWidget::InitWidgets() {
     MainLayout->addWidget(List);
 
     connect(ItemTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
-        RefreshEx(*ItemTypeDropdown->currentData().value<Reflection::ItemType*>());
+        RefreshEx(entt::resolve<Asset>());
     });
     connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
         RefreshAssetCategory();

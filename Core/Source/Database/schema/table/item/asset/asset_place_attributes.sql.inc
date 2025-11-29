@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS "AssetPlaceAttributes" (
 	"Snapshot"	INTEGER NOT NULL,
     "MaxPlayers"	INTEGER,
     "AllowDirectAccess"	INTEGER,
-    "GearGenre"	INTEGER,
+    "GearGenrePermission"	INTEGER,
     PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("Id", "Snapshot") REFERENCES "Asset"("Id", "Snapshot")
 );

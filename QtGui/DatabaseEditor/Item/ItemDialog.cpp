@@ -11,11 +11,14 @@
 #include <QLineEdit>
 #include <fstream>
 
+#include <entt/entt.hpp>
+
 using namespace NoobWarrior;
+using namespace entt::literals;
 
 typedef std::variant<QLineEdit*> InputWidget;
 
-ItemDialog::ItemDialog(QWidget *parent, const Reflection::ItemType &itemType, const std::optional<int64_t> id, const std::optional<int> snapshot) : QDialog(parent),
+ItemDialog::ItemDialog(QWidget *parent, const entt::meta_type &itemType, const std::optional<int64_t> id, const std::optional<int> snapshot) : QDialog(parent),
     mItemType(itemType),
     mId(id),
     mSnapshot(snapshot)
@@ -24,12 +27,15 @@ ItemDialog::ItemDialog(QWidget *parent, const Reflection::ItemType &itemType, co
     mDatabaseEditor = dynamic_cast<DatabaseEditor*>(this->parent());
     mDatabase = mDatabaseEditor->GetCurrentlyEditingDatabase();
 
+    mItem = std::make_unique<Asset>();
+
     setWindowTitle("Item Editor");
     RegenWidgets();
 }
 
 void ItemDialog::RegenWidgets() {
-    setWindowTitle(mId.has_value() ? tr("Configure %1").arg(QString::fromStdString(mItemType.Name)) : tr("Create New %1").arg(QString::fromStdString(mItemType.Name)));
+    const auto itemTypeName = std::string(mItemType.name());
+    setWindowTitle(mId.has_value() ? tr("Configure %1").arg(QString::fromStdString(itemTypeName)) : tr("Create New %1").arg(QString::fromStdString(itemTypeName)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
     mLayout = new QHBoxLayout(this);
@@ -51,18 +57,19 @@ void ItemDialog::RegenWidgets() {
 
     std::vector<unsigned char> data;
 
+    /*
     if (mId.has_value())
-        // data = std::move(mDatabase->RetrieveContentImageData(mItemType, mId.has_value() ? mId.value() : -1));
-        data = {};
+        data = std::move(mDatabase->RetrieveContentImageData(mItemType, mId.has_value() ? mId.value() : -1));
     else
         data.assign(mItemType.DefaultImage, mItemType.DefaultImage + mItemType.DefaultImageSize);
+    */
 
     image.loadFromData(data);
 
     QPixmap pixmap = QPixmap::fromImage(image);
     mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    if (!(mItemType.Name.compare("Asset") == 0 || mItemType.Name.compare("User") == 0)) {
+    if (!(itemTypeName.compare("Asset") == 0 || itemTypeName.compare("User") == 0)) {
         auto *changeIcon = new QPushButton("Change Icon");
         mSidebarLayout->addWidget(changeIcon);
         connect(changeIcon, &QPushButton::clicked, [this]() {
@@ -89,11 +96,16 @@ void ItemDialog::RegenWidgets() {
 
     mSidebarLayout->addStretch();
 
-    Out("ItemDialog", "id type name {}", mItemType.Name);
+    Out("ItemDialog", "id type name {}", itemTypeName);
 
     mIdInput = new QLineEdit();
     mContentLayout->addRow("Id", mIdInput);
 
+    for (auto &&[id, type] : mItemType.base()) {
+        Out("ItemDialog", "{}", type.name());
+    }
+
+    /*
     ////////////////////////////////////////////////////////////////////////
     /// main content containing all the fields and stuff
     ////////////////////////////////////////////////////////////////////////
@@ -110,6 +122,8 @@ void ItemDialog::RegenWidgets() {
         }
 
         QWidget* widget = nullptr;
+
+        field.Getter(mItem.get());
 
         if (field.Type == &typeid(int)) {
             widget = new QLineEdit(this);
@@ -133,6 +147,7 @@ void ItemDialog::RegenWidgets() {
             // }
         }
     }
+    */
 
     /*
     for (const auto &field : mFields) {
@@ -171,7 +186,7 @@ void ItemDialog::RegenWidgets() {
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
     mContentLayout->addWidget(mButtonBox);
 
-    connect(mButtonBox, &QDialogButtonBox::accepted, this, [this, columnNameAndWidgets] () mutable {
+    connect(mButtonBox, &QDialogButtonBox::accepted, this, [this] () mutable {
         int64_t newId = static_cast<int64_t>(mIdInput->text().toInt());
         if (mId.has_value() && newId != mId.value()) {
             // the user has changed the ID of the item, account for this so that it doesn't try to create an entirely new row.
@@ -182,34 +197,7 @@ void ItemDialog::RegenWidgets() {
                 // return;
             // }
         }
-        std::map<std::string, SqlValue> columnsToChange;
-
-        for (auto &columnNameAndWidget : columnNameAndWidgets) {
-            std::string columnName = columnNameAndWidget.first;
-            InputWidget widget = columnNameAndWidget.second;
-            if (std::holds_alternative<QLineEdit*>(widget)) {
-                auto* lineEdit = std::get<QLineEdit*>(widget);
-                if (mItemType.Fields.at(columnName).Type == &typeid(int))
-                    columnsToChange[columnName] = lineEdit->text().toInt();
-                else if (mItemType.Fields.at(columnName).Type == &typeid(int64_t))
-                    columnsToChange[columnName] = static_cast<int64_t>(lineEdit->text().toInt());
-                else if (mItemType.Fields.at(columnName).Type == &typeid(std::string))
-                    columnsToChange[columnName] = lineEdit->text().toStdString();
-                else Out("ItemDialog", "Cannot convert the text from QT input widget to the field's datatype.");
-            } else {
-
-            }
-        }
-
-        // mDatabase->UpsertItem(mItemType, newId, std::nullopt, columnsToChange);?
-
-        // mDatabase->InsertItemWithDefaultsIfNotFound(mItemType, mId.value());
-        // for (const auto &fieldpair : mItemType.Fields) {
-        //     std::string name = fieldpair.first;
-        //     Reflection::Field field = fieldpair.second;
-
-        //     field.Setter(mDatabase, mId.value(), std::nullopt, 123);
-        // }
+        // mDatabase->GetAssetRepository().Save();
 
         /*
         // validate everything first

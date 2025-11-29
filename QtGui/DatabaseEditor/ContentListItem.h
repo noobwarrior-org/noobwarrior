@@ -7,17 +7,17 @@
 #include "DatabaseEditor.h"
 
 #include <NoobWarrior/Database/Database.h>
-
 #include <QListWidgetItem>
+#include <entt/entt.hpp>
 
 namespace NoobWarrior {
 class ContentListItem : public QListWidgetItem {
 public:
-    ContentListItem(const Reflection::ItemType &itemType, int64_t id, Database *db, QListWidget *listview = nullptr);
+    ContentListItem(const entt::meta_type &itemType, int64_t id, Database *db, QListWidget *listview = nullptr);
 
     void Configure(DatabaseEditor *editor);
 private:
-    const Reflection::ItemType &mItemType;
+    const entt::meta_type &mItemType;
     int64_t mId;
 };
 }

@@ -6,7 +6,7 @@
 #pragma once
 #include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
-#include <NoobWarrior/Database/AssetCategory.h>
+#include <NoobWarrior/Database/Item/Asset.h>
 
 #include "DatabaseEditor.h"
 #include "ContentListItem.h"
@@ -18,6 +18,8 @@
 #include <QLabel>
 #include <QComboBox>
 
+#include <entt/entt.hpp>
+
 namespace NoobWarrior {
 class ContentBrowserWidget : public QDockWidget {
     Q_OBJECT
@@ -28,13 +30,13 @@ public:
     void Refresh();
 protected:
     void RefreshAssetCategory();
-    void RefreshEx(const Reflection::ItemType &itemType);
+    void RefreshEx(const entt::meta_type &itemType);
 private:
     void InitWidgets();
     void InitPageCounter();
     void GoToPage(int num);
 
-    Reflection::ItemType &mItemType;
+    entt::meta_type mItemType;
 
     // Similarly to Roblox's Toolbox widget, we have a few dropdowns that allow you to filter out what you don't want.
     AssetCategory       mAssetCategory;

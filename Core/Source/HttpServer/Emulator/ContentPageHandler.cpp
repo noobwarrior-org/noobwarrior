@@ -23,8 +23,8 @@ nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     Config *config = mServer->GetCore()->GetConfig();
 
     data["itemtypes"] = nlohmann::json::array();
-    for (const Reflection::ItemType &itemtype : Reflection::GetItemTypes())
-        data["itemtypes"].push_back(itemtype.Name);
+    for (entt::meta_type itemtype : Reflection::GetItemTypes())
+        data["itemtypes"].push_back(itemtype.name());
 
     data["currentpage"] = 1;
     data["totalpages"] = 1;

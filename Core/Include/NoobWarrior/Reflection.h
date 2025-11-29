@@ -12,6 +12,7 @@
 // the actual C structs. Check the Database.cpp & Database.h file in order to see how we did this.
 #pragma once
 #include "Database/Item/Item.h"
+#include "Database/Item/Asset.h"
 #include "Database/Common.h"
 
 #include <functional>
@@ -22,6 +23,8 @@
 #include <optional>
 #include <memory>
 
+#include <entt/entt.hpp>
+
 #define NOOBWARRIOR_REFLECT_ITEMTYPE_BEGIN(itemType) \
     struct itemType##Registrar { \
         itemType##Registrar() { \
@@ -30,15 +33,46 @@
             itemTypePtr->Class = &typeid(itemType); \
             itemTypePtr->Create = []() { return itemType(); }; \
             NoobWarrior::Reflection::GetItemTypesInternal().push_back(itemTypePtr); \
-            NoobWarrior::Reflection::GetItemTypeMap()[typeid(itemType)] = NoobWarrior::Reflection::GetItemTypesInternal().back();
+            NoobWarrior::Reflection::GetItemTypeMap()[typeid(itemType)] = NoobWarrior::Reflection::GetItemTypesInternal().back(); \
+            itemType itemTypeClass;
 
 #define NOOBWARRIOR_REFLECT_ITEMTYPE_END(itemType) \
         } \
     }; \
     static itemType##Registrar s##itemType##RegistrarInstance;
 
-#define NOOBWARRIOR_REFLECT_FIELD(fieldName, tableName, prettyName, datatype, desc, getDefaultVal) \
-    itemTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { .Name = #fieldName, .TableName = #tableName, .PrettyName = prettyName, .Description = desc, .Type = &typeid(datatype), .GetDefaultValue = getDefaultVal };
+/*
+#define NOOBWARRIOR_REFLECT_FIELD(fieldName, prettyName, desc, getterName, setterName) \
+    itemTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { \
+        .Name = #fieldName, \
+        .PrettyName = prettyName, \
+        .Description = desc \
+        .Getter = [](NoobWarrior::Item *item) -> std::any { \
+            return std::any(dynamic_cast<decltype(itemTypeClass)*>(item)->getterName()); \
+        } \
+        .Setter = [](NoobWarrior::Item *item, const std::any &val) -> void { \
+            dynamic_cast<decltype(itemTypeClass)*>(item)->setterName(std::any_cast<decltype(dynamic_cast<decltype(sClass)*>(item)->getterName())>(val)); \
+        } \
+    };
+*/
+
+#define NOOBWARRIOR_REFLECT_PROPERTY(fieldName, prettyName, desc) \
+    itemTypePtr->Fields[#fieldName] = NoobWarrior::Reflection::Field { \
+        .Name = #fieldName, \
+        .PrettyName = prettyName, \
+        .Description = desc, \
+        .Getter = [](NoobWarrior::Item *item) -> std::any { \
+            return std::any(dynamic_cast<decltype(itemTypeClass)*>(item)->fieldName); \
+        }, \
+        .Setter = [](NoobWarrior::Item *item, const std::any &val) -> bool { \
+            try { \
+                dynamic_cast<decltype(itemTypeClass)*>(item)->fieldName = std::any_cast<decltype(dynamic_cast<decltype(itemTypeClass)*>(item)->fieldName)>(val); \
+                return true; \
+            } catch (std::exception &ex) { \
+                return false; \
+            } \
+        } \
+    };
 
 #define NOOBWARRIOR_REFLECT_DEFAULT_IMAGE(data, dataSize) \
     itemTypePtr->DefaultImage = data; \
@@ -80,11 +114,10 @@ enum class DatabaseResponse;
 namespace NoobWarrior::Reflection {
 struct Field {
     std::string Name;
-    std::string TableName;
     std::string PrettyName;
     std::string Description;
-    const std::type_info* Type { nullptr };
-    std::function<NoobWarrior::SqlValue(Database *db)> GetDefaultValue;
+    std::function<std::any(Item*)> Getter;
+    std::function<bool(Item*, const std::any&)> Setter;
 };
 
 struct ItemType {
@@ -116,12 +149,9 @@ inline std::vector<std::shared_ptr<ItemType>> &GetItemTypesInternal() {
  * 
  * @return std::vector<ItemType>& 
  */
-inline const std::vector<ItemType> GetItemTypes() {
-    std::vector<ItemType> ItemTypes;
-    auto itemTypesRaw = GetItemTypesInternal();
-    for (auto &itemtype : itemTypesRaw) {
-        ItemTypes.push_back(*itemtype.get());
-    }
+inline const std::vector<entt::meta_type> GetItemTypes() {
+    std::vector<entt::meta_type> ItemTypes;
+    ItemTypes.push_back(entt::resolve<Asset>());
     return ItemTypes;
 }
 
@@ -176,4 +206,5 @@ std::string GetEnumName() {
 }
 
 void hi();
+void Register();
 }

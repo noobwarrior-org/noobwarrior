@@ -74,6 +74,8 @@ namespace NoobWarrior {
         QAction* mContentBrowserViewAction;
         QAction* mFileManagerViewAction;
 
+        std::vector<QAction*> mInsertItemTypeActions;
+
         //////////////////// Tool Bars ////////////////////
         QToolBar *mStandardToolBar;
         QToolBar *mViewToolBar;

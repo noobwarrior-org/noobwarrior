@@ -29,7 +29,7 @@ namespace NoobWarrior::Roblox {
         SweaterAccessory = 68, ShortsAccessory = 69, LeftShoeAccessory = 70,
         RightShoeAccessory = 71, DressSkirtAccessory = 72, FontFamily = 73,
         EyebrowAccessory = 76, EyelashAccessory = 77, MoodAnimation = 78,
-        DynamicHead = 79 };
+        DynamicHead = 79, FaceMakeup = 88, LipMakeup = 89, EyeMakeup = 90 };
 
     enum class ProductType {
         None,
@@ -138,6 +138,9 @@ namespace NoobWarrior::Roblox {
         case AssetType::EyelashAccessory: return "Eyelash Accessory";
         case AssetType::MoodAnimation: return "Mood Animation";
         case AssetType::DynamicHead: return "Dynamic Head";
+        case AssetType::FaceMakeup: return "Face Makeup";
+        case AssetType::LipMakeup: return "Lip Makeup";
+        case AssetType::EyeMakeup: return "Eye Makeup";
         default: return "None";
         }
     }

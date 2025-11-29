@@ -36,6 +36,8 @@
 #include "schema/table/item/asset/asset_microtransaction.sql.inc"
 #include "schema/table/item/asset/asset_misc.sql.inc"
 #include "schema/table/item/asset/asset_place_thumbnail.sql.inc"
+#include "schema/table/item/asset/asset_place_attributes.sql.inc"
+#include "schema/table/item/asset/asset_place_gear_type.sql.inc"
 
 #include "schema/table/item/bundle/bundle_asset.sql.inc"
 
@@ -163,6 +165,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_asset_microtransaction)
 	CREATE_TABLE(schema_asset_misc)
 	CREATE_TABLE(schema_asset_place_thumbnail)
+	CREATE_TABLE(schema_asset_place_attributes)
+	CREATE_TABLE(schema_asset_place_gear_type)
 
 	CREATE_TABLE(schema_bundle_asset)
 

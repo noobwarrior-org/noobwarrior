@@ -12,21 +12,28 @@
 #include <NoobWarrior/Database/Database.h>
 #include <NoobWarrior/Reflection.h>
 
+#include <memory>
+#include <optional>
+
+#include <entt/entt.hpp>
+
 #include "../DatabaseEditor.h"
 
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
     Q_OBJECT
 public:
-    ItemDialog(QWidget *parent = nullptr, const Reflection::ItemType &itemType = Reflection::GetItemType<Asset>(), const std::optional<int64_t> id = std::nullopt, const std::optional<int> snapshot = std::nullopt);
+    ItemDialog(QWidget *parent = nullptr, const entt::meta_type &itemType = entt::resolve<Asset>(), const std::optional<int64_t> id = std::nullopt, const std::optional<int> snapshot = std::nullopt);
     virtual void RegenWidgets();
     std::optional<int> GetId();
     std::optional<int> GetSnapshot();
     Database *GetDatabase();
 protected:
-    const Reflection::ItemType &mItemType;
+    const entt::meta_type &mItemType;
     std::optional<int> mId;
     std::optional<int> mSnapshot;
+
+    std::unique_ptr<Item> mItem;
 
     DatabaseEditor *mDatabaseEditor;
     Database *mDatabase;

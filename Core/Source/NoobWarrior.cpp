@@ -34,6 +34,7 @@ Core::Core(Init init) :
     mIndexDirty(true)
 {
     Reflection::hi();
+    Reflection::Register();
     InitLuaState();
     mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
     mRobloxAuth = new RobloxAuth(mConfig);

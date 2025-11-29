@@ -25,15 +25,14 @@ std::vector<unsigned char> AssetRepository::RetrieveData(int64_t id) {
 DatabaseResponse AssetRepository::Save(const Asset &asset) {
     Statement stmt(mDb, R"(***
     INSERT INTO Asset
-    (Id, Snapshot, Name, Description, Created, Updated, Type, ImageId, ImageSnapshot, UserId, GroupId, Public)
+    (Id, Snapshot, Name, Description, Created, Updated, ImageId, ImageSnapshot, UserId, GroupId, Type, Public)
     VALUES
     (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (Id, Snapshot)
     DO UPDATE SET
-    Id=EXCLUDED.Id, Snapshot=EXCLUDED.Snapshot, Name=EXCLUDED.Name, Description=EXCLUDED.Description,
-    Created=EXCLUDED.Created, Updated=EXCLUDED.Updated, Type=EXCLUDED.Type, ImageId=EXCLUDED.ImageId,
-    ImageSnapshot=EXCLUDED.ImageSnapshot, UserId=EXCLUDED.UserId, GroupId=EXCLUDED.GroupId,
-    Public=EXCLUDED.Public
+    Id=EXCLUDED.Id, Snapshot=EXCLUDED.Snapshot, LastRecorded=(unixepoch()), Name=EXCLUDED.Name, Description=EXCLUDED.Description,
+    Created=EXCLUDED.Created, Updated=EXCLUDED.Updated, ImageId=EXCLUDED.ImageId, ImageSnapshot=EXCLUDED.ImageSnapshot,
+    UserId=EXCLUDED.UserId, GroupId=EXCLUDED.GroupId, Type=EXCLUDED.Type, Public=EXCLUDED.Public
     WHERE Id = ?;
     ***)");
     if (stmt.Failed())
@@ -41,15 +40,15 @@ DatabaseResponse AssetRepository::Save(const Asset &asset) {
     stmt.Bind(1, asset.Id);
     stmt.Bind(2, asset.Snapshot);
     stmt.Bind(3, asset.Name);
-    asset.Description.has_value() ? stmt.Bind(4, asset.Description.value()) : stmt.Bind(4);
-    asset.Created.has_value() ? stmt.Bind(5, asset.Created.value()) : stmt.Bind(5);
-    asset.Updated.has_value() ? stmt.Bind(6, asset.Updated.value()) : stmt.Bind(6);
-    stmt.Bind(7, static_cast<int>(asset.Type));
-    asset.ImageId.has_value() ? stmt.Bind(8, asset.ImageId.value()) : stmt.Bind(8);
-    asset.ImageSnapshot.has_value() ? stmt.Bind(9, asset.ImageSnapshot.value()) : stmt.Bind(9);
-    asset.CreatorType == Roblox::CreatorType::User && asset.CreatorId.has_value() ? stmt.Bind(10, asset.CreatorId.value()) : stmt.Bind(10);
-    asset.CreatorType == Roblox::CreatorType::Group && asset.CreatorId.has_value() ? stmt.Bind(11, asset.CreatorId.value()) : stmt.Bind(11);
-    asset.Public.has_value() ? stmt.Bind(12, asset.Public.value()) : stmt.Bind(12);
+    stmt.Bind(4, asset.Description);
+    stmt.Bind(5, asset.Created);
+    stmt.Bind(6, asset.Updated);
+    stmt.Bind(7, asset.ImageId);
+    stmt.Bind(8, asset.ImageSnapshot);
+    asset.CreatorType == Roblox::CreatorType::User ? stmt.Bind(9, asset.CreatorId) : stmt.Bind(9);
+    asset.CreatorType == Roblox::CreatorType::Group ? stmt.Bind(10, asset.CreatorId) : stmt.Bind(10);
+    stmt.Bind(11, static_cast<int>(asset.Type));
+    stmt.Bind(12, asset.Public);
     
     mDb->MarkDirty();
     if (stmt.Step() == SQLITE_DONE)
