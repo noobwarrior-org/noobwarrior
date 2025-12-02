@@ -25,12 +25,13 @@ set(SOURCES
     DatabaseEditor/BackgroundTask.cpp
     DatabaseEditor/WelcomeWidget.cpp
     DatabaseEditor/OverviewWidget.cpp
-    DatabaseEditor/Item/ItemDialog.cpp
-    DatabaseEditor/ContentBrowserWidget.cpp
-    DatabaseEditor/ContentListItem.cpp
     DatabaseEditor/FileManagerWidget.cpp
-    DatabaseEditor/ItemPreviewWidget.cpp
     DatabaseEditor/ThumbnailPreviewWidget.cpp
+    DatabaseEditor/Browser/ItemBrowserWidget.cpp
+    DatabaseEditor/Browser/ItemBrowserPage.cpp
+    DatabaseEditor/Browser/AssetPage.cpp
+    DatabaseEditor/Item/AssetDialog.cpp
+    DatabaseEditor/Preview/ItemPreviewWidget.cpp
     DatabaseEditor/Backup/BackupDialog.cpp
     Ui/Launcher.ui
     Resources/resources.qrc

@@ -22,5 +22,7 @@ struct Group : OwnedItem {
     int64_t                     ShoutTimestamp;
 
     bool                        EnemyDeclarationsEnabled;
+
+    static constexpr std::string TypeName = "Group";
 };
 }

@@ -10,5 +10,7 @@ namespace NoobWarrior {
 struct DevProduct : UniverseItem {
     Roblox::CurrencyType        CurrencyType;
     int                         Price;
+
+    static constexpr std::string TypeName = "DevProduct";
 };
 }

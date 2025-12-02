@@ -11,5 +11,7 @@ struct Pass : UniverseItem {
     Roblox::CurrencyType        CurrencyType;
     int                         Price;
     bool                        IsForSale;
+
+    static constexpr std::string TypeName = "Pass";
 };
 }

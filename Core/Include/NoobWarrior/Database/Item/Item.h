@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <string>
 
+#include "../ContentImages.h"
+
 namespace NoobWarrior {
 struct Item {
     int64_t             Id;
@@ -14,5 +16,9 @@ struct Item {
     int64_t             FirstRecorded;
     int64_t             LastRecorded;
     std::string         Name;
+
+    static constexpr std::string TypeName = "Item";
+    static constexpr const int* DefaultImage = g_icon_content_deleted;
+    inline static const int DefaultImageSize = g_icon_content_deleted_size;
 };
 }

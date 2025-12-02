@@ -4,14 +4,14 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "DatabaseEditor.h"
-#include "ContentBrowserWidget.h"
+#include "Browser/ItemBrowserWidget.h"
 #include "Item/ItemDialog.h"
+#include "Item/AssetDialog.h"
 #include "Backup/BackupDialog.h"
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/Reflection.h>
 
 #include <QMenuBar>
 #include <QLabel>
@@ -28,6 +28,17 @@
 #include <format>
 #include <qnamespace.h>
 
+#define ADD_ITEMTYPE(type, dialogType) \
+    QString name = QString::fromStdString(#type); \
+    auto insertAction = new QAction(QIcon(""), name, mInsertMenu); \
+    insertAction->setObjectName("RequiresDatabaseButton"); \
+    mInsertMenu->addAction(insertAction); \
+    connect(insertAction, &QAction::triggered, [this]() { \
+        dialogType dialog(this); \
+        dialog.exec(); \
+    }); \
+    mInsertItemTypeActions.push_back(insertAction);
+
 using namespace NoobWarrior;
 
 DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
@@ -35,7 +46,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mTabWidget(nullptr),
     mWelcomeWidget(nullptr),
     mOverviewWidget(nullptr),
-    mContentBrowser(nullptr),
+    mItemBrowser(nullptr),
     mFileManager(nullptr),
     mBackgroundTasksStatusBarWidget(nullptr)
 {
@@ -61,7 +72,7 @@ DatabaseEditor::~DatabaseEditor() {
 }
 
 void DatabaseEditor::Refresh() {
-    mContentBrowser->Refresh();
+    mItemBrowser->Refresh();
 }
 
 void DatabaseEditor::closeEvent(QCloseEvent *event) {
@@ -128,7 +139,7 @@ close:
         mOverviewWidget->deleteLater();
         mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-        mContentBrowser->Refresh();
+        mItemBrowser->Refresh();
 
         DisableRequiredDatabaseButtons(true);
     }
@@ -164,7 +175,7 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
     mOverviewWidget = new OverviewWidget(mCurrentDatabase);
     mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
 
-    mContentBrowser->Refresh();
+    mItemBrowser->Refresh();
 
     DisableRequiredDatabaseButtons(false);
 }
@@ -173,8 +184,8 @@ Database *DatabaseEditor::GetCurrentlyEditingDatabase() {
     return mCurrentDatabase;
 }
 
-ContentBrowserWidget *DatabaseEditor::GetContentBrowser() {
-    return mContentBrowser;
+ItemBrowserWidget *DatabaseEditor::GetItemBrowser() {
+    return mItemBrowser;
 }
 
 void DatabaseEditor::InitMenus() {
@@ -225,28 +236,15 @@ void DatabaseEditor::InitMenus() {
 
     mEditMenu = menuBar()->addMenu(tr("&Edit"));
 
-    mContentBrowserViewAction = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content Browser");
+    mItemBrowserViewAction = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content Browser");
     mFileManagerViewAction = new QAction(QIcon(":/images/silk/folder_page.png"), "File Manager");
 
     mViewMenu = menuBar()->addMenu(tr("&View"));
-    mViewMenu->addAction(mContentBrowserViewAction);
+    mViewMenu->addAction(mItemBrowserViewAction);
     mViewMenu->addAction(mFileManagerViewAction);
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    for (entt::meta_type itemtype : Reflection::GetItemTypes()) {
-        QString name = QString::fromStdString(itemtype.name());
-
-        auto insertAction = new QAction(QIcon(""), name, mInsertMenu);
-        insertAction->setObjectName("RequiresDatabaseButton");
-        mInsertMenu->addAction(insertAction);
-        
-        connect(insertAction, &QAction::triggered, [this, itemtype]() {
-            ItemDialog dialog(this, itemtype);
-            dialog.exec();
-        });
-
-        mInsertItemTypeActions.push_back(insertAction);
-    }
+    ADD_ITEMTYPE(Asset, AssetDialog)
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 
@@ -361,7 +359,7 @@ void DatabaseEditor::InitWidgets() {
     mStandardToolBar->addAction(mBackupAction);
 
     mViewToolBar = new QToolBar("View", this);
-    mViewToolBar->addAction(mContentBrowserViewAction);
+    mViewToolBar->addAction(mItemBrowserViewAction);
     mViewToolBar->addAction(mFileManagerViewAction);
 
     mInsertToolBar = new QToolBar("Insert", this);
@@ -381,9 +379,9 @@ void DatabaseEditor::InitWidgets() {
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mViewToolBar);
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mInsertToolBar);
 
-    mContentBrowser = new ContentBrowserWidget(this);
-    mContentBrowser->setAllowedAreas(Qt::AllDockWidgetAreas);
-    addDockWidget(Qt::LeftDockWidgetArea, mContentBrowser);
+    mItemBrowser = new ItemBrowserWidget(this);
+    mItemBrowser->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::LeftDockWidgetArea, mItemBrowser);
 
     mFileManager = new FileManagerWidget(this);
     mFileManager->setAllowedAreas(Qt::AllDockWidgetAreas);

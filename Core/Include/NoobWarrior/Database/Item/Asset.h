@@ -38,6 +38,8 @@ struct Asset : StatisticalItem {
     int64_t                          Remaining;
     int                              ContentRatingTypeId;
     int                              MinimumMembershipLevel;
+
+    static constexpr std::string TypeName = "Asset";
 };
 
 constexpr int AssetCategoryCount = 1;

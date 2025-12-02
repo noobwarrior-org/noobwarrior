@@ -13,6 +13,6 @@
 
 namespace NoobWarrior {
 struct Universe : OwnedItem {
-    
+    static constexpr std::string TypeName = "Universe";
 };
 }

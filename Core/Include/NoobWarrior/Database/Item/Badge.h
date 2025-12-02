@@ -10,5 +10,7 @@ namespace NoobWarrior {
 struct Badge : UniverseItem {
     int Awarded;
     int AwardedYesterday;
+
+    static constexpr std::string TypeName = "Badge";
 };
 }

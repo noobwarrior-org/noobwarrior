@@ -18,7 +18,7 @@
 #include <QStatusBar>
 
 namespace NoobWarrior {
-    class ContentBrowserWidget;
+    class ItemBrowserWidget;
     class DatabaseEditor : public QMainWindow {
         Q_OBJECT
         
@@ -36,7 +36,7 @@ namespace NoobWarrior {
 
         Database *GetCurrentlyEditingDatabase();
 
-        ContentBrowserWidget *GetContentBrowser();
+        ItemBrowserWidget *GetItemBrowser();
     protected:
         void closeEvent(QCloseEvent *event) override;
         void paintEvent(QPaintEvent *event) override;
@@ -71,7 +71,7 @@ namespace NoobWarrior {
 
         QAction* mExitAction;
 
-        QAction* mContentBrowserViewAction;
+        QAction* mItemBrowserViewAction;
         QAction* mFileManagerViewAction;
 
         std::vector<QAction*> mInsertItemTypeActions;
@@ -88,7 +88,7 @@ namespace NoobWarrior {
         OverviewWidget *mOverviewWidget;
 
         //////////////////// Dockable Widgets ////////////////////
-        ContentBrowserWidget *mContentBrowser;
+        ItemBrowserWidget *mItemBrowser;
         FileManagerWidget *mFileManager;
 
         Database *mCurrentDatabase;

@@ -10,5 +10,7 @@
 namespace NoobWarrior {
 struct Set : OwnedItem {
     std::vector<Asset>          Items;
+
+    static constexpr std::string TypeName = "Set";
 };
 }

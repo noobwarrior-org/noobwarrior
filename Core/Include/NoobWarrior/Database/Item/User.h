@@ -15,5 +15,7 @@
 namespace NoobWarrior {
 struct User : Item {
     std::string DisplayName;
+
+    static constexpr std::string TypeName = "User";
 };
 }

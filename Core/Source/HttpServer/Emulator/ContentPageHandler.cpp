@@ -5,11 +5,13 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/Database/Item/Asset.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/Reflection.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
+
+#define ADD_ITEMTYPE(type) data["itemtypes"].push_back(#type);
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
@@ -23,8 +25,8 @@ nlohmann::json ContentPageHandler::GetContextData(mg_connection *conn) {
     Config *config = mServer->GetCore()->GetConfig();
 
     data["itemtypes"] = nlohmann::json::array();
-    for (entt::meta_type itemtype : Reflection::GetItemTypes())
-        data["itemtypes"].push_back(itemtype.name());
+    
+    ADD_ITEMTYPE(Asset)
 
     data["currentpage"] = 1;
     data["totalpages"] = 1;

@@ -27,5 +27,7 @@ struct Bundle : StatisticalItem {
 
     /* This cannot be modified through AddContent(), please find another way. */
     std::vector<Asset>          Items;
+
+    static constexpr std::string TypeName = "Bundle";
 };
 }
