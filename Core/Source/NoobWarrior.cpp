@@ -11,10 +11,7 @@
 
 #include "NoobWarrior/Auth/MasterServerAuth.h"
 #include "NoobWarrior/Auth/ServerEmulatorAuth.h"
-#include "lua/lock_global_env.lua.inc"
-#include "lua/rawget_path.lua.inc"
-#include "lua/serpent.lua.inc"
-#include "lua/json.lua.inc"
+#include "NoobWarrior/PluginManager.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -27,13 +24,13 @@ using namespace NoobWarrior;
 
 Core::Core(Init init) :
     mInit(std::move(init)),
-    mLuaState(nullptr),
     mServerEmulator(nullptr),
     mPortable(mInit.Portable),
+    mPluginManager(this),
     mIndexDirty(true)
 {
-    InitLuaState();
-    mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
+    mLuaState.Open();
+    mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
     mRobloxAuth = new RobloxAuth(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
@@ -56,44 +53,11 @@ Core::~Core() {
     curl_global_cleanup();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
-    lua_close(mLuaState);
+    mLuaState.Close();
 }
 
-static int printBS(lua_State *L) {
-    const char *str = luaL_checkstring(L, 1);
-    Out("Lua", str);
-    return 0;
-}
-
-int Core::InitLuaState() {
-    mLuaState = luaL_newstate();
-    luaL_openlibs(mLuaState);
-
-    lua_pushcfunction(mLuaState, printBS);
-    lua_setglobal(mLuaState, "print");
-
-    // lua_pushcfunction(mLuaState, printBS);
-    // lua_setglobal(mLuaState, "error");
-
-    // Run lua code to define some functions without having to hassle with Lua C API
-    luaL_dostring(mLuaState, rawget_path_lua);
-    luaL_dostring(mLuaState, lock_global_env_lua);
-
-#define LOADLIBRARY(strVar, name) \
-    int strVar##_exec_res = luaL_dostring(mLuaState, strVar); \
-    if (!strVar##_exec_res && lua_istable(mLuaState, -1)) { \
-        lua_setglobal(mLuaState, name); \
-    } else lua_pop(mLuaState, 1);
-    
-    LOADLIBRARY(serpent_lua, "serpent")
-    LOADLIBRARY(json_lua, "json")
-
-#undef LOADLIBRARY
-    return 1;
-}
-
-lua_State *Core::GetLuaState() {
-    return mLuaState;
+LuaState *Core::GetLuaState() {
+    return &mLuaState;
 }
 
 Config *Core::GetConfig() {
@@ -102,6 +66,10 @@ Config *Core::GetConfig() {
 
 DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
+}
+
+PluginManager *Core::GetPluginManager() {
+    return &mPluginManager;
 }
 
 MasterServerAuth *Core::GetMasterServerAuth() {
@@ -235,6 +203,17 @@ std::string Core::GetIndexMessage() {
     if (index.contains("Message"))
         return index["Message"].get<std::string>();
     return "";
+}
+
+void Core::AddSelectedPlugins() {
+    auto selected = GetConfig()->GetKeyValue<nlohmann::json>("plugins.selected");
+    if (!selected.has_value())
+        return;
+    for (auto &fileNameElement : *selected) {
+        if (!fileNameElement.is_string()) continue;
+        auto fileName = fileNameElement.get<std::string>();
+        GetPluginManager()->Add(fileName);
+    }
 }
 
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {

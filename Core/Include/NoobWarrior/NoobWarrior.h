@@ -7,8 +7,10 @@
 
 #include "Macros.h"
 #include "Log.h"
+#include "LuaState.h"
 #include "Database/Database.h"
 #include "Config.h"
+#include "PluginManager.h"
 #include "Database/DatabaseManager.h"
 #include "RccServiceManager.h"
 #include "RobloxClient.h"
@@ -92,9 +94,10 @@ public:
 
     ConfigResponse ConfigReturnCode;
 
-    lua_State *GetLuaState();
+    LuaState *GetLuaState();
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
+    PluginManager *GetPluginManager();
 
     MasterServerAuth *GetMasterServerAuth();
     ServerEmulatorAuth *GetServerEmulatorAuth();
@@ -169,14 +172,16 @@ public:
     bool IsClientInstalled(const RobloxClient &client);
     void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
     ClientLaunchResponse LaunchClient(const RobloxClient &client);
+protected:
+    void AddSelectedPlugins();
 private:
-    int InitLuaState();
     ClientLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
 
     Init                            mInit;
-    lua_State*                      mLuaState;
+    LuaState                        mLuaState;
     Config*                         mConfig;
     DatabaseManager                 mDatabaseManager;
+    PluginManager                   mPluginManager;
 
     HttpServer::ServerEmulator*     mServerEmulator;
 

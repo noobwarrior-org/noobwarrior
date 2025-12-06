@@ -1,4 +1,4 @@
-static const char *lock_global_env_lua = R"***(
+static const char *global_env_metatable_lua = R"***(
 local protected = {
     rawget_path = _G.rawget_path
 }

@@ -63,6 +63,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Auth/RobloxAuth.cpp
     Source/BaseConfig.cpp
     Source/Config.cpp
+    Source/Plugin.cpp
+    Source/PluginManager.cpp
     Source/Log.cpp
     Source/Shell.cpp
     Source/RccServiceManager.cpp
