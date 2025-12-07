@@ -4,7 +4,7 @@
 // Started on: 12/3/2025
 // Description:
 #pragma once
-#include <lua.h>
+#include <lua.hpp>
 #include <lauxlib.h>
 #include <lualib.h>
 

@@ -46,6 +46,7 @@ public:
      */
     Plugin(const std::string &fileName, Core* core, bool includedInInstall = false);
     Response Open();
+    void Close();
 
     std::vector<unsigned char> GetIconData();
 protected:

@@ -22,31 +22,30 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
 Plugin::Response Plugin::Open() {
     std::filesystem::path fullDir = (!mIncludedInInstall ? mCore->GetUserDataDir() : mCore->GetInstallationDir()) / "plugins" / mFileName;
 
+    // Use a virtual filesystem so that we can use both compressed archives and regular folders.
     IFileSystem* vfs;
     IFileSystem::Response fsRes = IFileSystem::CreateFromFile(&vfs, fullDir);
 
-    if (fsRes != IFileSystem::Response::Success) {
+    if (fsRes != IFileSystem::Response::Success || vfs == nullptr) {
         return Response::Failed;
     }
-    
-    if (std::filesystem::is_directory(fullDir)) {
 
-    } else {
-        std::ifstream file(fullDir, std::ios::in | std::ios::binary);
-        if (file.fail())
-            return Response::FileReadFailed;
+    std::string pluginLuaString;
 
-        char magic[4];
-        file.read(magic, 4);
-        file.close();
-
-        // Only ZIP files are allowed for now.
-        // TODO: Add support for other file types in the future
-        if (strncmp(magic, "\x50\x4B\x03\x04", 4) != 0) // Check if file contains magic number for ZIP archive
-            return Response::InvalidFile; // Not a valid ZIP file
-        
-        zip_open();
+    FSEntryHandle handle = vfs->OpenHandle("/plugin.lua");
+    std::string buf;
+    while (vfs->ReadHandleLine(handle, &buf)) {
+        pluginLuaString.append(buf);
     }
+    vfs->CloseHandle(handle);
+
+    NOOBWARRIOR_FREE_PTR(vfs)
+
+    mCore->GetLuaState();
 
     return Response::Success;
+}
+
+void Plugin::Close() {
+
 }

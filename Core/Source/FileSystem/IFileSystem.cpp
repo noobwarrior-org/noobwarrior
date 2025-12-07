@@ -5,8 +5,10 @@
 // Description: An abstract interface for a file system.
 #include <NoobWarrior/FileSystem/IFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
+#include <NoobWarrior/FileSystem/ZipFileSystem.h>
 
 #include <cstring>
+#include <fstream>
 
 using namespace NoobWarrior;
 
@@ -15,20 +17,9 @@ IFileSystem::Response IFileSystem::CreateFromFile(IFileSystem** vfsPtr, const st
         *vfsPtr = new StdFileSystem(path);
         return Response::Success;
     } else {
-        std::ifstream file(fullDir, std::ios::in | std::ios::binary);
-        if (file.fail())
-            return Response::FileReadFailed;
-
-        char magic[4];
-        file.read(magic, 4);
-        file.close();
-
-        // Only ZIP files are allowed for now.
-        // TODO: Add support for other file types in the future
-        if (strncmp(magic, "\x50\x4B\x03\x04", 4) != 0) // Check if file contains magic number for ZIP archive
-            return Response::InvalidFile; // Not a valid ZIP file
-        
-        zip_open();
+        *vfsPtr = new ZipFileSystem();
+        return dynamic_cast<ZipFileSystem*>(*vfsPtr)->Open(path);
     }
+    *vfsPtr = nullptr;
     return Response::Failed;
 }

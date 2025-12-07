@@ -10,27 +10,25 @@
 #include <filesystem>
 
 namespace NoobWarrior {
-struct FSEntry {
+struct FSEntryInfo {
     enum class Type {
         File,
         Directory
     };
 
     bool                    Exists      {};
-    bool                    Symlink     {};
-    IFileSystem*            SymlinkFs   { nullptr };
-    FSEntry::Type           Type;
+    FSEntryInfo::Type       Type        {};
     uint64_t                Size        {};
     std::string             Name        {};
+    std::string             Path        {};
     std::filesystem::path   RealPath    {};
 };
 
-struct FileHandle {
-
-};
+typedef int FSEntryHandle;
 
 class IFileSystem {
 public:
+    virtual ~IFileSystem() = 0;
     enum class Response {
         Failed,
         Success,
@@ -45,18 +43,23 @@ public:
      */
     static Response CreateFromFile(IFileSystem** vfsPtr, const std::filesystem::path &path);
 
-    virtual FSEntry GetEntryFromPath(const std::string &path) = 0;
-    virtual std::vector<FSEntry> GetEntriesInDirectory(const std::string &path) = 0;
+    virtual void ChangeWorkingDirectory(const std::string &path = "/") = 0;
 
-    virtual FileHandle OpenHandle(const std::string &path) = 0;
-    virtual void CloseHandle(const FileHandle &handle) = 0;
+    virtual FSEntryInfo GetEntryFromPath(const std::string &path) = 0;
+    virtual std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) = 0;
+
+    virtual FSEntryHandle OpenHandle(const std::string &path) = 0;
+    virtual bool CloseHandle(FSEntryHandle handle) = 0;
+    virtual bool IsHandleEOF(FSEntryHandle handle) = 0;
 
     /**
      * @brief Reads X amount of bytes from an open file handle. It will automatically seek to the next chunk.
+     * The buffer is overwritten with the new chunk each time this function is called.
      */
-    virtual std::vector<unsigned char> ReadChunk(const FileHandle &handle, unsigned int size) = 0;
+    virtual bool ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) = 0;
+    virtual bool ReadHandleLine(FSEntryHandle handle, std::string *buf);
 
     virtual bool EntryExists(const std::string &path) = 0;
-    virtual Response DeleteEntry(const std::string &path) = 0;
+    virtual bool DeleteEntry(const std::string &path) = 0;
 };
 }
