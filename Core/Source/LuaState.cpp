@@ -46,6 +46,7 @@ int LuaState::Open() {
     LOADLIBRARY(json_lua, "json")
 
 #undef LOADLIBRARY
+    Out("Lua", "Initialized Lua");
     return 1;
 }
 

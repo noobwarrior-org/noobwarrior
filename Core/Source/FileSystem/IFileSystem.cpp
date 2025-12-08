@@ -12,14 +12,18 @@
 
 using namespace NoobWarrior;
 
+IFileSystem::~IFileSystem() {}
+
 IFileSystem::Response IFileSystem::CreateFromFile(IFileSystem** vfsPtr, const std::filesystem::path &path) {
-    if (std::filesystem::is_directory(path)) {
+    if (std::filesystem::is_directory(path))
         *vfsPtr = new StdFileSystem(path);
+    else
+        *vfsPtr = new ZipFileSystem(path);
+    if (!(*vfsPtr)->Fail())
         return Response::Success;
-    } else {
-        *vfsPtr = new ZipFileSystem();
-        return dynamic_cast<ZipFileSystem*>(*vfsPtr)->Open(path);
+    else {
+        *vfsPtr = nullptr;
+        return Response::Failed;
     }
-    *vfsPtr = nullptr;
-    return Response::Failed;
+    
 }

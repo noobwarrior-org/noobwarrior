@@ -28,13 +28,17 @@ typedef int FSEntryHandle;
 
 class IFileSystem {
 public:
-    virtual ~IFileSystem() = 0;
     enum class Response {
         Failed,
         Success,
+        FileSystemFailed,
         FileReadFailed,
-        InvalidFile
+        InvalidFile,
+        InvalidHandle
     };
+
+    virtual ~IFileSystem() = 0;
+    inline virtual bool Fail() { return mFailCode; }; // Should return true if the file system failed to initialize
 
     /**
      * @brief Creates a new virtual file system object based on the type of path given.
@@ -43,13 +47,11 @@ public:
      */
     static Response CreateFromFile(IFileSystem** vfsPtr, const std::filesystem::path &path);
 
-    virtual void ChangeWorkingDirectory(const std::string &path = "/") = 0;
-
     virtual FSEntryInfo GetEntryFromPath(const std::string &path) = 0;
     virtual std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) = 0;
 
     virtual FSEntryHandle OpenHandle(const std::string &path) = 0;
-    virtual bool CloseHandle(FSEntryHandle handle) = 0;
+    virtual Response CloseHandle(FSEntryHandle handle) = 0;
     virtual bool IsHandleEOF(FSEntryHandle handle) = 0;
 
     /**
@@ -57,9 +59,11 @@ public:
      * The buffer is overwritten with the new chunk each time this function is called.
      */
     virtual bool ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) = 0;
-    virtual bool ReadHandleLine(FSEntryHandle handle, std::string *buf);
+    virtual bool ReadHandleLine(FSEntryHandle handle, std::string *buf) = 0;
 
     virtual bool EntryExists(const std::string &path) = 0;
-    virtual bool DeleteEntry(const std::string &path) = 0;
+    virtual Response DeleteEntry(const std::string &path) = 0;
+protected:
+    int mFailCode;
 };
 }
