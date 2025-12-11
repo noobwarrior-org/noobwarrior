@@ -19,9 +19,9 @@ public:
     PluginInfobox(QWidget *parent = nullptr);
 
 };
-class PluginsPage : public SettingsPage {
+class PluginPage : public SettingsPage {
 public:
-    PluginsPage(QWidget *parent = nullptr);
+    PluginPage(QWidget *parent = nullptr);
     void InitWidgets();
     const QString GetTitle() override;
     const QString GetDescription() override;

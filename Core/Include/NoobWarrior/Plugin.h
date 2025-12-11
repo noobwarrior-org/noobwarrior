@@ -49,6 +49,7 @@ public:
     void Close();
 
     std::vector<unsigned char> GetIconData();
+    std::string GetFileName();
 protected:
     
 private:

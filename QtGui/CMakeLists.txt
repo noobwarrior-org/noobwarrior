@@ -10,6 +10,7 @@ set(SOURCES
     Settings/SettingsPage.cpp
     Settings/GeneralPage.cpp
     Settings/DatabasePage.cpp
+    Settings/PluginPage.cpp
     Settings/InstallationPage.cpp
     Settings/AccountPage.cpp
     Settings/HttpServerPage.cpp
@@ -17,6 +18,8 @@ set(SOURCES
     Dialog/AboutDialog.cpp
     Dialog/AuthBaseDialog.cpp
     Dialog/AuthTokenDialog.cpp
+    Dialog/DatabaseDialog.cpp
+    Dialog/PluginDialog.cpp
     ServerHost/HostServerDialog.cpp
     MasterServer/MasterServerWindow.cpp
     MasterServer/MasterServerSidebar.cpp

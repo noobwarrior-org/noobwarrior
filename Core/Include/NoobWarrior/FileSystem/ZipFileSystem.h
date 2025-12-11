@@ -4,15 +4,15 @@
 // Started on: 12/5/2025
 // Description:
 #pragma once
-#include "IFileSystem.h"
+#include "VirtualFileSystem.h"
 
 #include <zip.h>
 
 #include <filesystem>
-#include <map>
+#include <unordered_map>
 
 namespace NoobWarrior {
-class ZipFileSystem : public IFileSystem {
+class ZipFileSystem : public VirtualFileSystem {
 public:
     ZipFileSystem(const std::filesystem::path &zipPath);
     ~ZipFileSystem() override;
@@ -30,6 +30,6 @@ public:
     Response DeleteEntry(const std::string &path) override;
 protected:
     zip_t *mArchive;
-    std::map<int, zip_file_t*> mHandles;
+    std::unordered_map<int, zip_file_t*> mHandles;
 };
 }

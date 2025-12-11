@@ -4,7 +4,7 @@
 // Started on: 12/5/2025
 // Description: An psuedo file system that overlays each file system over one another.
 #pragma once
-#include "IFileSystem.h"
+#include "VirtualFileSystem.h"
 
 namespace NoobWarrior {
 class OverlayFileSystem {
@@ -14,7 +14,7 @@ public:
         Success
     };
 
-    Response Mount(const IFileSystem &fs);
-    Response Unmount(const IFileSystem &fs);
+    Response Mount(const VirtualFileSystem &fs);
+    Response Unmount(const VirtualFileSystem &fs);
 };
 }

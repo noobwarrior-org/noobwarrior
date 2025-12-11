@@ -5,13 +5,13 @@
 // Description: Contains code for the main class used to utilize the noobWarrior library
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
+#include <NoobWarrior/PluginManager.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Auth/MasterServerAuth.h>
+#include <NoobWarrior/Auth/ServerEmulatorAuth.h>
 
 #include <civetweb.h>
 #include <sqlite3.h>
-
-#include "NoobWarrior/Auth/MasterServerAuth.h"
-#include "NoobWarrior/Auth/ServerEmulatorAuth.h"
-#include "NoobWarrior/PluginManager.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -41,6 +41,9 @@ Core::Core(Init init) :
 
     if (mInit.EnableKeychain)
         GetRobloxAuth()->ReadFromKeychain();
+
+    if (mInit.LoadPlugins)
+        GetPluginManager()->LoadPlugins();
 }
 
 Core::~Core() {
@@ -203,17 +206,6 @@ std::string Core::GetIndexMessage() {
     if (index.contains("Message"))
         return index["Message"].get<std::string>();
     return "";
-}
-
-void Core::AddSelectedPlugins() {
-    auto selected = GetConfig()->GetKeyValue<nlohmann::json>("plugins.selected");
-    if (!selected.has_value())
-        return;
-    for (auto &fileNameElement : *selected) {
-        if (!fileNameElement.is_string()) continue;
-        auto fileName = fileNameElement.get<std::string>();
-        GetPluginManager()->Add(fileName);
-    }
 }
 
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {

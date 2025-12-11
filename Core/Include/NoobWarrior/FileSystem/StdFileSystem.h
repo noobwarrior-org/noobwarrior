@@ -4,15 +4,16 @@
 // Started on: 12/5/2025
 // Description:
 #pragma once
-#include "IFileSystem.h"
+#include "VirtualFileSystem.h"
 
 #include <filesystem>
 #include <map>
 #include <string>
 #include <memory>
+#include <unordered_map>
 
 namespace NoobWarrior {
-class StdFileSystem : public IFileSystem {
+class StdFileSystem : public VirtualFileSystem {
 public:
     StdFileSystem(const std::filesystem::path &root);
     ~StdFileSystem() override;
@@ -32,6 +33,6 @@ public:
 protected:
     std::filesystem::path ConstructRealPath(std::string submittedPath);
     std::filesystem::path mRoot;
-    std::map<int, std::shared_ptr<std::fstream>> mHandles;
+    std::unordered_map<int, std::shared_ptr<std::fstream>> mHandles;
 };
 }

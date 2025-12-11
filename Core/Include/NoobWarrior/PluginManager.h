@@ -16,10 +16,13 @@ class Core;
 class PluginManager {
 public:
     PluginManager(Core* core);
-    void Add(Plugin *plugin, int priority = 1);
-    void Add(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+    void Load(Plugin *plugin, int priority = 1);
+    void Load(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+    void LoadPlugins();
 
     std::vector<Plugin*> GetPlugins();
+protected:
+    std::vector<std::string> GetCriticalPluginNames();
 private:
     Core* mCore;
     std::vector<Plugin*> mPlugins;

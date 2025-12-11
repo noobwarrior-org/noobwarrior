@@ -43,6 +43,8 @@ int Application::Run() {
     mCore->CreateStandardUserDataDirectories();
     mCore->StartServerEmulator(8080);
 
+    Out("QtApplication", "Finished initializing core, starting Qt application");
+
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {
         QMessageBox::critical(nullptr, "Error", "Could not initialize curl");

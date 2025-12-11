@@ -9,6 +9,8 @@
 #include "Application.h"
 #include "Dialog/AboutDialog.h"
 #include "Dialog/AssetDownloaderDialog.h"
+#include "Dialog/DatabaseDialog.h"
+#include "Dialog/PluginDialog.h"
 #include "ServerHost/HostServerDialog.h"
 
 #include <QLabel>
@@ -43,18 +45,20 @@ static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mMaster
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
+static void ShowDatabaseMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mDatabaseDialog, DatabaseDialog) }
+static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPluginDialog, PluginDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
     "Play",
-    "Tools",
+    "Developer Tools",
     "Application"
 };
 
 static const void* sPlay[][3] = {
     {"Servers", (void*)&ShowJoinServer, ":/images/silk/server_go.png"},
-    {"Start Game", (void*)&ShowStartGame, ":/images/silk/controller.png"},
+    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"},
 };
 
 static const void* sTools[][3] = {
@@ -71,6 +75,8 @@ static const void* sApplication[][3] = {
     // WIP, uncomment these when they are completed for later
     // {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
     // {"Lua Shell", nullptr, ":/images/lua16.png"},
+    {"Databases", (void*)&ShowDatabaseMenu, ":/images/silk/database.png"},
+    {"Plugins", (void*)&ShowPluginMenu, ":/images/silk/plugin.png"},
     {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
@@ -81,7 +87,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mDatabaseEditor(nullptr),
     mAssetDownload(nullptr),
     mHostServerDialog(nullptr),
-    mMasterServerWindow(nullptr)
+    mMasterServerWindow(nullptr),
+    mDatabaseDialog(nullptr),
+    mPluginDialog(nullptr)
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
@@ -133,13 +141,14 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         }
     }
 
-    AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
-    Layout->addWidget(AuthenticationStatusLabel);
+    // Comment this out, this is moreof-so secondary functionality at this point
+    // AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
+    // Layout->addWidget(AuthenticationStatusLabel);
 
     ServerEmulatorStatusLabel = new QLabel("Server Emulator: Stopped");
     Layout->addWidget(ServerEmulatorStatusLabel);
 
-    auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
+    auto *robloxServersLabel = new QLabel("0 Running Game Servers");
     Layout->addWidget(robloxServersLabel);
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -150,8 +159,8 @@ Launcher::~Launcher() {}
 void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
 
-    RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-    AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
+    // RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
+    // AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
 
     ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

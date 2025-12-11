@@ -57,7 +57,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Database/DatabaseManager.cpp
     Source/Database/ContentImages.cpp
     Source/Database/Repository/Item/AssetRepository.cpp
-    Source/FileSystem/IFileSystem.cpp
+    Source/FileSystem/VirtualFileSystem.cpp
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
     Source/FileSystem/ZipFileSystem.cpp

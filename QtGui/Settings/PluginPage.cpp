@@ -1,9 +1,9 @@
 // === noobWarrior ===
-// File: PluginsPage.cpp
+// File: PluginPage.cpp
 // Started by: Hattozo
 // Started on: 12/3/2025
 // Description:
-#include "PluginsPage.h"
+#include "PluginPage.h"
 
 #include "../Application.h"
 
@@ -13,12 +13,12 @@
 
 using namespace NoobWarrior;
 
-PluginsPage::PluginsPage(QWidget *parent) : SettingsPage(parent) {
+PluginPage::PluginPage(QWidget *parent) : SettingsPage(parent) {
     Init();
     InitWidgets();
 }
 
-void PluginsPage::InitWidgets() {
+void PluginPage::InitWidgets() {
     mGridLayout = new QGridLayout();
 
     mAvailableFrame = new QFrame();
@@ -26,10 +26,14 @@ void PluginsPage::InitWidgets() {
     mAvailableLabel = new QLabel("Available");
     mAvailableList = new QListWidget();
 
+    mAvailableFrame->setAutoFillBackground(true);
+
     mSelectedFrame = new QFrame();
     mSelectedLayout = new QVBoxLayout(mSelectedFrame);
     mSelectedLabel = new QLabel("Selected");
     mSelectedList = new QListWidget();
+
+    mSelectedFrame->setAutoFillBackground(true);
 
     gApp->GetCore()->GetPluginManager()->GetPlugins();
 
@@ -38,14 +42,14 @@ void PluginsPage::InitWidgets() {
     Layout->addLayout(mGridLayout);
 }
 
-const QString PluginsPage::GetTitle() {
+const QString PluginPage::GetTitle() {
     return "Plugins";
 }
 
-const QString PluginsPage::GetDescription() {
+const QString PluginPage::GetDescription() {
     return "Configure the priority of plugins, and decide whether they are enabled or not.";
 }
 
-const QIcon PluginsPage::GetIcon() {
+const QIcon PluginPage::GetIcon() {
     return QIcon(":/images/silk/plugin.png");
 }

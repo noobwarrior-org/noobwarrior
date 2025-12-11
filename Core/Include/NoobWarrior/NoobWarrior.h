@@ -34,6 +34,7 @@ struct Init {
     char**      ArgVec          {};
     bool        Portable        { true };
     bool        EnableKeychain  { true };
+    bool        LoadPlugins     { true };
 };
 
 enum class AssetFileNameStyle {
@@ -172,8 +173,6 @@ public:
     bool IsClientInstalled(const RobloxClient &client);
     void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
     ClientLaunchResponse LaunchClient(const RobloxClient &client);
-protected:
-    void AddSelectedPlugins();
 private:
     ClientLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
 

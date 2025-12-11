@@ -5,12 +5,7 @@
 // Description:
 #include <NoobWarrior/Plugin.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/FileSystem/IFileSystem.h>
-
-#include <zip.h>
-
-#include <fstream>
-#include <cstring>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 
 using namespace NoobWarrior;
 
@@ -23,10 +18,10 @@ Plugin::Response Plugin::Open() {
     std::filesystem::path fullDir = (!mIncludedInInstall ? mCore->GetUserDataDir() : mCore->GetInstallationDir()) / "plugins" / mFileName;
 
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
-    IFileSystem* vfs;
-    IFileSystem::Response fsRes = IFileSystem::CreateFromFile(&vfs, fullDir);
+    VirtualFileSystem* vfs;
+    VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&vfs, fullDir);
 
-    if (fsRes != IFileSystem::Response::Success || vfs == nullptr) {
+    if (fsRes != VirtualFileSystem::Response::Success || vfs == nullptr) {
         return Response::Failed;
     }
 
@@ -38,8 +33,7 @@ Plugin::Response Plugin::Open() {
         pluginLuaString.append(buf);
     }
     vfs->CloseHandle(handle);
-
-    NOOBWARRIOR_FREE_PTR(vfs)
+    VirtualFileSystem::Free(vfs);
 
     mCore->GetLuaState();
 
@@ -48,4 +42,8 @@ Plugin::Response Plugin::Open() {
 
 void Plugin::Close() {
 
+}
+
+std::string Plugin::GetFileName() {
+    return mFileName;
 }

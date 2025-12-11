@@ -3,8 +3,9 @@
 // Started by: Hattozo
 // Started on: 12/5/2025
 // Description:
-#include "NoobWarrior/FileSystem/IFileSystem.h"
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Log.h>
 
 #include <cassert>
 #include <filesystem>
@@ -73,14 +74,14 @@ FSEntryHandle StdFileSystem::OpenHandle(const std::string &path) {
     if (stream->fail())
         return NULL;
 
-    int id;
-    for (int i = 0; !mHandles.contains(i); i++)
-        id = i + 1;
+    int id = 1;
+    while (mHandles.contains(id))
+        id++;
     mHandles.emplace(id, std::move(stream));
     return id;
 }
 
-IFileSystem::Response StdFileSystem::CloseHandle(FSEntryHandle handle) {
+VirtualFileSystem::Response StdFileSystem::CloseHandle(FSEntryHandle handle) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -112,7 +113,7 @@ bool StdFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned c
     stream->read(buf_c, size);
     buf->clear();
     buf->insert(buf->begin(), buf_c, buf_c + size);
-    return !stream->eof();
+    return !(stream->eof() || stream->fail());
 }
 
 bool StdFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
@@ -120,8 +121,7 @@ bool StdFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
         return false;
 
     std::shared_ptr<std::fstream> stream = mHandles.at(handle);
-    std::getline(*stream.get(), *buf);
-    return !stream->eof();
+    return std::getline(*stream.get(), *buf) ? true : false;
 }
 
 bool StdFileSystem::EntryExists(const std::string &path) {
@@ -131,7 +131,7 @@ bool StdFileSystem::EntryExists(const std::string &path) {
     return std::filesystem::exists(real_path);
 }
 
-IFileSystem::Response StdFileSystem::DeleteEntry(const std::string &path) {
+VirtualFileSystem::Response StdFileSystem::DeleteEntry(const std::string &path) {
     if (Fail())
         return Response::FileSystemFailed;
     std::filesystem::path real_path = ConstructRealPath(path);

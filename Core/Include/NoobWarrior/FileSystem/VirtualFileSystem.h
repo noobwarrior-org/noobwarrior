@@ -1,5 +1,5 @@
 // === noobWarrior ===
-// File: IFileSystem.h
+// File: VirtualFileSystem.h
 // Started by: Hattozo
 // Started on: 12/5/2025
 // Description: An abstract interface for a file system.
@@ -26,7 +26,7 @@ struct FSEntryInfo {
 
 typedef int FSEntryHandle;
 
-class IFileSystem {
+class VirtualFileSystem {
 public:
     enum class Response {
         Failed,
@@ -37,15 +37,16 @@ public:
         InvalidHandle
     };
 
-    virtual ~IFileSystem() = 0;
-    inline virtual bool Fail() { return mFailCode; }; // Should return true if the file system failed to initialize
-
     /**
      * @brief Creates a new virtual file system object based on the type of path given.
      * For example, if a .zip file is passed to this, it will try creating a ZipFileSystem object.
      * If a regular directory is passed, it will create a StdFileSystem object.
      */
-    static Response CreateFromFile(IFileSystem** vfsPtr, const std::filesystem::path &path);
+    static Response New(VirtualFileSystem** vfsPtr, const std::filesystem::path &path);
+    static void Free(VirtualFileSystem* vfs);
+
+    virtual ~VirtualFileSystem() = 0;
+    inline virtual bool Fail() { return mFailCode != 0; }; // Should return true if the file system failed to initialize
 
     virtual FSEntryInfo GetEntryFromPath(const std::string &path) = 0;
     virtual std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) = 0;
@@ -59,11 +60,16 @@ public:
      * The buffer is overwritten with the new chunk each time this function is called.
      */
     virtual bool ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) = 0;
+
+    /**
+     * @brief Reads the next upcoming line from a file stream.
+     * Note that this does not include a new line at the end of the string, you must include that yourself.
+     */
     virtual bool ReadHandleLine(FSEntryHandle handle, std::string *buf) = 0;
 
     virtual bool EntryExists(const std::string &path) = 0;
     virtual Response DeleteEntry(const std::string &path) = 0;
 protected:
-    int mFailCode;
+    int mFailCode { 0 };
 };
 }

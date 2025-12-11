@@ -4,7 +4,7 @@
 // Started on: 12/6/2025
 // Description:
 #include <NoobWarrior/FileSystem/ZipFileSystem.h>
-#include <NoobWarrior/FileSystem/IFileSystem.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <zip.h>
@@ -13,15 +13,17 @@
 using namespace NoobWarrior;
 
 ZipFileSystem::ZipFileSystem(const std::filesystem::path &zipPath) : mArchive(nullptr) {
-    int err_code {};
+    int err_code { 0 };
 
     std::string path_string = zipPath.string();
     mArchive = zip_open(path_string.c_str(), NULL, &err_code);
 
-    zip_error_t error;
-    zip_error_init_with_code(&error, err_code);
-    Out("ZipFileSystem", "Failed to open zip archive \"{}\": {}", zipPath.filename().string(), zip_error_strerror(&error));
-    zip_error_fini(&error);
+    if (err_code != 0) {
+        zip_error_t error;
+        zip_error_init_with_code(&error, err_code);
+        Out("ZipFileSystem", "Failed to open zip archive \"{}\": {}", zipPath.filename().string(), zip_error_strerror(&error));
+        zip_error_fini(&error);
+    }
 
     mFailCode = err_code;
 };
@@ -31,10 +33,17 @@ ZipFileSystem::~ZipFileSystem() {
 }
 
 FSEntryInfo ZipFileSystem::GetEntryFromPath(const std::string &path) {
+    std::string zip_path = path;
+
+    // The zip file format specification specifically says that file paths cannot start with a leading slash.
+    // However the virtual file system specifications permit this, so just remove the starting slashes in order to make it happy.
+    while (zip_path.starts_with('/'))
+        zip_path = zip_path.substr(1);
+
     FSEntryInfo entry {};
     int statErr;
     zip_stat_t stat;
-    zip_int64_t index = zip_name_locate(mArchive, path.c_str(), 0);
+    zip_int64_t index = zip_name_locate(mArchive, zip_path.c_str(), 0);
     if (index < 0) {
         entry.Exists = false;
         goto finish;
@@ -52,14 +61,20 @@ finish:
 }
 
 std::vector<FSEntryInfo> ZipFileSystem::GetEntriesInDirectory(const std::string &path) {
-    if (Fail() || mArchive == nullptr)
+    if (Fail() || mArchive == nullptr) {
+        Out("ZipFileSystem", "Failed to get entries in virtual directory \"{}\" because the zip filesystem failed to initialize.", path);
         return {};
+    }
+
+    std::string zip_path = path;
+    while (zip_path.starts_with('/'))
+        zip_path = zip_path.substr(1);
 
     std::vector<FSEntryInfo> entries;
     zip_int64_t entries_num = zip_get_num_entries(mArchive, NULL);
     for (int i = 0; i < entries_num; i++) {
         auto entryPath = std::string(zip_get_name(mArchive, i, 0));
-        if (entryPath.starts_with(path)) {
+        if (entryPath.starts_with(zip_path)) {
             FSEntryInfo entryInfo = GetEntryFromPath(entryPath);
             entries.push_back(entryInfo);
         }
@@ -68,21 +83,29 @@ std::vector<FSEntryInfo> ZipFileSystem::GetEntriesInDirectory(const std::string 
 }
 
 FSEntryHandle ZipFileSystem::OpenHandle(const std::string &path) {
-    if (Fail() || mArchive == nullptr)
+    if (Fail() || mArchive == nullptr) {
+        Out("ZipFileSystem", "Failed to open handle for file \"{}\" because the zip filesystem failed to initialize.", path);
         return NULL;
+    }
 
-    zip_file_t *file = zip_fopen(mArchive, path.c_str(), NULL);
-    if (file == NULL)
+    std::string zip_path = path;
+    while (zip_path.starts_with('/'))
+        zip_path = zip_path.substr(1);
+
+    zip_file_t *file = zip_fopen(mArchive, zip_path.c_str(), NULL);
+    if (file == NULL) {
+        Out("ZipFileSystem", "Failed to open handle for file \"{}\"", path);
         return NULL;
+    }
 
-    int id;
-    for (int i = 0; !mHandles.contains(i); i++)
-        id = i + 1;
+    int id = 1;
+    while (mHandles.contains(id))
+        id++;
     mHandles.emplace(id, file);
     return id;
 }
 
-IFileSystem::Response ZipFileSystem::CloseHandle(FSEntryHandle handle) {
+VirtualFileSystem::Response ZipFileSystem::CloseHandle(FSEntryHandle handle) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -115,7 +138,7 @@ bool ZipFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned c
     char buf_c[size];
     int bytes_read = zip_fread(file, buf_c, size);
     buf->clear();
-    buf->insert(buf->begin(), buf_c, buf_c + size);
+    buf->insert(buf->end(), buf_c, buf_c + size);
     return bytes_read > 0;
 }
 
@@ -127,25 +150,37 @@ bool ZipFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
 
     buf->clear();
     char buf_c[1];
-    while (int bytes_read = zip_fread(file, buf_c, 1) > 0) {
+    int bytes_read;
+    while ((bytes_read = zip_fread(file, buf_c, 1)) > 0) {
+        Out("ZipFileSystem", "Read {} byte", bytes_read);
         if (bytes_read < 1) {
             if (bytes_read < 0) buf->clear(); // if its less than 0 (like -1) then that means an error occurred. buffer is shitted. clear it.
             return false; // else it just means we've reached end of file (0 bytes read).
         }
         if (*buf_c == '\n')
-            break;
+            return true;
+        // buf->append(buf_c);
         buf->insert(buf->end(), buf_c, buf_c + 1);
+        Out("ZipFileSystem", "Insertted byte");
     }
-    return IsHandleEOF(handle);
+    return bytes_read > 0;
 }
 
 bool ZipFileSystem::EntryExists(const std::string &path) {
-    zip_int64_t index = zip_name_locate(mArchive, path.c_str(), 0);
+    std::string zip_path = path;
+    while (zip_path.starts_with('/'))
+        zip_path = zip_path.substr(1);
+
+    zip_int64_t index = zip_name_locate(mArchive, zip_path.c_str(), 0);
     return index != -1;
 }
 
-IFileSystem::Response ZipFileSystem::DeleteEntry(const std::string &path) {
-    zip_int64_t index = zip_name_locate(mArchive, path.c_str(), 0);
+VirtualFileSystem::Response ZipFileSystem::DeleteEntry(const std::string &path) {
+    std::string zip_path = path;
+    while (zip_path.starts_with('/'))
+        zip_path = zip_path.substr(1);
+
+    zip_int64_t index = zip_name_locate(mArchive, zip_path.c_str(), 0);
     if (index < 0)
         return Response::InvalidFile;
     return zip_delete(mArchive, index) < 0 ? Response::Success : Response::Failed;
