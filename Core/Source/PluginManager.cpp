@@ -49,6 +49,9 @@ std::vector<std::string> PluginManager::GetCriticalPluginNames() {
         const std::filesystem::path &path = entry.path();
         std::string file_name = path.filename().string();
 
+        if (file_name.compare(".DS_Store") == 0) // why does apple do this?
+            continue;
+
         Out("PluginManager", "Creating vfs for plugin \"{}\"", file_name);
 
         VirtualFileSystem* vfs = nullptr;

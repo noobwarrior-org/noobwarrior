@@ -127,7 +127,7 @@ bool ZipFileSystem::IsHandleEOF(FSEntryHandle handle) {
     int bytes_read = zip_fread(file, buf, 1);
     if (bytes_read > 0)
         zip_fseek(file, -bytes_read, SEEK_CUR); // okay, not eof. go back...
-    return bytes_read == 0; // if it's eof, bytes_read should return 0.
+    return bytes_read < 1; // if it's eof, bytes_read should return 0.
 }
 
 bool ZipFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) {
@@ -149,21 +149,20 @@ bool ZipFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
     zip_file_t *file = mHandles.at(handle);
 
     buf->clear();
+
+    if (IsHandleEOF(handle))
+        return false;
+
     char buf_c[1];
     int bytes_read;
-    while ((bytes_read = zip_fread(file, buf_c, 1)) > 0) {
-        Out("ZipFileSystem", "Read {} byte", bytes_read);
-        if (bytes_read < 1) {
-            if (bytes_read < 0) buf->clear(); // if its less than 0 (like -1) then that means an error occurred. buffer is shitted. clear it.
-            return false; // else it just means we've reached end of file (0 bytes read).
-        }
-        if (*buf_c == '\n')
-            return true;
-        // buf->append(buf_c);
+    while (true) {
+        bytes_read = zip_fread(file, buf_c, 1);
+        if (*buf_c == '\n' || bytes_read < 1)
+            break;
+        else Out("ZipFileSystem", "Bytes read: {} - Byte: {}", bytes_read, *buf_c);
         buf->insert(buf->end(), buf_c, buf_c + 1);
-        Out("ZipFileSystem", "Insertted byte");
     }
-    return bytes_read > 0;
+    return true;
 }
 
 bool ZipFileSystem::EntryExists(const std::string &path) {

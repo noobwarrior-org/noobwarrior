@@ -25,16 +25,11 @@ StdFileSystem::~StdFileSystem() {
 std::filesystem::path StdFileSystem::ConstructRealPath(std::string submittedPath) {
     while (submittedPath.starts_with('/'))
         submittedPath = submittedPath.substr(1);
-
-    std::filesystem::path resolvedPath = std::filesystem::weakly_canonical(submittedPath);
-    std::filesystem::path resolvedRootPath = std::filesystem::weakly_canonical(mRoot);
-
-    if (resolvedRootPath.string().rfind(resolvedPath.string(), 0) == 0) {
+    if (mRoot.string().rfind(submittedPath, 0) == 0) {
         // path has escaped
         return {};
     }
-
-    return resolvedRootPath / resolvedPath;
+    return mRoot / submittedPath;
 }
 
 FSEntryInfo StdFileSystem::GetEntryFromPath(const std::string &path) {
@@ -66,13 +61,17 @@ std::vector<FSEntryInfo> StdFileSystem::GetEntriesInDirectory(const std::string 
 }
 
 FSEntryHandle StdFileSystem::OpenHandle(const std::string &path) {
-    if (Fail())
+    if (Fail()) {
+        Out("StdFileSystem", "Failed to open handle for file \"{}\" because the zip filesystem failed to initialize.", path);
         return NULL;
+    }
 
     std::filesystem::path real_path = ConstructRealPath(path);
     auto stream = std::make_shared<std::fstream>(real_path);
-    if (stream->fail())
+    if (stream->fail()) {
+        Out("StdFileSystem", "Failed to open handle for file \"{}\"", path);
         return NULL;
+    }
 
     int id = 1;
     while (mHandles.contains(id))
