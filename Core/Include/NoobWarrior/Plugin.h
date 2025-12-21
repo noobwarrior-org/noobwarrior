@@ -15,9 +15,13 @@ class Core;
 class Plugin {
 public:
     struct Properties {
+        std::string FileName;
         std::string Title;
         std::string Version;
         std::string Description;
+        std::string IconFileName;
+        std::vector<std::string> Authors;
+        bool IsCritical;
     };
 
     enum class Permission {
@@ -45,16 +49,23 @@ public:
      * unless if manually removed through the computer's file manager.
      */
     Plugin(const std::string &fileName, Core* core, bool includedInInstall = false);
-    Response Open();
-    void Close();
+    ~Plugin();
+
+    Response Execute();
+    bool Fail();
+    Response GetInitResponse();
 
     std::vector<unsigned char> GetIconData();
     std::string GetFileName();
+
+    const Properties GetProperties();
 protected:
-    
+    void PushLuaTable();
+    Response mResponse { 0 };
 private:
     std::string mFileName;
     Core* mCore;
     bool mIncludedInInstall;
+    int reference;
 };
 }

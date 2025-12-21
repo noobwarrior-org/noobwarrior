@@ -16,13 +16,22 @@ class Core;
 class PluginManager {
 public:
     PluginManager(Core* core);
-    void Load(Plugin *plugin, int priority = 1);
-    void Load(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+    ~PluginManager();
+    Plugin::Response Load(Plugin *plugin, int priority = 1);
+    Plugin::Response Load(const std::string &fileName, int priority = 1, bool includedInInstall = false);
     void LoadPlugins();
 
+    /**
+     * @brief Gets all loaded plugins. This does not include plugins that are not loaded (enabled)
+     */
     std::vector<Plugin*> GetPlugins();
+
+    /**
+     * @brief Gets properties of all plugins found in the install & userdata directories
+     */
+    std::vector<Plugin::Properties> GetAllPluginProperties();
 protected:
-    std::vector<std::string> GetCriticalPluginNames();
+    std::vector<Plugin::Properties> GetCriticalPluginProperties();
 private:
     Core* mCore;
     std::vector<Plugin*> mPlugins;

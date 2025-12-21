@@ -6,6 +6,8 @@
 #pragma once
 #include "SettingsPage.h"
 
+#include <NoobWarrior/Plugin.h>
+
 #include <QWidget>
 #include <QGridLayout>
 #include <QFrame>
@@ -15,9 +17,9 @@
 
 namespace NoobWarrior {
 class PluginInfobox : public QWidget {
+    Q_OBJECT
 public:
-    PluginInfobox(QWidget *parent = nullptr);
-
+    PluginInfobox(Plugin* plugin, QWidget *parent = nullptr);
 };
 class PluginPage : public SettingsPage {
 public:

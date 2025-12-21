@@ -136,7 +136,7 @@ bool ZipFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned c
 
     zip_file_t *file = mHandles.at(handle);
     char buf_c[size];
-    int bytes_read = zip_fread(file, buf_c, size);
+    zip_int64_t bytes_read = zip_fread(file, buf_c, size);
     buf->clear();
     buf->insert(buf->end(), buf_c, buf_c + size);
     return bytes_read > 0;
@@ -154,7 +154,7 @@ bool ZipFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
         return false;
 
     char buf_c[1];
-    int bytes_read;
+    zip_int64_t bytes_read;
     while (true) {
         bytes_read = zip_fread(file, buf_c, 1);
         if (*buf_c == '\n' || bytes_read < 1)
