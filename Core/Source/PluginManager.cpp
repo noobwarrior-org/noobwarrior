@@ -62,16 +62,17 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
     std::vector<std::filesystem::path> pluginPaths;
 
 #define ADD(dir) \
-    for (const auto &entry : std::filesystem::directory_iterator { dir / "plugins" }) { \
-        std::string file_name = entry.path().filename().string(); \
-        if (file_name.compare(".DS_Store") == 0) \
-            continue; \
-        pluginPaths.push_back(entry.path()); \
+    if (std::filesystem::exists(dir / "plugins")) { \
+        for (const auto &entry : std::filesystem::directory_iterator { dir / "plugins" }) { \
+            std::string file_name = entry.path().filename().string(); \
+            if (file_name.compare(".DS_Store") == 0) \
+                continue; \
+            pluginPaths.push_back(entry.path()); \
+        } \
     }
-
+    
     ADD(mCore->GetInstallationDir())
     ADD(mCore->GetUserDataDir())
-
 #undef ADD
 
     for (std::filesystem::path path : pluginPaths) {

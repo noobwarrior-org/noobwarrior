@@ -3,6 +3,7 @@
 // Started by: Hattozo
 // Started on: 3/5/2025
 // Description: All functions that concern backing up data from Roblox servers to your computer belong here
+#include <NoobWarrior/Backup.h>
 #include <NoobWarrior/Config.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
@@ -203,11 +204,11 @@ cleanup:
     return ret;
 }
 
-BackupResponse Core::BackupFromFile(const std::filesystem::path &inputDir, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+Backup::Response Core::BackupFromFile(const std::filesystem::path &inputDir, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
 
 }
 
-BackupResponse Core::BackupAsset(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+Backup::Response Core::BackupAsset(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
     std::optional<std::string> asset_download_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
 
     if (!asset_download_url.has_value())
@@ -223,7 +224,17 @@ BackupResponse Core::BackupAsset(int64_t id, Database *db, std::function<void(Ba
     return BackupResponse::Ok;
 }
 
-BackupResponse Core::BackupGame(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
+Backup::Response Core::BackupGame(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
 
     return BackupResponse::Ok;
+}
+
+BackupResponse Core::BackupItem(int64_t id, Database *db) {
+    struct BackupItem* root = new struct BackupItem();
+    root->Type = BackupItemType::Asset;
+    root->Parent = nullptr;
+}
+
+static void PopulateItemDescriptors() {
+    
 }

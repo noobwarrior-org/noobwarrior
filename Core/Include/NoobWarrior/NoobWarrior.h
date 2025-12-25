@@ -43,25 +43,6 @@ enum class AssetFileNameStyle {
     AssetName
 };
 
-enum class BackupResponse {
-    Failed,
-    Ok, // Not a success yet, we are just getting started.
-    UrlNotSet,
-    AccountRequired,
-    UnsupportedContentType
-};
-
-enum class BackupState {
-    Failed,
-    Success,
-    Finalizing,
-    DownloadingFile,
-    ParsingFile,
-    CompressingFile,
-    ScrapingMetadata,
-    AddingToDatabase,
-};
-
 enum AssetFlags {
     DA_PRESERVE_AUTHORS = 1 << 0, // Sets the Authors metadata to be the name of the Asset's creator
     DA_PRESERVE_DATECREATED = 1 << 1, // Sets the Date Created metadata to be the Asset's time of creation.
