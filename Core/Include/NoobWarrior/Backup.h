@@ -31,7 +31,12 @@ enum class State {
     AddingToDatabase,
 };
 
-enum class ItemDescriptorType {
+enum class ItemSource {
+    OnlineItem,
+    LocalFile
+};
+
+enum class OnlineItemType {
     Asset,
     Badge,
     Bundle,
@@ -42,21 +47,29 @@ enum class ItemDescriptorType {
     User
 };
 
+// A node representation of an item on the Roblox platform.
 struct ItemDescriptor {
-    ItemDescriptorType Type;
+    OnlineItemType Type;
     int64_t Id;
     int Version;
-    ItemDescriptor* Parent;
-    ItemDescriptor* Children;
+
+    ItemDescriptor* Parent { nullptr };
+
+    uint64_t ChildrenSize;
+    ItemDescriptor** Children;
+
+    // These will be populated when they are discovered through API scraping.
+    char* Name;
+
+    uint64_t IconSize;
+    unsigned char* IconData;
 };
 
-ItemDescriptor* NewItemDescriptor();
-void DestroyItemDescriptor(ItemDescriptor*);
-
-enum class TargetType {
-    OnlineItem,
-    LocalFile
-};
+ItemDescriptor* ItemDescriptor_New();
+void ItemDescriptor_Destroy(ItemDescriptor*);
+void ItemDescriptor_AddChild(ItemDescriptor* parent, ItemDescriptor* child);
+void ItemDescriptor_RemoveChild(ItemDescriptor* parent, ItemDescriptor* child);
+ItemDescriptor** ItemDescriptor_GetChildren(ItemDescriptor* parent, int* size = nullptr);
 
 typedef void* Destination;
 enum class DestinationType {
@@ -65,8 +78,8 @@ enum class DestinationType {
 };
 
 struct ProcessOptions {
-    TargetType TargetType;
-    ItemDescriptorType TargetItemType;
+    ItemSource TargetType;
+    OnlineItemType TargetItemType;
     int64_t TargetId;
 
     DestinationType DestinationType;
@@ -83,8 +96,9 @@ struct ProcessOptions {
 };
 
 struct Process {
-    ItemDescriptor* Root;
-    ProcessOptions* Options;
+    Core*           Core { nullptr };
+    ItemDescriptor* Root { nullptr };
+    ProcessOptions* Options { nullptr };
 
     DestinationType DestinationType;
     Destination Destination;
@@ -92,7 +106,7 @@ struct Process {
     double Progress;
 };
 
-Process* CreateProcess(NoobWarrior::Core* core, ProcessOptions);
+Process* AllocateProcess(NoobWarrior::Core* core, ProcessOptions);
 void DestroyProcess(Process* proc);
 Response StartProcess(Process* proc);
 }

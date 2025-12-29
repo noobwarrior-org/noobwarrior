@@ -25,7 +25,6 @@ set(SOURCES
     MasterServer/MasterServerSidebar.cpp
     MasterServer/ServerListWidget.cpp
     DatabaseEditor/DatabaseEditor.cpp
-    DatabaseEditor/BackgroundTask.cpp
     DatabaseEditor/WelcomeWidget.cpp
     DatabaseEditor/OverviewWidget.cpp
     DatabaseEditor/FileManagerWidget.cpp
@@ -35,7 +34,13 @@ set(SOURCES
     DatabaseEditor/Browser/AssetPage.cpp
     DatabaseEditor/Item/AssetDialog.cpp
     DatabaseEditor/Preview/ItemPreviewWidget.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTask.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTaskPopupWidget.cpp
     DatabaseEditor/Backup/BackupDialog.cpp
+    DatabaseEditor/Backup/BackupTask.cpp
+    DatabaseEditor/Backup/BackupTreeView.cpp
+    DatabaseEditor/Backup/ItemDescriptorModel.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
 )

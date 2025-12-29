@@ -104,43 +104,7 @@ public:
     // std::future<char*> DownloadAssetAsync(DownloadAssetArgs);
 
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
-
-    template<typename T>
-    BackupResponse Backup(BackupArgs args, int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
-
-    }
-
-    template<typename T>
-    BackupResponse Backup(int64_t id, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
-
-    }
-
-    /**
-     * @brief Parses the given input file as a Roblox model/place, and automatically searches all asset IDs and downloads them. Downloaded files are stored in outputDir
-     * 
-     * @param inputFile The path to the .rbxm/.rbxl file
-     * @param outputDir The path to where all files should be installed
-     * @param callback A std::function object that gets called everytime the status of the backup process is updated
-     * @return BackupResponse 
-     */
-    BackupResponse BackupFromFile(const std::filesystem::path &inputFile, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
     
-    /**
-     * @brief Parses the given input file as a Roblox model/place, and automatically searches all asset IDs and downloads them. Downloaded files are stored in the given database.
-     * 
-     * @param inputFile The path to the .rbxm/.rbxl file
-     * @param db The database where all found content should be stored.
-     * @param callback 
-     * @return BackupResponse 
-     */
-    BackupResponse BackupFromFile(const std::filesystem::path &inputFile, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
-
-    BackupResponse BackupAsset(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
-    BackupResponse BackupAsset(int64_t id, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
-
-    BackupResponse BackupGame(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
-    BackupResponse BackupGame(int64_t id, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback);
-
     //////////////// Index Related Functions ////////////////
     int RetrieveIndex(nlohmann::json &index, bool forceRefresh = false);
     std::string GetIndexMessage();

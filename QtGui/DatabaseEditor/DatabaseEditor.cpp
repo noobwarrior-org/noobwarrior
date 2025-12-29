@@ -7,6 +7,9 @@
 #include "Browser/ItemBrowserWidget.h"
 #include "Item/ItemDialog.h"
 #include "Item/AssetDialog.h"
+#include "BackgroundTask/BackgroundTask.h"
+#include "BackgroundTask/BackgroundTaskPopupWidget.h"
+#include "BackgroundTask/BackgroundTaskStatusBarWidget.h"
 #include "Backup/BackupDialog.h"
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
@@ -48,7 +51,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mOverviewWidget(nullptr),
     mItemBrowser(nullptr),
     mFileManager(nullptr),
-    mBackgroundTasksStatusBarWidget(nullptr)
+    mBackgroundTaskStatusBarWidget(nullptr)
 {
     setWindowTitle("Database Editor - noobWarrior");
     setAcceptDrops(true);
@@ -56,12 +59,6 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     InitMenus();
     InitStatusBarWidgets();
     InitWidgets();
-
-    BackgroundTask *theItem = mBackgroundTasks.AddTask({
-        .Title = "Pooping",
-        .Caption = "Some pooping is happening right now",
-    });
-    mBackgroundTasks.UpdateTask(theItem, 0.5, "/Users/Poop/");
 }
 
 DatabaseEditor::~DatabaseEditor() {
@@ -327,9 +324,16 @@ void DatabaseEditor::InitMenus() {
 }
 
 void DatabaseEditor::InitStatusBarWidgets() {
-    mBackgroundTasksStatusBarWidget = new BackgroundTasksStatusBarWidget();
-    statusBar()->addPermanentWidget(mBackgroundTasksStatusBarWidget);
-    mBackgroundTasks.SetStatusBarWidget(mBackgroundTasksStatusBarWidget);
+    mBackgroundTaskPopupWidget = new BackgroundTaskPopupWidget(this);
+    mBackgroundTaskPopupWidget->hide();
+
+    mBackgroundTaskStatusBarWidget = new BackgroundTaskStatusBarWidget();
+    statusBar()->addPermanentWidget(mBackgroundTaskStatusBarWidget);
+
+    mBackgroundTaskPopupWidget->move(mBackgroundTaskStatusBarWidget->pos());
+
+    mBackgroundTasks.SetStatusBarWidget(mBackgroundTaskStatusBarWidget);
+    mBackgroundTasks.SetPopupWidget(mBackgroundTaskPopupWidget);
 }
 
 void DatabaseEditor::InitWidgets() {

@@ -204,37 +204,89 @@ cleanup:
     return ret;
 }
 
-Backup::Response Core::BackupFromFile(const std::filesystem::path &inputDir, const std::filesystem::path &outputDir, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
-
+static void PopulateItemDescriptors() {
+    
 }
 
-Backup::Response Core::BackupAsset(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
-    std::optional<std::string> asset_download_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
+Backup::ItemDescriptor* Backup::ItemDescriptor_New() {
+    ItemDescriptor *desc = new ItemDescriptor();
+    desc->Children = (ItemDescriptor**) malloc(sizeof(uintptr_t));
+    return desc;
+}
+
+void Backup::ItemDescriptor_Destroy(ItemDescriptor* desc) {
+    for (int i = 0; i < desc->ChildrenSize; i++) {
+        ItemDescriptor* child = desc->Children[i];
+        ItemDescriptor_Destroy(child);
+    }
+    delete desc;
+}
+
+void Backup::ItemDescriptor_AddChild(ItemDescriptor* parent, ItemDescriptor* child) {
+    if (child->Parent == parent) // same parent, useless
+        return;
+
+    if (child->Parent != nullptr)
+        ItemDescriptor_RemoveChild(child->Parent, child);
+
+    parent->ChildrenSize++;
+    realloc(parent->Children, sizeof(uintptr_t) * parent->ChildrenSize);
+    parent->Children[parent->ChildrenSize - 1] = child;
+    child->Parent = parent;
+}
+
+void Backup::ItemDescriptor_RemoveChild(ItemDescriptor *parent, ItemDescriptor *child) {
+    if (child->Parent != parent)
+        return;
+
+    parent->ChildrenSize--;
+    realloc(parent->Children, sizeof(uintptr_t) * parent->ChildrenSize);
+    child->Parent = nullptr;
+}
+
+Backup::ItemDescriptor** Backup::ItemDescriptor_GetChildren(ItemDescriptor* parent, int* size) {
+    if (size != nullptr)
+        *size = parent->ChildrenSize;
+    return parent->Children;
+}
+
+Backup::Process* Backup::AllocateProcess(Core* core, ProcessOptions options) {
+    auto optsMem = new ProcessOptions(options);
+    auto proc = new Process();
+    proc->Core = core;
+    proc->Options = optsMem;
+
+    ItemDescriptor* root = ItemDescriptor_New();
+    proc->Root = root;
+
+    return proc;
+}
+
+void Backup::DestroyProcess(Process* proc) {
+    if (proc->Root != nullptr) {
+        ItemDescriptor_Destroy(proc->Root);
+        proc->Root = nullptr;
+    }
+    
+    if (proc->Options != nullptr) {
+        NOOBWARRIOR_FREE_PTR(proc->Options)
+    }
+
+    NOOBWARRIOR_FREE_PTR(proc)
+}
+
+Backup::Response Backup::StartProcess(Process* proc) {
+    std::optional<std::string> asset_download_url = proc->Core->GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
 
     if (!asset_download_url.has_value())
-        return BackupResponse::UrlNotSet;
+        return Backup::Response::UrlNotSet;
 
-    NetClient client(GetRobloxAuth()->GetActiveAccount());
+    NetClient client(proc->Core->GetRobloxAuth()->GetActiveAccount());
     if (client.Failed())
-        return BackupResponse::Failed;
+        return Backup::Response::Failed;
     client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
         
     });
     client.Request(asset_download_url.value());
-    return BackupResponse::Ok;
-}
-
-Backup::Response Core::BackupGame(int64_t id, Database *db, std::function<void(BackupState, std::string, size_t, size_t)> &callback) {
-
-    return BackupResponse::Ok;
-}
-
-BackupResponse Core::BackupItem(int64_t id, Database *db) {
-    struct BackupItem* root = new struct BackupItem();
-    root->Type = BackupItemType::Asset;
-    root->Parent = nullptr;
-}
-
-static void PopulateItemDescriptors() {
-    
+    return Backup::Response::Ok;
 }

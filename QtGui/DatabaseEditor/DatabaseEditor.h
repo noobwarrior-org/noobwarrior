@@ -6,7 +6,7 @@
 #pragma once
 #include <NoobWarrior/Database/Database.h>
 
-#include "BackgroundTask.h"
+#include "BackgroundTask/BackgroundTask.h"
 #include "WelcomeWidget.h"
 #include "OverviewWidget.h"
 #include "FileManagerWidget.h"
@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QToolBar>
 #include <QStatusBar>
+#include <QScrollArea>
 
 namespace NoobWarrior {
     class ItemBrowserWidget;
@@ -95,6 +96,7 @@ namespace NoobWarrior {
 
         //////////////////// Status Bar ////////////////////
         BackgroundTasks mBackgroundTasks;
-        BackgroundTasksStatusBarWidget *mBackgroundTasksStatusBarWidget;
+        BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
+        BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
     };
 }

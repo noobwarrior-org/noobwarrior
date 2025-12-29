@@ -3,12 +3,14 @@
 // Started by: Hattozo
 // Started on: 9/2/2025
 // Description:
+#include <NoobWarrior/Backup.h>
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QButtonGroup>
 #include <QRadioButton>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QPushButton>
@@ -18,19 +20,6 @@
 namespace NoobWarrior {
 class BackupDialog : public QDialog {
 public:
-    enum class ItemSource {
-        Undecided,
-        OnlineItem,
-        LocalFile
-    };
-
-    enum class OnlineItemType {
-        Undecided,
-        Universe,
-        Asset,
-        User
-    };
-
     BackupDialog(QWidget *parent = nullptr);
     void InitWidgets();
     void UpdateWidgets();
@@ -41,8 +30,10 @@ public:
 
     void StartBackup();
 private:
-    ItemSource mSource;
-    OnlineItemType mItemType;
+    bool mChoseItemSource;
+
+    Backup::ItemSource mSource;
+    Backup::OnlineItemType mItemType;
 
     QVBoxLayout* mMainLayout;
     QVBoxLayout* mFrameLayout;
@@ -51,11 +42,7 @@ private:
     QHBoxLayout* mItemSourceRowLayout;
 
     QLabel* mItemTypeCaption;
-    QButtonGroup* mItemTypeButtonGroup;
-    QHBoxLayout* mItemTypeRowLayout;
-    QRadioButton* mItemTypeUniverse;
-    QRadioButton* mItemTypeAsset;
-    QRadioButton* mItemTypeUser;
+    QComboBox* mItemTypeDropdown;
 
     QLabel* mIdCaption;
     QLineEdit* mIdField;
