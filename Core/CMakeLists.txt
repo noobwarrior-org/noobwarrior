@@ -5,6 +5,9 @@ CPMAddPackage(
     OPTIONS "CIVETWEB_ENABLE_ASAN OFF"
 )
 CPMAddPackage(
+    URI "gh:Stiffstream/restinio#ad1cc4a"
+)
+CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
 )
@@ -21,6 +24,8 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:rm5248/libcppgenerate#6bf89d9"
 )
+
+add_di(${restinio_SOURCE_DIR}/dev)
 
 #if (LuaJIT_ADDED)
 #    FILE(GLOB LuaJIT_sources ${LuaJIT_SOURCE_DIR}/src/*.c)

@@ -90,6 +90,7 @@ static constexpr const char* MetaKv[][2] = {
 	// This database will have a higher priority if one of your running game servers has loaded a place from this database.
 	// You can turn this on if you are paranoid of conflicting ID's
 	// This is even wordier.
+	// WARNING: This prevents people from being able to make asset replacement mods for your game.
 	{"TakeHigherPriorityIfServerWithPlaceFromThisDatabaseIsRunning", "0"}
 };
 
