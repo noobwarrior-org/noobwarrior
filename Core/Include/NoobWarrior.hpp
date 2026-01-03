@@ -1,7 +1,7 @@
 // === noobWarrior ===
-// File: NoobWarrior.h
+// File: NoobWarrior.hpp
 // Started by: Hattozo
 // Started on: 6/23/2025
-// Description: Allows you to include NoobWarrior.h without having to go into the subdirectory
+// Description: Lets you access the native C++ noobWarrior API
 #pragma once
 #include "NoobWarrior/NoobWarrior.h"
