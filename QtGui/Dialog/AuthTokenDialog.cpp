@@ -31,10 +31,10 @@ void AuthTokenDialog::InitWidgets() {
     connect(ButtonBox, &QDialogButtonBox::accepted, [this]() {
         QString token = TokenInput->text();
 
-        Account *acc;
-        AuthResponse res = gApp->GetCore()->GetAuth()->AddAccountFromToken(token.toStdString(), &acc);
+        RobloxAccount *acc;
+        AuthResponse res = gApp->GetCore()->GetRobloxAuth()->AddAccountFromToken(token.toStdString(), &acc);
         if (acc != nullptr)
-            gApp->GetCore()->GetAuth()->SetActiveAccount(acc);
+            gApp->GetCore()->GetRobloxAuth()->SetActiveAccount(acc);
 
         auto accPage = dynamic_cast<AccountPage*>(parent());
         if (accPage != nullptr) {

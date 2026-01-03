@@ -1,7 +1,3 @@
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_C_COMPILER ${LEGACY_COMPILER})
-set(CMAKE_CXX_COMPILER ${LEGACY_COMPILER})
-
 add_executable(NoobWarrior.Injector WIN32 Injector.cpp)
 set_target_properties(NoobWarrior.Injector PROPERTIES
     OUTPUT_NAME "noobhook_x86_injector"

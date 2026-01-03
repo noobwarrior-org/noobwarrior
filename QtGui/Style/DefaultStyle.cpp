@@ -13,6 +13,8 @@
 #include <QPainter>
 #include <QWidget>
 #include <QFrame>
+#include <QTabWidget>
+#include <QTabBar>
 
 NoobWarrior::DefaultStyle::DefaultStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
 }
@@ -51,6 +53,16 @@ void NoobWarrior::DefaultStyle::polish(QWidget *widget) {
         QPalette framePalette = QApplication::palette();
         framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(150));
         frame->setPalette(framePalette);
+    }
+
+    // darken background of qtabwidget
+    auto *tabWidget = qobject_cast<QTabWidget*>(widget->parentWidget());
+    if (tabWidget != nullptr && qobject_cast<QTabBar*>(widget) == nullptr) {
+        widget->setAutoFillBackground(true);
+        QPalette palette = widget->palette();
+        palette.setColor(QPalette::Window, QColor(43, 42, 43));
+        // palette.setColor(widget->backgroundRole(), palette.color(widget->backgroundRole()).darker(128));
+        widget->setPalette(palette);
     }
 
     QProxyStyle::polish(widget);

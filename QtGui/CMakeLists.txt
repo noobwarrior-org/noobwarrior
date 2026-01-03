@@ -10,6 +10,7 @@ set(SOURCES
     Settings/SettingsPage.cpp
     Settings/GeneralPage.cpp
     Settings/DatabasePage.cpp
+    Settings/PluginPage.cpp
     Settings/InstallationPage.cpp
     Settings/AccountPage.cpp
     Settings/HttpServerPage.cpp
@@ -17,15 +18,29 @@ set(SOURCES
     Dialog/AboutDialog.cpp
     Dialog/AuthBaseDialog.cpp
     Dialog/AuthTokenDialog.cpp
+    Dialog/DatabaseDialog.cpp
+    Dialog/PluginDialog.cpp
+    ServerHost/HostServerDialog.cpp
+    MasterServer/MasterServerWindow.cpp
+    MasterServer/MasterServerSidebar.cpp
+    MasterServer/ServerListWidget.cpp
     DatabaseEditor/DatabaseEditor.cpp
-    DatabaseEditor/BackgroundTask.cpp
+    DatabaseEditor/WelcomeWidget.cpp
     DatabaseEditor/OverviewWidget.cpp
-    DatabaseEditor/ItemDialog.cpp
-    DatabaseEditor/ItemDialog.h
-    DatabaseEditor/ContentEditorDialogBase.cpp
-    DatabaseEditor/ContentBrowserWidget.cpp
     DatabaseEditor/FileManagerWidget.cpp
-    DatabaseEditor/PreviewItemWidget.cpp
+    DatabaseEditor/ThumbnailPreviewWidget.cpp
+    DatabaseEditor/Browser/ItemBrowserWidget.cpp
+    DatabaseEditor/Browser/ItemBrowserPage.cpp
+    DatabaseEditor/Browser/AssetPage.cpp
+    DatabaseEditor/Item/AssetDialog.cpp
+    DatabaseEditor/Preview/ItemPreviewWidget.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTask.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
+    DatabaseEditor/BackgroundTask/BackgroundTaskPopupWidget.cpp
+    DatabaseEditor/Backup/BackupDialog.cpp
+    DatabaseEditor/Backup/BackupTask.cpp
+    DatabaseEditor/Backup/BackupTreeView.cpp
+    DatabaseEditor/Backup/ItemDescriptorModel.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
 )
@@ -40,7 +55,7 @@ set_target_properties(NoobWarrior.QtGui PROPERTIES
     OUTPUT_NAME "noobwarrior"
 #    WIN32_EXECUTABLE ON
 )
-target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets)
+target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 

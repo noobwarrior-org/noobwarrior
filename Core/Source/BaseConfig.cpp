@@ -22,23 +22,24 @@ static int custom_serializer_func(lua_State *L) {
     return 1;
 }
 
-NoobWarrior::BaseConfig::BaseConfig(std::string globalName, std::filesystem::path filePath, lua_State *luaState) :
+NoobWarrior::BaseConfig::BaseConfig(std::string globalName, std::filesystem::path filePath, LuaState* lua) :
     mGlobalName(std::move(globalName)),
     mFilePath(std::move(filePath)),
     mFileOutput(nullptr),
-    mLuaState(luaState)
+    mLua(lua)
 {}
 
 NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
+    lua_State* L = mLua->Get();
     mLastError = "";
 
     if (!std::filesystem::exists(mFilePath))
-        lua_newtable(mLuaState); // file doesn't exist, create a new empty table.
+        lua_newtable(L); // file doesn't exist, create a new empty table.
     else {
         int res = 0;
 
-        res = luaL_loadfile(mLuaState, reinterpret_cast<const char*>(mFilePath.generic_string().c_str()));
-        if (res != LUA_OK) { mLastError = lua_tostring(mLuaState, -1); lua_pop(mLuaState, 1); }
+        res = luaL_loadfile(L, reinterpret_cast<const char*>(mFilePath.generic_string().c_str()));
+        if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
         switch (res) {
             case LUA_OK: break;
             case LUA_ERRSYNTAX: return ConfigResponse::SyntaxError;
@@ -47,25 +48,25 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
             default: return ConfigResponse::Failed;
         }
 
-        res = lua_pcall(mLuaState, 0, 1, 0);
+        res = lua_pcall(L, 0, 1, 0);
 
         if (res != LUA_OK) {
-            mLastError = lua_tostring(mLuaState, -1);
-            lua_pop(mLuaState, 1);
+            mLastError = lua_tostring(L, -1);
+            lua_pop(L, 1);
             return ConfigResponse::ErrorDuringExecution;
         }
 
-        if (!lua_istable(mLuaState, -1)) {
-            lua_getglobal(mLuaState, "error");
-            lua_pushstring(mLuaState, std::format("expected table, got {}", lua_typename(mLuaState, lua_type(mLuaState, -2))).c_str());
-            res = lua_pcall(mLuaState, 1, 0, 0);
-            mLastError = lua_tostring(mLuaState, -1);
-            lua_pop(mLuaState, 2);
+        if (!lua_istable(L, -1)) {
+            lua_getglobal(L, "error");
+            lua_pushstring(L, std::format("expected table, got {}", lua_typename(L, lua_type(L, -2))).c_str());
+            res = lua_pcall(L, 1, 0, 0);
+            mLastError = lua_tostring(L, -1);
+            lua_pop(L, 2);
             return ConfigResponse::ReturningWrongType;
         }
     }
 
-    lua_setglobal(mLuaState, mGlobalName.c_str()); // set our global as what our config file returned, a table. also pops it off the stack
+    lua_setglobal(L, mGlobalName.c_str()); // set our global as what our config file returned, a table. also pops it off the stack
 
     // Attach a metatable to our config table that will make it so that if you index anything in it, it will make it a table if its nil.
     // This is really good for doing assignments that require access to a lot of tables like "config.gui.database_editor.content_browser.size.x = 200"
@@ -75,12 +76,12 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
     // doesn't look godawful when you open it in your text editor
     char buf[2048];
     snprintf(buf, 2048, config_metatable_lua, mGlobalName.c_str());
-    luaL_dostring(mLuaState, buf);
+    luaL_dostring(L, buf);
 
-    if (lua_isstring(mLuaState, -1)) {
+    if (lua_isstring(L, -1)) {
         // uh oh, error message was pushed onto the stack
-        mLastError = lua_tostring(mLuaState, -1);
-        lua_pop(mLuaState, 1);
+        mLastError = lua_tostring(L, -1);
+        lua_pop(L, 1);
         return ConfigResponse::ErrorDuringExecution;
     }
 
@@ -89,6 +90,7 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
 }
 
 NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
+    lua_State* L = mLua->Get();
     // First lets remove all empty tables in our config table.
     // Since our metatable will automatically set any indexed nil value to a table, it creates a lot of clutter and junk
     std::string pruneSrc = std::format(R"(
@@ -105,16 +107,16 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
         prune({});
     )", mGlobalName);
 
-    if (int err = luaL_dostring(mLuaState, pruneSrc.c_str()); err != LUA_OK) {
-        mLastError = lua_tostring(mLuaState, -1);
-        lua_pop(mLuaState, 1);
+    if (int err = luaL_dostring(L, pruneSrc.c_str()); err != LUA_OK) {
+        mLastError = lua_tostring(L, -1);
+        lua_pop(L, 1);
         return ConfigResponse::ErrorDuringExecution;
     }
 
     // Load in serpent.lua through our header file that embeds it into the program.
     // It's a lua serializer that reconstructs a source-code version of the table.
-    int res = luaL_loadstring(mLuaState, serpent_lua);
-    if (res != LUA_OK) { mLastError = lua_tostring(mLuaState, -1); lua_pop(mLuaState, 1); }
+    int res = luaL_loadstring(L, serpent_lua);
+    if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
     switch (res) {
         case LUA_OK: break;
         case LUA_ERRSYNTAX: return ConfigResponse::SyntaxError;
@@ -123,39 +125,39 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
         default: return ConfigResponse::Failed;
     }
 
-    res = lua_pcall(mLuaState, 0, 1, 0);
+    res = lua_pcall(L, 0, 1, 0);
 
     if (res != LUA_OK) {
-        mLastError = lua_tostring(mLuaState, -1);
-        lua_pop(mLuaState, 1);
+        mLastError = lua_tostring(L, -1);
+        lua_pop(L, 1);
         return ConfigResponse::ErrorDuringExecution;
     }
 
     // now that we have serpent.lua on our stack, access one of the functions it has (block) and add our config global
     // as the arguments. and then call it.
-    lua_getfield(mLuaState, -1, "block");
+    lua_getfield(L, -1, "block");
 
-    lua_getglobal(mLuaState, mGlobalName.c_str()); // arg 1: our global config table
+    lua_getglobal(L, mGlobalName.c_str()); // arg 1: our global config table
 
-    lua_newtable(mLuaState); // arg 2: options table
-        lua_pushstring(mLuaState, "    ");
-            lua_setfield(mLuaState, -2, "indent");
+    lua_newtable(L); // arg 2: options table
+        lua_pushstring(L, "    ");
+            lua_setfield(L, -2, "indent");
         // disable the printing of addresses of tables because it's unnecessary.
-        lua_pushboolean(mLuaState, false);
-            lua_setfield(mLuaState, -2, "comment");
+        lua_pushboolean(L, false);
+            lua_setfield(L, -2, "comment");
         // lua_pushcfunction(mLuaState, custom_serializer_func);
             // lua_setfield(mLuaState, -2, "custom");
 
 
-    res = lua_pcall(mLuaState, 2, 1, 0);
+    res = lua_pcall(L, 2, 1, 0);
 
     if (res != LUA_OK) {
-        mLastError = lua_tostring(mLuaState, -1);
-        lua_pop(mLuaState, 2); // you still have this error message and the serpent.lua table on the stack so pop those 2
+        mLastError = lua_tostring(L, -1);
+        lua_pop(L, 2); // you still have this error message and the serpent.lua table on the stack so pop those 2
         return ConfigResponse::ErrorDuringExecution;
     }
 
-    const char *serializedConfigTable = lua_tostring(mLuaState, -1); // now we have our serialized table
+    const char *serializedConfigTable = lua_tostring(L, -1); // now we have our serialized table
 
     // open file and write to it
     if (mFileOutput != nullptr) { NOOBWARRIOR_FREE_PTR(mFileOutput) }
@@ -165,7 +167,7 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     *mFileOutput << "return " << serializedConfigTable;
     NOOBWARRIOR_FREE_PTR(mFileOutput)
 
-    lua_pop(mLuaState, 2); // pop the string and table
+    lua_pop(L, 2); // pop the string and table
 
     Out("Config", "Closed config");
 
@@ -178,4 +180,17 @@ std::string NoobWarrior::BaseConfig::GetLuaError() {
 
 void NoobWarrior::BaseConfig::SetKeyComment(const char *key, const char *comment) {
 
+}
+
+std::string NoobWarrior::BaseConfig::ConvertJsonStrToLuaStr(const std::string &jsonStr) {
+    lua_State* L = mLua->Get();
+    std::string str;
+    std::string stmt = std::format("local jsonToTbl = json.parse('{}')\nlocal tblString = serpent.block(jsonToTbl)\nreturn tblString", jsonStr);
+    int err = luaL_dostring(L, stmt.c_str());
+    if (err)
+        Out("Config", "Failed to convert JSON string to Lua table string: {}", lua_tostring(L, -1));
+    else
+        str = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    return str;
 }

@@ -1,8 +1,16 @@
-CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+CPMAddPackage(
+    URI "gh:WohlSoft/LuaJIT#59d961b"
+    OPTIONS "LUAJIT_DISABLE_SSE2 ON"
+)
+else()
+CPMAddPackage(
+    URI "gh:WohlSoft/LuaJIT#59d961b"
+)
+endif()
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
-    URI "gh:civetweb/civetweb#5864b55"
-    OPTIONS "CIVETWEB_ENABLE_ASAN OFF"
+    URI "gh:libevent/libevent#a994a52"
 )
 CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
@@ -14,6 +22,12 @@ CPMAddPackage(
 )
 CPMAddPackage(
     URI "gh:hrantzsch/keychain#8846e78"
+)
+CPMAddPackage(
+    URI "gh:zeux/pugixml#61c9448"
+)
+CPMAddPackage(
+    URI "gh:rm5248/libcppgenerate#6bf89d9"
 )
 
 #if (LuaJIT_ADDED)
@@ -50,12 +64,22 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Database/Database.cpp
     Source/Database/DatabaseManager.cpp
     Source/Database/ContentImages.cpp
-    Source/Auth.cpp
+    Source/Database/Repository/Item/AssetRepository.cpp
+    Source/FileSystem/VirtualFileSystem.cpp
+    Source/FileSystem/OverlayFileSystem.cpp
+    Source/FileSystem/StdFileSystem.cpp
+    Source/FileSystem/ZipFileSystem.cpp
+    Source/Auth/NoobWarriorAuth.cpp
+    Source/Auth/MasterServerAuth.cpp
+    Source/Auth/ServerEmulatorAuth.cpp
+    Source/Auth/RobloxAuth.cpp
+    Source/LuaState.cpp
     Source/BaseConfig.cpp
     Source/Config.cpp
+    Source/Plugin.cpp
+    Source/PluginManager.cpp
     Source/Log.cpp
     Source/Shell.cpp
-    Source/Reflection.cpp
     Source/RccServiceManager.cpp
     Source/RobloxClient.cpp
     Source/NetClient.cpp
@@ -64,21 +88,18 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Base/Handler.cpp
     Source/HttpServer/Base/RootHandler.cpp
     Source/HttpServer/Base/TestHandler.cpp
-    Source/HttpServer/Base/WebHandler.cpp
-    Source/HttpServer/Base/ControlPanelHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
-    Source/HttpServer/Emulator/ContentPageHandler.cpp
-    Source/HttpServer/Emulator/AssetViewHandler.cpp
-    Source/HttpServer/Emulator/UserProfileViewHandler.cpp
-    Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
-    Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
-    Source/Roblox/DataModel/RobloxFile.cpp
-    Source/Roblox/DataModel/XmlFormat/XmlRobloxFile.cpp
-    Source/Roblox/DataModel/Tree/Instance.cpp
+    Source/HttpServer/Emulator/AssetHandler.cpp
+    Source/HttpServer/Emulator/ClientSettingsHandler.cpp
+    Source/Roblox/FileFormat/RobloxFile.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
+    Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json event_core event_extra inja libzip::zip keychain pugixml-static cppgenerate_static)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

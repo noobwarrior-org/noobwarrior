@@ -5,6 +5,7 @@
 // Description:
 #pragma once
 #include <QVBoxLayout>
+#include <QGridLayout>
 #include <NoobWarrior/Database/Database.h>
 #include <QWidget>
 
@@ -16,6 +17,7 @@ public:
 private:
     void InitWidgets();
     Database *mDatabase;
-    QVBoxLayout *MainLayout;
+    QVBoxLayout *ToplevelLayout;
+    QGridLayout *ContentLayout;
 };
 }

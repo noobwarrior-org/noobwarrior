@@ -6,7 +6,6 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
-#include <NoobWarrior/HttpServer/Base/WebHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
@@ -30,27 +29,30 @@ HttpServer::HttpServer(Core *core, std::string logName, std::string name) :
     Directory = mCore->GetInstallationDir() / "httpserver";
 }
 
-static int CFuncToObjectFuncHandler(struct mg_connection *conn, void *userdata) {
+HttpServer::~HttpServer() {
+    Stop();
+}
+
+static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata) {
     auto pair = static_cast<std::pair<Handler*, void*>*>(userdata);
-    return pair->first->OnRequest(conn, pair->second);
+    pair->first->OnRequest(req, pair->second);
 }
 
 int HttpServer::Start(uint16_t port) {
-    char portStr[5];
-    snprintf(portStr, 5, "%i", port);
+    if (Running)
+        return 0;
 
     const std::filesystem::path &staticDir = Directory / "web" / "static";
     const std::string &staticDirStr = staticDir.generic_string();
 
-    const char* configOptions[] = {"listening_ports", portStr, nullptr};
-    Server = mg_start(nullptr, nullptr, configOptions);
+    Server = evhttp_new(mCore->GetEventBase());
+    evhttp_bind_socket(Server, "0.0.0.0", port);
 
     mRootHandler = std::make_unique<RootHandler>(this);
-    mWebHandler = std::make_unique<WebHandler>(this);
-    mControlPanelHandler = std::make_unique<ControlPanelHandler>(this);
+    mTestHandler = std::make_unique<TestHandler>();
     
-    SetRequestHandler("/", mRootHandler.get());
-    SetRequestHandler("/control-panel", mControlPanelHandler.get());
+    SetRequestHandler(nullptr, mRootHandler.get());
+    SetRequestHandler("/test", mTestHandler.get());
 
     Out(LogName, "Started server on port {}", port);
     Running = true;
@@ -58,10 +60,13 @@ int HttpServer::Start(uint16_t port) {
 }
 
 int HttpServer::Stop() {
+    if (!Running)
+        return 0;
+
     Running = false;
     Out(LogName, "Stopping server...");
 
-    mg_stop(Server);
+    evhttp_free(Server);
     Server = nullptr;
     return 1;
 }
@@ -72,7 +77,10 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
     auto handler_userdata_pair = std::make_unique<std::pair<Handler*, void*>>(handler, userdata);
     auto *raw = handler_userdata_pair.get();
     HandlerUserdata.push_back(std::move(handler_userdata_pair));
-    mg_set_request_handler(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+    if (uri != nullptr)
+        evhttp_set_cb(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+    else
+        evhttp_set_gencb(Server, CFuncToObjectFuncHandler, static_cast<void*>(raw));
 }
 
 static bool IsPathInvalidOrEscaping(const std::filesystem::path &path) {
@@ -163,7 +171,7 @@ RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json
     return RenderResponse::Success;
 }
 
-nlohmann::json HttpServer::GetBaseContextData(mg_connection *conn) {
+nlohmann::json HttpServer::GetBaseContextData(evhttp_request *req) {
     Config *config = mCore->GetConfig();
 
     std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");

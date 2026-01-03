@@ -4,7 +4,7 @@
 // Started on: 3/15/2025
 // Description: A thin layer over libcurl that makes it less annoying to use
 #pragma once
-#include "Auth.h"
+#include "Auth/RobloxAuth.h"
 
 #include <curl/curl.h>
 
@@ -26,7 +26,7 @@ struct Transfer {
 
 class NetClient {
 public:
-    NetClient(Account *account = nullptr, const std::filesystem::path &outputDir = "");
+    NetClient(RobloxAccount *account = nullptr, const std::filesystem::path &outputDir = "");
     ~NetClient();
 
     bool Failed();
@@ -40,7 +40,7 @@ private:
     bool mFailed;
     const std::filesystem::path &mOutputDir;
     std::vector<unsigned char> mData;
-    Account *mAccount;
+    RobloxAccount *mAccount;
     CURL *mHandle;
 };
 }

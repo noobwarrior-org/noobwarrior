@@ -9,6 +9,9 @@
 #include "Application.h"
 #include "Dialog/AboutDialog.h"
 #include "Dialog/AssetDownloaderDialog.h"
+#include "Dialog/DatabaseDialog.h"
+#include "Dialog/PluginDialog.h"
+#include "ServerHost/HostServerDialog.h"
 
 #include <QLabel>
 #include <QMessageBox>
@@ -36,37 +39,44 @@
 
 using namespace NoobWarrior;
 
-static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
+// static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
+static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostServerDialog, HostServerDialog) }
+static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mMasterServerWindow, MasterServerWindow) }
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
+static void ShowDatabaseMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mDatabaseDialog, DatabaseDialog) }
+static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPluginDialog, PluginDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) { }
 
 static const char* sCategoryNames[] = {
-    "Roblox",
-    "Tools",
+    "Play",
+    "Developer Tools",
     "Application"
 };
 
-static const void* sRoblox[][3] = {
-    {"Start Game", (void*)&ShowStartGame, ":/images/silk/controller.png"},
-    {"Join Server", nullptr, ":/images/silk/server_go.png"},
-    {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
+static const void* sPlay[][3] = {
+    {"Servers", (void*)&ShowJoinServer, ":/images/silk/server_go.png"},
+    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"},
 };
 
 static const void* sTools[][3] = {
     {"Database Editor", (void*)&LaunchDatabaseEditor, ":/images/silk/database_gear.png"},
-    {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
-    {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
-    {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
-    // {"Import Game As Database", nullptr, ":/images/silk/folder_go.png"}, // find this in the Database Utility instead
-    {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
+    // WIP, uncomment these when they are completed for later
+    // {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
+    // {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
+    // {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
+    // {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
+    // {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
 };
 
 static const void* sApplication[][3] = {
-    {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
-    {"Lua Shell", nullptr, ":/images/lua16.png"},
+    // WIP, uncomment these when they are completed for later
+    // {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
+    // {"Lua Shell", nullptr, ":/images/lua16.png"},
+    {"Databases", (void*)&ShowDatabaseMenu, ":/images/silk/database.png"},
+    {"Plugins", (void*)&ShowPluginMenu, ":/images/silk/plugin.png"},
     {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
@@ -75,7 +85,11 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mAboutDialog(nullptr),
     mSettings(nullptr),
     mDatabaseEditor(nullptr),
-    mAssetDownload(nullptr)
+    mAssetDownload(nullptr),
+    mHostServerDialog(nullptr),
+    mMasterServerWindow(nullptr),
+    mDatabaseDialog(nullptr),
+    mPluginDialog(nullptr)
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
@@ -121,19 +135,20 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         frameGrid->addWidget(label);
 
         switch (i) {
-        case 0: ADD_BUTTONS(sRoblox) break;
+        case 0: ADD_BUTTONS(sPlay) break;
         case 1: ADD_BUTTONS(sTools) break;
         case 2: ADD_BUTTONS(sApplication) break;
         }
     }
 
-    AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
-    Layout->addWidget(AuthenticationStatusLabel);
+    // Comment this out, this is moreof-so secondary functionality at this point
+    // AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
+    // Layout->addWidget(AuthenticationStatusLabel);
 
     ServerEmulatorStatusLabel = new QLabel("Server Emulator: Stopped");
     Layout->addWidget(ServerEmulatorStatusLabel);
 
-    auto *robloxServersLabel = new QLabel("0 Running Roblox Servers");
+    auto *robloxServersLabel = new QLabel("0 Running Game Servers");
     Layout->addWidget(robloxServersLabel);
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -144,8 +159,8 @@ Launcher::~Launcher() {}
 void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
 
-    Auth *auth = gApp->GetCore()->GetAuth();
-    AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
+    // RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
+    // AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
 
     ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

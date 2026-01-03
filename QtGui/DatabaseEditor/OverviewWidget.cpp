@@ -17,33 +17,38 @@
 #include <fstream>
 #include <QGroupBox>
 #include <QMessageBox>
+#include <QMediaPlayer>
 
 using namespace NoobWarrior;
 
 OverviewWidget::OverviewWidget(Database *db, QWidget *parent) : QWidget(parent),
     mDatabase(db),
-    MainLayout(nullptr)
+    ToplevelLayout(nullptr),
+    ContentLayout(nullptr)
 {
     setWindowTitle(QString::fromStdString(mDatabase->GetTitle()));
     InitWidgets();
 }
 
 void OverviewWidget::InitWidgets() {
-    MainLayout = new QVBoxLayout(this);
-
-    MainLayout->setContentsMargins(32, 32, 32, 32);
+    ToplevelLayout = new QVBoxLayout(this);
+    ToplevelLayout->setContentsMargins(32, 32, 32, 32);
 
     auto *overviewLabel = new QLabel(QString::fromStdString(mDatabase->GetTitle()));
-    overviewLabel->setFont(QFont(QApplication::font().family(), 24, QFont::Bold));
+    overviewLabel->setFont(QFont(QApplication::font().family(), 24));
 
     auto *spacer1 = new QSpacerItem(16, 16);
-    MainLayout->addWidget(overviewLabel);
-    MainLayout->addItem(spacer1);
+    ToplevelLayout->addWidget(overviewLabel);
+    ToplevelLayout->addItem(spacer1);
 
-    auto *metadataAndSettingsLayout = new QHBoxLayout();
+    ContentLayout = new QGridLayout(this);
+    ToplevelLayout->addLayout(ContentLayout);
+
+    auto *metadataAndThumbnailsLayout = new QHBoxLayout();
+    auto *settingsAndChangelogLayout = new QHBoxLayout();
 
     ////////// Metadata //////////
-    auto *metadataBox = new QGroupBox("Metadata");
+    auto *metadataBox = new QGroupBox();
     metadataBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     auto *metadataContainerLayout = new QHBoxLayout();
 
@@ -124,19 +129,52 @@ void OverviewWidget::InitWidgets() {
     metadataContainerLayout->addLayout(nameAndDescriptionLayout);
 
     metadataBox->setLayout(metadataContainerLayout);
-    metadataAndSettingsLayout->addWidget(metadataBox);
+    ContentLayout->addWidget(metadataBox, 0, 0);
+
+    /*
+    ////////// Thumbnails //////////
+    auto *thumbnailsBox = new QGroupBox();
+    auto *thumbnailsLayout = new QVBoxLayout();
+    thumbnailsBox->setLayout(thumbnailsLayout);
+    thumbnailsBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    auto *thumbnailViewer = new QMediaPlayer();
+
+    ContentLayout->addWidget(thumbnailsBox, 0, 1);
+    */
 
     ////////// Settings //////////
-    auto *settingsBox = new QGroupBox("Settings");
-    auto *settingsContainerLayout = new QGridLayout();
-    settingsContainerLayout->addWidget(new QCheckBox("Mutable"));
+    auto *settingsBox = new QGroupBox();
+    auto *settingsMainLayout = new QVBoxLayout();
 
-    settingsBox->setLayout(settingsContainerLayout);
-    metadataAndSettingsLayout->addWidget(settingsBox);
+    auto *settingsLabel = new QLabel("Settings");
+    settingsLabel->setFont(QFont(QApplication::font().family(), 18));
+    settingsMainLayout->addWidget(settingsLabel);
+
+    auto *settingsContainerLayout = new QGridLayout();
+    settingsContainerLayout->addWidget(new QCheckBox("Mutable"), 0, 0);
+    settingsMainLayout->addLayout(settingsContainerLayout);
+
+    settingsBox->setLayout(settingsMainLayout);
+    ContentLayout->addWidget(settingsBox, 1, 0);
+
+    /*
+    ////////// Changelog //////////
+    auto *changelogBox = new QGroupBox();
+    auto *changelogLayout = new QVBoxLayout();
+    changelogBox->setLayout(changelogLayout);
+    changelogBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    auto *changelogLabel = new QLabel("Changelog");
+    changelogLabel->setFont(QFont(QApplication::font().family(), 18));
+    changelogLayout->addWidget(changelogLabel);    
+
+    ContentLayout->addWidget(changelogBox, 1, 1);
+    */
 
     auto *spacer2 = new QSpacerItem(64, 64);
 
-    MainLayout->addLayout(metadataAndSettingsLayout);
-    MainLayout->addStretch();
-    MainLayout->addItem(spacer2);
+    ToplevelLayout->addLayout(ContentLayout);
+    // MainLayout->addStretch();
+    ToplevelLayout->addItem(spacer2);
 }

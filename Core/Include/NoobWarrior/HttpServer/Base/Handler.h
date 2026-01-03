@@ -5,13 +5,13 @@
 // Description:
 #pragma once
 
-#include <civetweb.h>
+#include <evhttp.h>
 
 namespace NoobWarrior::HttpServer {
 class Handler {
 public:
     virtual ~Handler() = default;
 
-    virtual int OnRequest(mg_connection *conn, void *userdata) = 0;
+    virtual void OnRequest(evhttp_request *req, void *userdata) = 0;
 };
 }

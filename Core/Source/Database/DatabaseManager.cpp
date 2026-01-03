@@ -41,13 +41,3 @@ bool DatabaseManager::GetUserFromToken(User *user, const std::string &token) {
     *user = User {};
     return true;
 }
-
-std::vector<unsigned char> DatabaseManager::RetrieveAssetData(int64_t id) {
-    for (int i = 0; i < MountedDatabases.size(); i++) {
-        Database *database = MountedDatabases[i];
-        auto data = database->RetrieveAssetData(id);
-        if (!data.empty())
-            return data;
-    }
-    return {};
-}

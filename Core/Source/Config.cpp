@@ -7,11 +7,12 @@
 #include <NoobWarrior/Database/DatabaseManager.h>
 
 #include <fstream>
+#include <nlohmann/json_fwd.hpp>
 #include <unistd.h>
 
 using namespace NoobWarrior;
 
-Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig("config", filePath, luaState)
+Config::Config(const std::filesystem::path &filePath, LuaState* lua) : BaseConfig("config", filePath, lua)
 {}
 
 ConfigResponse Config::Open() {
@@ -20,8 +21,13 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "default");
 
-    SetKeyValueIfNotSet("databases", table);
-    SetKeyValueIfNotSet("plugins", table);
+    nlohmann::json defaultMasterServer = nlohmann::json::object();
+    defaultMasterServer["url"] = "https://community.noobwarrior.org";
+
+    SetKeyValueIfNotSet<nlohmann::json>("gui.master_servers", { defaultMasterServer });
+
+    SetKeyValueIfNotSet<nlohmann::json>("databases", {});
+    SetKeyValueIfNotSet<nlohmann::json>("plugins", {});
 
     SetKeyValueIfNotSet("internet.index", "https://raw.githubusercontent.com/noobwarrior-org/index/refs/heads/main/index.json");
     SetKeyValueIfNotSet("internet.roblox.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
@@ -36,7 +42,7 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.auth.type", "master");
     SetKeyComment("httpserver.auth.type", "If set to \"master\", your server is responsible for all authentication. If set to \"slave\", the server URL set in the \"master\" variable will be responsible for all authentication.");
 
-    SetKeyValueIfNotSet("httpserver.auth.master", "https://servers.noobwarrior.org");
+    SetKeyValueIfNotSet("httpserver.auth.master", "https://community.noobwarrior.org");
     SetKeyComment("httpserver.auth.master", "The URL of the server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
 
     SetKeyValueIfNotSet("httpserver.auth.allow_registration", false);
@@ -59,7 +65,7 @@ ConfigResponse Config::Open() {
     SetKeyValueIfNotSet("httpserver.emulator.port", 53640);
     SetKeyComment("httpserver.emulator.port", "The port that the server emulator should listen on.");
 
-    SetKeyValueIfNotSet("httpserver.emulator.proxies", table);
+    SetKeyValueIfNotSet<nlohmann::json>("httpserver.emulator.proxies", {});
     SetKeyComment("httpserver.emulator.proxies", "Any proxies in this list will be used as a fallback reverse proxy for API requests in case yours fail.");
 
     SetKeyValueIfNotSet("httpserver.emulator.enable_roblox_proxy", true);

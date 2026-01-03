@@ -11,8 +11,8 @@
 #include <QTabWidget>
 #include <QFrame>
 #include <QLineEdit>
+#include <qdialogbuttonbox.h>
 
-#include "DatabasePage.h"
 #include "GeneralPage.h"
 #include "HttpServerPage.h"
 #include "InstallationPage.h"
@@ -24,7 +24,11 @@
 
 using namespace NoobWarrior;
 
-SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent) {
+SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
+    ListWidget(nullptr),
+    StackedWidget(nullptr),
+    ButtonBox(nullptr)
+{
     setWindowTitle("noobWarrior Settings");
     InitWidgets();
 }
@@ -38,6 +42,8 @@ void SettingsDialog::InitWidgets() {
 
     StackedWidget = new QStackedWidget();
 
+    ButtonBox = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Save | QDialogButtonBox::Discard, this);
+
     InitPages();
 
     // Pages.push_back()
@@ -49,13 +55,13 @@ void SettingsDialog::InitWidgets() {
 
     mainLayout->addWidget(ListWidget);
     mainLayout->addWidget(StackedWidget);
+    mainLayout->addWidget(ButtonBox);
 
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 void SettingsDialog::InitPages() {
     AddPage(new GeneralPage());
-    AddPage(new DatabasePage());
     AddPage(new HttpServerPage());
     AddPage(new InstallationPage());
     AddPage(new AccountPage());

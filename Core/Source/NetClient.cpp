@@ -18,7 +18,7 @@ static size_t WriteToDisk(void *contents, size_t size, size_t nmemb, void *userp
     return size * nmemb;
 }
 
-NetClient::NetClient(Account *account, const std::filesystem::path &outputDir) :
+NetClient::NetClient(RobloxAccount *account, const std::filesystem::path &outputDir) :
     mFailed(true),
     mOutputDir(outputDir),
     mAccount(account)
