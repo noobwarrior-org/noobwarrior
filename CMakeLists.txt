@@ -8,11 +8,11 @@ include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
 option(NOOBWARRIOR_LIBTYPE_STATIC "Compile noobWarrior as a static library" ON)
 option(NOOBWARRIOR_TARGET_NOGUI "Add target noobWarrior NoGui" ON)
 option(NOOBWARRIOR_TARGET_QTGUI "Add target noobWarrior QtGui" ON)
-option(NOOBWARRIOR_TARGET_GAMELAUNCHER "Add target noobWarrior GameLauncher" ON)
+option(NOOBWARRIOR_TARGET_GAMELAUNCHER "Add target noobWarrior GameLauncher" OFF)
 
 # These targets must be compiled using a cross-compiler that can build a x86 32-bit Windows PE executable.
-option(NOOBWARRIOR_TARGET_HOOK "Add target noobWarrior Hook" ON)
-option(NOOBWARRIOR_TARGET_INJECTOR "Add target noobWarrior Injector" ON)
+option(NOOBWARRIOR_TARGET_HOOK "Add target noobWarrior Hook" OFF)
+option(NOOBWARRIOR_TARGET_INJECTOR "Add target noobWarrior Injector" OFF)
 
 add_subdirectory(Core)
 
