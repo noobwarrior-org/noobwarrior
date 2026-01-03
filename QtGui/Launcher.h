@@ -8,6 +8,8 @@
 #include "Dialog/AssetDownloaderDialog.h"
 #include "Settings/SettingsDialog.h"
 #include "Dialog/AboutDialog.h"
+#include "Dialog/DatabaseDialog.h"
+#include "Dialog/PluginDialog.h"
 #include "ServerHost/HostServerDialog.h"
 #include "MasterServer/MasterServerWindow.h"
 
@@ -32,6 +34,8 @@ namespace NoobWarrior {
         AssetDownloader *mAssetDownload;
         HostServerDialog *mHostServerDialog;
         MasterServerWindow *mMasterServerWindow;
+        DatabaseDialog *mDatabaseDialog;
+        PluginDialog *mPluginDialog;
     protected:
         void paintEvent(QPaintEvent *event) override;
     private:

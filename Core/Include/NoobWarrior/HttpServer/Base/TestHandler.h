@@ -10,6 +10,6 @@ namespace NoobWarrior::HttpServer {
 class TestHandler : public Handler {
 public:
     TestHandler() = default;
-    int OnRequest(mg_connection *conn, void *userdata) override;
+    void OnRequest(evhttp_request *req, void *userdata) override;
 };
 }

@@ -12,7 +12,7 @@
 
 using namespace NoobWarrior;
 
-Config::Config(const std::filesystem::path &filePath, lua_State *luaState) : BaseConfig("config", filePath, luaState)
+Config::Config(const std::filesystem::path &filePath, LuaState* lua) : BaseConfig("config", filePath, lua)
 {}
 
 ConfigResponse Config::Open() {

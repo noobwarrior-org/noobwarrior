@@ -5,9 +5,8 @@
 // Description:
 #pragma once
 #include "Handler.h"
-#include "WebHandler.h"
 #include "RootHandler.h"
-#include "ControlPanelHandler.h"
+#include "TestHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -16,12 +15,12 @@
 #include <memory>
 #include <utility>
 
+#include <evhttp.h>
 #include <nlohmann/json_fwd.hpp>
 
 #define NOOBWARRIOR_SET_URI(uri, handler)
 #define NOOBWARRIOR_LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler.get(), (void*)fileName);
 
-struct mg_context;
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior::HttpServer {
 enum class RenderResponse {
@@ -39,6 +38,7 @@ class HttpServer {
     friend class WebHandler;
 public:
     HttpServer(Core *core, std::string logName = "HttpServer", std::string name = "");
+    virtual ~HttpServer();
     
     virtual int Start(uint16_t port);
     virtual int Stop();
@@ -75,7 +75,7 @@ public:
      * @param conn An opaque handle representing a CivetWeb connection to a client. This can be nullable.
      * @return Returns a JSON object
      */
-    virtual nlohmann::json GetBaseContextData(mg_connection *conn = nullptr);
+    virtual nlohmann::json GetBaseContextData(evhttp_request *req = nullptr);
 
     Core *GetCore();
 protected:
@@ -95,12 +95,11 @@ protected:
     
     Core *mCore;
     
-    mg_context *Server;
+    evhttp* Server;
 
     //////////////// Handlers ////////////////
     std::unique_ptr<RootHandler> mRootHandler;
-    std::unique_ptr<WebHandler> mWebHandler;
-    std::unique_ptr<ControlPanelHandler> mControlPanelHandler;
+    std::unique_ptr<TestHandler> mTestHandler;
 
     std::vector<std::unique_ptr<std::pair<Handler*, void*>>> HandlerUserdata;
 };

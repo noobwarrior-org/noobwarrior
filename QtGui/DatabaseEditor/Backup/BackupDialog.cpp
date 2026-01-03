@@ -8,10 +8,12 @@
 #include <cassert>
 
 using namespace NoobWarrior;
+using namespace NoobWarrior::Backup;
 
 BackupDialog::BackupDialog(QWidget *parent) : QDialog(parent),
-    mSource(ItemSource::Undecided),
-    mItemType(OnlineItemType::Undecided),
+    mChoseItemSource(false),
+    mSource(ItemSource::OnlineItem),
+    mItemType(OnlineItemType::Universe),
     mFrameLayout(nullptr)
 {
     setWindowTitle(tr("Backup from Roblox"));
@@ -40,29 +42,22 @@ void BackupDialog::InitWidgets() {
     mItemSourceRowLayout->addWidget(localFile);
 
     connect(mItemSourceButtonGroup, &QButtonGroup::buttonToggled, [this](QAbstractButton *button, bool checked) {
+        mChoseItemSource = true;
         mSource = button->objectName().contains("OnlineItem") ? ItemSource::OnlineItem : ItemSource::LocalFile;
         UpdateWidgets();
     });
 
-    mIdTypeRowLayout = new QHBoxLayout();
-    mIdTypeButtonGroup = new QButtonGroup(this);
+    mItemTypeCaption = new QLabel("Select which type of item you'd like to back up.\nIt is important to understand that a Place and a Universe are not the same thing.\nUniverses are the entire game, while places are just individual levels.\nIt is also important to know that an Asset can be one of many types, like audios or decals.");
 
-    mIdTypeCaption = new QLabel("Select which type of item you'd like to back up.\nIt is important to understand that a Place and a Universe are not the same thing.\nUniverses are the entire game, while places are just individual levels.");
+    mItemTypeDropdown = new QComboBox();
+    mItemTypeDropdown->addItem("Universe (Game)", static_cast<int>(OnlineItemType::Universe));
+    mItemTypeDropdown->addItem("Model/Place/Asset", static_cast<int>(OnlineItemType::Asset));
+    mItemTypeDropdown->addItem("User", static_cast<int>(OnlineItemType::User));
+    mItemTypeDropdown->addItem("Group", static_cast<int>(OnlineItemType::Group));
+    mItemTypeDropdown->addItem("Bundle", static_cast<int>(OnlineItemType::Bundle));
 
-    mIdTypeUniverse = new QRadioButton("Universe (Game)");
-    mIdTypeAsset = new QRadioButton("Model/Place");
-    mIdTypeUser = new QRadioButton("User");
-
-    mIdTypeButtonGroup->addButton(mIdTypeUniverse, static_cast<int>(OnlineItemType::Universe));
-    mIdTypeButtonGroup->addButton(mIdTypeAsset, static_cast<int>(OnlineItemType::Asset));
-    mIdTypeButtonGroup->addButton(mIdTypeUser, static_cast<int>(OnlineItemType::User));
-
-    mIdTypeRowLayout->addWidget(mIdTypeUniverse);
-    mIdTypeRowLayout->addWidget(mIdTypeAsset);
-    mIdTypeRowLayout->addWidget(mIdTypeUser);
-
-    connect(mIdTypeButtonGroup, &QButtonGroup::buttonToggled, [this](QAbstractButton *button, bool checked) {
-        mItemType = static_cast<OnlineItemType>(mIdTypeButtonGroup->id(button));
+    connect(mItemTypeDropdown, &QComboBox::currentIndexChanged, [this](int index) {
+        mItemType = static_cast<OnlineItemType>(mItemTypeDropdown->itemData(index).toInt());
         UpdateWidgets();
     });
 
@@ -85,8 +80,8 @@ void BackupDialog::InitWidgets() {
 
     mMainLayout->addWidget(itemSourceCaption);
     mMainLayout->addLayout(mItemSourceRowLayout);
-    mMainLayout->addWidget(mIdTypeCaption);
-    mMainLayout->addLayout(mIdTypeRowLayout);
+    mMainLayout->addWidget(mItemTypeCaption);
+    mMainLayout->addWidget(mItemTypeDropdown);
     mMainLayout->addWidget(mIdCaption);
     mMainLayout->addWidget(mIdField);
     mMainLayout->addWidget(mFrame);
@@ -94,7 +89,7 @@ void BackupDialog::InitWidgets() {
 
     // defaults
     // onlineItem->toggle();
-    // mIdTypeUniverse->toggle();
+    // mItemTypeUniverse->toggle();
     UpdateWidgets();
 }
 
@@ -103,15 +98,13 @@ void BackupDialog::UpdateWidgets() {
     qDeleteAll(mFrame->findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
 
     // initially hide all of these at first since we want each of these to individually pop up one by one as the user flows through the dialog
-    mIdTypeCaption->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeUniverse->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeAsset->setVisible(mSource == ItemSource::OnlineItem);
-    mIdTypeUser->setVisible(mSource == ItemSource::OnlineItem);
+    mItemTypeCaption->setVisible(mChoseItemSource && mSource == ItemSource::OnlineItem);
+    mItemTypeDropdown->setVisible(mChoseItemSource && mSource == ItemSource::OnlineItem);
 
-    mIdCaption->setVisible(mSource == ItemSource::OnlineItem && mItemType != OnlineItemType::Undecided);
-    mIdField->setVisible(mSource == ItemSource::OnlineItem && mItemType != OnlineItemType::Undecided);
+    mIdCaption->setVisible(mChoseItemSource && mSource == ItemSource::OnlineItem);
+    mIdField->setVisible(mChoseItemSource && mSource == ItemSource::OnlineItem);
 
-    mFrame->setVisible((mSource != ItemSource::Undecided && mItemType != OnlineItemType::Undecided) || (mSource == ItemSource::LocalFile));
+    mFrame->setVisible(mChoseItemSource || mSource == ItemSource::LocalFile);
 
     if (mSource == ItemSource::OnlineItem) {
         if (mItemType == OnlineItemType::Universe) {

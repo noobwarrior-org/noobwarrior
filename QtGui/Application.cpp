@@ -20,9 +20,11 @@
 #include <QFile>
 #include <QTimer>
 #include <QPointer>
+#include <QSocketNotifier>
 
 #include <curl/curl.h>
 #include <qmessagebox.h>
+#include <event.h>
 
 #define USE_CUSTOM_STYLE 1
 
@@ -42,6 +44,20 @@ int Application::Run() {
     mCore = new Core(mInit);
     mCore->CreateStandardUserDataDirectories();
     mCore->StartServerEmulator(8080);
+
+    QTimer* evTimer = new QTimer(this);
+    evTimer->setTimerType(Qt::CoarseTimer);
+
+    connect(evTimer, &QTimer::timeout, this, [&] {
+        int res = mCore->ProcessEvents();
+        if (res == 0)
+            evTimer->setInterval(0);
+        else
+            evTimer->setInterval(16); // poll events less if processevents() did not find any work to do
+    });
+    evTimer->start(0);
+
+    Out("QtApplication", "Finished initializing core, starting Qt application");
 
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {

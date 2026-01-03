@@ -5,17 +5,13 @@
 // Description: Contains code for the main class used to utilize the noobWarrior library
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
-#include <NoobWarrior/Reflection.h>
+#include <NoobWarrior/PluginManager.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Auth/MasterServerAuth.h>
+#include <NoobWarrior/Auth/ServerEmulatorAuth.h>
 
-#include <civetweb.h>
+#include <event.h>
 #include <sqlite3.h>
-
-#include "NoobWarrior/Auth/MasterServerAuth.h"
-#include "NoobWarrior/Auth/ServerEmulatorAuth.h"
-#include "lua/lock_global_env.lua.inc"
-#include "lua/rawget_path.lua.inc"
-#include "lua/serpent.lua.inc"
-#include "lua/json.lua.inc"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -28,24 +24,26 @@ using namespace NoobWarrior;
 
 Core::Core(Init init) :
     mInit(std::move(init)),
-    mLuaState(nullptr),
     mServerEmulator(nullptr),
     mPortable(mInit.Portable),
+    mPluginManager(this),
     mIndexDirty(true)
 {
-    Reflection::hi();
-    InitLuaState();
-    mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
+    mEventBase = event_base_new();
+    mLuaState.Open();
+    mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
     mRobloxAuth = new RobloxAuth(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
-    mg_init_library(0);
 
     mDatabaseManager.AutocreateMasterDatabase();
 
     if (mInit.EnableKeychain)
         GetRobloxAuth()->ReadFromKeychain();
+
+    if (mInit.LoadPlugins)
+        GetPluginManager()->LoadPlugins();
 }
 
 Core::~Core() {
@@ -53,49 +51,24 @@ Core::~Core() {
         GetRobloxAuth()->WriteToKeychain();
 
     StopServerEmulator();
-    mg_exit_library();
     sqlite3_shutdown();
     curl_global_cleanup();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
-    lua_close(mLuaState);
+    mLuaState.Close();
+    event_base_free(mEventBase);
 }
 
-static int printBS(lua_State *L) {
-    const char *str = luaL_checkstring(L, 1);
-    Out("Lua", str);
-    return 0;
+int Core::ProcessEvents(bool block) {
+    return event_base_loop(mEventBase, block ? (EVLOOP_ONCE) : (EVLOOP_ONCE | EVLOOP_NONBLOCK));
 }
 
-int Core::InitLuaState() {
-    mLuaState = luaL_newstate();
-    luaL_openlibs(mLuaState);
-
-    lua_pushcfunction(mLuaState, printBS);
-    lua_setglobal(mLuaState, "print");
-
-    // lua_pushcfunction(mLuaState, printBS);
-    // lua_setglobal(mLuaState, "error");
-
-    // Run lua code to define some functions without having to hassle with Lua C API
-    luaL_dostring(mLuaState, rawget_path_lua);
-    luaL_dostring(mLuaState, lock_global_env_lua);
-
-#define LOADLIBRARY(strVar, name) \
-    int strVar##_exec_res = luaL_dostring(mLuaState, strVar); \
-    if (!strVar##_exec_res && lua_istable(mLuaState, -1)) { \
-        lua_setglobal(mLuaState, name); \
-    } else lua_pop(mLuaState, 1);
-    
-    LOADLIBRARY(serpent_lua, "serpent")
-    LOADLIBRARY(json_lua, "json")
-
-#undef LOADLIBRARY
-    return 1;
+event_base *Core::GetEventBase() {
+    return mEventBase;
 }
 
-lua_State *Core::GetLuaState() {
-    return mLuaState;
+LuaState *Core::GetLuaState() {
+    return &mLuaState;
 }
 
 Config *Core::GetConfig() {
@@ -104,6 +77,10 @@ Config *Core::GetConfig() {
 
 DatabaseManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
+}
+
+PluginManager *Core::GetPluginManager() {
+    return &mPluginManager;
 }
 
 MasterServerAuth *Core::GetMasterServerAuth() {

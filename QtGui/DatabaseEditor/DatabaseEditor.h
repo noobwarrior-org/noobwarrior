@@ -6,7 +6,8 @@
 #pragma once
 #include <NoobWarrior/Database/Database.h>
 
-#include "BackgroundTask.h"
+#include "BackgroundTask/BackgroundTask.h"
+#include "WelcomeWidget.h"
 #include "OverviewWidget.h"
 #include "FileManagerWidget.h"
 
@@ -15,9 +16,10 @@
 #include <QObject>
 #include <QToolBar>
 #include <QStatusBar>
+#include <QScrollArea>
 
 namespace NoobWarrior {
-    class ContentBrowserWidget;
+    class ItemBrowserWidget;
     class DatabaseEditor : public QMainWindow {
         Q_OBJECT
         
@@ -35,7 +37,7 @@ namespace NoobWarrior {
 
         Database *GetCurrentlyEditingDatabase();
 
-        ContentBrowserWidget *GetContentBrowser();
+        ItemBrowserWidget *GetItemBrowser();
     protected:
         void closeEvent(QCloseEvent *event) override;
         void paintEvent(QPaintEvent *event) override;
@@ -52,35 +54,49 @@ namespace NoobWarrior {
 
         //////////////////// Menu Bar ////////////////////
         QMenu *mFileMenu;
+        QMenu *mEditMenu;
+        QMenu *mViewMenu;
+        QMenu *mInsertMenu;
+        QMenu *mToolsMenu;
+        QMenu *mHelpMenu;
 
-        QAction *mNewDatabaseAction;
-        QAction *mOpenDatabaseAction;
+        QAction* mNewDatabaseAction;
+        QAction* mOpenDatabaseAction;
         
-        QAction *mSaveDatabaseAction;
-        QAction *mSaveAsDatabaseAction;
+        QAction* mSaveDatabaseAction;
+        QAction* mSaveAsDatabaseAction;
 
-        QAction *mCloseDatabaseAction;
+        QAction* mCloseDatabaseAction;
 
-        QAction *mBackupAction;
+        QAction* mBackupAction;
 
         QAction* mExitAction;
 
+        QAction* mItemBrowserViewAction;
+        QAction* mFileManagerViewAction;
+
+        std::vector<QAction*> mInsertItemTypeActions;
+
         //////////////////// Tool Bars ////////////////////
-        QToolBar *mFileToolBar;
+        QToolBar *mStandardToolBar;
         QToolBar *mViewToolBar;
         QToolBar *mInsertToolBar;
+
+        //////////////////// Tabs ////////////////////
         QTabWidget *mTabWidget;
 
+        WelcomeWidget* mWelcomeWidget;
         OverviewWidget *mOverviewWidget;
 
         //////////////////// Dockable Widgets ////////////////////
-        ContentBrowserWidget *mContentBrowser;
+        ItemBrowserWidget *mItemBrowser;
         FileManagerWidget *mFileManager;
 
         Database *mCurrentDatabase;
 
         //////////////////// Status Bar ////////////////////
         BackgroundTasks mBackgroundTasks;
-        BackgroundTasksStatusBarWidget *mBackgroundTasksStatusBarWidget;
+        BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
+        BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
     };
 }

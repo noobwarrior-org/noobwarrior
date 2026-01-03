@@ -13,6 +13,7 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QStackedWidget>
+#include <QDialogButtonBox>
 
 namespace NoobWarrior {
 class SettingsDialog : public QDialog {
@@ -25,6 +26,7 @@ public:
 private:
     QListWidget *ListWidget;
     QStackedWidget *StackedWidget;
+    QDialogButtonBox *ButtonBox;
     std::vector<SettingsPage*> Pages;
 };
 }

@@ -4,7 +4,7 @@
 // Started on: 3/8/2025
 // Description:
 #pragma once
-#include "BaseConfig.h"
+#include <NoobWarrior/BaseConfig.h>
 
 #include <filesystem>
 #include <string>
@@ -22,7 +22,7 @@ enum class Theme {
 
 class Config : public BaseConfig {
 public:
-    Config(const std::filesystem::path &filePath, lua_State *luaState);
+    Config(const std::filesystem::path &filePath, LuaState* lua);
     ConfigResponse Open() override;
 };
 }

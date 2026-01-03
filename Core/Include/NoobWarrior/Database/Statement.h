@@ -4,16 +4,22 @@
 // Started on: 8/8/2025
 // Description:
 #pragma once
-#include <sqlite3.h>
-#include <string>
+#include <NoobWarrior/Database/Common.h>
 
-#include "Database.h"
+#include <sqlite3.h>
+
+#include <string>
+#include <vector>
+#include <map>
 
 namespace NoobWarrior {
+class Database;
 class Statement {
 public:
     Statement(Database *db, const std::string &str);
     ~Statement();
+
+    inline sqlite3_stmt* Get() { return mStmt; }
 
     inline int Bind(int pos, const std::string &val) { return sqlite3_bind_text(mStmt, pos, val.c_str(), -1, nullptr); }
     inline int Bind(int pos, const char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, nullptr); }
@@ -27,9 +33,16 @@ public:
 
     int Step();
     bool Failed();
+    bool IsColumnIndexNull(int columnIndex);
+    SqlValue GetValueFromColumnIndex(int columnIndex);
+
+    SqlRow GetColumns();
+    std::map<std::string, SqlValue> GetColumnMap();
 protected:
     Database *mDatabase;
     sqlite3_stmt *mStmt;
     bool mFailed;
+
+    SqlRow mRow;
 };
 }

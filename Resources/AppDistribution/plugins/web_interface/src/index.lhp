@@ -1,0 +1,14 @@
+<?lua
+
+print("Hello from LHP!")
+
+?>
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Hello</title>
+    </head>
+    <body>
+        <p>Hi guys</p>
+    </body>
+</html>

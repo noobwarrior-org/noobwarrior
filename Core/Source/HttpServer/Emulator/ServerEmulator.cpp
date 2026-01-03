@@ -4,9 +4,7 @@
 // Started on: 9/2/2025
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
-#include <NoobWarrior/HttpServer/Emulator/Api/Roblox/ClientSettingsHandler.h>
-#include <NoobWarrior/HttpServer/Emulator/ContentPageHandler.h>
-#include <NoobWarrior/HttpServer/Base/WebHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
@@ -24,19 +22,11 @@ int ServerEmulator::Start(uint16_t port) {
     if (!res) goto finish;
 
     mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetDatabaseManager());
-    mClientSettingsHandler = std::make_unique<ClientSettingsHandler>(this);
-    mContentPageHandler = std::make_unique<ContentPageHandler>(this);
 
     SetRequestHandler("/asset", mAssetHandler.get());
     SetRequestHandler("/v1/asset", mAssetHandler.get());
-
-    SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
-
-    SetRequestHandler("/develop", mContentPageHandler.get(), (void*)"content.jinja");
     
-    NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/login", "login.jinja")
-    NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/register", "register.jinja")
-    NOOBWARRIOR_LINK_URI_TO_TEMPLATE("/home", "home.jinja")
+    SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
 finish:
     return res;
 }
@@ -45,8 +35,8 @@ int ServerEmulator::Stop() {
     return HttpServer::Stop();
 }
 
-nlohmann::json ServerEmulator::GetBaseContextData(mg_connection *conn) {
-    auto data = HttpServer::GetBaseContextData(conn);
+nlohmann::json ServerEmulator::GetBaseContextData(evhttp_request *req) {
+    auto data = HttpServer::GetBaseContextData(req);
     Config *config = mCore->GetConfig();
 
     std::optional game_view_mode = config->GetKeyValue<std::string>("httpserver.game_view_mode");
@@ -81,6 +71,7 @@ nlohmann::json ServerEmulator::GetBaseContextData(mg_connection *conn) {
     account_button["name"] = "Log In";
     account_button["uri"] = "/login";
 
+    /*
     if (conn != nullptr) {
         const mg_request_info *request_info = mg_get_request_info(conn);
         const char* cookie_header = mg_get_header(conn, "Cookie");
@@ -98,6 +89,7 @@ nlohmann::json ServerEmulator::GetBaseContextData(mg_connection *conn) {
             }
         }
     }
+    */
 
     data["buttons"] = json::array();
     data["buttons"].push_back(home_button);

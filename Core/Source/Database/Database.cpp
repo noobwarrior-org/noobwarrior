@@ -17,44 +17,52 @@
 
 // header files containing strings of SQL schemas describing how each table should be created.
 #include "schema/table/meta.sql.inc"
-#include "schema/table/blob_hash.sql.inc"
+#include "schema/table/blob_storage.sql.inc"
 #include "schema/table/login_session.sql.inc"
 #include "schema/table/transaction.sql.inc"
 
-#include "schema/table/idtype/asset.sql.inc"
-#include "schema/table/idtype/badge.sql.inc"
-#include "schema/table/idtype/bundle.sql.inc"
-#include "schema/table/idtype/devproduct.sql.inc"
-#include "schema/table/idtype/group.sql.inc"
-#include "schema/table/idtype/pass.sql.inc"
-#include "schema/table/idtype/set.sql.inc"
-#include "schema/table/idtype/universe.sql.inc"
-#include "schema/table/idtype/user.sql.inc"
+#include "schema/table/item/asset.sql.inc"
+#include "schema/table/item/badge.sql.inc"
+#include "schema/table/item/bundle.sql.inc"
+#include "schema/table/item/devproduct.sql.inc"
+#include "schema/table/item/group.sql.inc"
+#include "schema/table/item/pass.sql.inc"
+#include "schema/table/item/set.sql.inc"
+#include "schema/table/item/universe.sql.inc"
+#include "schema/table/item/user.sql.inc"
 
-#include "schema/table/idtype/asset/asset_data.sql.inc"
-#include "schema/table/idtype/asset/asset_historical.sql.inc"
-#include "schema/table/idtype/asset/asset_microtransaction.sql.inc"
-#include "schema/table/idtype/asset/asset_misc.sql.inc"
-#include "schema/table/idtype/asset/asset_place_thumbnail.sql.inc"
+#include "schema/table/item/asset/asset_data.sql.inc"
+#include "schema/table/item/asset/asset_historical.sql.inc"
+#include "schema/table/item/asset/asset_microtransaction.sql.inc"
+#include "schema/table/item/asset/asset_misc.sql.inc"
+#include "schema/table/item/asset/asset_place_thumbnail.sql.inc"
+#include "schema/table/item/asset/asset_place_attributes.sql.inc"
+#include "schema/table/item/asset/asset_place_gear_type.sql.inc"
 
-#include "schema/table/idtype/bundle/bundle_asset.sql.inc"
+#include "schema/table/item/bundle/bundle_asset.sql.inc"
 
-#include "schema/table/idtype/user/user_friends.sql.inc"
-#include "schema/table/idtype/user/user_groups.sql.inc"
-#include "schema/table/idtype/user/user_followers.sql.inc"
-#include "schema/table/idtype/user/user_following.sql.inc"
-#include "schema/table/idtype/user/user_inventory.sql.inc"
-#include "schema/table/idtype/user/user_favorites.sql.inc"
-#include "schema/table/idtype/user/user_likes_dislikes.sql.inc"
-#include "schema/table/idtype/user/user_names.sql.inc"
+#include "schema/table/item/universe/universe_misc.sql.inc"
+#include "schema/table/item/universe/universe_historical.sql.inc"
+#include "schema/table/item/universe/universe_social_link.sql.inc"
 
-#include "schema/table/idtype/group/group_role.sql.inc"
-#include "schema/table/idtype/group/group_wall.sql.inc"
-#include "schema/table/idtype/group/group_log.sql.inc"
-#include "schema/table/idtype/group/group_ally.sql.inc"
-#include "schema/table/idtype/group/group_enemy.sql.inc"
+#include "schema/table/item/user/user_friends.sql.inc"
+#include "schema/table/item/user/user_groups.sql.inc"
+#include "schema/table/item/user/user_followers.sql.inc"
+#include "schema/table/item/user/user_following.sql.inc"
+#include "schema/table/item/user/user_inventory.sql.inc"
+#include "schema/table/item/user/user_favorites.sql.inc"
+#include "schema/table/item/user/user_likes_dislikes.sql.inc"
+#include "schema/table/item/user/user_names.sql.inc"
 
-#include "schema/table/idtype/set/set_asset.sql.inc"
+#include "schema/table/item/group/group_role.sql.inc"
+#include "schema/table/item/group/group_wall.sql.inc"
+#include "schema/table/item/group/group_log.sql.inc"
+#include "schema/table/item/group/group_ally.sql.inc"
+#include "schema/table/item/group/group_enemy.sql.inc"
+#include "schema/table/item/group/group_historical.sql.inc"
+#include "schema/table/item/group/group_social_link.sql.inc"
+
+#include "schema/table/item/set/set_asset.sql.inc"
 
 // sql code for migrating so that when the database file has to be updated it can apply these patches in order.
 #include "migrations/v2.sql.inc"
@@ -69,11 +77,21 @@ static constexpr const char* MetaKv[][2] = {
     // The base64 in this decodes to a default .png file.
     {"Icon", "iVBORw0KGgoAAAANSUhEUgAAAaQAAAGkCAAAAABbJw7pAAAKXUlEQVR42u3dfVeiTh/H8d/zf2RmgFqmad6k60rKqulliijjlYGGCgaG3Bzenz/aQ9p6jq8zM1+GYfhvSxKf//gKQCIggURAIiCBREAiIIFEQAKJgERAAomAREACiYBEQAKJgAQSAYmABBIBiYAEEgEJJAISAQkkAhIBCSQCEgEJJAISSAQkAhJIBCQCEkgEJJAISAQkkAhIBCSQCEgEJJAISCARkAhIIBGQCEggEZBAIiARkEAiIBGQQCIgEZBAIiCBREAiIIFEQCIggURAAomAREACiYBEQAKJgERAAomABBIBiYAEEgGJgAQSAQmkOLOJMCBdlUmtWChGlUJVAyl4Bne5+whzl+uAFDQLKS9FmvvcK0gB08tJEkoJR2pFjiRJaevxYkdqx4CUNqVsIqVMKaNI6VJKDtJ9/sa5T61SYpDyldFtM27epVUpMUh3jVt/0lvupBLvgBQU6eXWn9TPpXVcyjJSatpSlpFS05ayjZQSpUwi5VOmlEGkfPX1Ll1KmUTadnOpmhPPIlJlu+3k0tSWMokkdkr36anEs4qUKqXMIqVJKbtIKRqXMox0rPQKUiKRUqOUaaS09HjZRvo8q01D9ZBxpHS0pawjpaISzzySUympbQmkY6VXkBKJlPxxCaQU9HggnbSlJFYPIKWgxwMpBWe1IKXgfAmkFCiBlIJxCSTXcSlZSiCloC2BlAIlkFJQPYCUgrYEUgraEkgpqPEyuhb8Uv4k7s6YLCI9LZaXoteTppTJm8jki1EKSbsXMJNIP+2Jd3z3cxekeO+Z9bPzWn4GUtKREtDhZQjp77VILZAiQ9KuRWqDFBnSSsmDlHSk7TB3F2TfY5DiQNqOyrL/KCDFgrQVy8uTDUep5UGKAylQ9psYgpRgpAZIIIEEEkgggQQSSCCBBBJIIP0eSayNtQhwDFLkSMLQGtWGZvg9BikGJKPz9cau4fMYpOiRhCZb67E04esYpBiQ1g37+k5j7esYpBiQjKqNUDV8HYNESwLJLaYmHY05Px2DFEt11/16Y8fweQxSHCez9nmQ8HsMUlwzDmaAY5BiQIo2IIEEEkgggQQSSCCBBBJIIIEUBZLwDEjJQDL1qfamWukf/aO+aVPdBCl+JEOrF5Wve/SsHU/sjU+sn0qxHniFCkihI626hcv3Jxe6K5DiRVq15Z/uIpfbK5CiQXKvAXwYBVYC6XqkjdieVWy+jIIqgXR9d7dZzsfav/FktjgsKfZpFFAJpOtbkt5/KihK8aHS+rcSwYyCKYF0LZJYtg+7YDwNjHMjt30zrlMCKTCSPQ6tuo6vvD4zhdAdRnK1Z5/C9r9iH/Sqjre0dZ8TESAFQzL16fBt96X320VHsyg2Pn9TOmom7pNCR42t2vuaiPj8796GlyYiQAqEtB6/lJSznsvu3Hx1ZR5dolJ6Ga9BCgPJHD/JvooC3ftjdI/iQn4amyCFgKS/yL8v3LxKQPlFBykEpGkpjOLaS6k0Ben3SGKohHIC5KGkDAVIv0dS5XBOUt2VZBWkSJAKHd3PZ+mdAkg3QurLF6cTlOLz0OcFPWP4bF8Y/C7d5T5IYSLV++rXNMLRj/owwKXx3Vmx9af9Oki36O4+v06XbAJ93G4myPq7PT3dXchIYX4wSAlA+mkZF0jhIh3qMJ88prGcTyeT6XxpmJ5Uh5oRpDALB38tyVxN1Va1/PCZcrWlTlfmDy2JwiFqJHOpNcufZbb9F0qx3NSWJkjRjUk/dndiNWo8nEwiKQ+N0Up4d3eMSdEWDmLRK7vM8ynl3sKkcEhGdydmraLrDJJcbM1MurtEIH00PKfLlcbUBCkBY9Lqex2RpBQfyuXHouMXjdO2xJh0m5Z0Ecns7ae45dKLOl2uVsup+lLa93+F14VwR6IlRdbdiX8P+zVErff92laxfm/ulxc9qAbdXbxI4n81e3fP8uAIwxiU7ReeJyZIsSLtb0+SK6erf8xxRbZvUNJBivM8yZzYm3uWR2e1tjkq26sij5oS50lRtySjZw09RdXl8tJGtV/sGbSk+JDEvGEvolu6vby0F+415gKk2JDMUcVaQ6e5zqWamrVyr+LsC0GKGGmjWgrPC/fXF8+WobMzBCniwmHV/ZpbkDseq+/Xna//QnHegE7hEDHS0lr2WBh4XOAzBwVrCeUSpNjm7hZNq3wbeXzfYmTVd82Fy7QQSNGMSR9WcVeaeCFNrDGr8cGYFFtL2iONvZDGJVpS7GNSy5r48bpBQgytSaMWY1KM1Z1dvfU8lrNuenb1R3V3ayTJs7tb/7Vaitdde/a9goW/jhJd5a6KaFuSqVlzqI/ulYOYPFqzr5pJS7p1defZksSsZl0kd3/ki9GxrqPXZsKlcKC6i6a62+o2w6PbmZIYPdqEzt6Q6i7i86Ttxu7v5Nr87CsXc/uibVlz1hWcJ0WNJD6a1puU5oc4e8lqZfLxSyBFXDjsmtKTvSroZIWdOW3Yq4iejhoShUPkLenzfLZrLwtSqm/Lw9culm9VZb8H6/EFQVpSxNXdrsXM9vumyKV6f6pvTHOjT/v1/cI7+eVkdSTVXbjdna+byDaj6vfa73Kt2W43a+XvteHV0clsBDeRhduS/N3pZ2gV50ZciuLcwatyti34AYmWFFl39/k+Q6t6bMshV88fmkl3FwfSVqwnzaLrhinNyfl1dZCinnHYj0vz/vnWePLT37nL7DgzDjdBkn6++1wY738qR3cpKZU/767PB2YWPKaWtCvFV7NBu2JVdXKx0h7MPG4/pyXFMiYdhiZ9/q4NVHXw732ur702cmBMihNp9yfmZrNebzbmhV1RQIoZyU9Aus2YxAZQIIH0GyTplkjM3YU7Jt2mJTEmhYkkhVs4sL3nbVqSCDG0pNtMC9Wt5+0c/6irfbVvP4rH+Tyew4NmnS/1v39TZ1roJkjuW05f/JXrnxxvOQ1SqGPSTUJ3F3JLugkSLSkMJD8PFLk+PFAkFCRfj+a5OqUpSL9H8vmQq2t7Ox5yFQqSz8fFXWfE4+LCQdo/eFFyVNWOH9IPtfZJOS45/h8evBgekv2wFtV6zMvJ2Wx990t1f66qHp+9Wue2qnp4w/5c1jrP5RGmISJtDw8DPo/5m7mhS58IUmCk6AMSSCCBBBJIIIEEEkgggQQSSCCBBBJIIIEEEkgggQQSSCCBBBJIIIEEEkgggQQSSCCBBBJIIMWN1EgaUhOkU6R8ZZSsjCt5kE6QpPt8wnIvgXSKlNiABBJIIIWSVvKRWplH6iUfqZd5pIWUT7ZRXlpkHmk7uMvdJzi5u8EWpO2kViwkNsXaZAvSLpt1YrNJwveTCCQCEkgEJAISSAQkkAhIBCSQCEgEJJAISCARkAhIIBGQCEggEZAISCARkEAiIBGQQCIgEZBAIiCBREAiIIFEQCIggURAIiCBREACiYBEQAKJgERAAomABBIBiYAEEgGJgAQSAYmABBIBCSQCEgEJJAISAQkkAhJIBCQCEkgEJAISSAQkAhJIBCSQCEgEJJAISAQkkAhIIBGQCEggEZAISCARkAhIIJEw839NTxoB1llzUAAAAABJRU5ErkJggg=="},
 	//////////////// Booleans ////////////////
-	/** Should parts of the database be able to be modified by guests during runtime?
+	/** Should parts of the database be able to be modified by players during runtime?
 	 * (Ex: Adding records to friend table by friending someone in-game, liking/disliking a game, uploading UGC, etc.)
 	 */
-	{"Mutable", "false"},
-	{"CompressionType", "0"} // Corresponds to CompressionType enum
+	{"Mutable", "1"},
+	// If set to a valid compression type, it will compress all binary blobs in the database
+	// using the specified compression algorithm. This corresponds to CompressionType enum
+	{"CompressionType", "0"},
+	// Assets from this database will only be requested if one of your running game servers has loaded a place from this database.
+	// No clue how to make this not as wordy as it currently is.
+	{"OnlyEnableIfServerWithPlaceFromThisDatabaseIsRunning", "0"},
+	// This database will have a higher priority if one of your running game servers has loaded a place from this database.
+	// You can turn this on if you are paranoid of conflicting ID's
+	// This is even wordier.
+	// WARNING: This prevents people from being able to make asset replacement mods for your game.
+	{"TakeHigherPriorityIfServerWithPlaceFromThisDatabaseIsRunning", "0"}
 };
 
 using namespace NoobWarrior;
@@ -82,7 +100,8 @@ Database::Database(bool autocommit) :
     mDatabase(nullptr),
     mInitialized(false),
 	mAutoCommit(autocommit),
-	mDirty(false)
+	mDirty(false),
+	mAssetRepository(this)
 {};
 
 DatabaseResponse Database::Open(const std::string &path) {
@@ -126,7 +145,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     // create all tables that do not exist
     CREATE_TABLE(schema_meta)
-	CREATE_TABLE(schema_blob_hash)
+	CREATE_TABLE(schema_blob_storage)
 	CREATE_TABLE(schema_login_session)
 	CREATE_TABLE(schema_transaction)
 
@@ -147,8 +166,14 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_asset_microtransaction)
 	CREATE_TABLE(schema_asset_misc)
 	CREATE_TABLE(schema_asset_place_thumbnail)
+	CREATE_TABLE(schema_asset_place_attributes)
+	CREATE_TABLE(schema_asset_place_gear_type)
 
 	CREATE_TABLE(schema_bundle_asset)
+
+	CREATE_TABLE(schema_universe_misc)
+	CREATE_TABLE(schema_universe_historical)
+	CREATE_TABLE(schema_universe_social_link)
 
 	CREATE_TABLE(schema_user_friends)
 	CREATE_TABLE(schema_user_groups)
@@ -164,6 +189,8 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_group_log)
 	CREATE_TABLE(schema_group_ally)
 	CREATE_TABLE(schema_group_enemy)
+	CREATE_TABLE(schema_group_historical)
+	CREATE_TABLE(schema_group_social_link)
 
 	CREATE_TABLE(schema_set_asset)
 
@@ -303,21 +330,6 @@ bool Database::IsMemory() {
 	return mPath.compare(":memory:") == 0;
 }
 
-bool Database::DoesItemExist(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot) {
-	if (!mInitialized) return false;
-
-	std::string stmtStr = std::format("SELECT Id FROM {} WHERE Id = ? {};", idType.Name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-	sqlite3_bind_int(stmt, 2, snapshot.value());
-
-	int res = sqlite3_step(stmt);
-	sqlite3_finalize(stmt);
-	return res == SQLITE_ROW;
-}
-
 std::string Database::GetSqliteErrorMsg() {
     return sqlite3_errmsg(mDatabase);
 }
@@ -357,7 +369,11 @@ std::filesystem::path Database::GetFilePath() {
     return mPath;
 }
 
-DatabaseResponse Database::ExecSqlStatement(const std::string &stmtStr) {
+Statement Database::PrepareStatement(const std::string &stmtStr) {
+	return Statement(this, stmtStr);
+}
+
+DatabaseResponse Database::ExecStatement(const std::string &stmtStr) {
 	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
 	auto ret = DatabaseResponse::Failed;
 	switch (res) {
@@ -371,12 +387,10 @@ DatabaseResponse Database::ExecSqlStatement(const std::string &stmtStr) {
 
 DatabaseResponse Database::SetMetaKeyValue(const std::string &key, const std::string &value) {
 	if (!mInitialized) return DatabaseResponse::NotInitialized;
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "UPDATE Meta SET Value = ? WHERE Key = ?;", -1, &stmt, nullptr);
-	sqlite3_bind_text(stmt, 1, value.c_str(), -1, nullptr);
-	sqlite3_bind_text(stmt, 2, key.c_str(), -1, nullptr);
-	auto res = sqlite3_step(stmt) == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
-	sqlite3_finalize(stmt);
+	Statement stmt(this, "UPDATE Meta SET Value = ? WHERE Key = ?;");
+	stmt.Bind(1, value);
+	stmt.Bind(2, key);
+	auto res = stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
 	MarkDirty();
 	return res;
 }
@@ -393,223 +407,8 @@ DatabaseResponse Database::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
-std::vector<SqlColumn> Database::RetrieveColumnsFromRow(const std::string &tableName, const std::vector<std::string> &cols) {
-	std::string sql = "";
-	return {};
-}
-
-/*
-DatabaseResponse Database::InsertItemWithDefaultsIfNotFound(const Reflection::IdType &type, int64_t id, std::optional<int> snapshot) {
-	auto res = DatabaseResponse::Failed;
-	if (DoesItemExist(type, id, snapshot))
-		return DatabaseResponse::Success; // whatever lmao
-
-	std::string sql = std::format("INSERT INTO {} (", type.Name);
-	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
-		const Reflection::Field &field = it->second;
-		sql += field.Name;
-		if (std::next(it) != type.Fields.end())
-			sql += ", ";
-	}
-	sql += ") VALUES (";
-	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
-		sql += "?";
-		if (std::next(it) != type.Fields.end())
-			sql += ", ";
-		else sql += ");";
-	}
-
-	Out("Database", "{}", sql);
-	
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
-
-	int fieldNum = 0;
-	for (auto it = type.Fields.begin(); it != type.Fields.end(); ++it) {
-		fieldNum++;
-		const Reflection::Field &field = it->second;
-
-		if (field.Name.compare("Id") == 0) {
-			sqlite3_bind_int64(stmt, fieldNum, id);
-			continue;
-		}
-
-		if (field.Name.compare("Snapshot") == 0 && snapshot.has_value()) {
-			sqlite3_bind_int(stmt, fieldNum, snapshot.value());
-			continue;
-		}
-
-		std::any val = field.GetDefaultValue(this);
-
-		if (!val.has_value())
-			sqlite3_bind_null(stmt, fieldNum);
-		else if (val.type() == typeid(int))
-			sqlite3_bind_int(stmt, fieldNum, std::any_cast<int>(val));
-		else if (val.type() == typeid(bool))
-			sqlite3_bind_int(stmt, fieldNum, std::any_cast<bool>(val));
-		else if (val.type() == typeid(int64_t))
-			sqlite3_bind_int64(stmt, fieldNum, std::any_cast<int64_t>(val));
-		else if (val.type() == typeid(std::string))
-			sqlite3_bind_text(stmt, fieldNum, std::any_cast<std::string>(val).c_str(), -1, nullptr);
-		else if (val.type() == typeid(std::vector<unsigned char>)) {
-			auto vec = std::any_cast<std::vector<unsigned char>>(val);
-			sqlite3_bind_blob(stmt, fieldNum, vec.data(), vec.size(), SQLITE_TRANSIENT);
-		} else
-			Out("Database", "Could not bind datatype to default ID record constructor as it is not compatible.");
-	}
-
-	if (sqlite3_step(stmt) == SQLITE_DONE)
-		res = DatabaseResponse::Success;
-
-	sqlite3_finalize(stmt);
-	MarkDirty();
-	return res;
-}
-*/
-
-DatabaseResponse Database::UpsertItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::map<std::string, SqlValue> &columnNamesAndNewValues) {
-	// contains a list of each table that needs to be changed, and what columns within them should be changed.
-	std::map<std::string, std::map<std::string, SqlValue>> tableColumns;
-	for (auto &[columnName, desiredColumnValue] : columnNamesAndNewValues) {
-		Reflection::Field field = idType.Fields.at(columnName);
-		tableColumns[field.TableName].emplace(columnName, desiredColumnValue);
-	}
-
-	for (auto &[tableName, columnMap] : tableColumns) {
-		std::string sql = std::format("INSERT INTO {} (", tableName);
-
-		if (!columnNamesAndNewValues.contains("Id"))
-			sql += "Id, ";
-		if (!columnNamesAndNewValues.contains("Snapshot"))
-			sql += "Snapshot, ";
-
-		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
-			const Reflection::Field &field = idType.Fields.at(it->first);
-			sql += field.Name;
-			if (std::next(it) != columnMap.end())
-				sql += ", ";
-		}
-		sql += ") VALUES (";
-
-		if (!columnNamesAndNewValues.contains("Id"))
-			sql += "?, ";
-		if (!columnNamesAndNewValues.contains("Snapshot"))
-			sql += "?, ";
-
-		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
-			sql += "?";
-			if (std::next(it) != columnMap.end())
-				sql += ", ";
-		}
-		sql += ") ON CONFLICT (Id, Snapshot) DO UPDATE SET ";
-
-		for (auto it = columnMap.begin(); it != columnMap.end(); ++it) {
-			const Reflection::Field &field = idType.Fields.at(it->first);
-			sql += field.Name + "=?";
-			if (std::next(it) != columnMap.end())
-				sql += ", ";
-		}
-		sql += ";";
-		Out("Database", "Upserting into item with statement: {}", sql);
-	}
-	// TODO: use mDatabase->GetLatestItemSnapshot(mIdType, newId) for determining which snapshot to use
-	MarkDirty();
-	return DatabaseResponse::Success;
-}
-
-DatabaseResponse Database::ChangeItemId(const Reflection::IdType &idType, int64_t currentId, int64_t newId) {
-	auto res = DatabaseResponse::Success;
-	// To start, we just see what fields this IdType contains and collect each table seen in the fields.
-	std::map<std::string, std::vector<std::string>> tableColumns;
-	for (auto &[columnName, field] : idType.Fields) {
-		tableColumns[field.TableName].push_back(columnName);
-	}
-
-	// Then we just get all those tables and change their Id column,
-	// because surely they must be associated with our IdType's main table?
-	if (mAutoCommit)
-		ExecSqlStatement(mAutoCommit ? "BEGIN TRANSACTION;" : "SAVEPOINT ChangeItemId;");
-
-	for (auto &[tableName, columnMap] : tableColumns) {
-		std::string sql = std::format("UPDATE {} SET Id = {} WHERE Id = {};", tableName, newId, currentId);
-		DatabaseResponse tableUpdateRes = ExecSqlStatement(sql);
-		if (tableUpdateRes != DatabaseResponse::Success) {
-			// we fucked up, undo everything
-			res = DatabaseResponse::Failed;
-			break;
-		}
-	}
-
-	if (mAutoCommit)
-		ExecSqlStatement(res == DatabaseResponse::Success ? "COMMIT;" : "ROLLBACK;");
-	else
-		ExecSqlStatement(res == DatabaseResponse::Success ? "RELEASE SAVEPOINT ChangeItemId;" : "ROLLBACK TO SAVEPOINT ChangeItemId;");
-	
-	if (res == DatabaseResponse::Success)
-		MarkDirty();
-	return res;
-}
-
-std::vector<SqlColumn> Database::RetrieveColumnsFromItem(const Reflection::IdType &idType, int64_t id, std::optional<int> snapshot, const std::vector<std::string> &columnNames) {
-	// contains a list of each table that needs to be changed, and what columns within them should be changed.
-	std::map<std::string, std::vector<std::string>> tableColumns;
-	if (!columnNames.empty()) {
-		for (auto &columnName : columnNames) {
-			Reflection::Field field = idType.Fields.at(columnName);
-			tableColumns[field.TableName].push_back(columnName);
-		}
-	} else {
-		// if no columns are passed, we will just assume the user wants all of them.
-		for (auto &[columnName, field] : idType.Fields) {
-			tableColumns[field.TableName].push_back(columnName);
-		}
-	}
-
-	for (auto &[tableName, columnNameVec] : tableColumns) {
-		std::string sql = "SELECT ";
-
-		for (auto it = columnNameVec.begin(); it != columnNameVec.end(); ++it) {
-			sql += (*it);
-			sql += std::next(it) != columnNameVec.end() ? ", " : " ";
-		}
-
-		sql += std::format("FROM {} WHERE Id = ? {};", tableName, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
-		
-		Out("Database", "Retrieving columns from item with statement: {}", sql);
-
-		sqlite3_stmt *stmt;
-		sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
-
-		sqlite3_bind_int64(stmt, 1, id);
-		if (snapshot.has_value())
-			sqlite3_bind_int(stmt, 2, snapshot.value());
-
-		while (sqlite3_step(stmt) == SQLITE_ROW) {
-
-		}
-
-		sqlite3_finalize(stmt);
-	}
-
-	return {};
-}
-
-std::vector<SqlRow> SearchItemType(const Reflection::IdType &idType) {
-	return {};
-}
-
-int Database::GetLatestItemSnapshot(const Reflection::IdType &idType, int64_t id) {
-	int num = 1;
-	std::string sql = std::format("SELECT MAX(Snapshot) FROM {} WHERE Id = ?;", idType.Name);
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, sql.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		// hopefully this code path always executes. otherwise, wtf?
-		num = sqlite3_column_int(stmt, 0);
-	} else Out("Database", "Database::GetLatestItemSnapshot() was called with {} ID {} but it does not contain a snapshot number!", idType.Name, id);
-	sqlite3_finalize(stmt);
-	return num;
+AssetRepository& Database::GetAssetRepository() {
+	return mAssetRepository;
 }
 
 std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,
@@ -618,69 +417,13 @@ std::vector<unsigned char> Database::RetrieveBlobFromTableName(int64_t id, const
 
 	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
 
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
+	Statement stmt(this, stmtStr);
+	stmt.Bind(1, id);
 
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt, columnName);
-		sqlite3_finalize(stmt);
+	if (stmt.Step() == SQLITE_ROW) {
+		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt.Get(), columnName);
 		return data;
 	}
 
-	sqlite3_finalize(stmt);
-
 	return {};
-}
-
-int Database::GetAssetSize(int64_t id) {
-	if (!mInitialized) return -1;
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT Data FROM AssetData WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		const int size = sqlite3_column_bytes(stmt, 0);
-		sqlite3_finalize(stmt);
-		return size;
-	}
-
-	sqlite3_finalize(stmt);
-	return -1;
-}
-
-std::vector<unsigned char> Database::RetrieveAssetData(int64_t id) {
-	return RetrieveBlobFromTableName(id, "AssetData", "Data");
-}
-
-std::vector<unsigned char> Database::RetrieveContentImageData(const Reflection::IdType &type, int64_t id) {
-	if (!mInitialized) return {};
-
-	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", type.Name);
-
-	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
-	sqlite3_bind_int64(stmt, 1, id);
-	if (sqlite3_step(stmt) == SQLITE_ROW) {
-		const auto iconId = GetValueFromColumnName<int64_t>(stmt, "Image");
-		if (std::vector<unsigned char> imageData = RetrieveAssetData(iconId); !imageData.empty()) {
-			sqlite3_finalize(stmt);
-			return imageData;
-		}
-	}
-	sqlite3_finalize(stmt);
-
-	std::vector<unsigned char> data;
-
-	if (&type == &Reflection::GetIdType<Asset>()) {
-		std::optional<Asset> asset = GetContent<Asset>(id);
-		if (asset.has_value()) {
-			data = GetImageForAssetType(asset.value().Type);
-		}
-	}
-
-	if (data.empty()) data.assign(type.DefaultImage, type.DefaultImage + type.DefaultImageSize);
-	Out("Database", "Hello, {}", data.size());
-	return data;
 }

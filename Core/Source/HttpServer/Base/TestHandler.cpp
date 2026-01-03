@@ -8,9 +8,9 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::HttpServer;
 
-int TestHandler::OnRequest(mg_connection *conn, void *userdata) {
-    mg_printf(conn, "HTTP/1.1 200 OK\r\nContent-Type: "
-	          "text/plain\r\nConnection: close\r\n\r\n");
-	mg_printf(conn, "Test!");
-    return 200;
+void TestHandler::OnRequest(evhttp_request *req, void *userdata) {
+    struct evbuffer *reply = evbuffer_new();
+    evbuffer_add_printf(reply, "Test!");
+    evhttp_send_reply(req, HTTP_OK, NULL, reply);
+    evbuffer_free(reply);
 }
