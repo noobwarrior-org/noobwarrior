@@ -6,6 +6,8 @@
 #ifndef NOOBWARRIOR_H
 #define NOOBWARRIOR_H
 
+#include "NoobWarrior/Macros.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
