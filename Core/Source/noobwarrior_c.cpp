@@ -1,7 +1,7 @@
 // === noobWarrior ===
 // File: noobwarrior_c.cpp
 // Started by: Hattozo
-// Started on: 6/23/2025
+// Started on: 1/2/2026
 // Description: C wrapper for noobWarrior
 #include <noobwarrior.h>
 #include <NoobWarrior/NoobWarrior.h>

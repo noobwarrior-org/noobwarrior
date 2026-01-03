@@ -1,7 +1,7 @@
 // === noobWarrior ===
 // File: noobwarrior.h
 // Started by: Hattozo
-// Started on: 6/23/2025
+// Started on: 1/2/2026
 // Description: A C wrapper for the noobWarrior API
 #ifndef NOOBWARRIOR_H
 #define NOOBWARRIOR_H
