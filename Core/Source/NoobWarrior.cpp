@@ -15,6 +15,7 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <winsock2.h>
 #include <shlobj.h>
 #endif
 
@@ -29,6 +30,24 @@ Core::Core(Init init) :
     mPluginManager(this),
     mIndexDirty(true)
 {
+#if defined(_WIN32)
+    // https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err;
+
+    wVersionRequested = MAKEWORD(2, 2);
+
+    err = WSAStartup(wVersionRequested, &wsaData);
+    if (err != 0) {
+        Out("Winsock", "WSAStartup failed with error: {}", err);
+    }
+
+    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
+        Out("Winsock", "Could not find a usable version of Winsock.dll");
+        WSACleanup();
+    }
+#endif
     mEventBase = event_base_new();
     mLuaState.Open();
     mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
@@ -57,6 +76,9 @@ Core::~Core() {
     NOOBWARRIOR_FREE_PTR(mConfig)
     mLuaState.Close();
     event_base_free(mEventBase);
+#if defined(_WIN32)
+    WSACleanup();
+#endif
 }
 
 int Core::ProcessEvents(bool block) {

@@ -11,6 +11,7 @@ endif()
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
+    OPTIONS "EVENT__LIBRARY_TYPE STATIC"
 )
 CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
