@@ -5,8 +5,7 @@
 // Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "Api/Roblox/AssetHandler.h"
-#include "ContentPageHandler.h"
+#include "AssetHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -24,11 +23,10 @@ public:
 
     int Start(uint16_t port) override;
     int Stop() override;
-    nlohmann::json GetBaseContextData(mg_connection *conn = nullptr) override;
+    nlohmann::json GetBaseContextData(evhttp_request *req = nullptr) override;
 private:
     //////////////// Handlers ////////////////
     std::unique_ptr<AssetHandler> mAssetHandler;
-    std::unique_ptr<ContentPageHandler> mContentPageHandler;
     std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
 };
 }

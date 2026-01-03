@@ -10,7 +10,7 @@
 #include <NoobWarrior/Auth/MasterServerAuth.h>
 #include <NoobWarrior/Auth/ServerEmulatorAuth.h>
 
-#include <civetweb.h>
+#include <event.h>
 #include <sqlite3.h>
 
 #if defined(_WIN32)
@@ -29,13 +29,13 @@ Core::Core(Init init) :
     mPluginManager(this),
     mIndexDirty(true)
 {
+    mEventBase = event_base_new();
     mLuaState.Open();
     mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
     mRobloxAuth = new RobloxAuth(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
-    mg_init_library(0);
 
     mDatabaseManager.AutocreateMasterDatabase();
 
@@ -51,12 +51,20 @@ Core::~Core() {
         GetRobloxAuth()->WriteToKeychain();
 
     StopServerEmulator();
-    mg_exit_library();
     sqlite3_shutdown();
     curl_global_cleanup();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
     mLuaState.Close();
+    event_base_free(mEventBase);
+}
+
+int Core::ProcessEvents(bool block) {
+    return event_base_loop(mEventBase, block ? (EVLOOP_ONCE) : (EVLOOP_ONCE | EVLOOP_NONBLOCK));
+}
+
+event_base *Core::GetEventBase() {
+    return mEventBase;
 }
 
 LuaState *Core::GetLuaState() {

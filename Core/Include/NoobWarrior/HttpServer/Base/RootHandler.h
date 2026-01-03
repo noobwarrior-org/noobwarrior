@@ -11,7 +11,7 @@ class HttpServer;
 class RootHandler : public Handler {
 public:
     RootHandler(HttpServer *server);
-    int OnRequest(mg_connection *conn, void *userdata) override;
+    void OnRequest(evhttp_request *req, void *userdata) override;
 protected:
     HttpServer *mServer;
 };

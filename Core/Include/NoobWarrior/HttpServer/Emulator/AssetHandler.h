@@ -12,7 +12,7 @@ class HttpServer;
 class AssetHandler : public Handler {
 public:
     AssetHandler(HttpServer *srv, DatabaseManager *dbm);
-    int OnRequest(mg_connection *conn, void *userdata) override;
+    void OnRequest(evhttp_request *req, void *userdata) override;
 private:
     HttpServer *mHttpServer;
     DatabaseManager *mDatabaseManager;

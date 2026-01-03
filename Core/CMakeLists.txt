@@ -1,11 +1,7 @@
 CPMAddPackage("gh:WohlSoft/LuaJIT#a5da8f4")
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
-    URI "gh:civetweb/civetweb#5864b55"
-    OPTIONS "CIVETWEB_ENABLE_ASAN OFF"
-)
-CPMAddPackage(
-    URI "gh:Stiffstream/restinio#ad1cc4a"
+    URI "gh:libevent/libevent#a994a52"
 )
 CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
@@ -24,8 +20,6 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:rm5248/libcppgenerate#6bf89d9"
 )
-
-add_di(${restinio_SOURCE_DIR}/dev)
 
 #if (LuaJIT_ADDED)
 #    FILE(GLOB LuaJIT_sources ${LuaJIT_SOURCE_DIR}/src/*.c)
@@ -85,14 +79,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Base/Handler.cpp
     Source/HttpServer/Base/RootHandler.cpp
     Source/HttpServer/Base/TestHandler.cpp
-    Source/HttpServer/Base/WebHandler.cpp
-    Source/HttpServer/Base/ControlPanelHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
-    Source/HttpServer/Emulator/ContentPageHandler.cpp
-    Source/HttpServer/Emulator/AssetViewHandler.cpp
-    Source/HttpServer/Emulator/UserProfileViewHandler.cpp
-    Source/HttpServer/Emulator/Api/Roblox/AssetHandler.cpp
-    Source/HttpServer/MasterServer/Api/ServerListHandler.cpp
+    Source/HttpServer/Emulator/AssetHandler.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
@@ -101,7 +89,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json civetweb-c-library inja libzip::zip keychain pugixml-static cppgenerate_static)
+target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json event_core event_extra inja libzip::zip keychain pugixml-static cppgenerate_static)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

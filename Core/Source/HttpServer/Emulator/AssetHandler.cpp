@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 6/19/2025
 // Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
-#include <NoobWarrior/HttpServer/Emulator/Api/Roblox/AssetHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
@@ -14,7 +14,9 @@ AssetHandler::AssetHandler(HttpServer *srv, DatabaseManager *dbm) :
     mDatabaseManager(dbm)
 {}
 
-int AssetHandler::OnRequest(mg_connection *conn, void *userdata) {
+void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
+    evhttp_send_error(req, HTTP_NOTIMPLEMENTED, "WIP");
+    /*
     const mg_request_info *request_info = mg_get_request_info(conn);
     const char *query_string = request_info->query_string;
     char id_string[256];
@@ -38,22 +40,5 @@ int AssetHandler::OnRequest(mg_connection *conn, void *userdata) {
 
     mg_send_http_error(conn, 404, "WIP");
     return 404;
-
-    /*
-    if (!mDatabaseManager->DoesContentExist<Asset>(id)) {
-        mg_send_http_error(conn, 404, "Asset ID does not exist");
-        return 404;
-    }
-
-    const std::vector<unsigned char> data = mDatabaseManager->RetrieveAssetData(id);
-
-    if (data.empty()) {
-        mg_send_http_error(conn, 500, "Cannot read asset");
-        return 500;
-    }
-
-    mg_send_http_ok(conn, "application/octet-stream", data.size());
-    mg_write(conn, data.data(), data.size());
-    return 200;
     */
 }

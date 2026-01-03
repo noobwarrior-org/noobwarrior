@@ -74,8 +74,15 @@ public:
     Core(Init init = {});
     ~Core();
 
+    /**
+     * @brief Must be called in order to poll async I/O events, like for HTTP requests.
+     * The HTTP server will not work without this.
+     */
+    int ProcessEvents(bool block = false);
+
     ConfigResponse ConfigReturnCode;
 
+    event_base *GetEventBase();
     LuaState *GetLuaState();
     Config *GetConfig();
     DatabaseManager *GetDatabaseManager();
@@ -120,6 +127,8 @@ public:
     ClientLaunchResponse LaunchClient(const RobloxClient &client);
 private:
     ClientLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
+
+    event_base*                     mEventBase;
 
     Init                            mInit;
     LuaState                        mLuaState;
