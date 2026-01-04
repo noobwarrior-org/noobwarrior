@@ -4,7 +4,8 @@
 // Started on: 12/3/2025
 // Description:
 #pragma once
-#include <NoobWarrior/LuaState.h>
+#include <NoobWarrior/Lua/LuaState.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 
 #include <filesystem>
 #include <vector>
@@ -63,8 +64,10 @@ protected:
     void PushLuaTable();
     Response mResponse { 0 };
 private:
-    std::string mFileName;
     Core* mCore;
+    std::string mFileName;
+    VirtualFileSystem* mVfs;
+    FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;
     int reference;
 };

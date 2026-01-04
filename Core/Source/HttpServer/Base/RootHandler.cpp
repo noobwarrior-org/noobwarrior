@@ -13,7 +13,6 @@
 #include <fstream>
 
 using namespace NoobWarrior;
-using namespace NoobWarrior::HttpServer;
 
 RootHandler::RootHandler(HttpServer *server) : mServer(server) {
     
@@ -33,7 +32,17 @@ void RootHandler::OnRequest(evhttp_request *req, void *userdata) {
         RenderResponse res = mServer->RenderPage(pageName, mServer->GetBaseContextData(req), &pageOutput);
 
         if (res != RenderResponse::Success) {
-            evhttp_send_error(req, HTTP_INTERNAL, "Failed to render page");
+            std::string failedMsg = "Failed to render page\n";
+            switch (res) {
+            default:
+                failedMsg =+ "The reason is unknown.";
+                break;
+            case RenderResponse::FailedOpeningTemplateFile:
+                failedMsg += "The template file failed to open.";
+                break;
+            }
+            evhttp_send_error(req, HTTP_INTERNAL, failedMsg.c_str());
+
             return;
         }
 

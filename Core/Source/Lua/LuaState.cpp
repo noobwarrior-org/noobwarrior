@@ -3,13 +3,14 @@
 // Started by: Hattozo
 // Started on: 12/3/2025
 // Description:
-#include <NoobWarrior/LuaState.h>
+#include <NoobWarrior/Lua/LuaState.h>
+#include <NoobWarrior/Lua/HttpServerBindings.h>
 #include <NoobWarrior/Log.h>
 
-#include "lua/global_env_metatable.lua.inc"
-#include "lua/rawget_path.lua.inc"
-#include "lua/serpent.lua.inc"
-#include "lua/json.lua.inc"
+#include "files/global_env_metatable.lua.inc"
+#include "files/rawget_path.lua.inc"
+#include "files/serpent.lua.inc"
+#include "files/json.lua.inc"
 
 using namespace NoobWarrior;
 
@@ -46,6 +47,10 @@ int LuaState::Open() {
     LOADLIBRARY(json_lua, "json")
 
 #undef LOADLIBRARY
+
+    luaL_newlib(L, HttpServerFuncs);
+    lua_setglobal(L, "HttpServer");
+
     Out("Lua", "Initialized Lua");
     return 1;
 }

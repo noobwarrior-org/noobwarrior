@@ -6,7 +6,7 @@
 #pragma once
 #include <NoobWarrior/Log.h>
 
-#include <NoobWarrior/LuaState.h>
+#include <NoobWarrior/Lua/LuaState.h>
 #include <nlohmann/json.hpp>
 
 #include <filesystem>

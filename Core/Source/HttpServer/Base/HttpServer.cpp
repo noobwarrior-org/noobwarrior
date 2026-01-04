@@ -17,7 +17,7 @@
 #include <nlohmann/json.hpp>
 #include <inja/inja.hpp>
 
-using namespace NoobWarrior::HttpServer;
+using namespace NoobWarrior;
 
 HttpServer::HttpServer(Core *core, std::string logName, std::string name) :
     Running(false),

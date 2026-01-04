@@ -22,7 +22,7 @@
 #define NOOBWARRIOR_LINK_URI_TO_TEMPLATE(uri, fileName) SetRequestHandler(uri, mWebHandler.get(), (void*)fileName);
 
 namespace NoobWarrior { class Core; }
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
 enum class RenderResponse {
     Failed,
     Success,

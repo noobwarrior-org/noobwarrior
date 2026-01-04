@@ -14,8 +14,8 @@
 #include <queue>
 #include <utility>
 
-namespace NoobWarrior { class Core; }
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
+class Core;
 class ServerEmulator : public HttpServer {
     friend class ContentPageHandler;
 public:

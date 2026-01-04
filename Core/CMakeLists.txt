@@ -75,7 +75,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Auth/MasterServerAuth.cpp
     Source/Auth/ServerEmulatorAuth.cpp
     Source/Auth/RobloxAuth.cpp
-    Source/LuaState.cpp
+    Source/Lua/LuaState.cpp
+    Source/Lua/HttpServerBindings.cpp
     Source/BaseConfig.cpp
     Source/Config.cpp
     Source/Plugin.cpp

@@ -7,7 +7,7 @@
 
 #include <evhttp.h>
 
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
 class Handler {
 public:
     virtual ~Handler() = default;

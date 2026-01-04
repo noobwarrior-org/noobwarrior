@@ -7,7 +7,7 @@
 
 #include "Macros.h"
 #include "Log.h"
-#include "LuaState.h"
+#include "Lua/LuaState.h"
 #include "Database/Database.h"
 #include "Config.h"
 #include "PluginManager.h"
@@ -136,7 +136,7 @@ private:
     DatabaseManager                 mDatabaseManager;
     PluginManager                   mPluginManager;
 
-    HttpServer::ServerEmulator*     mServerEmulator;
+    ServerEmulator*                 mServerEmulator;
 
     MasterServerAuth*               mMasterServerAuth;
     ServerEmulatorAuth*             mServerEmulatorAuth;

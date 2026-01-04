@@ -1,7 +1,7 @@
 return {
-    title = "Web Interface",
+    title = "Server Emulator Frontend",
     version = "v1.0",
-    description = "The web interface for noobWarrior",
+    description = "The frontend for noobWarrior's server emulator",
     icon = "icon.png",
     authors = { "Hattozo" },
     autorun = { "main.lua" },

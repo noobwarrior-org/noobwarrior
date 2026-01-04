@@ -6,7 +6,7 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
 class ServerEmulator;
 class ClientSettingsHandler : public Handler {
 public:

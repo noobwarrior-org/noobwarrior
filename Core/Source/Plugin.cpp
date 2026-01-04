@@ -13,29 +13,27 @@ using namespace NoobWarrior;
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
 Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) :
     mResponse(Response::Failed),
-    mFileName(fileName),
     mCore(core),
+    mFileName(fileName),
+    mVfs(nullptr),
     mIncludedInInstall(includedInInstall)
 {
     std::filesystem::path fullDir = (!mIncludedInInstall ? mCore->GetUserDataDir() : mCore->GetInstallationDir()) / "plugins" / mFileName;
 
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
-    VirtualFileSystem* vfs;
-    VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&vfs, fullDir);
+    VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, fullDir);
 
-    if (fsRes != VirtualFileSystem::Response::Success || vfs == nullptr) {
+    if (fsRes != VirtualFileSystem::Response::Success || mVfs == nullptr) {
         mResponse = Response::Failed;
         return;
     }
 
     std::string pluginLuaString;
 
-    FSEntryHandle handle = vfs->OpenHandle("/plugin.lua");
+    mVfsHandle = mVfs->OpenHandle("/plugin.lua");
     std::string buf;
-    while (vfs->ReadHandleLine(handle, &buf))
+    while (mVfs->ReadHandleLine(mVfsHandle, &buf))
         pluginLuaString.append(buf + '\n');
-    vfs->CloseHandle(handle);
-    VirtualFileSystem::Free(vfs);
 
     lua_State *L = mCore->GetLuaState()->Get();
     int res = luaL_dostring(L, pluginLuaString.c_str());
@@ -58,6 +56,10 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
 Plugin::~Plugin() {
     if (Fail())
         return;
+    if (mVfs != nullptr) {
+        mVfs->CloseHandle(mVfsHandle);
+        VirtualFileSystem::Free(mVfs);
+    }
     luaL_unref(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, reference);
 }
 

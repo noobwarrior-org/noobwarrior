@@ -6,7 +6,6 @@
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
 
 using namespace NoobWarrior;
-using namespace NoobWarrior::HttpServer;
 
 void TestHandler::OnRequest(evhttp_request *req, void *userdata) {
     struct evbuffer *reply = evbuffer_new();

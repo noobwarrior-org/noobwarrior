@@ -6,7 +6,7 @@
 #pragma once
 #include "Handler.h"
 
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
 class HttpServer;
 class RootHandler : public Handler {
 public:

@@ -7,7 +7,7 @@
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 #include <NoobWarrior/Database/DatabaseManager.h>
 
-namespace NoobWarrior::HttpServer {
+namespace NoobWarrior {
 class HttpServer;
 class AssetHandler : public Handler {
 public:
