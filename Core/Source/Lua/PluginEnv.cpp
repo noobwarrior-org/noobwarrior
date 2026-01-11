@@ -7,7 +7,7 @@
 #include <NoobWarrior/Plugin.h>
 #include <NoobWarrior/Log.h>
 
-#include "files/plugin_env_metatable.lua.inc"
+#include "files/plugin_env_metatable.lua.inc.cpp"
 
 using namespace NoobWarrior;
 

@@ -5,7 +5,7 @@
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 
-#include "FFlagJson/PCDesktopClient.json.inc"
+#include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
 using namespace NoobWarrior::HttpServer;
 

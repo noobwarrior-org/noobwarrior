@@ -9,7 +9,7 @@
 
 #include <lua.h>
 
-#include "files/lhp_env_metatable.lua.inc"
+#include "files/lhp_env_metatable.lua.inc.cpp"
 
 #define OPENING_TAG "<?lua"
 #define CLOSING_TAG "?>"

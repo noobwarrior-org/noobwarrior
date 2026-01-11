@@ -8,8 +8,8 @@
 
 #include <utility>
 
-#include "lua/config_metatable.lua.inc"
-#include "lua/serpent.lua.inc"
+#include "Lua/files/config_metatable.lua.inc.cpp"
+#include "Lua/files/serpent.lua.inc.cpp"
 
 static int custom_serializer_func(lua_State *L) {
     const char *tag = luaL_checkstring(L, 1);

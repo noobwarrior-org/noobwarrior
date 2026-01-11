@@ -9,10 +9,10 @@
 #include <NoobWarrior/Lua/HttpServerBinding.h>
 #include <NoobWarrior/Log.h>
 
-#include "files/global_env_metatable.lua.inc"
-#include "files/rawget_path.lua.inc"
-#include "files/serpent.lua.inc"
-#include "files/json.lua.inc"
+#include "files/global_env_metatable.lua.inc.cpp"
+#include "files/rawget_path.lua.inc.cpp"
+#include "files/serpent.lua.inc.cpp"
+#include "files/json.lua.inc.cpp"
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::Lua;
