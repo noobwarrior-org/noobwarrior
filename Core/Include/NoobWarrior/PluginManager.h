@@ -4,7 +4,7 @@
 // Started on: 12/3/2025
 // Description:
 #pragma once
-#include <NoobWarrior/LuaState.h>
+#include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Plugin.h>
 
 #include <string>

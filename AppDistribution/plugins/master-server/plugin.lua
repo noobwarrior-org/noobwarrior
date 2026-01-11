@@ -1,4 +1,5 @@
 return {
+    id = "org.noobwarrior.master-server",
     title = "Master Server",
     version = "v1.0",
     description = "Adds a server list & federated community system to noobWarrior",

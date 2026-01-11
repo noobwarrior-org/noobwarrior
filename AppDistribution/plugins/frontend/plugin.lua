@@ -1,4 +1,5 @@
 return {
+    id = "org.noobwarrior.frontend",
     title = "HTTP Server Frontend",
     version = "v1.0",
     description = "",

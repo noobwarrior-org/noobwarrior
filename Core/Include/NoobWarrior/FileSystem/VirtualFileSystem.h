@@ -37,6 +37,15 @@ public:
         InvalidHandle
     };
 
+    enum class Format {
+        Invalid,
+        Standard,
+        Zip,
+        Database
+    };
+
+    static Format GetFormatFromPath(const std::filesystem::path &path);
+
     /**
      * @brief Creates a new virtual file system object based on the type of path given.
      * For example, if a .zip file is passed to this, it will try creating a ZipFileSystem object.

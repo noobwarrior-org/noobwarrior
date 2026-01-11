@@ -178,7 +178,7 @@ int Core::StartServerEmulator(uint16_t port) {
         return -2;
     }
 
-    mServerEmulator = new HttpServer::ServerEmulator(this);
+    mServerEmulator = new ServerEmulator(this);
     return mServerEmulator->Start(port);
 }
 

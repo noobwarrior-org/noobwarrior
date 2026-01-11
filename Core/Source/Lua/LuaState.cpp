@@ -4,7 +4,9 @@
 // Started on: 12/3/2025
 // Description:
 #include <NoobWarrior/Lua/LuaState.h>
-#include <NoobWarrior/Lua/HttpServerBindings.h>
+#include <NoobWarrior/Lua/PluginEnv.h>
+#include <NoobWarrior/Lua/VfsBinding.h>
+#include <NoobWarrior/Lua/HttpServerBinding.h>
 #include <NoobWarrior/Log.h>
 
 #include "files/global_env_metatable.lua.inc"
@@ -13,6 +15,7 @@
 #include "files/json.lua.inc"
 
 using namespace NoobWarrior;
+using namespace NoobWarrior::Lua;
 
 static int printBS(lua_State *L) {
     const char *str = luaL_checkstring(L, 1);
@@ -20,7 +23,11 @@ static int printBS(lua_State *L) {
     return 0;
 }
 
-LuaState::LuaState() : L(nullptr) {}
+LuaState::LuaState() :
+    L(nullptr),
+    mPluginEnv(this),
+    mVfsBinding(this)
+{}
 
 int LuaState::Open() {
     L = luaL_newstate();
@@ -48,6 +55,9 @@ int LuaState::Open() {
 
 #undef LOADLIBRARY
 
+    mPluginEnv.Open();
+    mVfsBinding.Open();
+
     luaL_newlib(L, HttpServerFuncs);
     lua_setglobal(L, "HttpServer");
 
@@ -56,6 +66,8 @@ int LuaState::Open() {
 }
 
 void LuaState::Close() {
+    mVfsBinding.Close();
+    mPluginEnv.Close();
     lua_close(L);
 }
 

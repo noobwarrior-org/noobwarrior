@@ -12,14 +12,27 @@ using namespace NoobWarrior;
 
 VirtualFileSystem::~VirtualFileSystem() {}
 
+VirtualFileSystem::Format VirtualFileSystem::GetFormatFromPath(const std::filesystem::path &path) {
+    if (std::filesystem::is_directory(path))
+        return Format::Standard;
+    else if (std::filesystem::exists(path))
+        return Format::Zip;
+    else
+        return Format::Invalid;
+}
+
 VirtualFileSystem::Response VirtualFileSystem::New(VirtualFileSystem** vfsPtr, const std::filesystem::path &path) {
     *vfsPtr = nullptr;
-    if (std::filesystem::is_directory(path))
-        *vfsPtr = new StdFileSystem(path);
-    else if (std::filesystem::exists(path))
-        *vfsPtr = new ZipFileSystem(path);
-    if (*vfsPtr == nullptr)
+    switch (GetFormatFromPath(path)) {
+    default:
         return Response::InvalidFile;
+    case Format::Standard:
+        *vfsPtr = new StdFileSystem(path);
+        break;
+    case Format::Zip:
+        *vfsPtr = new ZipFileSystem(path);
+        break;
+    }
     return !(*vfsPtr)->Fail() ? Response::Success : Response::Failed;
 }
 

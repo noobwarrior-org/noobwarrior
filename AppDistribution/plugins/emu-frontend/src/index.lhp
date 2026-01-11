@@ -1,4 +1,5 @@
 <?lua
+include("plugin://org.noobwarrior.frontend/src/footer.lhp")
 
 print("Hello from LHP!")
 

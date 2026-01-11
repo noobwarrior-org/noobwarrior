@@ -8,7 +8,15 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include "PluginEnv.h"
+#include "VfsBinding.h"
+
 namespace NoobWarrior {
+enum class LuaContext {
+    NoPlugin,
+    InstallPlugin,
+    UserPlugin,
+};
 class LuaState {
 public:
     LuaState();
@@ -17,5 +25,8 @@ public:
     lua_State* Get();
 private:
     lua_State *L;
+
+    PluginEnv mPluginEnv;
+    VfsBinding mVfsBinding;
 };
 }
