@@ -40,17 +40,25 @@ Plugin::Response PluginManager::Load(const std::string &fileName, int priority, 
 }
 
 void PluginManager::LoadPlugins() {
-    for (Plugin::Properties prop : GetCriticalPluginProperties())
-        Load(prop.FileName, 1, true);
+    int loaded = 0;
+    for (Plugin::Properties prop : GetCriticalPluginProperties()) {
+        if (Load(prop.FileName, 1, true) == Plugin::Response::Success)
+            loaded++;
+    }
 
     auto selected = mCore->GetConfig()->GetKeyValue<nlohmann::json>("plugins.selected");
     if (!selected.has_value())
         return;
+    
     for (auto &fileNameElement : *selected) {
         if (!fileNameElement.is_string()) continue;
         auto fileName = fileNameElement.get<std::string>();
-        Load(fileName);
+        if (Load(fileName) == Plugin::Response::Success)
+            loaded++;
     }
+    
+    if (loaded > 0)
+        Out("PluginManager", "Loaded all enabled plugins");
 }
 
 std::vector<Plugin*> PluginManager::GetPlugins() {

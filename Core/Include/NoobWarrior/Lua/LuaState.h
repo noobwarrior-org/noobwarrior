@@ -5,8 +5,6 @@
 // Description:
 #pragma once
 #include <lua.hpp>
-#include <lauxlib.h>
-#include <lualib.h>
 
 #include "PluginEnv.h"
 #include "LuaHypertextPreprocessor.h"

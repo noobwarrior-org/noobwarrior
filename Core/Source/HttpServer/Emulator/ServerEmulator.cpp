@@ -8,7 +8,6 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
-using namespace NoobWarrior::HttpServer;
 using json = nlohmann::json;
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator", "emulator") {

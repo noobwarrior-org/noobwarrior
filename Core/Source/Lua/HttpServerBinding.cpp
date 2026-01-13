@@ -12,7 +12,6 @@ static int HttpServer_new(lua_State *L) {
     auto core = (Core*)lua_topointer(L, -1);
     HttpServer *srv = (HttpServer *)lua_newuserdata(L, sizeof(HttpServer));
     new(srv) HttpServer(core);
-    lua_getmetatable(L, )
     return 1;
 }
 

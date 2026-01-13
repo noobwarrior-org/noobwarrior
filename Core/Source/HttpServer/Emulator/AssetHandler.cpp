@@ -7,7 +7,6 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
-using namespace NoobWarrior::HttpServer;
 
 AssetHandler::AssetHandler(HttpServer *srv, DatabaseManager *dbm) :
     mHttpServer(srv),

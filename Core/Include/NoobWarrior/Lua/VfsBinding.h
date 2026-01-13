@@ -4,7 +4,7 @@
 // Started on: 1/10/2026
 // Description:
 #pragma once
-#include <lauxlib.h>
+#include <lua.hpp>
 
 namespace NoobWarrior {
     class LuaState;

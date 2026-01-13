@@ -7,7 +7,7 @@
 
 #include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
-using namespace NoobWarrior::HttpServer;
+using namespace NoobWarrior;
 
 ClientSettingsHandler::ClientSettingsHandler(ServerEmulator *server) {}
 
