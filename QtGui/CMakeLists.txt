@@ -62,3 +62,8 @@ target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(NoobWarrior.QtGui PUBLIC -static-libgcc -static-libstdc++)
 endif()
+
+add_custom_target(CopyAppDistDir
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/AppDistribution ${CMAKE_CURRENT_BINARY_DIR}/
+)
+add_dependencies(NoobWarrior.QtGui CopyAppDistDir)
