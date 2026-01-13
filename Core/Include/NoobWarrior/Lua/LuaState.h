@@ -9,6 +9,7 @@
 #include <lualib.h>
 
 #include "PluginEnv.h"
+#include "LuaHypertextPreprocessor.h"
 #include "VfsBinding.h"
 
 namespace NoobWarrior {
@@ -27,6 +28,7 @@ private:
     lua_State *L;
 
     PluginEnv mPluginEnv;
+    LuaHypertextPreprocessor mLhp;
     VfsBinding mVfsBinding;
 };
 }

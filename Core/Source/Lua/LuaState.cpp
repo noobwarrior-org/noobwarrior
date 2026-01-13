@@ -5,6 +5,7 @@
 // Description:
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/PluginEnv.h>
+#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
 #include <NoobWarrior/Lua/VfsBinding.h>
 #include <NoobWarrior/Lua/HttpServerBinding.h>
 #include <NoobWarrior/Log.h>
@@ -25,6 +26,7 @@ static int printBS(lua_State *L) {
 
 LuaState::LuaState() :
     L(nullptr),
+    mLhp(this),
     mPluginEnv(this),
     mVfsBinding(this)
 {}

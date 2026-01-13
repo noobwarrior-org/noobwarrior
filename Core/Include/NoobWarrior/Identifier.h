@@ -28,18 +28,22 @@ public:
     std::string Resolve();
     std::vector<unsigned char> RetrieveData();
 
-    operator std::string() const {
+    inline operator std::string() const {
         return mStr;
     }
 
-    operator const char*() const {
+    inline operator const char*() const {
         return mStr.c_str();
     }
 
-    operator char*() const {
+    inline operator char*() const {
         return const_cast<char*>(mStr.c_str());
     }
+
+    // inline Identifier& operator =(const std::string &str) {
+        // mStr = str;
+    // }
 protected:
-    const std::string mStr;
+    std::string mStr;
 };
 }
