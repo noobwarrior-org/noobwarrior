@@ -1,0 +1,1 @@
+LICENSE.txt in the root directory of this plugin applies to the Lua/HTML source code, whilst texts/LICENSE.txt applies to the textual documentation.
