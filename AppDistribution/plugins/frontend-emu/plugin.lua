@@ -1,5 +1,5 @@
 return {
-    id = "frontend-emu@noobwarrior.org",
+    identifier = "frontend-emu@noobwarrior.org",
     title = "Server Emulator Frontend",
     version = "v1.0",
     description = "The frontend for noobWarrior's server emulator",

@@ -1,5 +1,5 @@
 return {
-    id = "master-server@noobwarrior.org",
+    identifier = "master-server@noobwarrior.org",
     title = "Master Server",
     version = "v1.0",
     description = "Adds a server list & federated community system to noobWarrior",

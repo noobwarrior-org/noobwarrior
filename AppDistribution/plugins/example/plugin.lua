@@ -1,5 +1,5 @@
 return {
-    id = "plugin@example.com",
+    identifier = "plugin@example.com",
     title = "Example Plugin",
     version = "v1.0",
     description = "An example plugin for noobWarrior",

@@ -85,8 +85,8 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
 
     for (std::filesystem::path path : pluginPaths) {
         std::string file_name = path.filename().string();
-
-        Plugin* plugin = new Plugin(file_name, mCore, path.root_directory().root_directory() == mCore->GetInstallationDir());
+        
+        Plugin* plugin = new Plugin(file_name, mCore, path.parent_path().parent_path() == mCore->GetInstallationDir());
         if (plugin->Fail()) {
             NOOBWARRIOR_FREE_PTR(plugin)
             continue;

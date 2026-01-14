@@ -6,7 +6,10 @@
 #include <NoobWarrior/Plugin.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+
 #include <lua.h>
+
+#define ERR_LOG_TEMPLATE "Failed to load plugin \"{}\" because "
 
 using namespace NoobWarrior;
 
@@ -24,6 +27,13 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
     VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, fullDir);
 
     if (fsRes != VirtualFileSystem::Response::Success || mVfs == nullptr) {
+        Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", mFileName);
+        mResponse = Response::Failed;
+        return;
+    }
+
+    if (!mVfs->EntryExists("/plugin.lua")) {
+        Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", mFileName);
         mResponse = Response::Failed;
         return;
     }
@@ -38,18 +48,37 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
     lua_State *L = mCore->GetLuaState()->Get();
     int res = luaL_dostring(L, pluginLuaString.c_str());
     if (res != LUA_OK) {
-        Out("Plugin", "Failed to load plugin \"{}\" because plugin.lua failed with error: {}", mFileName, lua_tostring(L, -1));
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", mFileName, lua_tostring(L, -1));
         lua_pop(L, 1);
         mResponse = Response::Failed;
         return;
     }
     if (!lua_istable(L, -1)) {
-        Out("Plugin", "Failed to load plugin \"{}\" because plugin.lua did not return a string.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a string.", mFileName);
         lua_pop(L, 1);
         mResponse = Response::Failed;
         return;
     }
-    reference = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    lua_getfield(L, -1, "identifier");
+    if (lua_isnil(L, -1)) {
+        Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", mFileName);
+        lua_pop(L, 2);
+        mResponse = Response::Failed;
+        return;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "title");
+    if (lua_isnil(L, -1)) {
+        Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", mFileName);
+        lua_pop(L, 2);
+        mResponse = Response::Failed;
+        return;
+    }
+    lua_pop(L, 1);
+
+    mRef = luaL_ref(L, LUA_REGISTRYINDEX);
     mResponse = Response::Success;
 }
 
@@ -60,11 +89,45 @@ Plugin::~Plugin() {
         mVfs->CloseHandle(mVfsHandle);
         VirtualFileSystem::Free(mVfs);
     }
-    luaL_unref(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, reference);
+    luaL_unref(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, mRef);
 }
 
 Plugin::Response Plugin::Execute() {
+    if (Fail()) {
+        Out("Plugin", "Plugin::Execute() called but plugin \"{}\" failed to initialize!", mFileName);
+        return Plugin::Response::Failed;
+    }
     Out("Plugin", "Executing \"{}\"", mFileName);
+
+    lua_State *L = mCore->GetLuaState()->Get();
+    lua_rawgeti(L, LUA_REGISTRYINDEX, mRef);
+
+    lua_getfield(L, -1, "autorun");
+    if (lua_istable(L, -1)) {
+        lua_pushnil(L);
+        while (lua_next(L, -2)) {
+            if (!lua_isstring(L, -1)) {
+                lua_pop(L, 1);
+                continue;
+            }
+            FSEntryHandle scriptHandle = mVfs->OpenHandle(lua_tostring(L, -1));
+            lua_pop(L, 1);
+            
+            std::string script;
+            std::string line;
+            while (mVfs->ReadHandleLine(scriptHandle, &line)) {
+                script += line + "\n";
+            }
+
+            mVfs->CloseHandle(scriptHandle);
+
+            luaL_dostring(L, script.c_str());
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_pop(L, 1);
+
     return Response::Success;
 }
 
@@ -82,34 +145,38 @@ std::string Plugin::GetFileName() {
 
 const Plugin::Properties Plugin::GetProperties() {
     if (Fail()) {
-        Out("Plugin", "GetProperties() called but plugin \"{}\" failed to initialize!", mFileName);
+        Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", mFileName);
         return {};
     }
     lua_State *L = mCore->GetLuaState()->Get();
     PushLuaTable();
 
+    Properties props {};
+    props.FileName = mFileName;
+
+    lua_getfield(L, -1, "identifier");
+    if (lua_isstring(L, -1))
+        props.Identifier = lua_tostring(L, -1);
+    lua_pop(L, 1);
+
     lua_getfield(L, -1, "title");
-    std::string title = lua_tostring(L, -1);
+    if (lua_isstring(L, -1))
+        props.Title = lua_tostring(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "version");
-    std::string version = lua_tostring(L, -1);
+    if (lua_isstring(L, -1))
+        props.Version = lua_tostring(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "description");
-    std::string description = lua_tostring(L, -1);
+    if (lua_isstring(L, -1))
+        props.Description = lua_tostring(L, -1);
     lua_pop(L, 1);
 
     lua_getfield(L, -1, "critical");
-    bool critical = lua_toboolean(L, -1);
+    props.IsCritical = lua_toboolean(L, -1);
     lua_pop(L, 1);
-
-    Properties props {};
-    props.FileName = mFileName;
-    props.Title = title;
-    props.Version = version;
-    props.Description = description;
-    props.IsCritical = critical;
 
     lua_pop(L, 1);
     return props;
@@ -118,5 +185,5 @@ const Plugin::Properties Plugin::GetProperties() {
 void Plugin::PushLuaTable() {
     if (Fail())
         return;
-    lua_rawgeti(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, reference);
+    lua_rawgeti(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, mRef);
 }

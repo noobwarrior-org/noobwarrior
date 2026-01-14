@@ -16,6 +16,7 @@ class Core;
 class Plugin {
 public:
     struct Properties {
+        std::string Identifier;
         std::string FileName;
         std::string Title;
         std::string Version;
@@ -69,6 +70,6 @@ private:
     VirtualFileSystem* mVfs;
     FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;
-    int reference;
+    int mRef;
 };
 }

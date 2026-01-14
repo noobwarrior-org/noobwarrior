@@ -29,5 +29,5 @@ std::string Identifier::GetProtocolString() {
     if (pos) {
         std::string protocol = mStr.substr(0 , pos);
         return protocol;
-    } else return mStr;
+    } else return "";
 }

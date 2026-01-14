@@ -1,5 +1,5 @@
 return {
-    id = "frontend@noobwarrior.org",
+    identifier = "frontend@noobwarrior.org",
     title = "HTTP Server Frontend",
     version = "v1.0",
     description = "",

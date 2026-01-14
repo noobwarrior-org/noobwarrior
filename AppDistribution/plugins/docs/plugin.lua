@@ -1,5 +1,5 @@
 return {
-    id = "docs@noobwarrior.org",
+    identifier = "docs@noobwarrior.org",
     title = "Documentation",
     version = "v1.0",
     description = "Adds documentation for noobWarrior & adds HTTP server to dynamically generate pages for it",
