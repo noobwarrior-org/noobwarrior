@@ -57,28 +57,16 @@ static int VirtualFileSystem_gc(lua_State *L) {
     return 0;
 }
 
-static const luaL_Reg VfsFuncs[] = {
-    {"new", VirtualFileSystem_new},
-    {nullptr, nullptr}
-};
+VfsBinding::VfsBinding(LuaState* lua) : LuaBinding(lua, "VirtualFileSystem") {}
 
-static const luaL_Reg VfsMetaFuncs[] = {
-    {"__gc", VirtualFileSystem_gc},
-    {NULL, NULL}
-};
-
-VfsBinding::VfsBinding(LuaState* lua) : mLua(lua) {}
-
-void VfsBinding::Open() {
-    lua_State *L = mLua->Get();
-    luaL_newmetatable(L, "VirtualFileSystem");
-
-    luaL_newlib(L, VfsFuncs);
-    lua_setglobal(L, "VirtualFileSystem");
+LuaReg VfsBinding::GetLibFuncs() {
+    return {
+        {"new", VirtualFileSystem_new}
+    };
 }
 
-void VfsBinding::Close() {
-    lua_State *L = mLua->Get();
-    lua_pushnil(L);
-    lua_setfield(L, LUA_REGISTRYINDEX, "VirtualFileSystem");
+LuaReg VfsBinding::GetMetaFuncs() {
+    return {
+        {"__gc", VirtualFileSystem_gc}
+    };
 }

@@ -35,7 +35,6 @@
 #include "files/json.lua.inc.cpp"
 
 using namespace NoobWarrior;
-using namespace NoobWarrior::Lua;
 
 static int printBS(lua_State *L) {
     const char *str = luaL_checkstring(L, 1);
@@ -43,17 +42,23 @@ static int printBS(lua_State *L) {
     return 0;
 }
 
-LuaState::LuaState() :
+LuaState::LuaState(Core* core) :
     L(nullptr),
+    mCore(core),
     mLhp(this),
     mPluginEnv(this),
-    mVfsBinding(this)
+    mVfsBinding(this),
+    mHttpServerBinding(this)
 {}
 
 int LuaState::Open() {
     L = luaL_newstate();
 
     luaL_openlibs(L);
+
+    // Add reference to core in lua registry so that we can retrieve it for any bindings that require its existence
+    lua_pushlightuserdata(L, mCore);
+    lua_setfield(L, LUA_REGISTRYINDEX, "core");
 
     lua_pushcfunction(L, printBS);
     lua_setglobal(L, "print");
@@ -78,15 +83,14 @@ int LuaState::Open() {
 
     mPluginEnv.Open();
     mVfsBinding.Open();
-
-    luaL_newlib(L, HttpServerFuncs);
-    lua_setglobal(L, "HttpServer");
+    mHttpServerBinding.Open();
 
     Out("Lua", "Initialized Lua");
     return 1;
 }
 
 void LuaState::Close() {
+    mHttpServerBinding.Close();
     mVfsBinding.Close();
     mPluginEnv.Close();
     lua_close(L);

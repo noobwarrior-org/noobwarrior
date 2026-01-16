@@ -23,8 +23,14 @@
 // Started on: 1/4/2026
 // Description:
 #pragma once
+#include <NoobWarrior/Lua/LuaBinding.h>
 #include <lua.hpp>
 
-namespace NoobWarrior::Lua {
-    extern const luaL_Reg HttpServerFuncs[2];
+namespace NoobWarrior {
+class HttpServerBinding : public LuaBinding {
+public:
+    HttpServerBinding(LuaState* lua);
+    LuaReg GetLibFuncs() override;
+    LuaReg GetMetaFuncs() override;
+};
 }

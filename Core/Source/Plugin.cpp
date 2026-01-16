@@ -124,23 +124,27 @@ Plugin::Response Plugin::Execute() {
     lua_getfield(L, -1, "autorun");
     if (lua_istable(L, -1)) {
         lua_pushnil(L);
-        while (lua_next(L, -2)) {
+        while (lua_next(L, -2) != 0) {
             if (!lua_isstring(L, -1)) {
                 lua_pop(L, 1);
                 continue;
             }
-            FSEntryHandle scriptHandle = mVfs->OpenHandle(lua_tostring(L, -1));
-            lua_pop(L, 1);
+
+            const char* path = lua_tostring(L, -1);
+            lua_pop(L, 1); // Pop the value that lua_next just pushed.
+
+            FSEntryHandle scriptHandle = mVfs->OpenHandle(path);
             
-            std::string script;
-            std::string line;
+            std::string script, line;
             while (mVfs->ReadHandleLine(scriptHandle, &line)) {
                 script += line + "\n";
             }
 
             mVfs->CloseHandle(scriptHandle);
 
+            int top = lua_gettop(L);
             luaL_dostring(L, script.c_str());
+            lua_settop(L, top); // Discard all values that the dostring() function could have pushed onto the stack
         }
     }
     lua_pop(L, 1);

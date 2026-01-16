@@ -23,16 +23,14 @@
 // Started on: 1/10/2026
 // Description:
 #pragma once
+#include <NoobWarrior/Lua/LuaBinding.h>
 #include <lua.hpp>
 
 namespace NoobWarrior {
-    class LuaState;
-    class VfsBinding {
-    public:
-        VfsBinding(LuaState* lua);
-        void Open();
-        void Close();
-    private:
-        LuaState* mLua;
-    };
+class VfsBinding : public LuaBinding {
+public:
+    VfsBinding(LuaState* lua);
+    LuaReg GetLibFuncs() override;
+    LuaReg GetMetaFuncs() override;
+};
 }

@@ -44,6 +44,7 @@ using namespace NoobWarrior;
 
 Core::Core(Init init) :
     mInit(std::move(init)),
+    mLuaState(this),
     mServerEmulator(nullptr),
     mPortable(mInit.Portable),
     mPluginManager(this),

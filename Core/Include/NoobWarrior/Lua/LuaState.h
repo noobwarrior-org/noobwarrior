@@ -28,8 +28,10 @@
 #include "PluginEnv.h"
 #include "LuaHypertextPreprocessor.h"
 #include "VfsBinding.h"
+#include "HttpServerBinding.h"
 
 namespace NoobWarrior {
+class Core;
 enum class LuaContext {
     NoPlugin,
     InstallPlugin,
@@ -37,15 +39,17 @@ enum class LuaContext {
 };
 class LuaState {
 public:
-    LuaState();
+    LuaState(Core* core);
     int Open();
     void Close();
     lua_State* Get();
 private:
     lua_State *L;
 
+    Core* mCore;
     PluginEnv mPluginEnv;
     LuaHypertextPreprocessor mLhp;
     VfsBinding mVfsBinding;
+    HttpServerBinding mHttpServerBinding;
 };
 }

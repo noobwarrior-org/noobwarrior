@@ -18,35 +18,37 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: LuaBinding.cpp
 // Started by: Hattozo
-// Started on: 9/2/2025
+// Started on: 1/14/2026
 // Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "AssetHandler.h"
+#include <NoobWarrior/Lua/LuaBinding.h>
+#include <NoobWarrior/Lua/LuaState.h>
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
-#include <queue>
-#include <utility>
+using namespace NoobWarrior;
 
-namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
-public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
+LuaBinding::LuaBinding(LuaState* lua, const std::string &mtName) :
+    mLua(lua),
+    mMtName(mtName)
+{}
 
-    int Start(uint16_t port) override;
-    int Stop() override;
-    nlohmann::json GetBaseContextData(evhttp_request *req = nullptr) override;
-private:
-    //////////////// Handlers ////////////////
-    std::unique_ptr<AssetHandler> mAssetHandler;
-    std::unique_ptr<ClientSettingsHandler> mClientSettingsHandler;
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
-};
+void LuaBinding::Open() {
+    lua_State *L = mLua->Get();
+    luaL_newmetatable(L, mMtName.c_str());
+    lua_pop(L, 1); // Since we don't need it for now
+
+    lua_newtable(L);
+    
+    for (LuaRegEntry entry : GetLibFuncs()) {
+        lua_pushcfunction(L, entry.second);
+        lua_setfield(L, -2, entry.first.c_str());
+    }
+    
+    lua_setglobal(L, mMtName.c_str());
+}
+
+void LuaBinding::Close() {
+    lua_State *L = mLua->Get();
+    lua_pushnil(L);
+    lua_setfield(L, LUA_REGISTRYINDEX, mMtName.c_str());
 }

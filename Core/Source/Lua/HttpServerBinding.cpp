@@ -9,22 +9,38 @@
 using namespace NoobWarrior;
 
 static int HttpServer_new(lua_State *L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "core");
     auto core = (Core*)lua_topointer(L, -1);
+    lua_pop(L, 1);
+
     HttpServer *srv = (HttpServer *)lua_newuserdata(L, sizeof(HttpServer));
     new(srv) HttpServer(core);
+
+    luaL_setmetatable(L, "HttpServer");
+
     return 1;
 }
 
 static int HttpServer_gc(lua_State *L) {
-    
+    HttpServer* srv = (HttpServer*)luaL_checkudata(L, 1, "HttpServer");
+    if (srv != nullptr) {
+        delete srv;
+    }
+    return 0;
 }
 
-const luaL_Reg Lua::HttpServerFuncs[2] = {
-    {"new", HttpServer_new},
-    {nullptr, nullptr}
-};
+HttpServerBinding::HttpServerBinding(LuaState* lua) : LuaBinding(lua, "HttpServer") {
 
-static const luaL_Reg HttpServerMetaFuncs[] = {
-    {"__gc", HttpServer_gc},
-    {NULL, NULL}
-};
+}
+
+LuaReg HttpServerBinding::GetLibFuncs() {
+    return {
+        {"new", HttpServer_new}
+    };
+}
+
+LuaReg HttpServerBinding::GetMetaFuncs() {
+    return {
+        {"__gc", HttpServer_gc}
+    };
+}

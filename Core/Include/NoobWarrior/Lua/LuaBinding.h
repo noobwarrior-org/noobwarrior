@@ -18,35 +18,30 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: LuaBinding.h
 // Started by: Hattozo
-// Started on: 9/2/2025
+// Started on: 1/14/2026
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "AssetHandler.h"
-
-#include <cstdint>
-#include <filesystem>
+#include <string>
 #include <vector>
-#include <queue>
 #include <utility>
+#include <lua.hpp>
 
 namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
-public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
+typedef std::pair<std::string, lua_CFunction> LuaRegEntry;
+typedef std::vector<LuaRegEntry> LuaReg;
 
-    int Start(uint16_t port) override;
-    int Stop() override;
-    nlohmann::json GetBaseContextData(evhttp_request *req = nullptr) override;
-private:
-    //////////////// Handlers ////////////////
-    std::unique_ptr<AssetHandler> mAssetHandler;
-    std::unique_ptr<ClientSettingsHandler> mClientSettingsHandler;
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
+class LuaState;
+class LuaBinding {
+public:
+    LuaBinding(LuaState* lua, const std::string &mtName);
+    virtual void Open();
+    virtual void Close();
+    virtual LuaReg GetLibFuncs() = 0;
+    virtual LuaReg GetMetaFuncs() = 0;
+protected:
+    LuaState* mLua;
+    std::string mMtName;
 };
 }
