@@ -18,31 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaHypertextPreprocessor.h
+// File: HttpServerBridge.h
 // Started by: Hattozo
-// Started on: 1/9/2026
-// Description: LHP (Lua Hypertext Preprocessor)
-// It's like PHP but for Lua
+// Started on: 1/4/2026
+// Description:
 #pragma once
-#include <NoobWarrior/Url.h>
-
-#include <string>
+#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
+#include <lua.hpp>
 
 namespace NoobWarrior {
-class LuaState;
-class LuaHypertextPreprocessor {
+class HttpServerBridge : public LuaObjectBridge {
 public:
-    enum class RenderResponse {
-        Failed,
-        Success,
-        SyntaxError,
-        UrlFailed
-    };
-
-    LuaHypertextPreprocessor(LuaState* lua);
-    RenderResponse Render(const std::string &input, std::string *output);
-    RenderResponse Render(const Url &url, std::string *output);
-private:
-    LuaState* mLua;
+    HttpServerBridge(LuaState* lua);
+    LuaReg GetStaticFuncs() override;
+    LuaReg GetObjectMetaFuncs() override;
 };
 }

@@ -41,6 +41,7 @@
 #include "Auth/MasterServerAuth.h"
 #include "Auth/ServerEmulatorAuth.h"
 #include "Auth/RobloxAuth.h"
+#include "Url.h"
 
 #include <lua.hpp>
 #include <curl/curl.h>
@@ -122,7 +123,8 @@ public:
 
     int StartServerEmulator(uint16_t port = 8080);
     int StopServerEmulator();
-    bool IsServerEmulatorRunning(); 
+    bool IsServerEmulatorRunning();
+    
     /**
      * @brief Lets you download a batch of Roblox assets to a directory.
      */

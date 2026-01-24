@@ -23,10 +23,10 @@
 // Started on: 12/3/2025
 // Description:
 #include <NoobWarrior/Lua/LuaState.h>
-#include <NoobWarrior/Lua/PluginEnv.h>
+#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
 #include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
-#include <NoobWarrior/Lua/VfsBinding.h>
-#include <NoobWarrior/Lua/HttpServerBinding.h>
+#include <NoobWarrior/Lua/Bridge/VfsBridge.h>
+#include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Log.h>
 
 #include "files/global_env_metatable.lua.inc.cpp"
@@ -37,8 +37,15 @@
 using namespace NoobWarrior;
 
 static int printBS(lua_State *L) {
-    const char *str = luaL_checkstring(L, 1);
-    Out("Lua", str);
+    int nargs = lua_gettop(L); 
+
+    std::string msg;
+    for (int i = 1; i <= nargs; i++) {
+        const char *str = lua_tolstring(L, i, NULL);
+        msg += str;
+        lua_pop(L, 1);
+    }
+    Out("Lua", msg);
     return 0;
 }
 
@@ -46,7 +53,8 @@ LuaState::LuaState(Core* core) :
     L(nullptr),
     mCore(core),
     mLhp(this),
-    mPluginEnv(this),
+    mPluginBinding(this),
+    mLhpBinding(this),
     mVfsBinding(this),
     mHttpServerBinding(this)
 {}
@@ -81,7 +89,8 @@ int LuaState::Open() {
 
 #undef LOADLIBRARY
 
-    mPluginEnv.Open();
+    mPluginBinding.Open();
+    mLhpBinding.Open();
     mVfsBinding.Open();
     mHttpServerBinding.Open();
 
@@ -92,10 +101,24 @@ int LuaState::Open() {
 void LuaState::Close() {
     mHttpServerBinding.Close();
     mVfsBinding.Close();
-    mPluginEnv.Close();
+    mLhpBinding.Close();
+    mPluginBinding.Close();
     lua_close(L);
+    L = nullptr;
+}
+
+bool LuaState::Opened() {
+    return L != nullptr;
 }
 
 lua_State* LuaState::Get() {
     return L;
+}
+
+LuaHypertextPreprocessor *LuaState::GetLhp() {
+    return &mLhp;
+}
+
+Core *LuaState::GetCore() {
+    return mCore;
 }

@@ -42,21 +42,33 @@ LuaHypertextPreprocessor::LuaHypertextPreprocessor(LuaState* lua) : mLua(lua) {
 
 LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const std::string &input, std::string *output) {
     bool lua_mode = false;
-    std::string lua_block;
+    bool has_processed_text_yet = false;
+    std::string text_block;
+    std::string lua_output;
+
     for (int i = 0; i < input.size(); i++) {
         if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1) == OPENING_TAG) {
-            // Switch to Lua mode, skip cursor to the first letter after the tag and restart
+            // Switch to Lua mode, skip cursor to the first letter after the tag, write down the bytes from the previous text block, and restart
             lua_mode = true;
-            lua_block = ""; // new block so reset string
+            has_processed_text_yet = true;
             i += NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG);
+
+            if (!text_block.empty()) {
+                lua_output += std::format("echo([[{}]]);", text_block);
+            }
+            
             continue;
         }
 
         if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1) == CLOSING_TAG) {
+            if (!lua_mode)
+                return RenderResponse::SyntaxError;
+
             // end of block indicated by closing tag, turn off lua mode and execute code in block
             lua_mode = false;
             i += NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG);
 
+            /*
             if (!lua_block.empty()) {
                 lua_State *L = mLua->Get();
                 int res = luaL_dostring(L, lua_block.c_str());
@@ -65,13 +77,38 @@ LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const 
                     lua_pop(L, 1);
                 }
             }
+            */
             continue;
         }
 
-        if (!lua_mode)
-            *output += input.at(i);
-        else
-            lua_block += input.at(i);
+        (!lua_mode ? text_block : lua_output) += input.at(i);
+
+        if (!has_processed_text_yet) {
+            lua_output += std::format("echo([[{}]]);", text_block);
+        }
+
+        Out("Lhp", lua_output);
     }
     return RenderResponse::Success;
+}
+
+LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const Url &url, std::string *output) {
+    Core* core = mLua->GetCore();
+
+    VirtualFileSystem* vfs = nullptr;
+    FSEntryHandle sourceHandle;
+
+    VirtualFileSystem::Response fileRes = url.OpenHandle(core, &vfs, &sourceHandle);
+    if (vfs == nullptr || sourceHandle == 0) {
+        return RenderResponse::UrlFailed;
+    }
+
+    std::string src, line;
+    while (vfs->ReadHandleLine(sourceHandle, &line)) {
+        src += line + "\n";
+    }
+
+    vfs->CloseHandle(sourceHandle);
+
+    return Render(src, output);
 }

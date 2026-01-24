@@ -301,7 +301,7 @@ Backup::Response Backup::StartProcess(Process* proc) {
         return Backup::Response::UrlNotSet;
 
     NetClient client(proc->Core->GetRobloxAuth()->GetActiveAccount());
-    if (client.Failed())
+    if (client.Fail())
         return Backup::Response::Failed;
     client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
         

@@ -25,10 +25,12 @@
 #pragma once
 #include <lua.hpp>
 
-#include "PluginEnv.h"
-#include "LuaHypertextPreprocessor.h"
-#include "VfsBinding.h"
-#include "HttpServerBinding.h"
+#include <NoobWarrior/Lua/LuaScript.h>
+#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
+#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
+#include <NoobWarrior/Lua/Bridge/LhpBridge.h>
+#include <NoobWarrior/Lua/Bridge/VfsBridge.h>
+#include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 
 namespace NoobWarrior {
 class Core;
@@ -42,14 +44,19 @@ public:
     LuaState(Core* core);
     int Open();
     void Close();
+    bool Opened();
+
     lua_State* Get();
+    LuaHypertextPreprocessor *GetLhp();
+    Core *GetCore();
 private:
     lua_State *L;
 
     Core* mCore;
-    PluginEnv mPluginEnv;
     LuaHypertextPreprocessor mLhp;
-    VfsBinding mVfsBinding;
-    HttpServerBinding mHttpServerBinding;
+    PluginBridge mPluginBinding;
+    LhpBridge mLhpBinding;
+    PluginBridge mVfsBinding;
+    HttpServerBridge mHttpServerBinding;
 };
 }

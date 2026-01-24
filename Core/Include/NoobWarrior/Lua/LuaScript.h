@@ -18,37 +18,44 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaBinding.cpp
+// File: LuaScript.h
 // Started by: Hattozo
-// Started on: 1/14/2026
+// Started on: 1/18/2026
 // Description:
-#include <NoobWarrior/Lua/LuaBinding.h>
-#include <NoobWarrior/Lua/LuaState.h>
+#pragma once
+#include <NoobWarrior/Url.h>
 
-using namespace NoobWarrior;
+namespace NoobWarrior {
+class LuaState;
 
-LuaBinding::LuaBinding(LuaState* lua, const std::string &mtName) :
-    mLua(lua),
-    mMtName(mtName)
-{}
+class LuaScript {
+public:
+    enum class ExecResponse {
+        Failed,
+        Ok
+    };
 
-void LuaBinding::Open() {
-    lua_State *L = mLua->Get();
-    luaL_newmetatable(L, mMtName.c_str());
-    lua_pop(L, 1); // Since we don't need it for now
+    enum class FailReason {
+        None,
+        Unknown,
+        LuaNotOpen,
+        SyntaxError,
+        UrlFailed
+    };
 
-    lua_newtable(L);
-    
-    for (LuaRegEntry entry : GetLibFuncs()) {
-        lua_pushcfunction(L, entry.second);
-        lua_setfield(L, -2, entry.first.c_str());
-    }
-    
-    lua_setglobal(L, mMtName.c_str());
-}
+    LuaScript(LuaState* lua, const Url &url);
+    LuaScript(LuaState* lua, const std::string &src);
 
-void LuaBinding::Close() {
-    lua_State *L = mLua->Get();
-    lua_pushnil(L);
-    lua_setfield(L, LUA_REGISTRYINDEX, mMtName.c_str());
+    bool Fail();
+    ExecResponse Execute();
+
+    Url& GetUrl();
+    std::string GetSource();
+    ProtocolType GetLocationContext();
+private:
+    LuaState* mLua;
+    Url mUrl;
+    std::string mSource;
+    FailReason mFailReason;
+};
 }

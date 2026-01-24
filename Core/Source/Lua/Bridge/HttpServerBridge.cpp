@@ -3,7 +3,7 @@
 // Started by: Hattozo
 // Started on: 1/4/2026
 // Description:
-#include <NoobWarrior/Lua/HttpServerBinding.h>
+#include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 
 using namespace NoobWarrior;
@@ -29,17 +29,17 @@ static int HttpServer_gc(lua_State *L) {
     return 0;
 }
 
-HttpServerBinding::HttpServerBinding(LuaState* lua) : LuaBinding(lua, "HttpServer") {
+HttpServerBridge::HttpServerBridge(LuaState* lua) : LuaObjectBridge(lua, "HttpServer") {
 
 }
 
-LuaReg HttpServerBinding::GetLibFuncs() {
+LuaReg HttpServerBridge::GetStaticFuncs() {
     return {
         {"new", HttpServer_new}
     };
 }
 
-LuaReg HttpServerBinding::GetMetaFuncs() {
+LuaReg HttpServerBridge::GetObjectMetaFuncs() {
     return {
         {"__gc", HttpServer_gc}
     };

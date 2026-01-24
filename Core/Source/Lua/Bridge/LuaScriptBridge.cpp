@@ -18,19 +18,33 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: HttpServerBinding.h
+// File: LuaScriptBridge.cpp
 // Started by: Hattozo
-// Started on: 1/4/2026
+// Started on: 1/17/2026
 // Description:
-#pragma once
-#include <NoobWarrior/Lua/LuaBinding.h>
-#include <lua.hpp>
+#include <NoobWarrior/Lua/Bridge/LuaScriptBridge.h>
 
-namespace NoobWarrior {
-class HttpServerBinding : public LuaBinding {
-public:
-    HttpServerBinding(LuaState* lua);
-    LuaReg GetLibFuncs() override;
-    LuaReg GetMetaFuncs() override;
-};
+using namespace NoobWarrior;
+
+static int GetUrl(lua_State *L) {
+    lua_pushstring(L, "poop");
+    return 1;
+}
+
+LuaScriptBridge::LuaScriptBridge(LuaState* lua) : LuaObjectBridge(lua, "Script") {
+
+}
+
+LuaReg LuaScriptBridge::GetStaticFuncs() {
+    return {}; // No constructors please.
+}
+
+LuaReg LuaScriptBridge::GetObjectFuncs() {
+    return {
+        {"GetUrl", GetUrl}
+    };
+}
+
+LuaScriptWrapper::LuaScriptWrapper(LuaScript* realObject) : mObject(realObject) {
+
 }

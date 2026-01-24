@@ -1,0 +1,15 @@
+<?lua
+print("Rendering index...")
+?>
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><?lua echo("Your cool server") ?></title>
+    </head>
+    <body>
+        <h1><?lua echo("Welcome to master server") ?></h1>
+    </body>
+</html>
+<?lua
+print("Rendered index!")
+?>

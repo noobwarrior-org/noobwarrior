@@ -26,7 +26,6 @@
 #include "VirtualFileSystem.h"
 
 #include <filesystem>
-#include <map>
 #include <string>
 #include <memory>
 #include <unordered_map>

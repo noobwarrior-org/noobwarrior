@@ -37,34 +37,36 @@ static size_t WriteToDisk(void *contents, size_t size, size_t nmemb, void *userp
     return size * nmemb;
 }
 
-NetClient::NetClient(RobloxAccount *account, const std::filesystem::path &outputDir) :
-    mFailed(true),
-    mOutputDir(outputDir),
-    mAccount(account)
-{
-    mHandle = curl_easy_init();
-    if (mHandle == nullptr)
-        return;
-
+NetClient::NetClient(RobloxAccount *account) : NetClient() {
     std::string cookies;
-    if (mAccount != nullptr) {
-        cookies.append(std::format(".ROBLOSECURITY={};", mAccount->Token));
+    if (mRobloxAccount != nullptr) {
+        cookies.append(std::format(".ROBLOSECURITY={};", mRobloxAccount->Token));
         curl_easy_setopt(mHandle, CURLOPT_USERAGENT, "Roblox/WinINet");
     }
 
     curl_easy_setopt(mHandle, CURLOPT_COOKIE, cookies.c_str());
+}
+
+NetClient::NetClient() : mFailReason(FailReason::Unknown) {
+    mHandle = curl_easy_init();
+    if (mHandle == nullptr)
+        return;
+
+    mHeaderList = curl_slist_append(NULL, "suck my dick");
+
     curl_easy_setopt(mHandle, CURLOPT_WRITEFUNCTION, WriteToBuf);
     curl_easy_setopt(mHandle, CURLOPT_WRITEDATA, &mData);
     
-    mFailed = false;
+    mFailReason = FailReason::None;
 }
 
 NetClient::~NetClient() {
+    curl_slist_free_all(mHeaderList);
     curl_easy_cleanup(mHandle);
 }
 
-bool NetClient::Failed() {
-    return mFailed;
+bool NetClient::Fail() {
+    return mFailReason != FailReason::None;
 }
 
 CURLcode NetClient::Request(const std::string &url) {
@@ -75,4 +77,13 @@ CURLcode NetClient::Request(const std::string &url) {
 
 void NetClient::OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback) {
     callback(mData);
+}
+
+void NetClient::SetHeader(const std::string &name, const std::string &contents) {
+    mHeaderList = curl_slist_append(mHeaderList, std::string(name + ": " + contents).c_str());
+    curl_easy_setopt(mHandle, CURLOPT_HTTPHEADER, mHeaderList);
+}
+
+void NetClient::SetUserAgent(const std::string &str) {
+    SetHeader("User-Agent", str);
 }

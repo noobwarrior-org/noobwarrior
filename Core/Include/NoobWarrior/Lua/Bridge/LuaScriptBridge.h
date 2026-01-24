@@ -18,30 +18,28 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaBinding.h
+// File: LuaScriptBridge.h
 // Started by: Hattozo
-// Started on: 1/14/2026
+// Started on: 1/17/2026
 // Description:
 #pragma once
-#include <string>
-#include <vector>
-#include <utility>
-#include <lua.hpp>
+#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
 
 namespace NoobWarrior {
-typedef std::pair<std::string, lua_CFunction> LuaRegEntry;
-typedef std::vector<LuaRegEntry> LuaReg;
-
-class LuaState;
-class LuaBinding {
+class LuaScript;
+// little lightweight wrapper for script, so lua can memory manage this dummy class instead of our real class
+class LuaScriptWrapper {
 public:
-    LuaBinding(LuaState* lua, const std::string &mtName);
-    virtual void Open();
-    virtual void Close();
-    virtual LuaReg GetLibFuncs() = 0;
-    virtual LuaReg GetMetaFuncs() = 0;
-protected:
-    LuaState* mLua;
-    std::string mMtName;
+    LuaScriptWrapper(LuaScript* realObject);
+private:
+    LuaScript* mObject;
+};
+
+class LuaScriptBridge : public LuaObjectBridge {
+public:
+    LuaScriptBridge(LuaState* lua);
+    LuaReg GetStaticFuncs() override;
+    LuaReg GetObjectMetaFuncs() override;
+    LuaReg GetObjectFuncs() override;
 };
 }

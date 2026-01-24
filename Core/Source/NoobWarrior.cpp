@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 6/17/2025
 // Description: Contains code for the main class used to utilize the noobWarrior library
+#include "NoobWarrior/Url.h"
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/PluginManager.h>
@@ -39,6 +40,7 @@
 #endif
 
 #include <utility>
+#include <istream>
 
 using namespace NoobWarrior;
 
@@ -86,6 +88,8 @@ Core::Core(Init init) :
 }
 
 Core::~Core() {
+    GetPluginManager()->UnloadPlugins();
+    
     if (mInit.EnableKeychain)
         GetRobloxAuth()->WriteToKeychain();
 

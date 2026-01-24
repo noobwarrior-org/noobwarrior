@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: VfsBinding.cpp
+// File: VfsBridge.cpp
 // Started by: Hattozo
 // Started on: 1/10/2026
 // Description:
-#include <NoobWarrior/Lua/VfsBinding.h>
+#include <NoobWarrior/Lua/Bridge/VfsBridge.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
@@ -57,15 +57,15 @@ static int VirtualFileSystem_gc(lua_State *L) {
     return 0;
 }
 
-VfsBinding::VfsBinding(LuaState* lua) : LuaBinding(lua, "VirtualFileSystem") {}
+VfsBridge::VfsBridge(LuaState* lua) : LuaObjectBridge(lua, "VirtualFileSystem") {}
 
-LuaReg VfsBinding::GetLibFuncs() {
+LuaReg VfsBridge::GetStaticFuncs() {
     return {
         {"new", VirtualFileSystem_new}
     };
 }
 
-LuaReg VfsBinding::GetMetaFuncs() {
+LuaReg VfsBridge::GetObjectMetaFuncs() {
     return {
         {"__gc", VirtualFileSystem_gc}
     };

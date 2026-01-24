@@ -18,31 +18,28 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaHypertextPreprocessor.h
+// File: PluginBridge.h
 // Started by: Hattozo
-// Started on: 1/9/2026
-// Description: LHP (Lua Hypertext Preprocessor)
-// It's like PHP but for Lua
+// Started on: 1/17/2026
+// Description:
 #pragma once
-#include <NoobWarrior/Url.h>
-
-#include <string>
+#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
 
 namespace NoobWarrior {
-class LuaState;
-class LuaHypertextPreprocessor {
+class Plugin;
+// little lightweight wrapper for plugin, so lua can memory manage this class instead of our real plugins.
+class PluginWrapper {
 public:
-    enum class RenderResponse {
-        Failed,
-        Success,
-        SyntaxError,
-        UrlFailed
-    };
-
-    LuaHypertextPreprocessor(LuaState* lua);
-    RenderResponse Render(const std::string &input, std::string *output);
-    RenderResponse Render(const Url &url, std::string *output);
+    PluginWrapper(Plugin* realPlugin);
 private:
-    LuaState* mLua;
+    Plugin* mPlugin;
+};
+
+class PluginBridge : public LuaObjectBridge {
+public:
+    PluginBridge(LuaState* lua);
+    LuaReg GetStaticFuncs() override;
+    LuaReg GetObjectMetaFuncs() override;
+    LuaReg GetObjectFuncs() override;
 };
 }

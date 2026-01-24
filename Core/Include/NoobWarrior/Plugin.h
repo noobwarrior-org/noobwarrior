@@ -23,7 +23,6 @@
 // Started on: 12/3/2025
 // Description:
 #pragma once
-#include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 
 #include <filesystem>
@@ -81,14 +80,22 @@ public:
 
     const Properties GetProperties();
 protected:
-    void PushLuaTable();
+    void PushManifest();
+    bool PushEnv();
     Response mResponse { 0 };
 private:
+    void OpenEnv();
+    void CloseEnv();
+
     Core* mCore;
     std::string mFileName;
     VirtualFileSystem* mVfs;
     FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;
-    int mRef;
+
+    // Lua references
+    int mManifestRef;
+    int mEnvRef;
+    int mMtRef;
 };
 }

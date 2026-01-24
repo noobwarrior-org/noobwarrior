@@ -36,9 +36,15 @@ class PluginManager {
 public:
     PluginManager(Core* core);
     ~PluginManager();
-    Plugin::Response Load(Plugin *plugin, int priority = 1);
+    Plugin::Response Load(Plugin* plugin, int priority = 1);
     Plugin::Response Load(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+
+    void Unload(Plugin* plugin);
+
     void LoadPlugins();
+    void UnloadPlugins();
+
+    Plugin* GetPluginFromIdentifier(const std::string &identifier);
 
     /**
      * @brief Gets all loaded plugins. This does not include plugins that are not loaded (enabled)

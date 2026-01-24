@@ -23,7 +23,8 @@
 // Started on: 3/15/2025
 // Description: A thin layer over libcurl that makes it less annoying to use
 #pragma once
-#include "Auth/RobloxAuth.h"
+#include <NoobWarrior/Url.h>
+#include <NoobWarrior/Auth/RobloxAuth.h>
 
 #include <curl/curl.h>
 
@@ -31,6 +32,7 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <thread>
 
 namespace NoobWarrior {
 struct Transfer {
@@ -43,23 +45,48 @@ struct Transfer {
     size_t UploadNow {};
 };
 
+enum class DownloadOutputFormat {
+    Memory,
+    FileSystem
+};
+
+struct DownloadOptions {
+    DownloadOutputFormat OutputFormat;
+    std::filesystem::path OutputDir;
+};
+
 class NetClient {
 public:
-    NetClient(RobloxAccount *account = nullptr, const std::filesystem::path &outputDir = "");
+    enum class FailReason {
+        None,
+        Unknown
+    };
+
+    NetClient(RobloxAccount *account);
+    NetClient();
     ~NetClient();
 
-    bool Failed();
+    bool Fail();
+
+    void AddToQueue(const Url &url);
+    void StartDownload(const DownloadOptions &options);
 
     CURLcode Request(const std::string &url);
 
     void OnDownloadProgress();
     void OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback);
     void OnFileDownloaded(std::function<void()> callback);
+    
+    void SetHeader(const std::string &name, const std::string &contents);
+    void SetUserAgent(const std::string &str);
 private:
-    bool mFailed;
-    const std::filesystem::path &mOutputDir;
+    FailReason mFailReason;
     std::vector<unsigned char> mData;
-    RobloxAccount *mAccount;
+
+    std::vector<std::thread> mDownloadThreads;
+
+    struct curl_slist *mHeaderList;
+    RobloxAccount *mRobloxAccount;
     CURL *mHandle;
 };
 }

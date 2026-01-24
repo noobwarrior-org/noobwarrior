@@ -18,19 +18,44 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: VfsBinding.h
+// File: PluginBridge.cpp
 // Started by: Hattozo
-// Started on: 1/10/2026
+// Started on: 1/17/2026
 // Description:
-#pragma once
-#include <NoobWarrior/Lua/LuaBinding.h>
-#include <lua.hpp>
+#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
 
-namespace NoobWarrior {
-class VfsBinding : public LuaBinding {
-public:
-    VfsBinding(LuaState* lua);
-    LuaReg GetLibFuncs() override;
-    LuaReg GetMetaFuncs() override;
-};
+using namespace NoobWarrior;
+
+static int gc(lua_State *L) {
+    PluginWrapper* p = (PluginWrapper*)luaL_checkudata(L, 1, "Plugin");
+    if (p != nullptr) {
+        delete p;
+    }
+    return 0;
+}
+
+PluginBridge::PluginBridge(LuaState* lua) : LuaObjectBridge(lua, "Plugin") {
+
+}
+
+LuaReg PluginBridge::GetStaticFuncs() {
+    return {}; // No constructors please.
+}
+
+LuaReg PluginBridge::GetObjectMetaFuncs() {
+    return {
+        {"__gc", gc},
+        {"__index", gc}
+    };
+}
+
+LuaReg PluginBridge::GetObjectFuncs() {
+    return {
+        {"GetIdentifier", gc},
+        {"GetTitle", gc}
+    };
+}
+
+PluginWrapper::PluginWrapper(Plugin* realPlugin) : mPlugin(realPlugin) {
+
 }

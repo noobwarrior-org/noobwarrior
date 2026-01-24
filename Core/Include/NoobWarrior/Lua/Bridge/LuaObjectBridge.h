@@ -18,22 +18,35 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: PluginEnv.h
+// File: LuaObjectBridge.h
 // Started by: Hattozo
-// Started on: 1/10/2026
+// Started on: 1/14/2026
 // Description:
 #pragma once
+#include <string>
+#include <vector>
+#include <utility>
+#include <lua.hpp>
 
 namespace NoobWarrior {
+typedef std::pair<std::string, lua_CFunction> LuaRegEntry;
+typedef std::vector<LuaRegEntry> LuaReg;
+
+typedef std::tuple<std::string, lua_CFunction, lua_CFunction> LuaProperty;
+typedef std::vector<LuaProperty> LuaProperties;
+
 class LuaState;
-class PluginEnv {
+class LuaObjectBridge {
 public:
-    PluginEnv(LuaState* lua);
-    void Open();
-    void Close();
-    void Push();
+    LuaObjectBridge(LuaState* lua, const std::string &mtName);
+    virtual void Open();
+    virtual void Close();
+    virtual LuaReg GetStaticFuncs();
+    virtual LuaReg GetObjectMetaFuncs();
+    virtual LuaReg GetObjectFuncs();
+    virtual LuaProperties GetObjectProps();
 protected:
     LuaState* mLua;
-    int mRef;
+    std::string mMtName;
 };
 }

@@ -30,11 +30,7 @@ using namespace NoobWarrior;
 
 PluginManager::PluginManager(Core* core) : mCore(core) {}
 
-PluginManager::~PluginManager() {
-    for (Plugin* plugin : mPlugins) {
-        NOOBWARRIOR_FREE_PTR(plugin)
-    }
-}
+PluginManager::~PluginManager() {}
 
 Plugin::Response PluginManager::Load(Plugin *plugin, int priority) {
     Plugin::Response res = plugin->GetInitResponse();
@@ -58,6 +54,19 @@ Plugin::Response PluginManager::Load(const std::string &fileName, int priority, 
     return res;
 }
 
+void PluginManager::Unload(Plugin* plugin) {
+    if (!mCore->GetLuaState()->Opened()) {
+        Out("PluginManager", "WARNING! noobWarrior tried to unload a plugin but the Lua subsystem is not open! Perhaps it was closed too early?");
+        return;
+    }
+
+    auto it = std::find(mPlugins.begin(), mPlugins.end(), plugin);
+    if (it != mPlugins.end()) {
+        mPlugins.erase(it);
+        NOOBWARRIOR_FREE_PTR(plugin)
+    }
+}
+
 void PluginManager::LoadPlugins() {
     int loaded = 0;
     for (Plugin::Properties prop : GetCriticalPluginProperties()) {
@@ -78,6 +87,20 @@ void PluginManager::LoadPlugins() {
     
     if (loaded > 0)
         Out("PluginManager", "Loaded all enabled plugins");
+}
+
+void PluginManager::UnloadPlugins() {
+    if (!mCore->GetLuaState()->Opened()) {
+        Out("PluginManager", "WARNING! noobWarrior tried to unload all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
+        return;
+    }
+    for (Plugin* plugin : mPlugins) {
+        Unload(plugin);
+    }
+}
+
+Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {
+
 }
 
 std::vector<Plugin*> PluginManager::GetPlugins() {

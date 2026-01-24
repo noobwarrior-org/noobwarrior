@@ -53,7 +53,8 @@ public:
         FileSystemFailed,
         FileReadFailed,
         InvalidFile,
-        InvalidHandle
+        InvalidHandle,
+        InvalidFileSystem
     };
 
     enum class Format {
