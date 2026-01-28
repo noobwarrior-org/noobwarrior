@@ -185,15 +185,18 @@ std::filesystem::path Core::GetUserDataDir() {
 }
 
 void Core::CreateStandardUserDataDirectories() {
-#define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path)
-    NW_CREATE("databases");
-    NW_CREATE("roblox");
-    NW_CREATE("roblox" / "client");
-    NW_CREATE("roblox" / "server");
-    NW_CREATE("roblox" / "studio");
-    NW_CREATE("temp");
-    NW_CREATE("temp" / "downloads");
-    NW_CREATE("temp" / "downloads" / "clients");
+#define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path);
+    NW_CREATE("databases")
+    NW_CREATE("plugins")
+    NW_CREATE("registry")
+    NW_CREATE("roblox" / "client")
+    NW_CREATE("roblox" / "server")
+    NW_CREATE("roblox" / "studio")
+    NW_CREATE("temp" / "downloads" / "clients")
+#if defined(__unix__) || defined(__APPLE__)
+    NW_CREATE("wine" / "root")
+    NW_CREATE("wine" / "prefix")
+#endif
 #undef NW_CREATE
 }
 

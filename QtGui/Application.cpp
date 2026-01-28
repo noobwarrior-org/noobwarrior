@@ -168,6 +168,13 @@ bool Application::CheckConfigResponse(ConfigResponse res, const QString &errStr)
     return true;
 }
 
+void Application::DownloadAndInstallWine(std::function<void(bool)> callback) {
+    Out("Application", "Installing wine");
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+}
+
 void Application::DownloadAndInstallClient(const RobloxClient &client, std::function<void(bool)> callback) {
     Out("Application", "Installing client {}", client.Version);
     auto *dialog = new LoadingDialog(nullptr);
