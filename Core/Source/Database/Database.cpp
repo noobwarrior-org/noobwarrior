@@ -88,6 +88,9 @@
 // sql code for migrating so that when the database file has to be updated it can apply these patches in order.
 #include "migrations/v2.sql.inc.cpp"
 
+#define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
+#define RUN_MIGRATION(migration) DB_OUT("Migrating to ")
+
 static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
     {"Title", "Untitled"},
@@ -156,6 +159,8 @@ DatabaseResponse Database::Open(const std::string &path) {
         break;
 	case 1: ; // No migration scripts for v1, it's the first version.
     }
+
+	RUN_MIGRATION(v1)
 
 #define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
 	if (var##_execVal != SQLITE_OK) { \
