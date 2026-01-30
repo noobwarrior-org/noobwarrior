@@ -89,7 +89,10 @@
 #include "migrations/v2.sql.inc.cpp"
 
 #define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
-#define RUN_MIGRATION(migration) DB_OUT("Migrating to ")
+#define RUN_MIGRATION(migration) \
+	DB_OUT("Migrating to " + #migration) \
+	Statement stmt = PrepareStatement("SELECT Name FROM Migration WHERE Name = ?"); \
+	stmt.Bind(1, #migration);
 
 static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
@@ -137,7 +140,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 		// disable auto-commit mode by explicitly initiating a transaction
 		val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
 		if (val != SQLITE_OK) {
-			Out("Database", "Failed to begin new transaction!");
+			DB_OUT("Failed to begin new transaction!")
 			sqlite3_close_v2(mDatabase);
 			return DatabaseResponse::Failed;
 		}
@@ -145,9 +148,9 @@ DatabaseResponse Database::Open(const std::string &path) {
 
 	int dbVer = GetDatabaseVersion();
 	if (dbVer > 0 && dbVer != NOOBWARRIOR_DATABASE_VERSION) {
-		Out("Database", "Database file is out of date because it is on version {}! Must be upgraded to version {}.", dbVer, NOOBWARRIOR_DATABASE_VERSION);
+		DB_OUT("Database file is out of date because it is on version {}! Must be upgraded to version {}.", dbVer, NOOBWARRIOR_DATABASE_VERSION)
 	} else if (dbVer == -1) { // -1 indicates that something has went terribly wrong. how did that happen?
-		Out("Database", "Failed to open database file because the version number could not retrieved!");
+		DB_OUT("Failed to open database file because the version number could not retrieved!")
 		sqlite3_close_v2(mDatabase);
         return DatabaseResponse::CouldNotGetVersion;
 	}
@@ -160,12 +163,14 @@ DatabaseResponse Database::Open(const std::string &path) {
 	case 1: ; // No migration scripts for v1, it's the first version.
     }
 
+	// CREATE_TABLE(v2_migrate);
+
 	RUN_MIGRATION(v1)
 
 #define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
 	if (var##_execVal != SQLITE_OK) { \
 		sqlite3_close_v2(mDatabase); \
-		Out("Database", "Failed to create table from variable \"{}\"", #var);\
+		DB_OUT("Failed to create table from variable \"{}\"", #var)\
 		return DatabaseResponse::CouldNotCreateTable; \
 	}
 
@@ -243,7 +248,7 @@ DatabaseResponse Database::Open(const std::string &path) {
 
     	sqlite3_stmt *stmt;
         if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
-        	Out("Database", "Failed to prepare");
+			DB_OUT("Failed to prepare")
         	sqlite3_finalize(stmt);
         	sqlite3_close_v2(mDatabase);
 	        return DatabaseResponse::CouldNotSetKeyValues;
