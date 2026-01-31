@@ -102,19 +102,18 @@ int Application::Run() {
     */
     QApplication::setStyle(new DefaultStyle());
 #endif
-#if !defined(Q_OS_MACOS)
-    QMessageBox::StandardButton res = QMessageBox::question(nullptr, "Warning",
-        "What you are running is incomplete software. Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.",
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-#else
     QMessageBox msg;
+#if !defined(Q_OS_MACOS)
+    msg.setText("Warning");
+    msg.setInformativeText("What you are running is incomplete software. Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.");
+    msg.setIcon(QMessageBox::Information);
+#else
     msg.setText("You are running software that is likely broken");
     msg.setInformativeText("Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.");
+#endif
     msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msg.setDefaultButton(QMessageBox::No);
     int res = msg.exec();
-#endif
     if (res != QMessageBox::Yes)
         goto cleanup;
     mLauncher->show();
