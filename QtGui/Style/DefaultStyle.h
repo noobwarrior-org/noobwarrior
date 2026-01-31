@@ -31,5 +31,6 @@ public:
     DefaultStyle();
     void polish(QPalette &pal) override;
     void polish(QWidget *widget) override;
+    int pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const override;
 };
 }

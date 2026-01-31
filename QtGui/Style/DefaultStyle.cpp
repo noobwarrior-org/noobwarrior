@@ -35,10 +35,12 @@
 #include <QTabWidget>
 #include <QTabBar>
 
-NoobWarrior::DefaultStyle::DefaultStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
+using namespace NoobWarrior;
+
+DefaultStyle::DefaultStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
 }
 
-void NoobWarrior::DefaultStyle::polish(QPalette &pal) {
+void DefaultStyle::polish(QPalette &pal) {
     pal.setColor(QPalette::Window, QColor(60, 63, 65));
 
     pal.setColor(QPalette::Base,              QColor(60,63,65));
@@ -59,7 +61,7 @@ void NoobWarrior::DefaultStyle::polish(QPalette &pal) {
     QProxyStyle::polish(pal);
 }
 
-void NoobWarrior::DefaultStyle::polish(QWidget *widget) {
+void DefaultStyle::polish(QWidget *widget) {
     QFont font = widget->font();
     font.setFamily("Source Sans Pro");
 
@@ -85,4 +87,10 @@ void NoobWarrior::DefaultStyle::polish(QWidget *widget) {
     }
 
     QProxyStyle::polish(widget);
+}
+
+int DefaultStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const {
+    if (metric == QStyle::PM_MessageBoxIconSize)
+        return 32;
+    return QProxyStyle::pixelMetric(metric, option, widget);
 }
