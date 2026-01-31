@@ -266,6 +266,16 @@ void DatabaseEditor::InitMenus() {
 
     mHelpMenu = menuBar()->addMenu(tr("&Help"));
 
+    mAboutQtButton = new QAction(QIcon(":/images/qt_16x16.png"), "About Qt");
+    mAboutQtButton->setMenuRole(QAction::AboutQtRole);
+    connect(mAboutQtButton, &QAction::triggered, gApp, &QApplication::aboutQt);
+
+    mAboutButton = new QAction(QIcon(":/images/icon16_aa.png"), "About noobWarrior");
+    mAboutButton->setMenuRole(QAction::AboutRole);
+
+    mHelpMenu->addAction(mAboutQtButton);
+    mHelpMenu->addAction(mAboutButton);
+
     connect(mNewDatabaseAction, &QAction::triggered, [&]() {
         TryToOpenFile();
     });

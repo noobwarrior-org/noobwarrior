@@ -96,6 +96,9 @@ namespace NoobWarrior {
 
         std::vector<QAction*> mInsertItemTypeActions;
 
+        QAction* mAboutQtButton;
+        QAction* mAboutButton;
+
         //////////////////// Tool Bars ////////////////////
         QToolBar *mStandardToolBar;
         QToolBar *mViewToolBar;

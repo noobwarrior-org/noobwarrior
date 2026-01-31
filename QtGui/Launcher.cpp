@@ -81,7 +81,7 @@ static const void* sPlay[][3] = {
 };
 
 static const void* sTools[][3] = {
-    {"Database Editor", (void*)&LaunchDatabaseEditor, ":/images/silk/database_gear.png"},
+    {"Launch SDK", (void*)&LaunchDatabaseEditor, ":/images/sdk.png"},
     // WIP, uncomment these when they are completed for later
     // {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
     // {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
@@ -140,7 +140,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     // framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(175));
     // frame->setPalette(framePalette);
     frame->setAutoFillBackground(true); // QFrames usually have invisible backgrounds, turn it on in this case.
-    frame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
+    frame->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
 
     Layout->addWidget(frame);
 

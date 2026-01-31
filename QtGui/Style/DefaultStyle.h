@@ -31,6 +31,8 @@ public:
     DefaultStyle();
     void polish(QPalette &pal) override;
     void polish(QWidget *widget) override;
+    void drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const override;
+    void drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const override;
     int pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const override;
 };
 }

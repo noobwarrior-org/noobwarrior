@@ -34,6 +34,18 @@
 #include <QFrame>
 #include <QTabWidget>
 #include <QTabBar>
+#include <QDialog>
+#include <QMainWindow>
+#include <QMenuBar>
+#include <QMenu>
+#include <QAction>
+#include <QStyleOption>
+#include <qnamespace.h>
+#include <qstyle.h>
+
+#if defined(Q_OS_WIN32)
+#include <windows.h>
+#endif
 
 using namespace NoobWarrior;
 
@@ -44,24 +56,66 @@ void DefaultStyle::polish(QPalette &pal) {
     pal.setColor(QPalette::Window, QColor(60, 63, 65));
 
     pal.setColor(QPalette::Base,              QColor(60,63,65));
+    pal.setColor(QPalette::AlternateBase, QColor(30, 32, 33));
     pal.setColor(QPalette::Button,            QColor(53, 53, 53));
     pal.setColor(QPalette::Link,              QColor(42, 130, 218));
     pal.setColor(QPalette::Highlight,         QColor(42, 130, 218));
     pal.setColor(QPalette::ToolTipBase,       QColor(71, 73, 74));
+    pal.setColor(QPalette::BrightText, QColor(255, 255, 255));
 
     pal.setColor(QPalette::Light,       QColor(80, 81, 80));
-    pal.setColor(QPalette::Midlight,       QColor(80, 81, 80));
-    pal.setColor(QPalette::Dark,       QColor(51,50,51));
+    pal.setColor(QPalette::Midlight,       QColor(60, 63, 65));
+    pal.setColor(QPalette::Dark,       QColor(30, 32, 33));
     pal.setColor(QPalette::Mid,       QColor(51,50,51));
+    pal.setColor(QPalette::Shadow, QColor(10, 10, 10));
 
     pal.setColor(QPalette::WindowText, Qt::lightGray);
+    pal.setColor(QPalette::PlaceholderText, Qt::gray);
     pal.setColor(QPalette::Text, Qt::lightGray);
     pal.setColor(QPalette::ButtonText, Qt::lightGray);
     pal.setColor(QPalette::ToolTipText, Qt::lightGray);
+
     QProxyStyle::polish(pal);
 }
 
 void DefaultStyle::polish(QWidget *widget) {
+    auto *window = qobject_cast<QMainWindow*>(widget);
+    if (window != nullptr) {
+#if defined(Q_OS_WIN32)
+
+#else
+        window->setWindowFlags(window->windowFlags() | Qt::FramelessWindowHint);
+#endif
+    }
+
+    auto *menuBar = qobject_cast<QMenuBar*>(widget);
+    if (menuBar != nullptr) {
+        auto aestheticIcon = new QAction(QIcon(":/images/icon16_aa.png"), "");
+        aestheticIcon->setShortcutVisibleInContextMenu(false);
+        aestheticIcon->setShortcut(QKeySequence());
+        aestheticIcon->setCheckable(false);
+        aestheticIcon->setDisabled(true);
+        aestheticIcon->setMenuRole(QAction::NoRole);
+        aestheticIcon->setToolTip("me :D");
+        if (menuBar->actions().size() > 0)
+            menuBar->insertAction(menuBar->actions().at(0), aestheticIcon);
+        else menuBar->addAction(aestheticIcon);
+
+        auto windowTitleLabel = new QAction(menuBar->window()->windowTitle());
+        windowTitleLabel->setCheckable(false);
+        windowTitleLabel->setDisabled(true);
+        menuBar->addAction(windowTitleLabel);
+    }
+
+    auto *menu = qobject_cast<QMenu*>(widget);
+    if (menu != nullptr) {
+        menu->setWindowFlags(menu->windowFlags() | Qt::NoDropShadowWindowHint);
+    }
+
+    auto *action = qobject_cast<QAction*>(widget);
+    if (action != nullptr) {
+    }
+
     QFont font = widget->font();
     font.setFamily("Source Sans Pro");
 
@@ -89,8 +143,52 @@ void DefaultStyle::polish(QWidget *widget) {
     QProxyStyle::polish(widget);
 }
 
+void DefaultStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+    switch (pe) {
+    case QStyle::PE_PanelMenuBar:
+    case QStyle::PE_PanelToolBar:
+        return;
+    default: break;
+    }
+    if (pe == PE_PanelMenuBar) {
+        return;
+    }
+    QProxyStyle::drawPrimitive(pe, opt, p, w);
+}
+
+void DefaultStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+    if (ce == QStyle::CE_MenuBarItem) {
+        auto menu_opt = qstyleoption_cast<const QStyleOptionMenuItem *>(opt);
+        if (!menu_opt) return;
+
+        QString text = menu_opt->text;
+        if (text.startsWith("&"))
+            text = text.slice(1);
+
+        if (menu_opt->state & State_Selected) {
+            QStyleOptionButton btn;
+            btn.rect = menu_opt->rect;
+            btn.state = menu_opt->state;
+            drawPrimitive(
+                QStyle::PE_PanelButtonCommand,
+                &btn,
+                p,
+                w
+            );
+        }
+
+        // p->fillRect(menu_opt->rect, menu_opt->state & State_Selected ? menu_opt->palette.highlight().color() : menu_opt->palette.window().color());
+        drawItemPixmap(p, menu_opt->rect, Qt::AlignVCenter | Qt::AlignHCenter, menu_opt->icon.pixmap(16, 16));
+        drawItemText(p, menu_opt->rect.adjusted(0, 0, 0, 0), Qt::AlignVCenter | Qt::AlignHCenter, menu_opt->palette, menu_opt->state & State_Enabled, text, QPalette::Text);
+        return;
+    }
+    QProxyStyle::drawControl(ce, opt, p, w);
+}
+
 int DefaultStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const {
-    if (metric == QStyle::PM_MessageBoxIconSize)
-        return 32;
-    return QProxyStyle::pixelMetric(metric, option, widget);
+    switch (metric) {
+    default: return QProxyStyle::pixelMetric(metric, option, widget);
+    case QStyle::PM_MessageBoxIconSize: return 32;
+    case QStyle::PM_MenuBarVMargin: return 4;
+    }
 }

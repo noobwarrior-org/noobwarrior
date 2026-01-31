@@ -40,9 +40,10 @@
 #include <QTimer>
 #include <QPointer>
 #include <QSocketNotifier>
+#include <QMessageBox>
+#include <QStyleFactory>
 
 #include <curl/curl.h>
-#include <qmessagebox.h>
 #include <event.h>
 
 #define USE_CUSTOM_STYLE 1
@@ -97,10 +98,14 @@ int Application::Run() {
     QFile styleFile(":/css/style.css");
     if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&styleFile);
-        app.setStyleSheet(in.readAll());
+        setStyleSheet(in.readAll());
     }
     */
     QApplication::setStyle(new DefaultStyle());
+#else
+    #if defined(Q_OS_WIN32)
+        QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
+    #endif
 #endif
     QMessageBox msg;
 #if !defined(Q_OS_MACOS)
