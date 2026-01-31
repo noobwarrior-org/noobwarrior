@@ -1,3 +1,13 @@
+# install these with your package manager
+# if you are on windows then install msys2
+# if you are on mac then install homebrew
+# if you are on linux and you don't have a package manager then i don't know what to tell you
+find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(CURL REQUIRED)
+find_package(SQLite3 REQUIRED)
+
+# packages that might not be included in some package managers are included here:
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
 CPMAddPackage(
     URI "gh:WohlSoft/LuaJIT#59d961b"
@@ -16,6 +26,9 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
+)
+CPMAddPackage(
+    URI "gh:madler/zlib#v1.3.1"
 )
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
@@ -41,13 +54,6 @@ CPMAddPackage(
 #            $<BUILD_INTERFACE:${LuaJIT_SOURCE_DIR}/src>
 #    )
 #endif()
-
-# I recommend that you just manually install these yourself using your package manager. if you're on windows then use msys2
-# CPMAddPackage("gh:sqlite/sqlite#version-3.49.0")
-# CPMAddPackage("gh:curl/curl#curl-8_12_1")
-
-find_package(SQLite3 REQUIRED)
-find_package(CURL REQUIRED)
 
 if (NOOBWARRIOR_LIBTYPE_STATIC)
     message(STATUS "Configured noobWarrior as a static library")
