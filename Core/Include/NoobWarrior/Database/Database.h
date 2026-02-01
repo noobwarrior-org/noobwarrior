@@ -22,6 +22,56 @@
 // Started by: Hattozo
 // Started on: 2/17/2025
 // Description: A high-level interface to access a specialized noobWarrior SQLite database that contains Roblox items and other data
+/*
+ * EmuDatabase File Format Documentation
+ * ====== Purpose ======
+ * The purpose of the EmuDatabase file format is to store items in a format
+ * that is compatible with the Roblox web backend and game engine.
+ * Additionally, it is also repurposed to be an all-in-one place for the
+ * developer to store their works for a project.
+ *
+ * ====== Technical Overview ======
+ * The EmuDatabase file format uses SQLite for its backend. All read/write
+ * operations to the file are handled with SQL.
+ *
+ * Changes to the file format are made through constructing new SQL statements
+ * in "migrations" and applying them in order when the file is opened.
+ *
+ * Its official file extension is ".nwdb" and it is intended to be used in
+ * the noobWarrior software.
+ *
+ * Officially, developers should interface with the file using either the C++,
+ * C, or Lua API's that we have created. Do not manually execute SQL statements
+ * into the database if you want to guarantee stability.
+ *
+ * From the C++ abstraction side, all Roblox items are accessed through
+ * repositories
+ *
+ * ====== Key SQL Tables ======
+ * === Meta ===
+ * This is where metadata about the database is stored.
+ * It contains a few properties that can be changed by the user.
+ * == Properties ===
+ * (Title) This is, of course, the title.
+ * (Description) What describes this database?
+ * (Version) The version of the database. Please note that this is not the
+ * version of the file format, but a set value by the author in order to
+ * denote the version of the users project.
+ * (Icon) A Base64 encoded string that contains a valid image file.
+ * (Mutable) Allows the database to be modified by players during runtime.
+ * (CompressionType) A boolean that corresponds to CompressionType enum.
+ * If set with API, it will compress all binary blobs in the database using the
+ * specified compression algorithm.
+ * (OnlyEnableIfServerWithPlaceFromThisDatabaseIsRunning) Items from this
+ * database will only be requested by the emulator if one of your running game
+ * servers has loaded a place from this database.
+ * (TakeHigherPriorityIfServerWithPlaceFromThisDatabaseIsRunning) Makes the
+ * database have a higher priority if one of the running game servers has
+ * loaded a place from this database. You can turn this on if you are
+ * paranoid of conflicting ID's. WARNING: This prevents people from being able
+ * to make asset replacement mods for your game.
+ */
+
 #pragma once
 #include <NoobWarrior/Database/Common.h>
 #include <NoobWarrior/Database/Statement.h>

@@ -22,103 +22,22 @@
 // Started by: Hattozo
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
+// You can find documentation on the file format in the corresponding header file.
 #include <NoobWarrior/Database/Database.h>
+#include <NoobWarrior/Database/Common.h>
 #include <NoobWarrior/Database/Statement.h>
 #include <NoobWarrior/NoobWarrior.h>
 
-#include <nlohmann/json.hpp>
-
-#include <cstdio>
-#include <cstring>
 #include <sqlite3.h>
+#include <cstdio>
 
 #include "../base64.h"
-
-// header files containing strings of SQL schemas describing how each table should be created.
-#include "NoobWarrior/Database/Common.h"
 #include "schema/table/migration.sql.inc.cpp"
-#include "schema/table/meta.sql.inc.cpp"
-#include "schema/table/blob_storage.sql.inc.cpp"
-#include "schema/table/login_session.sql.inc.cpp"
-#include "schema/table/transaction.sql.inc.cpp"
-
-#include "schema/table/fs/node.sql.inc.cpp"
-
-#include "schema/table/item/asset.sql.inc.cpp"
-#include "schema/table/item/badge.sql.inc.cpp"
-#include "schema/table/item/bundle.sql.inc.cpp"
-#include "schema/table/item/devproduct.sql.inc.cpp"
-#include "schema/table/item/group.sql.inc.cpp"
-#include "schema/table/item/pass.sql.inc.cpp"
-#include "schema/table/item/set.sql.inc.cpp"
-#include "schema/table/item/universe.sql.inc.cpp"
-#include "schema/table/item/user.sql.inc.cpp"
-
-#include "schema/table/item/asset/asset_data.sql.inc.cpp"
-#include "schema/table/item/asset/asset_historical.sql.inc.cpp"
-#include "schema/table/item/asset/asset_microtransaction.sql.inc.cpp"
-#include "schema/table/item/asset/asset_misc.sql.inc.cpp"
-#include "schema/table/item/asset/asset_place_thumbnail.sql.inc.cpp"
-#include "schema/table/item/asset/asset_place_attributes.sql.inc.cpp"
-#include "schema/table/item/asset/asset_place_gear_type.sql.inc.cpp"
-
-#include "schema/table/item/bundle/bundle_asset.sql.inc.cpp"
-
-#include "schema/table/item/universe/universe_misc.sql.inc.cpp"
-#include "schema/table/item/universe/universe_historical.sql.inc.cpp"
-#include "schema/table/item/universe/universe_social_link.sql.inc.cpp"
-
-#include "schema/table/item/user/user_friends.sql.inc.cpp"
-#include "schema/table/item/user/user_groups.sql.inc.cpp"
-#include "schema/table/item/user/user_followers.sql.inc.cpp"
-#include "schema/table/item/user/user_following.sql.inc.cpp"
-#include "schema/table/item/user/user_inventory.sql.inc.cpp"
-#include "schema/table/item/user/user_favorites.sql.inc.cpp"
-#include "schema/table/item/user/user_likes_dislikes.sql.inc.cpp"
-#include "schema/table/item/user/user_names.sql.inc.cpp"
-
-#include "schema/table/item/group/group_role.sql.inc.cpp"
-#include "schema/table/item/group/group_wall.sql.inc.cpp"
-#include "schema/table/item/group/group_log.sql.inc.cpp"
-#include "schema/table/item/group/group_ally.sql.inc.cpp"
-#include "schema/table/item/group/group_enemy.sql.inc.cpp"
-#include "schema/table/item/group/group_historical.sql.inc.cpp"
-#include "schema/table/item/group/group_social_link.sql.inc.cpp"
-
-#include "schema/table/item/set/set_asset.sql.inc.cpp"
-
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
 #include "migrations/v3.sql.inc.cpp"
 
 #define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
-
-static constexpr const char* MetaKv[][2] = {
-	//////////////// Metadata ////////////////
-    {"Title", "Untitled"},
-    {"Description", "No description available."},
-    {"Version", "1.0.0"}, // Not to be confused with the version of the database format, this is meant for the author to set.
-	{"Author", "N/A"},
-    // The table can only take strings, so we're encoding this in base64.
-    // The base64 in this decodes to a default .png file.
-    {"Icon", "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"},
-	//////////////// Booleans ////////////////
-	/** Should parts of the database be able to be modified by players during runtime?
-	 * (Ex: Adding records to friend table by friending someone in-game, liking/disliking a game, uploading UGC, etc.)
-	 */
-	{"Mutable", "1"},
-	// If set to a valid compression type, it will compress all binary blobs in the database
-	// using the specified compression algorithm. This corresponds to CompressionType enum
-	{"CompressionType", "0"},
-	// Assets from this database will only be requested if one of your running game servers has loaded a place from this database.
-	// No clue how to make this not as wordy as it currently is.
-	{"OnlyEnableIfServerWithPlaceFromThisDatabaseIsRunning", "0"},
-	// This database will have a higher priority if one of your running game servers has loaded a place from this database.
-	// You can turn this on if you are paranoid of conflicting ID's
-	// This is even wordier.
-	// WARNING: This prevents people from being able to make asset replacement mods for your game.
-	{"TakeHigherPriorityIfServerWithPlaceFromThisDatabaseIsRunning", "0"}
-};
 
 using namespace NoobWarrior;
 
@@ -151,42 +70,6 @@ DatabaseResponse Database::Open(const std::string &path) {
 			return DatabaseResponse::Failed;
 		}
 	}
-
-	/*
-    // and initialize some keys
-    for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
-    	sqlite3_stmt *checkStmt;
-    	if (sqlite3_prepare_v2(mDatabase, "SELECT 1 FROM Meta WHERE Key = ?;", -1, &checkStmt, nullptr) != SQLITE_OK) {
-    		Out("checkStmt", "Failed to prepare");
-    		sqlite3_finalize(checkStmt);
-    		sqlite3_close_v2(mDatabase);
-    		return DatabaseResponse::CouldNotSetKeyValues;
-    	}
-    	sqlite3_bind_text(checkStmt, 1, MetaKv[i][0], -1, nullptr);
-    	if (sqlite3_step(checkStmt) == SQLITE_ROW) {
-    		// key already exists, don't insert anything, we're done here
-    		sqlite3_finalize(checkStmt);
-    		continue;
-    	}
-    	sqlite3_finalize(checkStmt);
-
-    	sqlite3_stmt *stmt;
-        if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
-			DB_OUT("Failed to prepare")
-        	sqlite3_finalize(stmt);
-        	sqlite3_close_v2(mDatabase);
-	        return DatabaseResponse::CouldNotSetKeyValues;
-        }
-    	sqlite3_bind_text(stmt, 1, MetaKv[i][0], -1, nullptr);
-    	sqlite3_bind_text(stmt, 2, MetaKv[i][1], -1, nullptr);
-    	if (sqlite3_step(stmt) != SQLITE_DONE) {
-    		sqlite3_close_v2(mDatabase);
-    		sqlite3_finalize(stmt);
-    		return DatabaseResponse::CouldNotSetKeyValues;
-    	}
-    	sqlite3_finalize(stmt);
-    }
-	*/
 
     mInitialized = true;
     return DatabaseResponse::Success;
@@ -292,9 +175,6 @@ bool Database::MigrateToLatestVersion() {
 		} else { DB_OUT("Migration to " #migration " failed.") return false; } \
 	}
 
-	// Statement migration##_stmt = PrepareStatement("SELECT Version FROM Migration WHERE Version = ?"); \
-	// migration##_stmt.Bind(1, #migration);
-
 	/** All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!! **/
 	/* V1: Adds a few important tables like Meta, BlobStorage, and LoginSession */
 	MIGRATE(v1)
@@ -302,6 +182,12 @@ bool Database::MigrateToLatestVersion() {
 	MIGRATE(v2)
 	/* V3: Adds all of the most important Roblox stuff, like Asset, Badge, Bundle, DevProduct, Group, Pass, etc. */
 	MIGRATE(v3)
+
+	// TODO: only do this when we migrate to zstandard
+	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
+	   In other words, the default for compressing files has changed to the zstandard format.
+	   Note that zstd was not implemented in noobWarrior by the time this change was created.
+	MIGRATE(v4) */
 
 #undef MIGRATE
 #undef CREATE_TABLE
