@@ -23,7 +23,7 @@
 // Started on: 3/8/2025
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Config.h>
-#include <NoobWarrior/Database/DatabaseManager.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 #include <fstream>
 #include <nlohmann/json_fwd.hpp>

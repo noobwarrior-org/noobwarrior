@@ -121,7 +121,7 @@ Config *Core::GetConfig() {
     return mConfig;
 }
 
-DatabaseManager *Core::GetDatabaseManager() {
+EmuDbManager *Core::GetDatabaseManager() {
     return &mDatabaseManager;
 }
 

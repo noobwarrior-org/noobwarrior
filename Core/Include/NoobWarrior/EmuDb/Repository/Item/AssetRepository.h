@@ -18,22 +18,30 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: AssetRepository.h
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 11/11/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/Repository/Repository.h>
+#include <NoobWarrior/EmuDb/Item/Asset.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
+class AssetRepository : public ItemRepository<Asset> {
 public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+    AssetRepository(EmuDb *db);
+    std::vector<unsigned char> RetrieveData(int64_t id, int snapshot);
+    std::vector<unsigned char> RetrieveData(int64_t id);
+    
+    DatabaseResponse Save(const Asset &asset) override;
+    DatabaseResponse Remove(int64_t id, int snapshot) override;
+    DatabaseResponse Remove(int64_t id) override;
+    DatabaseResponse Move(int64_t currentId, int64_t newId) override;
+    std::optional<Asset> Get(int64_t id) override;
+    std::optional<Asset> Get(int64_t id, int snapshot) override;
+    std::vector<Asset> List() override;
+
+    bool Exists(int64_t id, int snapshot) override;
+    bool Exists(int64_t id) override;
 };
 }

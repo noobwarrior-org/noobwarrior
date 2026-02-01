@@ -18,22 +18,30 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: Group.h (Database)
 // Started by: Hattozo
-// Started on: 6/19/2025
-// Description:
+// Started on: 9/20/2025
+// Description: A C-struct representation of what the database would give you when you ask it for a group.
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/Item/OwnedItem.h>
+
+#include <cstdint>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+struct Group : OwnedItem {
+    /* These numbers are meant for viewing only and cannot be modified through AddContent(). */
+    int64_t                     MemberCount;
+
+    /* This however, can be modified. */
+    int64_t                     Historical_MemberCount;
+    int64_t                     Funds;
+
+    std::string                 Shout;
+    int64_t                     ShoutUserId;
+    int64_t                     ShoutTimestamp;
+
+    bool                        EnemyDeclarationsEnabled;
+
+    static constexpr std::string TypeName = "Group";
 };
 }

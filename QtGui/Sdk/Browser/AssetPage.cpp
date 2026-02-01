@@ -18,22 +18,33 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: AssetPage.cpp
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 11/30/2025
 // Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include "AssetPage.h"
+#include "ItemBrowserWidget.h"
+#include "BrowserItem.h"
+#include <NoobWarrior/EmuDb/EmuDb.h>
 
-namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
-};
+using namespace NoobWarrior;
+
+AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemBrowserPage(browser), mBrowser(browser) {}
+
+void AssetPage::Refresh() {
+    SearchOptions opt {};
+    opt.Offset = 0;
+    opt.Limit = 100;
+    opt.AssetType = mType;
+
+    EmuDb* db = mBrowser->GetDatabase();
+
+    std::vector<Asset> list = db->GetAssetRepository().List();
+    for (auto &item : list) {
+        new BrowserItem<Asset>(item, db, this);
+    }
+}
+
+void AssetPage::SetType(Roblox::AssetType type) {
+    mType = type;
 }

@@ -18,22 +18,15 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: ContentImages.cpp
 // Started by: Hattozo
-// Started on: 6/19/2025
-// Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+// Started on: 8/2/2025
+// Description: Contains implementations of image data used for id and asset types
+#include <NoobWarrior/EmuDb/ContentImages.h>
+#include <array>
 
-namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
-};
-}
+#include "icons/content_deleted.png.inc.cpp"
+#include "icons/question_mark.png.inc.cpp"
+#include "icons/asset_type/model.png.inc.cpp"
+#include "icons/asset_type/audio.png.inc.cpp"
+#include "icons/asset_type/animation.png.inc.cpp"

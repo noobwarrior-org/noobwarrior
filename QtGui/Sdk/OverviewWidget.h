@@ -18,22 +18,25 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: OverviewWidget.h
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 7/4/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <QVBoxLayout>
+#include <QGridLayout>
+#include <NoobWarrior/EmuDb/EmuDb.h>
+#include <QWidget>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
+class OverviewWidget : public QWidget {
+    Q_OBJECT
 public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
+    OverviewWidget(EmuDb *db, QWidget *parent = nullptr);
 private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+    void InitWidgets();
+    EmuDb *mDatabase;
+    QVBoxLayout *ToplevelLayout;
+    QGridLayout *ContentLayout;
 };
 }

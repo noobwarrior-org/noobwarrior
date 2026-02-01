@@ -23,7 +23,7 @@
 // Started on: 12/23/2025
 // Description: Contains structs and other functions involving backing up Roblox items
 #pragma once
-#include <NoobWarrior/Database/Database.h>
+#include <NoobWarrior/EmuDb/EmuDb.h>
 #include <cstdint>
 #include <string>
 #include <functional>

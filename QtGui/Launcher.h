@@ -23,7 +23,7 @@
 // Started on: 12/15/2024
 // Description:
 #pragma once
-#include "DatabaseEditor/DatabaseEditor.h"
+#include "Sdk/Sdk.h"
 #include "Dialog/AssetDownloaderDialog.h"
 #include "Settings/SettingsDialog.h"
 #include "Dialog/AboutDialog.h"
@@ -49,7 +49,7 @@ namespace NoobWarrior {
 
         AboutDialog *mAboutDialog;
         SettingsDialog *mSettings;
-        DatabaseEditor *mDatabaseEditor;
+        Sdk *mSdk;
         AssetDownloader *mAssetDownload;
         HostServerDialog *mHostServerDialog;
         MasterServerWindow *mMasterServerWindow;

@@ -18,22 +18,23 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: AssetPage.h
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 11/30/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include "ItemBrowserPage.h"
+#include <NoobWarrior/EmuDb/Item/Asset.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
+class ItemBrowserWidget;
+class AssetPage : public ItemBrowserPage {
 public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
+    AssetPage(ItemBrowserWidget *browser);
+    void Refresh() override;
+    void SetType(Roblox::AssetType);
 private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+    ItemBrowserWidget *mBrowser;
+    Roblox::AssetType mType { Roblox::AssetType::None };
 };
 }

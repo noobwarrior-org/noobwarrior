@@ -27,10 +27,10 @@
 #include "Macros.h"
 #include "Log.h"
 #include "Lua/LuaState.h"
-#include "Database/Database.h"
+#include "EmuDb/EmuDb.h"
 #include "Config.h"
 #include "PluginManager.h"
-#include "Database/DatabaseManager.h"
+#include "EmuDb/EmuDb.h"
 #include "RccServiceManager.h"
 #include "RobloxClient.h"
 #include "HttpServer/Emulator/ServerEmulator.h"
@@ -105,7 +105,7 @@ public:
     event_base *GetEventBase();
     LuaState *GetLuaState();
     Config *GetConfig();
-    DatabaseManager *GetDatabaseManager();
+    EmuDbManager *GetDatabaseManager();
     PluginManager *GetPluginManager();
 
     MasterServerAuth *GetMasterServerAuth();
@@ -154,7 +154,7 @@ private:
     Init                            mInit;
     LuaState                        mLuaState;
     Config*                         mConfig;
-    DatabaseManager                 mDatabaseManager;
+    EmuDbManager                 mDatabaseManager;
     PluginManager                   mPluginManager;
 
     ServerEmulator*                 mServerEmulator;

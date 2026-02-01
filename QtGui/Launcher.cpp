@@ -63,7 +63,7 @@ static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostSer
 static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mMasterServerWindow, MasterServerWindow) }
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
-static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mDatabaseEditor, DatabaseEditor) }
+static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mSdk, Sdk) }
 static void ShowDatabaseMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mDatabaseDialog, DatabaseDialog) }
 static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPluginDialog, PluginDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
@@ -103,7 +103,7 @@ static const void* sApplication[][3] = {
 Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mAboutDialog(nullptr),
     mSettings(nullptr),
-    mDatabaseEditor(nullptr),
+    mSdk(nullptr),
     mAssetDownload(nullptr),
     mHostServerDialog(nullptr),
     mMasterServerWindow(nullptr),

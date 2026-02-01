@@ -18,22 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: AssetDialog.h
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 11/30/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include "ItemDialog.h"
+#include <NoobWarrior/EmuDb/Item/Asset.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
+class AssetDialog : public ItemDialog<Asset> {
+    Q_OBJECT
 public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+    AssetDialog(QWidget *parent = nullptr, Asset asset = {});
+    void RegenWidgets() override;
 };
 }

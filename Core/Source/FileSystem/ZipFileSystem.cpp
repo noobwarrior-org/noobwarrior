@@ -35,7 +35,7 @@ ZipFileSystem::ZipFileSystem(const std::filesystem::path &zipPath) : mArchive(nu
     int err_code { 0 };
 
     std::string path_string = zipPath.string();
-    mArchive = zip_open(path_string.c_str(), NULL, &err_code);
+    mArchive = zip_open(path_string.c_str(), 0, &err_code);
 
     if (err_code != 0) {
         zip_error_t error;
@@ -67,7 +67,7 @@ FSEntryInfo ZipFileSystem::GetEntryFromPath(const std::string &path) {
         entry.Exists = false;
         goto finish;
     }
-    statErr = zip_stat_index(mArchive, index, NULL, &stat);
+    statErr = zip_stat_index(mArchive, index, 0, &stat);
     if (statErr == -1)
         goto finish;
     entry.Type = std::string(stat.name).ends_with('/') ? FSEntryInfo::Type::Directory : FSEntryInfo::Type::File;
@@ -90,7 +90,7 @@ std::vector<FSEntryInfo> ZipFileSystem::GetEntriesInDirectory(const std::string 
         zip_path = zip_path.substr(1);
 
     std::vector<FSEntryInfo> entries;
-    zip_int64_t entries_num = zip_get_num_entries(mArchive, NULL);
+    zip_int64_t entries_num = zip_get_num_entries(mArchive, 0);
     for (int i = 0; i < entries_num; i++) {
         auto entryPath = std::string(zip_get_name(mArchive, i, 0));
         if (entryPath.starts_with(zip_path)) {
@@ -104,17 +104,17 @@ std::vector<FSEntryInfo> ZipFileSystem::GetEntriesInDirectory(const std::string 
 FSEntryHandle ZipFileSystem::OpenHandle(const std::string &path) {
     if (Fail() || mArchive == nullptr) {
         Out("ZipFileSystem", "Failed to open handle for file \"{}\" because the zip filesystem failed to initialize.", path);
-        return NULL;
+        return 0;
     }
 
     std::string zip_path = path;
     while (zip_path.starts_with('/'))
         zip_path = zip_path.substr(1);
 
-    zip_file_t *file = zip_fopen(mArchive, zip_path.c_str(), NULL);
-    if (file == NULL) {
+    zip_file_t *file = zip_fopen(mArchive, zip_path.c_str(), 0);
+    if (file == 0) {
         Out("ZipFileSystem", "Failed to open handle for file \"{}\"", path);
-        return NULL;
+        return 0;
     }
 
     int id = 1;

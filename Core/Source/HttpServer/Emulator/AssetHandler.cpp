@@ -27,7 +27,7 @@
 
 using namespace NoobWarrior;
 
-AssetHandler::AssetHandler(HttpServer *srv, DatabaseManager *dbm) :
+AssetHandler::AssetHandler(HttpServer *srv, EmuDbManager *dbm) :
     mHttpServer(srv),
     mDatabaseManager(dbm)
 {}

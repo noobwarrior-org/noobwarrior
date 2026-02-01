@@ -24,23 +24,23 @@ set(SOURCES
     MasterServer/MasterServerWindow.cpp
     MasterServer/MasterServerSidebar.cpp
     MasterServer/ServerListWidget.cpp
-    DatabaseEditor/DatabaseEditor.cpp
-    DatabaseEditor/WelcomeWidget.cpp
-    DatabaseEditor/OverviewWidget.cpp
-    DatabaseEditor/FileManagerWidget.cpp
-    DatabaseEditor/ThumbnailPreviewWidget.cpp
-    DatabaseEditor/Browser/ItemBrowserWidget.cpp
-    DatabaseEditor/Browser/ItemBrowserPage.cpp
-    DatabaseEditor/Browser/AssetPage.cpp
-    DatabaseEditor/Item/AssetDialog.cpp
-    DatabaseEditor/Preview/ItemPreviewWidget.cpp
-    DatabaseEditor/BackgroundTask/BackgroundTask.cpp
-    DatabaseEditor/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
-    DatabaseEditor/BackgroundTask/BackgroundTaskPopupWidget.cpp
-    DatabaseEditor/Backup/BackupDialog.cpp
-    DatabaseEditor/Backup/BackupTask.cpp
-    DatabaseEditor/Backup/BackupTreeView.cpp
-    DatabaseEditor/Backup/ItemDescriptorModel.cpp
+    Sdk/Sdk.cpp
+    Sdk/WelcomeWidget.cpp
+    Sdk/OverviewWidget.cpp
+    Sdk/FileManagerWidget.cpp
+    Sdk/ThumbnailPreviewWidget.cpp
+    Sdk/Browser/ItemBrowserWidget.cpp
+    Sdk/Browser/ItemBrowserPage.cpp
+    Sdk/Browser/AssetPage.cpp
+    Sdk/Item/AssetDialog.cpp
+    Sdk/Preview/ItemPreviewWidget.cpp
+    Sdk/BackgroundTask/BackgroundTask.cpp
+    Sdk/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
+    Sdk/BackgroundTask/BackgroundTaskPopupWidget.cpp
+    Sdk/Backup/BackupDialog.cpp
+    Sdk/Backup/BackupTask.cpp
+    Sdk/Backup/BackupTreeView.cpp
+    Sdk/Backup/ItemDescriptorModel.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
 )

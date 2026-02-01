@@ -18,22 +18,23 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: User.h (Database)
 // Started by: Hattozo
-// Started on: 6/19/2025
-// Description:
+// Started on: 8/1/2025
+// Description: A C-struct representation of what the database would give you when you ask it for a user.
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/Item/Item.h>
+#include <NoobWarrior/Roblox/Api/User.h>
+
+#include <nlohmann/json.hpp>
+
+#include <cstdint>
+#include <string>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+struct User : Item {
+    std::string DisplayName;
+
+    static constexpr std::string TypeName = "User";
 };
 }

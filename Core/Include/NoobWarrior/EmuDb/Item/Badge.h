@@ -18,22 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: Badge.h (Database)
 // Started by: Hattozo
-// Started on: 6/19/2025
+// Started on: 6/30/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/Item/UniverseItem.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+struct Badge : UniverseItem {
+    int Awarded;
+    int AwardedYesterday;
+
+    static constexpr std::string TypeName = "Badge";
 };
 }

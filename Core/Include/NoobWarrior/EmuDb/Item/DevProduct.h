@@ -18,22 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.h
+// File: DevProduct.h (Database)
 // Started by: Hattozo
-// Started on: 6/19/2025
-// Description:
+// Started on: 9/20/2025
+// Description: A C-struct representation of what the database would give you when you ask it for a developer product.
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/Item/UniverseItem.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class AssetHandler : public Handler {
-public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+struct DevProduct : UniverseItem {
+    Roblox::CurrencyType        CurrencyType;
+    int                         Price;
+
+    static constexpr std::string TypeName = "DevProduct";
 };
 }

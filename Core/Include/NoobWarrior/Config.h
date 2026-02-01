@@ -33,7 +33,7 @@
 #define NOOBWARRIOR_USERDATA_DIRNAME "noobWarrior"
 
 namespace NoobWarrior {
-class Database;
+class EmuDb;
 
 enum class Theme {
     Default = 0,

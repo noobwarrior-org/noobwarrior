@@ -68,11 +68,11 @@ set_target_properties(NoobWarrior.Core PROPERTIES
 target_sources(NoobWarrior.Core PRIVATE
     Source/NoobWarrior.cpp
     Source/noobwarrior_c.cpp
-    Source/Database/Statement.cpp
-    Source/Database/Database.cpp
-    Source/Database/DatabaseManager.cpp
-    Source/Database/ContentImages.cpp
-    Source/Database/Repository/Item/AssetRepository.cpp
+    Source/EmuDb/Statement.cpp
+    Source/EmuDb/EmuDb.cpp
+    Source/EmuDb/EmuDbManager.cpp
+    Source/EmuDb/ContentImages.cpp
+    Source/EmuDb/Repository/Item/AssetRepository.cpp
     Source/FileSystem/VirtualFileSystem.cpp
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
