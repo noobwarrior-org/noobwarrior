@@ -32,6 +32,7 @@
 #include "Backup/BackupDialog.h"
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
+#include "../Dialog/AboutDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -72,7 +73,7 @@ DatabaseEditor::DatabaseEditor(QWidget *parent) : QMainWindow(parent),
     mFileManager(nullptr),
     mBackgroundTaskStatusBarWidget(nullptr)
 {
-    setWindowTitle("Database Editor - noobWarrior");
+    setWindowTitle("noobWarrior SDK");
     setAcceptDrops(true);
     // setWindowState(Qt::WindowMaximized);
     InitMenus();
@@ -102,11 +103,12 @@ void DatabaseEditor::paintEvent(QPaintEvent *event) {
     // So we're just checking if it's dirty here in our paint event that Qt gives us. Much easier
     if (mCurrentDatabase != nullptr) {
         setWindowTitle(
-            QString("%1%2 - Database Editor - noobWarrior")
-            .arg(QString::fromStdString(mCurrentDatabase->GetTitle()))
-            .arg(mCurrentDatabase->IsDirty() ? "*" : "")
+            QString("%1%2%3- noobWarrior SDK")
+            .arg(!mCurrentDatabase->IsMemory() ? QString::fromStdString(mCurrentDatabase->GetFileName()) : "Unsaved File")
+            .arg(mCurrentDatabase->IsDirty() ? "* " : " ")
+            .arg((!mCurrentDatabase->IsMemory() ? "- " : "") + QString::fromStdString(mCurrentDatabase->GetTitle()))
         );
-    } else setWindowTitle(QString("Database Editor - noobWarrior"));
+    } else setWindowTitle(QString("noobWarrior SDK"));
 }
 
 void DatabaseEditor::dragEnterEvent(QDragEnterEvent *event) {
@@ -177,10 +179,12 @@ void DatabaseEditor::TryToOpenFile(const QString &path) {
     if (mCurrentDatabase->IsMemory()) {
         // If we're making a new file, then fill in some defaults (like the author of the database) with the name of the
         // person running the program.
-        QString name = qgetenv("USER");
-        if (name.isEmpty())
-            name = qgetenv("USERNAME");
-        mCurrentDatabase->SetAuthor(name.toStdString());
+        if (mCurrentDatabase->GetAuthor().empty()) {
+            QString name = qgetenv("USER");
+            if (name.isEmpty())
+                name = qgetenv("USERNAME");
+            mCurrentDatabase->SetAuthor(name.toStdString());
+        }
 
         // It got marked as dirty because we programmatically changed the author of the DB.
         // Unmark it so that you won't get the stupid "you forgot to save your changes" screen when closing this empty new file.
@@ -272,6 +276,10 @@ void DatabaseEditor::InitMenus() {
 
     mAboutButton = new QAction(QIcon(":/images/icon16_aa.png"), "About noobWarrior");
     mAboutButton->setMenuRole(QAction::AboutRole);
+    connect(mAboutButton, &QAction::triggered, []() {
+        AboutDialog dialog;
+        dialog.exec();
+    });
 
     mHelpMenu->addAction(mAboutQtButton);
     mHelpMenu->addAction(mAboutButton);
