@@ -46,6 +46,7 @@ enum class DatabaseResponse {
     StatementConstraintViolation,
     Busy,
     Misuse,
-    DoesNotExist
+    DoesNotExist,
+    MigrationFailed
 };
 }

@@ -35,6 +35,8 @@
 #include "../base64.h"
 
 // header files containing strings of SQL schemas describing how each table should be created.
+#include "NoobWarrior/Database/Common.h"
+#include "schema/table/migration.sql.inc.cpp"
 #include "schema/table/meta.sql.inc.cpp"
 #include "schema/table/blob_storage.sql.inc.cpp"
 #include "schema/table/login_session.sql.inc.cpp"
@@ -85,14 +87,10 @@
 
 #include "schema/table/item/set/set_asset.sql.inc.cpp"
 
-// sql code for migrating so that when the database file has to be updated it can apply these patches in order.
+#include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
 
 #define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
-#define RUN_MIGRATION(migration) \
-	DB_OUT("Migrating to " + #migration) \
-	Statement stmt = PrepareStatement("SELECT Name FROM Migration WHERE Name = ?"); \
-	stmt.Bind(1, #migration);
 
 static constexpr const char* MetaKv[][2] = {
 	//////////////// Metadata ////////////////
@@ -136,44 +134,170 @@ DatabaseResponse Database::Open(const std::string &path) {
     int val = sqlite3_open_v2(path.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
     if (val != SQLITE_OK)
         return DatabaseResponse::CouldNotOpen;
+
+	if (!MigrateToLatestVersion()) {
+		DB_OUT("Failed to migrate to latest version. The database has possibly been corrupted. Now aborting.")
+		sqlite3_close_v2(mDatabase);
+		return DatabaseResponse::MigrationFailed;
+	}
+
 	if (!mAutoCommit) {
 		// disable auto-commit mode by explicitly initiating a transaction
 		val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
 		if (val != SQLITE_OK) {
-			DB_OUT("Failed to begin new transaction!")
+			DB_OUT("Failed to begin new transaction. Aborting!")
 			sqlite3_close_v2(mDatabase);
 			return DatabaseResponse::Failed;
 		}
 	}
 
-	int dbVer = GetDatabaseVersion();
-	if (dbVer > 0 && dbVer != NOOBWARRIOR_DATABASE_VERSION) {
-		DB_OUT("Database file is out of date because it is on version {}! Must be upgraded to version {}.", dbVer, NOOBWARRIOR_DATABASE_VERSION)
-	} else if (dbVer == -1) { // -1 indicates that something has went terribly wrong. how did that happen?
-		DB_OUT("Failed to open database file because the version number could not retrieved!")
-		sqlite3_close_v2(mDatabase);
-        return DatabaseResponse::CouldNotGetVersion;
+	/*
+    // and initialize some keys
+    for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
+    	sqlite3_stmt *checkStmt;
+    	if (sqlite3_prepare_v2(mDatabase, "SELECT 1 FROM Meta WHERE Key = ?;", -1, &checkStmt, nullptr) != SQLITE_OK) {
+    		Out("checkStmt", "Failed to prepare");
+    		sqlite3_finalize(checkStmt);
+    		sqlite3_close_v2(mDatabase);
+    		return DatabaseResponse::CouldNotSetKeyValues;
+    	}
+    	sqlite3_bind_text(checkStmt, 1, MetaKv[i][0], -1, nullptr);
+    	if (sqlite3_step(checkStmt) == SQLITE_ROW) {
+    		// key already exists, don't insert anything, we're done here
+    		sqlite3_finalize(checkStmt);
+    		continue;
+    	}
+    	sqlite3_finalize(checkStmt);
+
+    	sqlite3_stmt *stmt;
+        if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
+			DB_OUT("Failed to prepare")
+        	sqlite3_finalize(stmt);
+        	sqlite3_close_v2(mDatabase);
+	        return DatabaseResponse::CouldNotSetKeyValues;
+        }
+    	sqlite3_bind_text(stmt, 1, MetaKv[i][0], -1, nullptr);
+    	sqlite3_bind_text(stmt, 2, MetaKv[i][1], -1, nullptr);
+    	if (sqlite3_step(stmt) != SQLITE_DONE) {
+    		sqlite3_close_v2(mDatabase);
+    		sqlite3_finalize(stmt);
+    		return DatabaseResponse::CouldNotSetKeyValues;
+    	}
+    	sqlite3_finalize(stmt);
+    }
+	*/
+
+    mInitialized = true;
+    return DatabaseResponse::Success;
+}
+
+int Database::Close() {
+    return mDatabase != nullptr ? sqlite3_close_v2(mDatabase) : 0;
+}
+
+bool Database::VerifyIntegrityOfMigration() {
+	Statement stmt = PrepareStatement("SELECT * FROM Migration");
+	if (stmt.Fail()) {
+		// and what do you do if you're the user? NOTHING
+		DB_OUT("Failed to verify integrity of migration: select statement failed. The Migration table most likely does not exist.")
+		return false;
 	}
 
-    switch (dbVer) {
-    case 0: // 0 indicates to us that we have a brand new SQLite database, as there is no file version that starts at 0.
-        // no migrating required because we are on a clean slate, just set the database version and go
-        if (SetDatabaseVersion(NOOBWARRIOR_DATABASE_VERSION) != SQLITE_OK) { sqlite3_close_v2(mDatabase); return DatabaseResponse::CouldNotSetVersion; }
-        break;
-	case 1: ; // No migration scripts for v1, it's the first version.
-    }
+	int prevRowId;
+	std::string prevVersion;
+	sqlite3_int64 prevTimestamp;
 
-	// CREATE_TABLE(v2_migrate);
+	while (1) {
+		int step = stmt.Step();
+		if (step == SQLITE_ROW) {
+			int rowId = sqlite3_column_int(stmt.Get(), 0);
+			std::string version = (char*)sqlite3_column_text(stmt.Get(), 1);
+			sqlite_int64 timestamp = sqlite3_column_int64(stmt.Get(), 2);
 
-	RUN_MIGRATION(v1)
+			int verToStr;
+			try {
+				if (version.starts_with("v")) // Cut out the "v" portion of "v1" because we want to make it a valid number.
+					version = version.substr(1, std::string::npos);
+				verToStr = std::stoi(version);
+			} catch (std::exception &ex) {
+				DB_OUT("Failed to verify integrity of migration: cannot convert version string to number!");
+				return false;
+			}
+
+			if (verToStr != rowId) {
+				DB_OUT("Failed to verify integrity of migration: version {} does not match row ID {}. Did the developer order the versions wrong? Is there a gap?", version, rowId)
+				return false;
+			}
+
+			if (rowId > prevRowId && prevVersion > version) {
+				DB_OUT("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion)
+				return false;
+			}
+
+			prevRowId = rowId;
+			prevVersion = version;
+			prevTimestamp = timestamp;
+		} else {
+			if (step != SQLITE_DONE) {
+				DB_OUT("Failed to verify integrity of migration: could not select from migration table. Maybe it doesn't exist?")
+			}
+			return step == SQLITE_DONE;
+		}
+	}
+}
+
+bool Database::MigrateToLatestVersion() {
+	bool transactionStmt = ExecStatement("BEGIN TRANSACTION;");
+	if (!transactionStmt) {
+		DB_OUT("Failed to begin new transaction in order to perform migration")
+		return false;
+	}
 
 #define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
 	if (var##_execVal != SQLITE_OK) { \
 		sqlite3_close_v2(mDatabase); \
-		DB_OUT("Failed to create table from variable \"{}\"", #var)\
-		return DatabaseResponse::CouldNotCreateTable; \
+		DB_OUT("Failed to create table from variable \"{}\"", #var) \
+		return false; \
 	}
 
+	CREATE_TABLE(schema_migration);
+
+	if (!VerifyIntegrityOfMigration()) {
+		DB_OUT("Failed to begin migration because the integrity check failed.")
+		return false;
+	}
+
+	bool bindingsSet = false;
+	Statement migrationStmt = PrepareStatement("SELECT RowId, Version FROM Migration WHERE Version = ?");
+	if (migrationStmt.Fail()) {
+		DB_OUT("Failed to prepare select statement for Migration table")
+		return false;
+	}
+
+#define MIGRATE(migration) \
+	if (bindingsSet) { \
+		if (migrationStmt.Reset() != SQLITE_OK) { DB_OUT("Failed to reset selecting migration statement") return false; } \
+		if (migrationStmt.ClearBindings() != SQLITE_OK) { DB_OUT("Failed to clear bindings for selecting migration statement") return false; } \
+	} \
+	if (migrationStmt.Bind(1, #migration) != SQLITE_OK) { DB_OUT("Failed to bind value to selecting migration statement") return false; }; \
+	bindingsSet = true; \
+	if (migrationStmt.Step() == SQLITE_DONE) { \
+		bool success = ExecStatement(migration_##migration); \
+		if (success) { \
+			Statement addToListStmt = PrepareStatement("INSERT INTO Migration (Version) VALUES (?)"); \
+			addToListStmt.Bind(1, #migration); \
+			if (addToListStmt.Step() == SQLITE_DONE) { DB_OUT("Migrated to " #migration) } \
+			else { DB_OUT("Failed to insert row into migraton table. What the fuck?") return false; } \
+		} else { DB_OUT("Migration to " #migration " failed.") return false; } \
+	}
+
+	// Statement migration##_stmt = PrepareStatement("SELECT Version FROM Migration WHERE Version = ?"); \
+	// migration##_stmt.Bind(1, #migration);
+
+	// All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!!
+	MIGRATE(v1) // first one.
+
+	/*
     // create all tables that do not exist
     CREATE_TABLE(schema_meta)
 	CREATE_TABLE(schema_blob_storage)
@@ -226,51 +350,25 @@ DatabaseResponse Database::Open(const std::string &path) {
 	CREATE_TABLE(schema_group_social_link)
 
 	CREATE_TABLE(schema_set_asset)
+	*/
 
+#undef MIGRATE
 #undef CREATE_TABLE
 
-    // and initialize some keys
-    for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(MetaKv); i++) {
-    	sqlite3_stmt *checkStmt;
-    	if (sqlite3_prepare_v2(mDatabase, "SELECT 1 FROM Meta WHERE Key = ?;", -1, &checkStmt, nullptr) != SQLITE_OK) {
-    		Out("checkStmt", "Failed to prepare");
-    		sqlite3_finalize(checkStmt);
-    		sqlite3_close_v2(mDatabase);
-    		return DatabaseResponse::CouldNotSetKeyValues;
-    	}
-    	sqlite3_bind_text(checkStmt, 1, MetaKv[i][0], -1, nullptr);
-    	if (sqlite3_step(checkStmt) == SQLITE_ROW) {
-    		// key already exists, don't insert anything, we're done here
-    		sqlite3_finalize(checkStmt);
-    		continue;
-    	}
-    	sqlite3_finalize(checkStmt);
+	if (!VerifyIntegrityOfMigration()) {
+		DB_OUT("Failed to finish migration because the integrity check failed. Changes will not be saved.")
+		return false;
+	}
 
-    	sqlite3_stmt *stmt;
-        if (sqlite3_prepare_v2(mDatabase, "INSERT INTO Meta('Key', 'Value') VALUES(?, ?)", -1, &stmt, nullptr) != SQLITE_OK) {
-			DB_OUT("Failed to prepare")
-        	sqlite3_finalize(stmt);
-        	sqlite3_close_v2(mDatabase);
-	        return DatabaseResponse::CouldNotSetKeyValues;
-        }
-    	sqlite3_bind_text(stmt, 1, MetaKv[i][0], -1, nullptr);
-    	sqlite3_bind_text(stmt, 2, MetaKv[i][1], -1, nullptr);
-    	if (sqlite3_step(stmt) != SQLITE_DONE) {
-    		sqlite3_close_v2(mDatabase);
-    		sqlite3_finalize(stmt);
-    		return DatabaseResponse::CouldNotSetKeyValues;
-    	}
-    	sqlite3_finalize(stmt);
-    }
-    mInitialized = true;
-    return DatabaseResponse::Success;
+	bool commitStmt = ExecStatement("COMMIT;");
+	if (!commitStmt) {
+		DB_OUT("Failed to commit transaction in order to complete migration. Changes will not be saved.")
+		return false;
+	}
+	return true;
 }
 
-int Database::Close() {
-    return mDatabase != nullptr ? sqlite3_close_v2(mDatabase) : 0;
-}
-
-int Database::GetDatabaseVersion() {
+int Database::GetMigrationVersion() {
     int val = -1;
     sqlite3_stmt *stmt;
     if (sqlite3_prepare_v2(mDatabase, "PRAGMA user_version;", -1, &stmt, nullptr) != SQLITE_OK)
@@ -280,14 +378,6 @@ int Database::GetDatabaseVersion() {
 cleanup:
     sqlite3_finalize(stmt);
     return val;
-}
-
-int Database::SetDatabaseVersion(int version) {
-	std::string stmtStr = std::format("PRAGMA user_version={}", version);
-	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
-	if (res == SQLITE_OK)
-		MarkDirty();
-    return res;
 }
 
 DatabaseResponse Database::SaveAs(const std::string &path) {
@@ -406,16 +496,9 @@ Statement Database::PrepareStatement(const std::string &stmtStr) {
 	return Statement(this, stmtStr);
 }
 
-DatabaseResponse Database::ExecStatement(const std::string &stmtStr) {
+bool Database::ExecStatement(const std::string &stmtStr) {
 	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
-	auto ret = DatabaseResponse::Failed;
-	switch (res) {
-	case SQLITE_OK:
-		ret = DatabaseResponse::Success;
-		break;
-	default: break;
-	}
-	return ret;
+	return res == SQLITE_OK;
 }
 
 DatabaseResponse Database::SetMetaKeyValue(const std::string &key, const std::string &value) {

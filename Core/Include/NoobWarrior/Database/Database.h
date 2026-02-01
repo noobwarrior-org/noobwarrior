@@ -42,8 +42,6 @@
 #include <vector>
 #include <cstdint>
 
-#define NOOBWARRIOR_DATABASE_VERSION 1
-
 #define NOOBWARRIOR_BEGIN_PROP_SETTER for (int i = 0; i < sqlite3_column_count(stmt); i++) {
 #define NOOBWARRIOR_END_PROP_SETTER }
 #define NOOBWARRIOR_SET_PROP_FIELD(field, tableFieldName, type) if (strncmp(sqlite3_column_name(stmt, i), tableFieldName, 4) == 0) { \
@@ -88,7 +86,7 @@ public:
 
     int Close();
 
-    int GetDatabaseVersion();
+    int GetMigrationVersion();
 
     DatabaseResponse SaveAs(const std::string &path);
 
@@ -130,7 +128,7 @@ public:
 
     Statement PrepareStatement(const std::string &stmtStr);
     
-    DatabaseResponse ExecStatement(const std::string &stmtStr);
+    bool ExecStatement(const std::string &stmtStr);
     DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
     DatabaseResponse SetTitle(const std::string &title);
     DatabaseResponse SetAuthor(const std::string &author);
@@ -187,8 +185,6 @@ public:
         return 0;
     }
 protected:
-    int SetDatabaseVersion(int version);
-
     inline sqlite3_stmt* ConstructIdRecordStmtFromName(const std::string name, const int64_t id, const std::optional<int> &snapshot) {
         std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
 
@@ -205,6 +201,9 @@ protected:
 
     AssetRepository mAssetRepository;
 private:
+    bool VerifyIntegrityOfMigration();
+    bool MigrateToLatestVersion();
+
     std::filesystem::path mPath;
     sqlite3 *mDatabase;
     bool mInitialized;

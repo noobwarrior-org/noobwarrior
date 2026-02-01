@@ -51,7 +51,10 @@ public:
     inline int Bind(int pos) { return sqlite3_bind_null(mStmt, pos); }
 
     int Step();
-    bool Failed();
+    int Reset();
+    int ClearBindings();
+
+    bool Fail();
     bool IsColumnIndexNull(int columnIndex);
     SqlValue GetValueFromColumnIndex(int columnIndex);
 

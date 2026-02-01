@@ -17,5 +17,10 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
-static const char *migration_v2 = R"***(
+static const char *schema_migration = R"***(
+CREATE TABLE IF NOT EXISTS "Migration" (
+    "RowId"	INTEGER PRIMARY KEY,
+    "Version"   TEXT NOT NULL UNIQUE,
+    "AppliedTimestamp"	INTEGER NOT NULL DEFAULT (unixepoch())
+);
 )***";

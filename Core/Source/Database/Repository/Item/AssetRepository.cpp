@@ -54,7 +54,7 @@ DatabaseResponse AssetRepository::Save(const Asset &asset) {
     UserId=EXCLUDED.UserId, GroupId=EXCLUDED.GroupId, Type=EXCLUDED.Type, Public=EXCLUDED.Public
     WHERE Id = ?;
     ***)");
-    if (stmt.Failed())
+    if (stmt.Fail())
         return DatabaseResponse::Failed;
     stmt.Bind(1, asset.Id);
     stmt.Bind(2, asset.Snapshot);

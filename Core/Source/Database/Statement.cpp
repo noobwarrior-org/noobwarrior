@@ -24,6 +24,7 @@
 // Description:
 #include <NoobWarrior/Database/Statement.h>
 #include <NoobWarrior/Database/Database.h>
+#include <sqlite3.h>
 
 using namespace NoobWarrior;
 
@@ -41,7 +42,15 @@ int Statement::Step() {
     return sqlite3_step(mStmt);
 }
 
-bool Statement::Failed() {
+int Statement::Reset() {
+    return sqlite3_reset(mStmt);
+}
+
+int Statement::ClearBindings() {
+    return sqlite3_clear_bindings(mStmt);
+}
+
+bool Statement::Fail() {
     return mFailed;
 }
 

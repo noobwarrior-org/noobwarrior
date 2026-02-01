@@ -17,5 +17,5 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
-static const char *migration_v2 = R"***(
+static const char *migration_v1 = R"***(
 )***";
