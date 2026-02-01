@@ -89,6 +89,7 @@
 
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
+#include "migrations/v3.sql.inc.cpp"
 
 #define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
 
@@ -294,63 +295,13 @@ bool Database::MigrateToLatestVersion() {
 	// Statement migration##_stmt = PrepareStatement("SELECT Version FROM Migration WHERE Version = ?"); \
 	// migration##_stmt.Bind(1, #migration);
 
-	// All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!!
-	MIGRATE(v1) // first one.
-
-	/*
-    // create all tables that do not exist
-    CREATE_TABLE(schema_meta)
-	CREATE_TABLE(schema_blob_storage)
-	CREATE_TABLE(schema_login_session)
-	CREATE_TABLE(schema_transaction)
-
-	CREATE_TABLE(schema_fs_node)
-
-	// id type tables
-	CREATE_TABLE(schema_asset)
-	CREATE_TABLE(schema_badge)
-	CREATE_TABLE(schema_bundle)
-	CREATE_TABLE(schema_devproduct)
-	CREATE_TABLE(schema_group)
-	CREATE_TABLE(schema_pass)
-	CREATE_TABLE(schema_set)
-	CREATE_TABLE(schema_universe)
-	CREATE_TABLE(schema_user)
-
-	// tables that are directly related to an id type
-	CREATE_TABLE(schema_asset_data)
-	CREATE_TABLE(schema_asset_historical)
-	CREATE_TABLE(schema_asset_microtransaction)
-	CREATE_TABLE(schema_asset_misc)
-	CREATE_TABLE(schema_asset_place_thumbnail)
-	CREATE_TABLE(schema_asset_place_attributes)
-	CREATE_TABLE(schema_asset_place_gear_type)
-
-	CREATE_TABLE(schema_bundle_asset)
-
-	CREATE_TABLE(schema_universe_misc)
-	CREATE_TABLE(schema_universe_historical)
-	CREATE_TABLE(schema_universe_social_link)
-
-	CREATE_TABLE(schema_user_friends)
-	CREATE_TABLE(schema_user_groups)
-	CREATE_TABLE(schema_user_followers)
-	CREATE_TABLE(schema_user_following)
-	CREATE_TABLE(schema_user_inventory)
-	CREATE_TABLE(schema_user_favorites)
-	CREATE_TABLE(schema_user_likes_dislikes)
-	CREATE_TABLE(schema_user_names)
-
-	CREATE_TABLE(schema_group_role)
-	CREATE_TABLE(schema_group_wall)
-	CREATE_TABLE(schema_group_log)
-	CREATE_TABLE(schema_group_ally)
-	CREATE_TABLE(schema_group_enemy)
-	CREATE_TABLE(schema_group_historical)
-	CREATE_TABLE(schema_group_social_link)
-
-	CREATE_TABLE(schema_set_asset)
-	*/
+	/** All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!! **/
+	/* V1: Adds a few important tables like Meta, BlobStorage, and LoginSession */
+	MIGRATE(v1)
+	/* V2: Adds Transaction and FsNode table */
+	MIGRATE(v2)
+	/* V3: Adds all of the most important Roblox stuff, like Asset, Badge, Bundle, DevProduct, Group, Pass, etc. */
+	MIGRATE(v3)
 
 #undef MIGRATE
 #undef CREATE_TABLE
