@@ -1,6 +1,12 @@
 <resources>
     <string name="app_name">noobWarrior</string>
+    <string name="category_play">Play</string>
+    <string name="category_dev">Developer Tools</string>
+    <string name="category_app">App</string>
     <string name="main_play_online">Online</string>
     <string name="main_play_hostserver">Start Game Server</string>
     <string name="main_dev_sdk">Launch SDK</string>
+    <string name="title_activity_sdk">SdkActivity</string>
+    <string name="tab_text_1">Tab 1</string>
+    <string name="tab_text_2">Tab 2</string>
 </resources>

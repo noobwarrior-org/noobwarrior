@@ -21,19 +21,23 @@
 // File: LauncherActivity.java
 // Started by: Hattozo
 // Started on: 2/1/2026
-// Description:
+// Description: the main activity
 package org.noobwarrior.android;
 
-import android.graphics.Color;
-import android.graphics.drawable.Drawable;
+import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-public class LauncherActivity extends NoobActivity {
+import org.noobwarrior.android.menu.MenuButton;
+import org.noobwarrior.android.menu.MenuActivity;
+import org.noobwarrior.android.menu.MenuCategory;
+
+import java.util.ArrayList;
+
+public class LauncherActivity extends MenuActivity {
     public static final String[][] PLAY = {
         {"@drawable/globe_24px", "Online"},
         {"@drawable/storage_24px", "Start Game Server"}
@@ -50,31 +54,56 @@ public class LauncherActivity extends NoobActivity {
         {"@drawable/info_24px", "About"},
     };
 
-    private CoordinatorLayout mainLayout;
+    private MenuCategory playCategory;
+    private MenuCategory devCategory;
+    private MenuCategory appCategory;
 
-    Drawable draw = Drawable.createFromPath("@drawable/globe_24px");
+    private MenuButton onlineButton;
+    private MenuButton hostServerButton;
 
-    protected void createBullshit() {
-        this.mainLayout = new CoordinatorLayout(this);
-        this.mainLayout.setLayoutParams(new CoordinatorLayout.LayoutParams(
-                CoordinatorLayout.LayoutParams.MATCH_PARENT,
-                CoordinatorLayout.LayoutParams.MATCH_PARENT));
-        this.mainLayout.setBackgroundColor(Color.parseColor("@android:color/system_neutral2_50"));
+    private MenuButton sdkButton;
 
-
-    }
+    private MenuButton databasesButton;
+    private MenuButton pluginsButton;
+    private MenuButton settingsButton;
+    private MenuButton aboutButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        createBullshit();
-        setContentView(mainLayout);
+        this.onlineButton = new MenuButton(this)
+                .setText(R.string.main_play_online);
+        this.hostServerButton = new MenuButton(this)
+                .setText(R.string.main_play_hostserver);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+        this.sdkButton = new MenuButton(this)
+                .setText(R.string.main_dev_sdk)
+                .onClicked((v) -> {
+                    Intent intent = new Intent(this, SdkActivity.class);
+                    startActivity(intent);
+                });
+
+        this.playCategory = new MenuCategory(this)
+                .setTitle(R.string.category_play)
+                .addButton(this.onlineButton)
+                .addButton(this.hostServerButton);
+
+        this.devCategory = new MenuCategory(this)
+                .setTitle(R.string.category_dev)
+                .addButton(this.sdkButton);
+
+        ArrayList<MenuCategory> categories = new ArrayList<>();
+        categories.add(playCategory);
+        categories.add(devCategory);
+        InitMenu(R.string.app_name, categories);
+
+        if (mMainLayout != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(mMainLayout, (v, insets) -> {
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+                return insets;
+            });
+        }
     }
 }
