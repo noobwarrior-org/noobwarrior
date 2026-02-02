@@ -84,10 +84,11 @@ void DefaultStyle::polish(QWidget *widget) {
 #if defined(Q_OS_WIN32)
 
 #else
-        window->setWindowFlags(window->windowFlags() | Qt::FramelessWindowHint);
+        // window->setWindowFlags(window->windowFlags() | Qt::FramelessWindowHint);
 #endif
     }
 
+#if !defined(Q_OS_MACOS)
     auto *menuBar = qobject_cast<QMenuBar*>(widget);
     if (menuBar != nullptr) {
         auto aestheticIcon = new QAction(QIcon(":/images/icon16_aa.png"), "");
@@ -106,6 +107,7 @@ void DefaultStyle::polish(QWidget *widget) {
         windowTitleLabel->setDisabled(true);
         menuBar->addAction(windowTitleLabel);
     }
+#endif
 
     auto *menu = qobject_cast<QMenu*>(widget);
     if (menu != nullptr) {
@@ -144,6 +146,7 @@ void DefaultStyle::polish(QWidget *widget) {
 }
 
 void DefaultStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+#if !defined(Q_OS_MACOS)
     switch (pe) {
     case QStyle::PE_PanelMenuBar:
     case QStyle::PE_PanelToolBar:
@@ -153,10 +156,12 @@ void DefaultStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, Q
     if (pe == PE_PanelMenuBar) {
         return;
     }
+#endif
     QProxyStyle::drawPrimitive(pe, opt, p, w);
 }
 
 void DefaultStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+#if !defined(Q_OS_MACOS)
     if (ce == QStyle::CE_MenuBarItem) {
         auto menu_opt = qstyleoption_cast<const QStyleOptionMenuItem *>(opt);
         if (!menu_opt) return;
@@ -182,6 +187,7 @@ void DefaultStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *op
         drawItemText(p, menu_opt->rect.adjusted(0, 0, 0, 0), Qt::AlignVCenter | Qt::AlignHCenter, menu_opt->palette, menu_opt->state & State_Enabled, text, QPalette::Text);
         return;
     }
+#endif
     QProxyStyle::drawControl(ce, opt, p, w);
 }
 
@@ -189,6 +195,8 @@ int DefaultStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, co
     switch (metric) {
     default: return QProxyStyle::pixelMetric(metric, option, widget);
     case QStyle::PM_MessageBoxIconSize: return 32;
+#if !defined(Q_OS_MACOS)
     case QStyle::PM_MenuBarVMargin: return 4;
+#endif
     }
 }
