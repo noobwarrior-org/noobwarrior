@@ -33,6 +33,7 @@
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
 #include "../Dialog/AboutDialog.h"
+#include "Sdk/Project/NewProjectWizard.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -54,7 +55,7 @@
 #define ADD_ITEMTYPE(type, dialogType) \
     QString name = QString::fromStdString(#type); \
     auto insertAction = new QAction(QIcon(""), name, mInsertMenu); \
-    insertAction->setObjectName("RequiresDatabaseButton"); \
+    insertAction->setObjectName("RequireProjectButton"); \
     mInsertMenu->addAction(insertAction); \
     connect(insertAction, &QAction::triggered, [this]() { \
         dialogType dialog(this); \
@@ -151,7 +152,7 @@ int Sdk::TryToCloseCurrentDatabase() {
             return 0;
         }
         if (res == QMessageBox::Yes)
-            mSaveDatabaseAction->trigger();
+            mSaveProjectAction->trigger();
 close:
         mOverviewWidget->deleteLater();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
@@ -205,20 +206,20 @@ ItemBrowserWidget *Sdk::GetItemBrowser() {
 }
 
 void Sdk::InitMenus() {
-    mNewDatabaseAction = new QAction(QIcon(":/images/silk/database_add.png"), "New Database");
-    mOpenDatabaseAction = new QAction(QIcon(":/images/silk/database_edit.png"), "Open Database");
+    mNewProjectAction = new QAction(QIcon(":/images/silk/page_white_add.png"), "New Project");
+    mOpenProjectAction = new QAction(QIcon(":/images/silk/page_white_edit.png"), "Open Project");
 
-    mSaveDatabaseAction = new QAction(QIcon(":/images/silk/database_save.png"), "Save Database");
-    mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mSaveProjectAction = new QAction(QIcon(":/images/silk/page_white_copy.png"), "Save Project");
+    mSaveProjectAction->setObjectName("RequireProjectButton");
 
-    mSaveAsDatabaseAction = new QAction(QIcon(":/images/silk/database_save.png"), "Save Database As...");
-    mSaveAsDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mSaveAsProjectAction = new QAction(QIcon(":/images/silk/page_white_copy.png"), "Save Project As...");
+    mSaveAsProjectAction->setObjectName("RequireProjectButton");
 
     mBackupAction = new QAction(QIcon(":/images/roblox_backup.png"), "Backup from Roblox");
-    mBackupAction->setObjectName("RequiresDatabaseButton");
+    mBackupAction->setObjectName("RequireProjectButton");
 
-    mCloseDatabaseAction = new QAction(QIcon(":/images/silk/database_delete.png"), "Close Current Database");
-    mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mCloseProjectAction = new QAction(QIcon(":/images/silk/page_white_delete.png"), "Close Current Project");
+    mCloseProjectAction->setObjectName("RequireProjectButton");
 
 #if !defined(__APPLE__) // disable this on mac since it creates fucky behaviors and crashes
     mExitAction = new QAction("Exit");
@@ -228,25 +229,25 @@ void Sdk::InitMenus() {
     });
 #endif
 
-    mNewDatabaseAction->setShortcut(QKeySequence("Ctrl+N"));
-    mOpenDatabaseAction->setShortcut(QKeySequence("Ctrl+O"));
-    mCloseDatabaseAction->setShortcut(QKeySequence("Ctrl+W"));
-    mSaveDatabaseAction->setShortcut(QKeySequence("Ctrl+S"));
+    mNewProjectAction->setShortcut(QKeySequence("Ctrl+N"));
+    mOpenProjectAction->setShortcut(QKeySequence("Ctrl+O"));
+    mCloseProjectAction->setShortcut(QKeySequence("Ctrl+W"));
+    mSaveProjectAction->setShortcut(QKeySequence("Ctrl+S"));
 
-    mCloseDatabaseAction->setObjectName("RequiresDatabaseButton");
-    mSaveDatabaseAction->setObjectName("RequiresDatabaseButton");
-    mSaveAsDatabaseAction->setObjectName("RequiresDatabaseButton");
+    mCloseProjectAction->setObjectName("RequireProjectButton");
+    mSaveProjectAction->setObjectName("RequireProjectButton");
+    mSaveAsProjectAction->setObjectName("RequireProjectButton");
 
     mFileMenu = menuBar()->addMenu(tr("&File"));
-        mFileMenu->addAction(mNewDatabaseAction);
-        mFileMenu->addAction(mOpenDatabaseAction);
+        mFileMenu->addAction(mNewProjectAction);
+        mFileMenu->addAction(mOpenProjectAction);
     mFileMenu->addSeparator();
-        mFileMenu->addAction(mSaveDatabaseAction);
-        mFileMenu->addAction(mSaveAsDatabaseAction);
+        mFileMenu->addAction(mSaveProjectAction);
+        mFileMenu->addAction(mSaveAsProjectAction);
     mFileMenu->addSeparator();
         mFileMenu->addAction(mBackupAction);
     mFileMenu->addSeparator();
-        mFileMenu->addAction(mCloseDatabaseAction);
+        mFileMenu->addAction(mCloseProjectAction);
     mFileMenu->addSeparator();
         mFileMenu->addAction(mExitAction);
 
@@ -280,11 +281,13 @@ void Sdk::InitMenus() {
     mHelpMenu->addAction(mAboutQtButton);
     mHelpMenu->addAction(mAboutButton);
 
-    connect(mNewDatabaseAction, &QAction::triggered, [&]() {
-        TryToOpenFile();
+    connect(mNewProjectAction, &QAction::triggered, [&]() {
+        // TryToOpenFile();
+        NewProjectWizard wizard(this);
+        wizard.exec();
     });
 
-    connect(mOpenDatabaseAction, &QAction::triggered, [&]() {
+    connect(mOpenProjectAction, &QAction::triggered, [&]() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Open Database",
@@ -294,11 +297,11 @@ void Sdk::InitMenus() {
         if (!filePath.isEmpty()) TryToOpenFile(filePath);
     });
 
-    connect(mCloseDatabaseAction, &QAction::triggered, [&]() {
+    connect(mCloseProjectAction, &QAction::triggered, [&]() {
         TryToCloseCurrentDatabase();
     });
 
-    connect(mSaveDatabaseAction, &QAction::triggered, [&]() {
+    connect(mSaveProjectAction, &QAction::triggered, [&]() {
         if (mCurrentDatabase != nullptr) {
             SqlDb::Response save_res = mCurrentDatabase->WriteChangesToDisk();
             if (save_res != SqlDb::Response::Success) {
@@ -389,10 +392,10 @@ void Sdk::InitWidgets() {
     mStandardToolBar = new QToolBar("Standard", this);
     // mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 
-    mStandardToolBar->addAction(mNewDatabaseAction);
-    mStandardToolBar->addAction(mOpenDatabaseAction);
-    mStandardToolBar->addAction(mSaveDatabaseAction);
-    mStandardToolBar->addAction(mCloseDatabaseAction);
+    mStandardToolBar->addAction(mNewProjectAction);
+    mStandardToolBar->addAction(mOpenProjectAction);
+    mStandardToolBar->addAction(mSaveProjectAction);
+    mStandardToolBar->addAction(mCloseProjectAction);
     mStandardToolBar->addSeparator();
     mStandardToolBar->addAction(mBackupAction);
 
@@ -427,14 +430,14 @@ void Sdk::InitWidgets() {
 }
 
 void Sdk::DisableRequiredDatabaseButtons(bool val) {
-    for (auto button : findChildren<QAction*>("RequiresDatabaseButton"))
+    for (auto button : findChildren<QAction*>("RequireProjectButton"))
         button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
 
-    for (auto button : menuBar()->findChildren<QAction*>("RequiresDatabaseButton"))
+    for (auto button : menuBar()->findChildren<QAction*>("RequireProjectButton"))
         button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
 
     for (auto button : mFileMenu->actions()) {
-        if (button->objectName().contains("RequiresDatabaseButton"))
+        if (button->objectName().contains("RequireProjectButton"))
             button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
     }
 }

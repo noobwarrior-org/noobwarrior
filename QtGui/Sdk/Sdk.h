@@ -25,6 +25,7 @@
 #pragma once
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
+#include "Project/Project.h"
 #include "BackgroundTask/BackgroundTask.h"
 #include "WelcomeWidget.h"
 #include "OverviewWidget.h"
@@ -79,13 +80,13 @@ namespace NoobWarrior {
         QMenu *mToolsMenu;
         QMenu *mHelpMenu;
 
-        QAction* mNewDatabaseAction;
-        QAction* mOpenDatabaseAction;
+        QAction* mNewProjectAction;
+        QAction* mOpenProjectAction;
         
-        QAction* mSaveDatabaseAction;
-        QAction* mSaveAsDatabaseAction;
+        QAction* mSaveProjectAction;
+        QAction* mSaveAsProjectAction;
 
-        QAction* mCloseDatabaseAction;
+        QAction* mCloseProjectAction;
 
         QAction* mBackupAction;
 
@@ -115,6 +116,8 @@ namespace NoobWarrior {
         FileManagerWidget *mFileManager;
 
         EmuDb *mCurrentDatabase;
+
+        std::vector<Project*> mProjects;
 
         //////////////////// Status Bar ////////////////////
         BackgroundTasks mBackgroundTasks;

@@ -29,6 +29,10 @@ set(SOURCES
     Sdk/OverviewWidget.cpp
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
+    Sdk/Project/Project.cpp
+    Sdk/Project/EmuDbProject.cpp
+    Sdk/Project/PluginProject.cpp
+    Sdk/Project/NewProjectWizard.cpp
     Sdk/Browser/ItemBrowserWidget.cpp
     Sdk/Browser/ItemBrowserPage.cpp
     Sdk/Browser/AssetPage.cpp
