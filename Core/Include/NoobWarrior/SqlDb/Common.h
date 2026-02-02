@@ -32,21 +32,4 @@ namespace NoobWarrior {
 typedef std::variant<std::monostate, int, bool, int64_t, double, std::string, std::vector<unsigned char>> SqlValue;
 typedef std::pair<std::string, SqlValue> SqlColumn;
 typedef std::vector<SqlColumn> SqlRow;
-
-enum class DatabaseResponse {
-    Failed,
-    Success,
-    CouldNotOpen,
-    CouldNotGetVersion,
-    CouldNotSetVersion,
-    CouldNotCreateTable,
-    CouldNotSetKeyValues,
-    DidNothing,
-    NotInitialized,
-    StatementConstraintViolation,
-    Busy,
-    Misuse,
-    DoesNotExist,
-    MigrationFailed
-};
 }

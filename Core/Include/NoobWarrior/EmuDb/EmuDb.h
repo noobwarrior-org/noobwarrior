@@ -73,8 +73,8 @@
  */
 
 #pragma once
-#include <NoobWarrior/EmuDb/Common.h>
-#include <NoobWarrior/EmuDb/Statement.h>
+#include <NoobWarrior/SqlDb/Common.h>
+#include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/EmuDb/ContentImages.h>
 #include <NoobWarrior/EmuDb/Repository/Item/AssetRepository.h>
 #include <NoobWarrior/EmuDb/Item/Asset.h>

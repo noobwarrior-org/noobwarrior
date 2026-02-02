@@ -23,7 +23,7 @@
 // Started on: 8/8/2025
 // Description:
 #pragma once
-#include <NoobWarrior/EmuDb/Common.h>
+#include <NoobWarrior/SqlDb/Common.h>
 
 #include <sqlite3.h>
 
@@ -32,10 +32,10 @@
 #include <map>
 
 namespace NoobWarrior {
-class EmuDb;
+class SqlDb;
 class Statement {
 public:
-    Statement(EmuDb *db, const std::string &str);
+    Statement(SqlDb *db, const std::string &str);
     ~Statement();
 
     inline sqlite3_stmt* Get() { return mStmt; }
@@ -61,7 +61,7 @@ public:
     SqlRow GetColumns();
     std::map<std::string, SqlValue> GetColumnMap();
 protected:
-    EmuDb *mDatabase;
+    SqlDb *mDatabase;
     sqlite3_stmt *mStmt;
     bool mFailed;
 
