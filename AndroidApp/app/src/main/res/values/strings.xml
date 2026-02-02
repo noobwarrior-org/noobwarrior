@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">noobWarrior</string>
+    <string name="main_play_online">Online</string>
+    <string name="main_play_hostserver">Start Game Server</string>
+    <string name="main_dev_sdk">Launch SDK</string>
+</resources>

@@ -9,3 +9,8 @@ cmake-build-release/
 .kdev4/
 .DS_Store
 *.kdev4
+*.iml
+
+# android
+.gradle/
+AndroidApp/local.properties
