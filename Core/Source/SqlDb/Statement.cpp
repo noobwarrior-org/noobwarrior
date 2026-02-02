@@ -22,14 +22,14 @@
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description:
-#include <NoobWarrior/EmuDb/Statement.h>
+#include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <sqlite3.h>
 
 using namespace NoobWarrior;
 
-Statement::Statement(EmuDb *db, const std::string &str): mDatabase(db), mFailed(false) {
-    if (sqlite3_prepare_v2(db->mDatabase, str.c_str(), -1, &mStmt, nullptr) != SQLITE_OK) {
+Statement::Statement(SqlDb *db, const std::string &str): mDatabase(db), mFailed(false) {
+    if (sqlite3_prepare_v2(db->mDb, str.c_str(), -1, &mStmt, nullptr) != SQLITE_OK) {
         mFailed = true;
     }
 }

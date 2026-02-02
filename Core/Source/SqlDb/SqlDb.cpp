@@ -23,3 +23,65 @@
 // Started on: 1/31/2026
 // Description:
 #include <NoobWarrior/SqlDb/SqlDb.h>
+
+using namespace NoobWarrior;
+
+SqlDb::SqlDb(const std::string &path) : mDb(nullptr), mFailReason(FailReason::Uninitialized), mPath(path) {
+    int val = sqlite3_open_v2(path.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr);
+
+    switch (val) {
+    case SQLITE_OK: break;
+    case SQLITE_CANTOPEN: mFailReason = FailReason::CantOpen; return;
+    default: mFailReason = FailReason::Unknown; return;
+    }
+
+    mFailReason = FailReason::None;
+}
+
+SqlDb::~SqlDb() {
+    if (mDb != nullptr)
+        sqlite3_close_v2(mDb);
+}
+
+bool SqlDb::Fail() {
+    return mFailReason != FailReason::None;
+}
+
+bool SqlDb::ExecStatement(const std::string &stmtStr) {
+	int res = sqlite3_exec(mDb, stmtStr.c_str(), nullptr, nullptr, nullptr);
+	return res == SQLITE_OK;
+}
+
+bool SqlDb::IsMemory() {
+	return mPath.compare(":memory:") == 0;
+}
+
+int SqlDb::GetLastError() {
+    return sqlite3_errcode(mDb);
+}
+
+std::string SqlDb::GetFileName() {
+	if (mPath.compare(":memory:"))
+		return "Unsaved Database";
+    std::string::size_type last_slash = mPath.find_last_of("/");
+	return last_slash != std::string::npos ? mPath.substr(last_slash + 1) : mPath;
+}
+
+std::filesystem::path SqlDb::GetFilePath() {
+    if (mPath.compare(":memory:"))
+        return "";
+    return mPath;
+}
+
+std::string SqlDb::GetLastErrorMsg() {
+    return sqlite3_errmsg(mDb);
+}
+
+SqlDb::FailReason SqlDb::GetFailReason() {
+    return mFailReason;
+}
+
+Statement SqlDb::PrepareStatement(const std::string &stmtStr) {
+	return Statement(this, stmtStr);
+}
+

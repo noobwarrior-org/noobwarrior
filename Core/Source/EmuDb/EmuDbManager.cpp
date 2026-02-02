@@ -34,18 +34,17 @@
 
 using namespace NoobWarrior;
 
-DatabaseResponse EmuDbManager::AutocreateMasterDatabase() {
+SqlDb::Response EmuDbManager::AutocreateMasterDatabase() {
     if (GetMasterDatabase() != nullptr)
-        return DatabaseResponse::Success;
-    return DatabaseResponse::Success;
+        return SqlDb::Response::Success;
+    return SqlDb::Response::Success;
 }
 
-DatabaseResponse EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
-    auto *database = new EmuDb();
-    DatabaseResponse res = database->Open(filePath.string());
-    if (res != DatabaseResponse::Success) return res;
+SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
+    auto *database = new EmuDb(filePath.string());
+    if (database->Fail()) return database->GetFailReason();
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
-    return DatabaseResponse::Success;
+    return database->GetFailReason();
 }
 
 void EmuDbManager::Mount(EmuDb *database, unsigned int priority) {

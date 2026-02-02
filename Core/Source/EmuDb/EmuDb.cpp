@@ -24,8 +24,8 @@
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
 // You can find documentation on the file format in the corresponding header file.
 #include <NoobWarrior/EmuDb/EmuDb.h>
-#include <NoobWarrior/EmuDb/Common.h>
-#include <NoobWarrior/EmuDb/Statement.h>
+#include <NoobWarrior/SqlDb/Common.h>
+#include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <sqlite3.h>
@@ -41,43 +41,27 @@
 
 using namespace NoobWarrior;
 
-EmuDb::EmuDb(bool autocommit) :
-    mDatabase(nullptr),
-    mInitialized(false),
+EmuDb::EmuDb(const std::string &path, bool autocommit) :
+	SqlDb(path),
 	mAutoCommit(autocommit),
 	mDirty(false),
 	mAssetRepository(this)
-{};
-
-DatabaseResponse EmuDb::Open(const std::string &path) {
-    mPath = path;
-    int val = sqlite3_open_v2(path.c_str(), &mDatabase, SQLITE_OPEN_READWRITE, nullptr);
-    if (val != SQLITE_OK)
-        return DatabaseResponse::CouldNotOpen;
+{
+	// if auto-commit is disabled, explicitly initiate a transaction
+	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION")) {
+		DB_OUT("Failed to begin new transaction. Aborting!")
+		mFailReason = FailReason::TransactionFailed;
+		return;
+	}
 
 	if (!MigrateToLatestVersion()) {
 		DB_OUT("Failed to migrate to latest version. The database has possibly been corrupted. Now aborting.")
-		sqlite3_close_v2(mDatabase);
-		return DatabaseResponse::MigrationFailed;
+		mFailReason = FailReason::MigrationFailed;
+		return;
 	}
 
-	if (!mAutoCommit) {
-		// disable auto-commit mode by explicitly initiating a transaction
-		val = sqlite3_exec(mDatabase, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-		if (val != SQLITE_OK) {
-			DB_OUT("Failed to begin new transaction. Aborting!")
-			sqlite3_close_v2(mDatabase);
-			return DatabaseResponse::Failed;
-		}
-	}
-
-    mInitialized = true;
-    return DatabaseResponse::Success;
-}
-
-int EmuDb::Close() {
-    return mDatabase != nullptr ? sqlite3_close_v2(mDatabase) : 0;
-}
+	mFailReason = FailReason::None;
+};
 
 bool EmuDb::VerifyIntegrityOfMigration() {
 	Statement stmt = PrepareStatement("SELECT * FROM Migration");
@@ -131,15 +115,18 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 }
 
 bool EmuDb::MigrateToLatestVersion() {
-	bool transactionStmt = ExecStatement("BEGIN TRANSACTION;");
-	if (!transactionStmt) {
-		DB_OUT("Failed to begin new transaction in order to perform migration")
-		return false;
+	/* Do NOT begin a transaction if we are not in auto-commit mode because it's already in a transaction.
+	   And plus, this happens automatically & we don't want to overwrite the file without user confirmation */
+	if (mAutoCommit) {
+		bool transactionStmt = ExecStatement("BEGIN TRANSACTION;");
+		if (!transactionStmt) {
+			DB_OUT("Failed to begin new transaction in order to perform migration")
+			return false;
+		}
 	}
 
-#define CREATE_TABLE(var) int var##_execVal = sqlite3_exec(mDatabase, var, nullptr, nullptr, nullptr); \
-	if (var##_execVal != SQLITE_OK) { \
-		sqlite3_close_v2(mDatabase); \
+#define CREATE_TABLE(var) \
+	if (!ExecStatement(var)) { \
 		DB_OUT("Failed to create table from variable \"{}\"", #var) \
 		return false; \
 	}
@@ -197,10 +184,12 @@ bool EmuDb::MigrateToLatestVersion() {
 		return false;
 	}
 
-	bool commitStmt = ExecStatement("COMMIT;");
-	if (!commitStmt) {
-		DB_OUT("Failed to commit transaction in order to complete migration. Changes will not be saved.")
-		return false;
+	if (mAutoCommit) {
+		bool commitStmt = ExecStatement("COMMIT;");
+		if (!commitStmt) {
+			DB_OUT("Failed to commit transaction in order to complete migration. Changes will not be saved.")
+			return false;
+		}
 	}
 	return true;
 }
@@ -208,7 +197,7 @@ bool EmuDb::MigrateToLatestVersion() {
 int EmuDb::GetMigrationVersion() {
     int val = -1;
     sqlite3_stmt *stmt;
-    if (sqlite3_prepare_v2(mDatabase, "PRAGMA user_version;", -1, &stmt, nullptr) != SQLITE_OK)
+    if (sqlite3_prepare_v2(mDb, "PRAGMA user_version;", -1, &stmt, nullptr) != SQLITE_OK)
         goto cleanup;
     if (sqlite3_step(stmt) == SQLITE_ROW)
         val = sqlite3_column_int(stmt, 0); // The first column is user_version.
@@ -217,54 +206,54 @@ cleanup:
     return val;
 }
 
-DatabaseResponse EmuDb::SaveAs(const std::string &path) {
-	if (!mInitialized) return DatabaseResponse::NotInitialized;
-	auto res = DatabaseResponse::Failed;
+SqlDb::Response EmuDb::SaveAs(const std::string &path) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	auto res = SqlDb::Response::Failed;
 	sqlite3 *newDb;
 	sqlite3_backup *backup;
 
 	FILE *file = fopen(path.c_str(), "w");
 	if (file == nullptr)
-		return DatabaseResponse::CouldNotOpen;
+		return SqlDb::Response::CantOpen;
 	fclose(file);
 
 	int val = sqlite3_open_v2(path.c_str(), &newDb, SQLITE_OPEN_READWRITE, nullptr);
 	if (val != SQLITE_OK)
 		goto cleanup;
 
-	backup = sqlite3_backup_init(newDb, "main", mDatabase, "main");
+	backup = sqlite3_backup_init(newDb, "main", mDb, "main");
 	if (backup) {
 		int backup_step_res = sqlite3_backup_step(backup, -1);
-		if (backup_step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
+		if (backup_step_res == SQLITE_BUSY) res = SqlDb::Response::Busy;
 		if (backup_step_res != SQLITE_DONE && backup_step_res != SQLITE_READONLY) goto cleanup;
 		if (sqlite3_backup_finish(backup) != SQLITE_OK) goto cleanup;
-		res = DatabaseResponse::Success;
+		res = SqlDb::Response::Success;
 	}
 	cleanup:
 		sqlite3_close_v2(newDb);
 	return res;
 }
 
-DatabaseResponse EmuDb::WriteChangesToDisk() {
-	if (mAutoCommit) return DatabaseResponse::DidNothing; // You don't have to save
-	auto res = DatabaseResponse::Failed;
+SqlDb::Response EmuDb::WriteChangesToDisk() {
+	if (mAutoCommit) return SqlDb::Response::DidNothing; // You don't have to save
+	auto res = SqlDb::Response::Failed;
 
 	sqlite3_stmt *stmt;
 
-	sqlite3_prepare_v2(mDatabase, "COMMIT;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDb, "COMMIT;", -1, &stmt, nullptr);
 	int step_res = sqlite3_step(stmt);
-	if (step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
-	if (step_res == SQLITE_MISUSE) res = DatabaseResponse::Misuse;
+	if (step_res == SQLITE_BUSY) res = SqlDb::Response::Busy;
+	if (step_res == SQLITE_MISUSE) res = SqlDb::Response::Misuse;
 	if (step_res != SQLITE_DONE) goto cleanup;
 	sqlite3_finalize(stmt);
 
-	sqlite3_prepare_v2(mDatabase, "BEGIN TRANSACTION;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDb, "BEGIN TRANSACTION;", -1, &stmt, nullptr);
 	step_res = sqlite3_step(stmt);
-	if (step_res == SQLITE_BUSY) res = DatabaseResponse::Busy;
-	if (step_res == SQLITE_MISUSE) res = DatabaseResponse::Misuse;
+	if (step_res == SQLITE_BUSY) res = SqlDb::Response::Busy;
+	if (step_res == SQLITE_MISUSE) res = SqlDb::Response::Misuse;
 	if (step_res != SQLITE_DONE) goto cleanup;
 
-	res = DatabaseResponse::Success;
+	res = SqlDb::Response::Success;
 	UnmarkDirty();
 cleanup:
 	sqlite3_finalize(stmt);
@@ -286,19 +275,11 @@ void EmuDb::UnmarkDirty() {
 	mDirty = false;
 }
 
-bool EmuDb::IsMemory() {
-	return mPath.compare(":memory:") == 0;
-}
-
-std::string EmuDb::GetSqliteErrorMsg() {
-    return sqlite3_errmsg(mDatabase);
-}
-
 std::string EmuDb::GetMetaKeyValue(const std::string &key) {
-	if (!mInitialized) return "";
+	if (Fail()) return "";
 
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(mDatabase, "SELECT Value FROM Meta WHERE Key = ?;", -1, &stmt, nullptr);
+	sqlite3_prepare_v2(mDb, "SELECT Value FROM Meta WHERE Key = ?;", -1, &stmt, nullptr);
 	sqlite3_bind_text(stmt, 1, key.c_str(), -1, nullptr);
 
 	if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -317,46 +298,25 @@ std::string EmuDb::GetVersion() { return GetMetaKeyValue("Version"); }
 std::string EmuDb::GetAuthor() { return GetMetaKeyValue("Author"); }
 std::vector<unsigned char> EmuDb::GetIcon() { return base64_decode(GetMetaKeyValue("Icon")); }
 
-std::string EmuDb::GetFileName() {
-	if (mPath.compare(":memory:"))
-		return "Unsaved Database";
-	return mPath.filename().string();
-}
-
-std::filesystem::path EmuDb::GetFilePath() {
-    if (mPath.compare(":memory:"))
-        return "";
-    return mPath;
-}
-
-Statement EmuDb::PrepareStatement(const std::string &stmtStr) {
-	return Statement(this, stmtStr);
-}
-
-bool EmuDb::ExecStatement(const std::string &stmtStr) {
-	int res = sqlite3_exec(mDatabase, stmtStr.c_str(), nullptr, nullptr, nullptr);
-	return res == SQLITE_OK;
-}
-
-DatabaseResponse EmuDb::SetMetaKeyValue(const std::string &key, const std::string &value) {
-	if (!mInitialized) return DatabaseResponse::NotInitialized;
+SqlDb::Response EmuDb::SetMetaKeyValue(const std::string &key, const std::string &value) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
 	Statement stmt(this, "UPDATE Meta SET Value = ? WHERE Key = ?;");
 	stmt.Bind(1, value);
 	stmt.Bind(2, key);
-	auto res = stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
+	auto res = stmt.Step() == SQLITE_DONE ? SqlDb::Response::Success : SqlDb::Response::Failed;
 	MarkDirty();
 	return res;
 }
 
-DatabaseResponse EmuDb::SetTitle(const std::string &title) {
+SqlDb::Response EmuDb::SetTitle(const std::string &title) {
 	return SetMetaKeyValue("Title", title);
 }
 
-DatabaseResponse EmuDb::SetAuthor(const std::string &author) {
+SqlDb::Response EmuDb::SetAuthor(const std::string &author) {
 	return SetMetaKeyValue("Author", author);
 }
 
-DatabaseResponse EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
+SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
@@ -366,7 +326,7 @@ AssetRepository& EmuDb::GetAssetRepository() {
 
 std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,
 	const std::string &columnName) {
-	if (!mInitialized) return {};
+	if (Fail()) return {};
 
 	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
 

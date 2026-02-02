@@ -25,7 +25,8 @@
 // Apparently this is very common in ASP.Net servers.
 // I imagine Roblox themselves used this pattern when designing their backend.
 #pragma once
-#include <NoobWarrior/EmuDb/Common.h>
+#include <NoobWarrior/SqlDb/SqlDb.h>
+#include <NoobWarrior/SqlDb/Common.h>
 
 #include <vector>
 #include <optional>
@@ -38,9 +39,9 @@ template<typename Item>
 class Repository {
 public:
     Repository(EmuDb *db) : mDb(db) {}
-    virtual DatabaseResponse Save(const Item &item) = 0;
-    virtual DatabaseResponse Remove(int64_t id) = 0;
-    virtual DatabaseResponse Move(int64_t currentId, int64_t newId) = 0;
+    virtual SqlDb::Response Save(const Item &item) = 0;
+    virtual SqlDb::Response Remove(int64_t id) = 0;
+    virtual SqlDb::Response Move(int64_t currentId, int64_t newId) = 0;
     virtual std::optional<Item> Get(int64_t id) = 0;
     virtual std::vector<Item> List() = 0;
     virtual bool Exists(int64_t id) = 0;
@@ -52,7 +53,7 @@ template<typename Item>
 class ItemRepository : public Repository<Item> {
 public:
     ItemRepository(EmuDb *db) : Repository<Item>(db) {}
-    virtual DatabaseResponse Remove(int64_t id, int snapshot) = 0;
+    virtual SqlDb::Response Remove(int64_t id, int snapshot) = 0;
     virtual std::optional<Item> Get(int64_t id, int snapshot) = 0;
     virtual bool Exists(int64_t id, int snapshot) = 0;
 

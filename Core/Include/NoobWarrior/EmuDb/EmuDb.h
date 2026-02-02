@@ -73,6 +73,7 @@
  */
 
 #pragma once
+#include <NoobWarrior/SqlDb/SqlDb.h>
 #include <NoobWarrior/SqlDb/Common.h>
 #include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/EmuDb/ContentImages.h>
@@ -114,7 +115,7 @@ struct SearchOptions {
 /**
  * @brief A noobWarrior database that can contain Roblox assets, users, games, etc.
  */
-class EmuDb {
+class EmuDb : public SqlDb {
     friend class Statement;
 public:
     enum class CompressionType {
@@ -125,64 +126,35 @@ public:
     /**
      * @param autocommit Will enable SQLite's auto-commit feature if true; any writes you do to the database are immediately saved to disk. Set this to false if you are not using this in the context of a rapidly changing online database.
      */
-    EmuDb(bool autocommit = true);
-
-    /**
-     * @brief Initializes the database and makes it ready to perform read/write operations to it.
-     * @param path What is the file path of the database you want to open? If none is given, it will just create one in memory.
-     * @return An enum that tells you if it was successful or not.
-     */
-    DatabaseResponse Open(const std::string &path = ":memory:");
-
-    int Close();
+    EmuDb(const std::string &path = ":memory:", bool autocommit = true);
 
     int GetMigrationVersion();
 
-    DatabaseResponse SaveAs(const std::string &path);
+    SqlDb::Response SaveAs(const std::string &path);
 
     /**
      * @brief Commits the current SQLite transaction, which will write all changes to disk.
      */
-    DatabaseResponse WriteChangesToDisk();
+    SqlDb::Response WriteChangesToDisk();
 
     /**
      * @brief Returns true if this database has unsaved changes.
      */
     bool IsDirty();
-
     void MarkDirty();
-
     void UnmarkDirty();
 
-    /**
-     * @brief Returns true if this database is not yet a tangible file and only exists within memory.
-     */
-    bool IsMemory();
-
-    std::string GetSqliteErrorMsg();
     std::string GetMetaKeyValue(const std::string &key);
-
-    /**
-     * @return Returns the file name of the database's currently loaded file.
-     If a file is currently not loaded or if the database is stored in memory only it returns a blank string.
-     This does not return a file path, do not confuse this function with returning one.
-     */
-    std::string GetFileName();
-    std::filesystem::path GetFilePath();
-
     std::string GetTitle();
     std::string GetDescription();
     std::string GetVersion();
     std::string GetAuthor();
     std::vector<unsigned char> GetIcon();
 
-    Statement PrepareStatement(const std::string &stmtStr);
-    
-    bool ExecStatement(const std::string &stmtStr);
-    DatabaseResponse SetMetaKeyValue(const std::string &key, const std::string &value);
-    DatabaseResponse SetTitle(const std::string &title);
-    DatabaseResponse SetAuthor(const std::string &author);
-    DatabaseResponse SetIcon(const std::vector<unsigned char> &icon);
+    SqlDb::Response SetMetaKeyValue(const std::string &key, const std::string &value);
+    SqlDb::Response SetTitle(const std::string &title);
+    SqlDb::Response SetAuthor(const std::string &author);
+    SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
 
     AssetRepository& GetAssetRepository();
 
@@ -239,7 +211,7 @@ protected:
         std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? {};", name, snapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
 
         sqlite3_stmt *stmt;
-        sqlite3_prepare_v2(mDatabase, stmtStr.c_str(), -1, &stmt, nullptr);
+        sqlite3_prepare_v2(mDb, stmtStr.c_str(), -1, &stmt, nullptr);
         sqlite3_bind_int64(stmt, 1, id);
         if (snapshot.has_value())
             sqlite3_bind_int(stmt, 2, snapshot.value());
@@ -255,8 +227,6 @@ private:
     bool MigrateToLatestVersion();
 
     std::filesystem::path mPath;
-    sqlite3 *mDatabase;
-    bool mInitialized;
     bool mAutoCommit;
     bool mDirty;
 };

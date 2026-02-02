@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <filesystem>
 
 namespace NoobWarrior {
 class SqlDb {
@@ -39,22 +40,55 @@ public:
     enum class Response {
         Failed,
         Success,
-        CouldNotOpen,
-        CouldNotCreateTable,
-        CouldNotSetKeyValues,
+        CantOpen,
         DidNothing,
-        NotInitialized,
+        DatabaseFailed,
         StatementConstraintViolation,
         Busy,
         Misuse,
-        DoesNotExist,
+        DoesNotExist
+    };
+
+    enum class FailReason {
+        None,
+        Unknown,
+        Uninitialized,
+        CantOpen,
+        TransactionFailed,
         MigrationFailed
     };
 
-    SqlDb(bool autocommit = true);
-    ~SqlDb();
+    SqlDb(const std::string &path = ":memory:");
+    virtual ~SqlDb();
 
-    inline sqlite3_stmt* Get() { return; }
+    inline sqlite3 *Get() { return mDb; }
+
+    bool Fail();
+    bool ExecStatement(const std::string &stmtStr);
+    
+    /**
+     * @brief Returns true if this database is not yet a tangible file and only exists within memory.
+     */
+    bool IsMemory();
+
+    int GetLastError();
+
+    /**
+     * @return Returns the file name of the database's currently loaded file.
+     If a file is currently not loaded or if the database is stored in memory only it returns a blank string.
+     This does not return a file path, do not confuse this function with returning one.
+     */
+    std::string GetFileName();
+    std::filesystem::path GetFilePath();
+    std::string GetLastErrorMsg();
+    std::string GetMetaKeyValue(const std::string &key);
+
+    FailReason GetFailReason();
+
+    Statement PrepareStatement(const std::string &stmtStr);
 protected:
+    sqlite3 *mDb;
+    FailReason mFailReason;
+    std::string mPath;
 };
 }

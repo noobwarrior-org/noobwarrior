@@ -83,7 +83,6 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
 
 Sdk::~Sdk() {
     if (mCurrentDatabase) {
-        mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
     }
 }
@@ -155,7 +154,6 @@ int Sdk::TryToCloseCurrentDatabase() {
             mSaveDatabaseAction->trigger();
 close:
         mOverviewWidget->deleteLater();
-        mCurrentDatabase->Close();
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         mItemBrowser->Refresh();
 
@@ -168,11 +166,9 @@ void Sdk::TryToOpenFile(const QString &path) {
     if (!TryToCloseCurrentDatabase()) return;
 
     // noobWarrior core database API calls
-    mCurrentDatabase = new EmuDb(false);
-    DatabaseResponse res = mCurrentDatabase->Open(path.toStdString());
-    if (res != DatabaseResponse::Success) {
-        QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)res))));
-        mCurrentDatabase->Close();
+    mCurrentDatabase = new EmuDb(path.toStdString(), false);
+    if (mCurrentDatabase->Fail()) {
+        QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetLastErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)mCurrentDatabase->GetLastError()))));
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         return;
     }
@@ -304,13 +300,13 @@ void Sdk::InitMenus() {
 
     connect(mSaveDatabaseAction, &QAction::triggered, [&]() {
         if (mCurrentDatabase != nullptr) {
-            DatabaseResponse save_res = mCurrentDatabase->WriteChangesToDisk();
-            if (save_res != DatabaseResponse::Success) {
+            SqlDb::Response save_res = mCurrentDatabase->WriteChangesToDisk();
+            if (save_res != SqlDb::Response::Success) {
                 QString save_err_msg;
                 switch (save_res) {
                 default: save_err_msg = "Is this file read-only?"; break;
-                case DatabaseResponse::Busy: save_err_msg = "The database seems to be busy."; break;
-                case DatabaseResponse::Misuse: save_err_msg = "There was an internal error."; break;
+                case SqlDb::Response::Busy: save_err_msg = "The database seems to be busy."; break;
+                case SqlDb::Response::Misuse: save_err_msg = "There was an internal error."; break;
                 }
                 QMessageBox::critical(this, "Failed To Save Database", QString("The database could not be saved to disk. %1").arg(save_err_msg));
                 return;
@@ -325,18 +321,19 @@ void Sdk::InitMenus() {
                     "noobWarrior Database (*.nwdb)"
                 );
                 if (!filePath.isEmpty()) {
-                    DatabaseResponse res = mCurrentDatabase->SaveAs(filePath.toStdString());
-                    if (res != DatabaseResponse::Success) {
+                    SqlDb::Response res = mCurrentDatabase->SaveAs(filePath.toStdString());
+                    if (res != SqlDb::Response::Success) {
                         QMessageBox::critical(this, "Error", QString("Failed to save database to \"%1\"").arg(filePath));
                         return;
                     }
-                    mCurrentDatabase->Close();
-                    res = mCurrentDatabase->Open(filePath.toStdString());
-                    if (res != DatabaseResponse::Success) {
-                        QMessageBox::critical(this, "Error", QString("Failed to re-open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(filePath, QString::fromStdString(mCurrentDatabase->GetSqliteErrorMsg()), QString::fromStdString(std::format("{:#010x}", static_cast<int>(res)))));
+
+                    NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
+
+                    mCurrentDatabase = new EmuDb(filePath.toStdString(), false);
+                    if (res != SqlDb::Response::Success) {
+                        QMessageBox::critical(this, "Error", QString("Failed to re-open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(filePath, QString::fromStdString(mCurrentDatabase->GetLastErrorMsg()), QString::fromStdString(std::format("{:#010x}", static_cast<int>(res)))));
                         return;
                     }
-                    mCurrentDatabase->UnmarkDirty();
                 }
             }
         }

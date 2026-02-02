@@ -32,9 +32,9 @@
 namespace NoobWarrior {
 class EmuDbManager {
 public:
-    DatabaseResponse AutocreateMasterDatabase();
+    SqlDb::Response AutocreateMasterDatabase();
 
-    DatabaseResponse Mount(const std::filesystem::path &filePath, unsigned int priority);
+    SqlDb::FailReason Mount(const std::filesystem::path &filePath, unsigned int priority);
     void Mount(EmuDb *database, unsigned int priority);
     int Unmount(EmuDb *database);
 
@@ -55,16 +55,16 @@ class ItemRepositoryManager : public ItemRepository<Item> {
 public:
     ItemRepositoryManager(EmuDbManager *dbMgr) : mDbMgr(dbMgr) {}
     virtual RepositoryClass& GetRepository(EmuDb *db) = 0;
-    DatabaseResponse Save(const Item &item) override {
+    SqlDb::Response Save(const Item &item) override {
         return GetRepository(mDbMgr->GetMasterDatabase())->Save(item);
     }
-    DatabaseResponse Remove(int64_t id) override {
+    SqlDb::Response Remove(int64_t id) override {
         return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id);
     }
-    DatabaseResponse Remove(int64_t id, int snapshot) override {
+    SqlDb::Response Remove(int64_t id, int snapshot) override {
         return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id, snapshot);
     }
-    DatabaseResponse Move(int64_t currentId, int64_t newId) override {
+    SqlDb::Response Move(int64_t currentId, int64_t newId) override {
         return GetRepository(mDbMgr->GetMasterDatabase())->Move(currentId, newId);
     }
     std::optional<Item> Get(int64_t id) override {

@@ -24,7 +24,7 @@
 // Description:
 #include <NoobWarrior/EmuDb/Repository/Item/AssetRepository.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
-#include <NoobWarrior/EmuDb/Common.h>
+#include <NoobWarrior/SqlDb/Common.h>
 #include <NoobWarrior/Roblox/Api/User.h>
 
 using namespace NoobWarrior;
@@ -41,7 +41,7 @@ std::vector<unsigned char> AssetRepository::RetrieveData(int64_t id) {
     return {};
 }
 
-DatabaseResponse AssetRepository::Save(const Asset &asset) {
+SqlDb::Response AssetRepository::Save(const Asset &asset) {
     Statement stmt(mDb, R"(***
     INSERT INTO Asset
     (Id, Snapshot, Name, Description, Created, Updated, ImageId, ImageSnapshot, UserId, GroupId, Type, Public)
@@ -55,7 +55,7 @@ DatabaseResponse AssetRepository::Save(const Asset &asset) {
     WHERE Id = ?;
     ***)");
     if (stmt.Fail())
-        return DatabaseResponse::Failed;
+        return SqlDb::Response::Failed;
     stmt.Bind(1, asset.Id);
     stmt.Bind(2, asset.Snapshot);
     stmt.Bind(3, asset.Name);
@@ -71,32 +71,32 @@ DatabaseResponse AssetRepository::Save(const Asset &asset) {
     
     mDb->MarkDirty();
     if (stmt.Step() == SQLITE_DONE)
-        return DatabaseResponse::Success;
-    return DatabaseResponse::Failed;
+        return SqlDb::Response::Success;
+    return SqlDb::Response::Failed;
 }
 
-DatabaseResponse AssetRepository::Remove(int64_t id, int snapshot) {
+SqlDb::Response AssetRepository::Remove(int64_t id, int snapshot) {
     Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ? AND Snapshot = ?;");
     stmt.Bind(1, id);
     stmt.Bind(2, snapshot);
     mDb->MarkDirty();
-    return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
+    return stmt.Step() == SQLITE_DONE ? SqlDb::Response::Success : SqlDb::Response::Failed;
 }
 
-DatabaseResponse AssetRepository::Remove(int64_t id) {
+SqlDb::Response AssetRepository::Remove(int64_t id) {
     Statement stmt(mDb, "DELETE FROM Asset WHERE Id = ?;");
     stmt.Bind(1, id);
     mDb->MarkDirty();
-    return stmt.Step() == SQLITE_DONE ? DatabaseResponse::Success : DatabaseResponse::Failed;
+    return stmt.Step() == SQLITE_DONE ? SqlDb::Response::Success : SqlDb::Response::Failed;
 }
 
-DatabaseResponse AssetRepository::Move(int64_t currentId, int64_t newId) {
+SqlDb::Response AssetRepository::Move(int64_t currentId, int64_t newId) {
     std::optional<Asset> ass = Get(currentId);
     if (!ass.has_value())
-        return DatabaseResponse::DoesNotExist;
+        return SqlDb::Response::DoesNotExist;
     ass.value().Id = newId;
-    DatabaseResponse remove_res = Remove(currentId);
-    if (remove_res != DatabaseResponse::Success) return DatabaseResponse::Failed;
+    SqlDb::Response remove_res = Remove(currentId);
+    if (remove_res != SqlDb::Response::Success) return SqlDb::Response::Failed;
     return Save(ass.value());
 }
 
