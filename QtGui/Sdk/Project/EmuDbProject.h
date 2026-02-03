@@ -32,5 +32,13 @@ class EmuDbProject : public Project {
 public:
     EmuDbProject(const std::string &path = ":memory:");
     ~EmuDbProject();
+
+    std::string GetTitle() override;
+    QIcon GetIcon() override;
+
+    void OnShown(Sdk*) override;
+    void OnHidden(Sdk*) override;
+protected:
+    EmuDb *mDb;
 };
 }

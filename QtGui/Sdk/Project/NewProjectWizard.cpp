@@ -24,13 +24,16 @@
 // Description:
 #include "NewProjectWizard.h"
 
+#include <QListWidget>
 #include <QLabel>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 using namespace NoobWarrior;
 
 NewProjectWizard::NewProjectWizard(QWidget *parent) : QWizard(parent) {
-    setWindowTitle("Create New Project");
+    setWindowTitle("New Project");
+    InitWidgets();
 }
 
 void NewProjectWizard::InitWidgets() {
@@ -39,16 +42,33 @@ void NewProjectWizard::InitWidgets() {
 }
 
 QWizardPage* NewProjectWizard::NewTypePage() {
-    auto page = new QWizardPage(this);
+    auto *page = new QWizardPage(this);
     page->setTitle("Select Project Type");
     page->setSubTitle("What type of project would you like to create?");
+    page->setPixmap(WizardPixmap::LogoPixmap, QPixmap(":/images/paper_64x64.png"));
 
-    QLabel *label = new QLabel("This wizard will help you register your copy "
-                               "of Super Product Two.");
-    label->setWordWrap(true);
+    auto *listWidget = new QListWidget();
+    listWidget->setViewMode(QListWidget::IconMode);
 
-    QVBoxLayout *layout = new QVBoxLayout;
-    layout->addWidget(label);
+    auto *dbItem = new QListWidgetItem(QIcon(":/images/db_96x96.png"), "Database", listWidget);
+    auto *pluginItem = new QListWidgetItem(QIcon(":/images/plugin_96x96.png"), "Plugin", listWidget);
+    
+    auto *description = new QTextEdit(this);
+    description->setReadOnly(true);
+
+    connect(listWidget, &QListWidget::currentItemChanged, [=](QListWidgetItem *current, QListWidgetItem *previous) {
+        // ye ik this sucks dont judge me it works for now
+        if (current == dbItem)
+            description->setPlainText("A database stores Roblox items like games and models. It is intended to be either used for retrieving Roblox assets from a server emulator for gameplay consumption, or to serve as an archive for game preservation.\n\nIf you're trying to create a game or model, pick this option.");
+        else if (current == pluginItem)
+            description->setPlainText("A plugin extends the functionality of noobWarrior by being able to access a powerful Lua API and modify the DataModel of any hosted server.\n\nIf you're trying to modify an existing game to add new functionality, or if you want to modify the functionality of noobWarrior itself, pick this option.");
+    });
+
+    listWidget->setCurrentItem(dbItem);
+
+    auto *layout = new QVBoxLayout();
+    layout->addWidget(listWidget);
+    layout->addWidget(description);
     page->setLayout(layout);
 
     return page;

@@ -946,6 +946,10 @@
     <file>images/icon16_aa.png</file>
     <file>images/icon64.png</file>
     <file>images/icon1024.png</file>
+    <file>images/db_96x96.png</file>
+    <file>images/plugin_96x96.png</file>
+    <file>images/paper_64x64.png</file>
+    <file>images/paper_128x128.png</file>
     <file>images/qt_16x16.png</file>
     <file>images/lua16.png</file>
     <file>images/sdk.png</file>

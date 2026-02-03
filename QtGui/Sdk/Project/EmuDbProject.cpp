@@ -23,3 +23,22 @@
 // Started on: 2/2/2024
 // Description:
 #include "EmuDbProject.h"
+
+using namespace NoobWarrior;
+
+EmuDbProject::EmuDbProject(const std::string &path) : Project(), mDb(new EmuDb(path)) {
+
+}
+
+EmuDbProject::~EmuDbProject() { }
+
+std::string EmuDbProject::GetTitle() {
+    return "Database";
+}
+
+QIcon EmuDbProject::GetIcon() {
+    return QIcon(":/images/silk/database.png");
+}
+
+void EmuDbProject::OnShown(Sdk*) { }
+void EmuDbProject::OnHidden(Sdk*) { }

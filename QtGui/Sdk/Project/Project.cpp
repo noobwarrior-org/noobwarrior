@@ -23,3 +23,11 @@
 // Started on: 2/2/2024
 // Description:
 #include "Project.h"
+
+using namespace NoobWarrior;
+
+Project::Project() { }
+Project::~Project() { }
+
+void Project::OnShown(Sdk*) { }
+void Project::OnHidden(Sdk*) { }

@@ -33,10 +33,10 @@ public:
     Project();
     virtual ~Project();
 
-    virtual void OnShown(Sdk*) = 0;
-    virtual void OnHidden(Sdk*) = 0;
-
     virtual std::string GetTitle() = 0;
     virtual QIcon GetIcon() = 0;
+
+    virtual void OnShown(Sdk*);
+    virtual void OnHidden(Sdk*);
 };
 }
