@@ -66,7 +66,7 @@ namespace NoobWarrior {
         void dragMoveEvent(QDragMoveEvent *event) override;
         void dropEvent(QDropEvent *event) override;
 
-        void DisableRequiredDatabaseButtons(bool val);
+        void DisableRequiredProjectButtons(bool val);
     private:
         void InitMenus();
         void InitStatusBarWidgets();

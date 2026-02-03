@@ -97,6 +97,8 @@ enum class DestinationType {
 };
 
 struct ProcessOptions {
+    std::string ProviderUrl { "https://www.roblox.com" };
+    
     ItemSource TargetType;
     OnlineItemType TargetItemType;
     int64_t TargetId;

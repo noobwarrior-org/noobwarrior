@@ -33,7 +33,7 @@
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
 #include "../Dialog/AboutDialog.h"
-#include "Sdk/Project/NewProjectWizard.h"
+#include "Sdk/Project/Wizard/ProjectWizard.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -158,7 +158,7 @@ close:
         NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
         mItemBrowser->Refresh();
 
-        DisableRequiredDatabaseButtons(true);
+        DisableRequiredProjectButtons(true);
     }
     return 1;
 }
@@ -194,7 +194,7 @@ void Sdk::TryToOpenFile(const QString &path) {
 
     mItemBrowser->Refresh();
 
-    DisableRequiredDatabaseButtons(false);
+    DisableRequiredProjectButtons(false);
 }
 
 EmuDb *Sdk::GetCurrentlyEditingDatabase() {
@@ -283,7 +283,7 @@ void Sdk::InitMenus() {
 
     connect(mNewProjectAction, &QAction::triggered, [&]() {
         // TryToOpenFile();
-        NewProjectWizard wizard(this);
+        ProjectWizard wizard(this);
         wizard.exec();
     });
 
@@ -413,7 +413,7 @@ void Sdk::InitWidgets() {
     // ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
     // ADD_ID_TYPE(User, ":/images/silk/user_add.png")
 
-    DisableRequiredDatabaseButtons(true);
+    DisableRequiredProjectButtons(true);
 
     addToolBar(Qt::ToolBarArea::TopToolBarArea, mStandardToolBar);
     // addToolBarBreak();
@@ -429,7 +429,7 @@ void Sdk::InitWidgets() {
     addDockWidget(Qt::LeftDockWidgetArea, mFileManager);
 }
 
-void Sdk::DisableRequiredDatabaseButtons(bool val) {
+void Sdk::DisableRequiredProjectButtons(bool val) {
     for (auto button : findChildren<QAction*>("RequireProjectButton"))
         button->setDisabled(val); // Disable all buttons that require a database since one isn't loaded right now
 

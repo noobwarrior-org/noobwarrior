@@ -947,6 +947,8 @@
     <file>images/icon64.png</file>
     <file>images/icon1024.png</file>
     <file>images/db_96x96.png</file>
+    <file>images/db_backupgame_96x96.png</file>
+    <file>images/db_backupmodel_96x96.png</file>
     <file>images/plugin_96x96.png</file>
     <file>images/paper_64x64.png</file>
     <file>images/paper_128x128.png</file>

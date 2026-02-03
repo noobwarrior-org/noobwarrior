@@ -18,21 +18,33 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: NewProjectWizard.h
+// File: PluginEmpty.h
 // Started by: Hattozo
 // Started on: 2/2/2024
 // Description:
 #pragma once
-#include <QWizard>
+#include "TemplatePage.h"
+
 #include <QWizardPage>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QLabel>
 
 namespace NoobWarrior {
-class NewProjectWizard : public QWizard {
+class PluginEmptyIntroPage : public TemplatePage {
+    Q_OBJECT
 public:
-    NewProjectWizard(QWidget *parent = nullptr);
+    PluginEmptyIntroPage(QWidget *parent = nullptr);
+
+    int nextId() const override;
+
+    QString GetName() override;
+    QString GetDescription() override;
+    QIcon GetIcon() override;
 private:
-    void InitWidgets();
-    QWizardPage* NewTypePage();
-    QWizardPage* CreateFilePage();
+    QVBoxLayout* mMainLayout;
+    QFormLayout* mFormLayout;
+    QLineEdit* mTitleEdit;
 };
 }

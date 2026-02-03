@@ -29,10 +29,16 @@ set(SOURCES
     Sdk/OverviewWidget.cpp
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
+    Sdk/EmuDbListWidget.cpp
     Sdk/Project/Project.cpp
     Sdk/Project/EmuDbProject.cpp
     Sdk/Project/PluginProject.cpp
-    Sdk/Project/NewProjectWizard.cpp
+    Sdk/Project/Wizard/ProjectWizard.cpp
+    Sdk/Project/Wizard/ProjectWizardIntroPage.cpp
+    Sdk/Project/Wizard/Template/TemplatePage.cpp
+    Sdk/Project/Wizard/Template/EmuDbEmpty.cpp
+    Sdk/Project/Wizard/Template/EmuDbGameBackup.cpp
+    Sdk/Project/Wizard/Template/PluginEmpty.cpp
     Sdk/Browser/ItemBrowserWidget.cpp
     Sdk/Browser/ItemBrowserPage.cpp
     Sdk/Browser/AssetPage.cpp
