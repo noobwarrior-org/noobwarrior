@@ -26,8 +26,8 @@
 
 using namespace NoobWarrior;
 
-Project::Project() { }
+Project::Project(Sdk* sdk) : mSdk(sdk) { }
 Project::~Project() { }
 
-void Project::OnShown(Sdk*) { }
-void Project::OnHidden(Sdk*) { }
+void Project::OnShown() { }
+void Project::OnHidden() { }

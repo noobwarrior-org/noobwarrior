@@ -27,7 +27,7 @@
 using namespace NoobWarrior;
 
 ProjectWizardIntroPage::ProjectWizardIntroPage(QWidget *parent) : QWizardPage(parent) {
-    setTitle("Select Project Type");
+    setTitle("Select Project Template");
     setSubTitle("What type of project would you like to create?");
     setPixmap(QWizard::WizardPixmap::LogoPixmap, QPixmap(":/images/paper_64x64.png"));
 
@@ -37,6 +37,7 @@ ProjectWizardIntroPage::ProjectWizardIntroPage(QWidget *parent) : QWizardPage(pa
 
     auto *description = new QTextEdit(this);
     description->setReadOnly(true);
+    description->setPlainText("No template selected");
 
     connect(mListWidget, &QListWidget::currentItemChanged, [description, this](QListWidgetItem *current, QListWidgetItem *previous) {
         // ye ik this sucks dont judge me it works for now

@@ -39,89 +39,91 @@
 #include <QScrollArea>
 
 namespace NoobWarrior {
-    class ItemBrowserWidget;
-    class Sdk : public QMainWindow {
-        Q_OBJECT
-        
-    public:
-        Sdk(QWidget *parent = nullptr);
-        ~Sdk();
+class ItemBrowserWidget;
+class Sdk : public QMainWindow {
+    Q_OBJECT
+public:
+    Sdk(QWidget *parent = nullptr);
+    ~Sdk();
 
-        /**
-         * @brief Refreshes all widgets that may have dirty data in them
-         */
-        void Refresh();
+    void OpenProject(const std::filesystem::path &path);
+    void TryToCloseProject(Project* project);
 
-        int TryToCloseCurrentDatabase();
-        void TryToOpenFile(const QString &path = ":memory:");
+    /**
+        * @brief Refreshes all widgets that may have dirty data in them
+        */
+    void Refresh();
 
-        EmuDb *GetCurrentlyEditingDatabase();
+    int TryToCloseCurrentDatabase();
+    void TryToOpenFile(const QString &path = ":memory:");
 
-        ItemBrowserWidget *GetItemBrowser();
-    protected:
-        void closeEvent(QCloseEvent *event) override;
-        void paintEvent(QPaintEvent *event) override;
+    EmuDb *GetCurrentlyEditingDatabase();
 
-        void dragEnterEvent(QDragEnterEvent *event) override;
-        void dragMoveEvent(QDragMoveEvent *event) override;
-        void dropEvent(QDropEvent *event) override;
+    ItemBrowserWidget *GetItemBrowser();
+protected:
+    void closeEvent(QCloseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 
-        void DisableRequiredProjectButtons(bool val);
-    private:
-        void InitMenus();
-        void InitStatusBarWidgets();
-        void InitWidgets();
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
-        //////////////////// Menu Bar ////////////////////
-        QMenu *mFileMenu;
-        QMenu *mEditMenu;
-        QMenu *mViewMenu;
-        QMenu *mInsertMenu;
-        QMenu *mToolsMenu;
-        QMenu *mHelpMenu;
+    void DisableRequiredProjectButtons(bool val);
+private:
+    void InitMenus();
+    void InitStatusBarWidgets();
+    void InitWidgets();
 
-        QAction* mNewProjectAction;
-        QAction* mOpenProjectAction;
-        
-        QAction* mSaveProjectAction;
-        QAction* mSaveAsProjectAction;
+    //////////////////// Menu Bar ////////////////////
+    QMenu *mFileMenu;
+    QMenu *mEditMenu;
+    QMenu *mViewMenu;
+    QMenu *mInsertMenu;
+    QMenu *mToolsMenu;
+    QMenu *mHelpMenu;
 
-        QAction* mCloseProjectAction;
+    QAction* mNewProjectAction;
+    QAction* mOpenProjectAction;
+    
+    QAction* mSaveProjectAction;
+    QAction* mSaveAsProjectAction;
 
-        QAction* mBackupAction;
+    QAction* mCloseProjectAction;
 
-        QAction* mExitAction;
+    QAction* mBackupAction;
 
-        QAction* mItemBrowserViewAction;
-        QAction* mFileManagerViewAction;
+    QAction* mExitAction;
 
-        std::vector<QAction*> mInsertItemTypeActions;
+    QAction* mItemBrowserViewAction;
+    QAction* mFileManagerViewAction;
 
-        QAction* mAboutQtButton;
-        QAction* mAboutButton;
+    std::vector<QAction*> mInsertItemTypeActions;
 
-        //////////////////// Tool Bars ////////////////////
-        QToolBar *mStandardToolBar;
-        QToolBar *mViewToolBar;
-        QToolBar *mInsertToolBar;
+    QAction* mAboutQtButton;
+    QAction* mAboutButton;
 
-        //////////////////// Tabs ////////////////////
-        QTabWidget *mTabWidget;
+    //////////////////// Tool Bars ////////////////////
+    QToolBar *mStandardToolBar;
+    QToolBar *mViewToolBar;
+    QToolBar *mInsertToolBar;
 
-        WelcomeWidget* mWelcomeWidget;
-        OverviewWidget *mOverviewWidget;
+    //////////////////// Tabs ////////////////////
+    QTabWidget *mTabWidget;
 
-        //////////////////// Dockable Widgets ////////////////////
-        ItemBrowserWidget *mItemBrowser;
-        FileManagerWidget *mFileManager;
+    WelcomeWidget* mWelcomeWidget;
+    OverviewWidget *mOverviewWidget;
 
-        EmuDb *mCurrentDatabase;
+    //////////////////// Dockable Widgets ////////////////////
+    ItemBrowserWidget *mItemBrowser;
+    FileManagerWidget *mFileManager;
 
-        std::vector<Project*> mProjects;
+    EmuDb *mCurrentDatabase;
 
-        //////////////////// Status Bar ////////////////////
-        BackgroundTasks mBackgroundTasks;
-        BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
-        BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
-    };
+    std::vector<Project*> mProjects;
+
+    //////////////////// Status Bar ////////////////////
+    BackgroundTasks mBackgroundTasks;
+    BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
+    BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
+};
 }

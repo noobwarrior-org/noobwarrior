@@ -37,6 +37,7 @@ class PluginEmptyIntroPage : public TemplatePage {
 public:
     PluginEmptyIntroPage(QWidget *parent = nullptr);
 
+    bool isComplete() const override;
     int nextId() const override;
 
     QString GetName() override;
@@ -45,6 +46,7 @@ public:
 private:
     QVBoxLayout* mMainLayout;
     QFormLayout* mFormLayout;
+    QLineEdit* mIdentifierEdit;
     QLineEdit* mTitleEdit;
 };
 }

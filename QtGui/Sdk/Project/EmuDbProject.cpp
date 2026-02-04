@@ -26,11 +26,21 @@
 
 using namespace NoobWarrior;
 
-EmuDbProject::EmuDbProject(const std::string &path) : Project(), mDb(new EmuDb(path)) {
+EmuDbProject::EmuDbProject(Sdk* sdk, const std::string &path) : Project(sdk),
+    mDb(new EmuDb(path))
+{
 
 }
 
 EmuDbProject::~EmuDbProject() { }
+
+bool EmuDbProject::Fail() {
+    return mDb->Fail();
+}
+
+std::string EmuDbProject::GetFailMsg() {
+    return mDb->GetLastErrorMsg();
+}
 
 std::string EmuDbProject::GetTitle() {
     return "Database";
@@ -40,5 +50,5 @@ QIcon EmuDbProject::GetIcon() {
     return QIcon(":/images/silk/database.png");
 }
 
-void EmuDbProject::OnShown(Sdk*) { }
-void EmuDbProject::OnHidden(Sdk*) { }
+void EmuDbProject::OnShown() { }
+void EmuDbProject::OnHidden() { }

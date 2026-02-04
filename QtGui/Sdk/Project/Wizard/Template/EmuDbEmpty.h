@@ -21,14 +21,16 @@
 // File: EmuDbEmpty.h
 // Started by: Hattozo
 // Started on: 2/2/2024
-// Description:
+// Description: Wizard page for creating a new empty database
 #pragma once
 #include "TemplatePage.h"
 
 #include <QWizardPage>
+#include <QPlainTextEdit>
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QLabel>
 
 namespace NoobWarrior {
@@ -46,6 +48,15 @@ public:
 private:
     QVBoxLayout* mMainLayout;
     QFormLayout* mFormLayout;
+
+    QFrame* mIconFrame;
+    QVBoxLayout* mIconFrameLayout;
+    QLabel* mIcon;
+    QPushButton* mChangeIconButton;
+
     QLineEdit* mTitleEdit;
+    QPlainTextEdit* mDescriptionEdit;
+    QLineEdit* mAuthorEdit;
+    QLineEdit* mVersionEdit;
 };
 }

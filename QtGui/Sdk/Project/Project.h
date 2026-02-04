@@ -30,13 +30,20 @@ namespace NoobWarrior {
 class Sdk;
 class Project {
 public:
-    Project();
+    Project(Sdk* sdk);
     virtual ~Project();
+
+    virtual bool Fail() = 0;
+    virtual std::string GetFailMsg() = 0;
 
     virtual std::string GetTitle() = 0;
     virtual QIcon GetIcon() = 0;
 
-    virtual void OnShown(Sdk*);
-    virtual void OnHidden(Sdk*);
+    virtual void OnShown();
+    virtual void OnHidden();
+
+    void TryClose();
+protected:
+    Sdk* mSdk;
 };
 }

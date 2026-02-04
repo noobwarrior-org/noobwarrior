@@ -23,24 +23,33 @@
 // Started on: 2/2/2024
 // Description:
 #include "PluginEmpty.h"
+#include "../ProjectWizard.h"
 
 using namespace NoobWarrior;
 
 PluginEmptyIntroPage::PluginEmptyIntroPage(QWidget *parent) : TemplatePage(parent) {
     setTitle("Setup Information");
-    setSubTitle("Set your database's name, description, and other information here.");
+    setSubTitle("Set your plugin's name, identifier, and other information here.");
 
     mMainLayout = new QVBoxLayout(this);
     mFormLayout = new QFormLayout();
     mMainLayout->addLayout(mFormLayout);
 
+    mIdentifierEdit = new QLineEdit();
+    mIdentifierEdit->setPlaceholderText("plugin@example.com");
+    mFormLayout->addRow(new QLabel("Identifier"), mIdentifierEdit);
+
     mTitleEdit = new QLineEdit();
-    mTitleEdit->setPlaceholderText("My Cool Game");
+    mTitleEdit->setPlaceholderText("Really Cool Plugin");
     mFormLayout->addRow(new QLabel("Title"), mTitleEdit);
 };
 
+bool PluginEmptyIntroPage::isComplete() const {
+    return !mIdentifierEdit->text().isEmpty() && !mTitleEdit->text().isEmpty();
+}
+
 int PluginEmptyIntroPage::nextId() const {
-    return -1;
+    return static_cast<int>(ProjectWizard::PageId::Intro);
 }
 
 QString PluginEmptyIntroPage::GetName() {

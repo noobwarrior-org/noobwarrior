@@ -30,14 +30,17 @@
 namespace NoobWarrior {
 class EmuDbProject : public Project {
 public:
-    EmuDbProject(const std::string &path = ":memory:");
+    EmuDbProject(Sdk* sdk, const std::string &path = ":memory:");
     ~EmuDbProject();
+
+    bool Fail() override;
+    std::string GetFailMsg() override;
 
     std::string GetTitle() override;
     QIcon GetIcon() override;
 
-    void OnShown(Sdk*) override;
-    void OnHidden(Sdk*) override;
+    void OnShown() override;
+    void OnHidden() override;
 protected:
     EmuDb *mDb;
 };

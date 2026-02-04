@@ -92,7 +92,6 @@ int Application::Run() {
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Regular.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Medium.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Bold.ttf");
-    mLauncher = new Launcher();
 #if USE_CUSTOM_STYLE
     /*
     QFile styleFile(":/css/style.css");
@@ -107,6 +106,7 @@ int Application::Run() {
         QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
     #endif
 #endif
+    mLauncher = new Launcher();
     QMessageBox msg;
 #if !defined(Q_OS_MACOS)
     msg.setText("Warning");
