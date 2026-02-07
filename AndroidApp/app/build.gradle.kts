@@ -34,10 +34,18 @@ android {
     }
     buildFeatures {
         compose = true
+        prefab = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("../../CMakeLists.txt")
+        }
     }
 }
 
 dependencies {
+    implementation(libs.openssl)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
