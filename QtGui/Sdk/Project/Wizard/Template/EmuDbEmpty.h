@@ -39,6 +39,7 @@ class EmuDbEmptyIntroPage : public TemplatePage {
 public:
     EmuDbEmptyIntroPage(QWidget* parent = nullptr);
 
+    bool validatePage() override;
     bool isComplete() const override;
     int nextId() const override;
 
@@ -48,6 +49,8 @@ public:
 private:
     QVBoxLayout* mMainLayout;
     QFormLayout* mFormLayout;
+
+    QLineEdit* mPathEdit;
 
     QFrame* mIconFrame;
     QVBoxLayout* mIconFrameLayout;

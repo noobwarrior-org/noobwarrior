@@ -24,6 +24,8 @@
 // Description:
 #include <NoobWarrior/SqlDb/SqlDb.h>
 
+#include <format>
+
 using namespace NoobWarrior;
 
 SqlDb::SqlDb(const std::string &path) : mDb(nullptr), mFailReason(FailReason::Uninitialized), mPath(path) {
@@ -52,6 +54,10 @@ bool SqlDb::ExecStatement(const std::string &stmtStr) {
 	return res == SQLITE_OK;
 }
 
+bool SqlDb::SetPragma(const std::string &key, const std::string &val) {
+    return ExecStatement(std::format("PRAGMA {}={};", key, val));
+}
+
 bool SqlDb::IsMemory() {
 	return mPath.compare(":memory:") == 0;
 }
@@ -75,6 +81,13 @@ std::filesystem::path SqlDb::GetFilePath() {
 
 std::string SqlDb::GetLastErrorMsg() {
     return sqlite3_errmsg(mDb);
+}
+
+std::string SqlDb::GetPragma(const std::string &key) {
+    Statement stmt = PrepareStatement("PRAGMA " + key + ";");
+    if (stmt.Fail())
+        return "";
+    return std::get<std::string>(stmt.GetValueFromColumnIndex(0));
 }
 
 SqlDb::FailReason SqlDb::GetFailReason() {

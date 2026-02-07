@@ -24,6 +24,11 @@
 // Description:
 #include "EmuDbEmpty.h"
 #include "TemplatePage.h"
+#include "Sdk/Sdk.h"
+#include "Sdk/Project/EmuDbProject.h"
+#include "Application.h"
+
+#include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
 
@@ -34,6 +39,10 @@ EmuDbEmptyIntroPage::EmuDbEmptyIntroPage(QWidget* parent) : TemplatePage(parent)
     mMainLayout = new QVBoxLayout(this);
     mFormLayout = new QFormLayout();
     mMainLayout->addLayout(mFormLayout);
+
+    mPathEdit = new QLineEdit();
+    mPathEdit->setText(QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()));
+    mFormLayout->addRow(new QLabel("File Path"), mPathEdit);
 
     mIconFrame = new QFrame();
     mIconFrame->setFrameShape(QFrame::Box);
@@ -72,11 +81,34 @@ EmuDbEmptyIntroPage::EmuDbEmptyIntroPage(QWidget* parent) : TemplatePage(parent)
     mVersionEdit = new QLineEdit("1.0.0");
     mFormLayout->addRow(new QLabel("Version"), mVersionEdit);
 
+    connect(mTitleEdit, &QLineEdit::textChanged, [this]() {
+        std::filesystem::path path(gApp->GetCore()->GetUserDataDir() / "databases");
+        QString fileName = mTitleEdit->text().toLower().replace(" ", "_") + ".nwdb";
+        path /= fileName.toStdString();
+        mPathEdit->setText(QString::fromStdString(path));
+        completeChanged();
+    });
+
     connect(mTitleEdit, &QLineEdit::textChanged, this, &EmuDbEmptyIntroPage::completeChanged);
 }
 
+bool EmuDbEmptyIntroPage::validatePage() {
+    if (!isComplete())
+        return false;
+    bool res = TemplatePage::validatePage();
+    if (res) {
+        Sdk* sdk = dynamic_cast<Sdk*>(wizard()->parent());
+        if (sdk == nullptr) {
+            Out("EmuDbEmptyIntroPage", "Failed to create project: Sdk is not a parent of wizard");
+            return false;
+        }
+        auto project = new EmuDbProject(sdk, mPathEdit->text().toStdString());
+    }
+    return res;
+}
+
 bool EmuDbEmptyIntroPage::isComplete() const {
-    return !mTitleEdit->text().isEmpty();
+    return !mPathEdit->text().isEmpty() && !mTitleEdit->text().isEmpty();
 }
 
 int EmuDbEmptyIntroPage::nextId() const {

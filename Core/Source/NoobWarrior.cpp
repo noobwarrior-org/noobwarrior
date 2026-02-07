@@ -22,13 +22,14 @@
 // Started by: Hattozo
 // Started on: 6/17/2025
 // Description: Contains code for the main class used to utilize the noobWarrior library
-#include "NoobWarrior/Url.h"
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Auth/MasterServerAuth.h>
 #include <NoobWarrior/Auth/ServerEmulatorAuth.h>
+#include <NoobWarrior/EmuDb/EmuDb.h>
+#include <NoobWarrior/Url.h>
 
 #include <event.h>
 #include <sqlite3.h>
@@ -85,6 +86,9 @@ Core::Core(Init init) :
 
     if (mInit.LoadPlugins)
         GetPluginManager()->LoadPlugins();
+
+    // TODO: remove this when project feature works
+    EmuDb *db = new EmuDb();
 }
 
 Core::~Core() {

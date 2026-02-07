@@ -36,6 +36,7 @@
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
 #include "migrations/v3.sql.inc.cpp"
+#include "migrations/v4.sql.inc.cpp"
 
 #define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
 
@@ -169,6 +170,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v2)
 	/* V3: Adds all of the most important Roblox stuff, like Asset, Badge, Bundle, DevProduct, Group, Pass, etc. */
 	MIGRATE(v3)
+	/* V4: enables enforcement of foreign keys */
+	MIGRATE(v4)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.

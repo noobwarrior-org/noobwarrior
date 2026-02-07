@@ -65,6 +65,7 @@ public:
 
     bool Fail();
     bool ExecStatement(const std::string &stmtStr);
+    bool SetPragma(const std::string &key, const std::string &val);
     
     /**
      * @brief Returns true if this database is not yet a tangible file and only exists within memory.
@@ -81,7 +82,7 @@ public:
     std::string GetFileName();
     std::filesystem::path GetFilePath();
     std::string GetLastErrorMsg();
-    std::string GetMetaKeyValue(const std::string &key);
+    std::string GetPragma(const std::string &key);
 
     FailReason GetFailReason();
 
