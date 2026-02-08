@@ -24,26 +24,34 @@
 // Description:
 #pragma once
 #include <QIcon>
+#include <QTabWidget>
 #include <string>
 
 namespace NoobWarrior {
 class Sdk;
 class Project {
+    friend class Sdk;
 public:
-    Project(Sdk* sdk);
+    Project();
     virtual ~Project();
 
     virtual bool Fail() = 0;
     virtual std::string GetFailMsg() = 0;
 
-    virtual std::string GetTitle() = 0;
+    virtual QString GetTitle() = 0;
     virtual QIcon GetIcon() = 0;
+    virtual bool IsDirty() = 0;
+
+    virtual bool Save() = 0;
+    virtual std::string GetSaveFailMsg();
 
     virtual void OnShown();
     virtual void OnHidden();
 
     void TryClose();
+    QTabWidget* GetTabWidget();
 protected:
     Sdk* mSdk;
+    QTabWidget* mTabWidget;
 };
 }

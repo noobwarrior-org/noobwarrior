@@ -25,6 +25,7 @@
 #pragma once
 #include <NoobWarrior/SqlDb/Common.h>
 #include <NoobWarrior/SqlDb/Statement.h>
+#include <NoobWarrior/Log.h>
 
 #include <sqlite3.h>
 
@@ -58,7 +59,7 @@ public:
         MigrationFailed
     };
 
-    SqlDb(const std::string &path = ":memory:");
+    SqlDb(const std::string &path = ":memory:", const std::string &logName = "SqlDb");
     virtual ~SqlDb();
 
     inline sqlite3 *Get() { return mDb; }
@@ -88,6 +89,12 @@ public:
 
     Statement PrepareStatement(const std::string &stmtStr);
 protected:
+    std::string mLogName;
+    template <typename... Args>
+    void Out(std::string_view fmt, Args...args) {
+        NoobWarrior::Out(mLogName, std::format("[{}] {}", GetFileName(), fmt), std::forward<Args>(args)...);
+    }
+
     sqlite3 *mDb;
     FailReason mFailReason;
     std::string mPath;

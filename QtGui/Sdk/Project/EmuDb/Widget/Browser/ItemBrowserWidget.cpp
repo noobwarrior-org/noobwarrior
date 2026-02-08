@@ -25,7 +25,7 @@
 // It's very similar to the Roblox Studio toolbox widget.
 // Limitations are that this doesn't support tree view, only per-page icon view.
 #include "ItemBrowserWidget.h"
-#include "../Sdk.h"
+#include "Sdk/Sdk.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/EmuDb/Item/Asset.h>
@@ -63,9 +63,13 @@ ItemBrowserWidget::ItemBrowserWidget(QWidget *parent) : QDockWidget(parent),
 ItemBrowserWidget::~ItemBrowserWidget() {}
 
 EmuDb* ItemBrowserWidget::GetDatabase() {
-    assert(dynamic_cast<Sdk*>(parent()) != nullptr && "ItemBrowserWidget should not be parented to anything other than DatabaseEditor");
-    auto editor = dynamic_cast<Sdk*>(parent());
-    return editor->GetCurrentlyEditingDatabase();
+    auto sdk = dynamic_cast<Sdk*>(parent());
+    assert(sdk != nullptr && "ItemBrowserWidget should not be parented to anything other than Sdk");
+
+    auto dbProj = dynamic_cast<EmuDbProject*>(sdk->GetFocusedProject());
+    if (dbProj != nullptr)
+        return dbProj->GetDb();
+    return nullptr;
 }
 
 void ItemBrowserWidget::RefreshAssetCategory() {

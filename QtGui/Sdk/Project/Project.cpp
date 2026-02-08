@@ -23,11 +23,21 @@
 // Started on: 2/2/2024
 // Description:
 #include "Project.h"
+#include "Sdk/Sdk.h"
 
 using namespace NoobWarrior;
 
-Project::Project(Sdk* sdk) : mSdk(sdk) { }
+Project::Project() : mSdk(nullptr),
+    mTabWidget(new QTabWidget(nullptr)) // dw the sdk window will reparent it for us
+{
+
+}
+
 Project::~Project() { }
+
+std::string Project::GetSaveFailMsg() {
+    return "N/A";
+}
 
 void Project::OnShown() { }
 void Project::OnHidden() { }

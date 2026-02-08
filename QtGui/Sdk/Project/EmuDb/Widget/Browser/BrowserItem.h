@@ -23,7 +23,7 @@
 // Started on: 7/26/2025
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
 #pragma once
-#include "../Sdk.h"
+#include "Sdk/Sdk.h"
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <QListWidgetItem>

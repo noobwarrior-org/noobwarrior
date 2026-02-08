@@ -23,17 +23,18 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "Sdk.h"
-#include "Browser/ItemBrowserWidget.h"
-#include "Item/ItemDialog.h"
-#include "Item/AssetDialog.h"
-#include "BackgroundTask/BackgroundTask.h"
-#include "BackgroundTask/BackgroundTaskPopupWidget.h"
-#include "BackgroundTask/BackgroundTaskStatusBarWidget.h"
-#include "Backup/BackupDialog.h"
-#include "../Application.h"
-#include "../Dialog/AuthTokenDialog.h"
-#include "../Dialog/AboutDialog.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
+#include "Sdk/Project/EmuDb/Widget/Browser/ItemBrowserWidget.h"
+#include "Sdk/Project/EmuDb/Widget/Item/ItemDialog.h"
+#include "Sdk/Project/EmuDb/Widget/Item/AssetDialog.h"
+#include "Sdk/Project/EmuDb/Widget/Backup/BackupDialog.h"
 #include "Sdk/Project/Wizard/ProjectWizard.h"
+#include "Sdk/BackgroundTask/BackgroundTask.h"
+#include "Sdk/BackgroundTask/BackgroundTaskPopupWidget.h"
+#include "Sdk/BackgroundTask/BackgroundTaskStatusBarWidget.h"
+#include "Application.h"
+#include "Dialog/AuthTokenDialog.h"
+#include "Dialog/AboutDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -50,6 +51,7 @@
 #include <QMimeData>
 
 #include <format>
+#include <fstream>
 #include <qnamespace.h>
 
 #define ADD_ITEMTYPE(type, dialogType) \
@@ -66,10 +68,9 @@
 using namespace NoobWarrior;
 
 Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
-    mCurrentDatabase(nullptr),
+    mFocusedProject(nullptr),
     mTabWidget(nullptr),
     mWelcomeWidget(nullptr),
-    mOverviewWidget(nullptr),
     mItemBrowser(nullptr),
     mFileManager(nullptr),
     mBackgroundTaskStatusBarWidget(nullptr)
@@ -83,9 +84,123 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
 }
 
 Sdk::~Sdk() {
-    if (mCurrentDatabase) {
-        NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
+    for (Project* proj : mProjects) {
+        bool success = RemoveProject(proj);
+        if (success) {
+            NOOBWARRIOR_FREE_PTR(proj)
+        }
     }
+}
+
+bool Sdk::AddProject(Project* project) {
+    if (project == nullptr)
+        return false;
+
+    auto it = std::find(mProjects.begin(), mProjects.end(), project);
+    if (it != mProjects.end()) {
+        Out("Sdk", "Tried adding project but it is already parented to the SDK!");
+        return false;
+    }
+
+    if (project->Fail()) {
+        Out("Sdk", "Tried adding project but it is in fail mode!");
+        return false;
+    }
+    project->mSdk = this;
+
+    mProjects.push_back(project);
+    mFocusedProject = project;
+
+    mTabWidget->setCurrentIndex(mTabWidget->addTab(project->mTabWidget, project->GetTitle()));
+    project->OnShown();
+    Refresh();
+    return true;
+}
+
+bool Sdk::AddProjectFromPath(const std::filesystem::path &path) {
+    std::ifstream file(path, std::ios::binary);
+    if (file.fail())
+        return false;
+    std::string header(6, '\0');
+    file.read(header.data(), 6);
+    file.close();
+    if (header.compare("SQLite") == 0) {
+        auto *project = new EmuDbProject(path);
+        AddProject(project);
+        return true;
+    }
+    QMessageBox::critical(this, "Cannot Open Project", "The file could not be read as a valid project.", QMessageBox::Ok);
+    return false;
+}
+
+/* Note: this function doesnt free it from memory. Call the C++ destructor on the project itself if you want that */
+bool Sdk::RemoveProject(Project* project) {
+    if (project == nullptr)
+        return false;
+
+    auto it = std::find(mProjects.begin(), mProjects.end(), project);
+    if (it == mProjects.end()) {
+        Out("Sdk", "Tried removing project but it isn't parented to the SDK!");
+        return false;
+    }
+    mProjects.erase(it);
+
+    project->OnHidden();
+    int index = mTabWidget->indexOf(project->mTabWidget);
+    if (index != -1) {
+        mTabWidget->removeTab(index);
+    }
+
+    if (project == mFocusedProject)
+        mFocusedProject = nullptr;
+
+    Refresh();
+    return true;
+}
+
+/* Note: this function doesnt free it from memory. Call the C++ destructor on the project itself if you want that */
+bool Sdk::TryToRemoveProject(Project* project) {
+    if (project == nullptr)
+        return false;
+
+    QMessageBox::StandardButton res;
+    if (!project->IsDirty())
+        goto close;
+    else {
+        res = QMessageBox::question( this, nullptr,
+            QString("Do you want to save changes to \"%1\"?").arg(project->GetTitle()),
+            QMessageBox::Cancel | QMessageBox::No | QMessageBox::Yes,
+            QMessageBox::Yes);
+        if (res == QMessageBox::Cancel) {
+            return false;
+        }
+        if (res == QMessageBox::Yes)
+            mSaveProjectAction->trigger();
+close:
+        RemoveProject(project);
+        return true;
+    }
+}
+
+bool Sdk::SaveProject(Project* project) {
+    if (project == nullptr)
+        return false;
+
+    bool success = project->Save();
+    if (!success) {
+        std::string msg = project->GetSaveFailMsg();
+        QMessageBox::critical(this, "Failed To Save Database", QString("The database could not be saved to disk. %1").arg(msg));
+        return false;
+    }
+    return success;
+}
+
+bool Sdk::TryToRemoveFocusedProject() {
+    return TryToRemoveProject(mFocusedProject);
+}
+
+bool Sdk::SaveFocusedProject() {
+    return SaveProject(mFocusedProject);
 }
 
 void Sdk::Refresh() {
@@ -93,7 +208,16 @@ void Sdk::Refresh() {
 }
 
 void Sdk::closeEvent(QCloseEvent *event) {
-    if (TryToCloseCurrentDatabase()) event->accept(); else event->ignore();
+    bool refusedCancelOnOneProject = false;
+    for (Project* proj : mProjects) {
+        if (TryToRemoveProject(proj)) {
+            NOOBWARRIOR_FREE_PTR(proj)
+        } else {
+            refusedCancelOnOneProject = true;
+            break;
+        }
+    }
+    !refusedCancelOnOneProject ? event->accept() : event->ignore();
 }
 
 void Sdk::paintEvent(QPaintEvent *event) {
@@ -101,12 +225,10 @@ void Sdk::paintEvent(QPaintEvent *event) {
 
     // I don't want to have to create all kinds of hooks and callbacks when our database has been marked dirty
     // So we're just checking if it's dirty here in our paint event that Qt gives us. Much easier
-    if (mCurrentDatabase != nullptr) {
+    if (mFocusedProject != nullptr) {
         setWindowTitle(
-            QString("%1%2%3- noobWarrior SDK")
-            .arg(!mCurrentDatabase->IsMemory() ? QString::fromStdString(mCurrentDatabase->GetFileName()) : "Unsaved File")
-            .arg(mCurrentDatabase->IsDirty() ? "* " : " ")
-            .arg((!mCurrentDatabase->IsMemory() ? "- " : "") + QString::fromStdString(mCurrentDatabase->GetTitle()))
+            QString("%1 - noobWarrior SDK")
+            .arg(mFocusedProject->GetTitle())
         );
     } else setWindowTitle(QString("noobWarrior SDK"));
 }
@@ -131,38 +253,14 @@ void Sdk::dropEvent(QDropEvent *event) {
     QMainWindow::dropEvent(event);
     if (event->mimeData()->hasUrls()) {
         for (const QUrl &url : event->mimeData()->urls())
-            TryToOpenFile(url.toLocalFile());
+            AddProjectFromPath(std::filesystem::path(url.toLocalFile().toStdString()));
         event->acceptProposedAction();
     } else {
         event->ignore();
     }
 }
 
-int Sdk::TryToCloseCurrentDatabase() {
-    QMessageBox::StandardButton res;
-    if (mCurrentDatabase != nullptr && !mCurrentDatabase->IsDirty())
-        goto close;
-
-    if (mCurrentDatabase != nullptr && mCurrentDatabase->IsDirty()) {
-        res = QMessageBox::question( this, nullptr,
-            QString("Do you want to save changes to \"%1\"?").arg(QString::fromStdString(mCurrentDatabase->GetTitle())),
-            QMessageBox::Cancel | QMessageBox::No | QMessageBox::Yes,
-            QMessageBox::Yes);
-        if (res == QMessageBox::Cancel) {
-            return 0;
-        }
-        if (res == QMessageBox::Yes)
-            mSaveProjectAction->trigger();
-close:
-        mOverviewWidget->deleteLater();
-        NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-        mItemBrowser->Refresh();
-
-        DisableRequiredProjectButtons(true);
-    }
-    return 1;
-}
-
+/* FUCK YUOU
 void Sdk::TryToOpenFile(const QString &path) {
     if (!TryToCloseCurrentDatabase()) return;
 
@@ -196,9 +294,10 @@ void Sdk::TryToOpenFile(const QString &path) {
 
     DisableRequiredProjectButtons(false);
 }
+*/
 
-EmuDb *Sdk::GetCurrentlyEditingDatabase() {
-    return mCurrentDatabase;
+Project* Sdk::GetFocusedProject() {
+    return mFocusedProject;
 }
 
 ItemBrowserWidget *Sdk::GetItemBrowser() {
@@ -294,52 +393,15 @@ void Sdk::InitMenus() {
             QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
             "noobWarrior Database (*.nwdb)"
         );
-        if (!filePath.isEmpty()) TryToOpenFile(filePath);
+        if (!filePath.isEmpty()) AddProjectFromPath(std::filesystem::path(filePath.toStdString()));
     });
 
     connect(mCloseProjectAction, &QAction::triggered, [&]() {
-        TryToCloseCurrentDatabase();
+        TryToRemoveFocusedProject();
     });
 
     connect(mSaveProjectAction, &QAction::triggered, [&]() {
-        if (mCurrentDatabase != nullptr) {
-            SqlDb::Response save_res = mCurrentDatabase->WriteChangesToDisk();
-            if (save_res != SqlDb::Response::Success) {
-                QString save_err_msg;
-                switch (save_res) {
-                default: save_err_msg = "Is this file read-only?"; break;
-                case SqlDb::Response::Busy: save_err_msg = "The database seems to be busy."; break;
-                case SqlDb::Response::Misuse: save_err_msg = "There was an internal error."; break;
-                }
-                QMessageBox::critical(this, "Failed To Save Database", QString("The database could not be saved to disk. %1").arg(save_err_msg));
-                return;
-            }
-            if (mCurrentDatabase->IsMemory()) {
-                // This database has never been saved to disk. Make the user pick where they want to store it so we can actually save
-                mCurrentDatabase->MarkDirty(); // And mark it dirty again just in case the user rejects the save prompt and nothing actually happens.
-                QString filePath = QFileDialog::getSaveFileName(
-                    this,
-                    "Save Database",
-                    QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()),
-                    "noobWarrior Database (*.nwdb)"
-                );
-                if (!filePath.isEmpty()) {
-                    SqlDb::Response res = mCurrentDatabase->SaveAs(filePath.toStdString());
-                    if (res != SqlDb::Response::Success) {
-                        QMessageBox::critical(this, "Error", QString("Failed to save database to \"%1\"").arg(filePath));
-                        return;
-                    }
-
-                    NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-
-                    mCurrentDatabase = new EmuDb(filePath.toStdString(), false);
-                    if (res != SqlDb::Response::Success) {
-                        QMessageBox::critical(this, "Error", QString("Failed to re-open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(filePath, QString::fromStdString(mCurrentDatabase->GetLastErrorMsg()), QString::fromStdString(std::format("{:#010x}", static_cast<int>(res)))));
-                        return;
-                    }
-                }
-            }
-        }
+        SaveFocusedProject();
         repaint(); // trigger a repaint, because we update the window title there.
     });
 

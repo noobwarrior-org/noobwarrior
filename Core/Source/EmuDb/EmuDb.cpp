@@ -38,25 +38,26 @@
 #include "migrations/v3.sql.inc.cpp"
 #include "migrations/v4.sql.inc.cpp"
 
-#define DB_OUT(...) Out("Database", "[" + GetFileName() + "] " + __VA_ARGS__);
-
 using namespace NoobWarrior;
 
 EmuDb::EmuDb(const std::string &path, bool autocommit) :
-	SqlDb(path),
+	SqlDb(path, "EmuDb"),
 	mAutoCommit(autocommit),
 	mDirty(false),
 	mAssetRepository(this)
 {
+	if (Fail())
+		return;
+	
 	// if auto-commit is disabled, explicitly initiate a transaction
 	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION")) {
-		DB_OUT("Failed to begin new transaction. Aborting!")
+		Out("Failed to begin new transaction. Aborting!");
 		mFailReason = FailReason::TransactionFailed;
 		return;
 	}
 
 	if (!MigrateToLatestVersion()) {
-		DB_OUT("Failed to migrate to latest version. The database has possibly been corrupted. Now aborting.")
+		Out("Failed to migrate to latest version. The database has possibly been corrupted. Now aborting.");
 		mFailReason = FailReason::MigrationFailed;
 		return;
 	}
@@ -68,7 +69,7 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 	Statement stmt = PrepareStatement("SELECT * FROM Migration");
 	if (stmt.Fail()) {
 		// and what do you do if you're the user? NOTHING
-		DB_OUT("Failed to verify integrity of migration: select statement failed. The Migration table most likely does not exist.")
+		Out("Failed to verify integrity of migration: select statement failed. The Migration table most likely does not exist.");
 		return false;
 	}
 
@@ -89,17 +90,17 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 					version = version.substr(1, std::string::npos);
 				verToStr = std::stoi(version);
 			} catch (std::exception &ex) {
-				DB_OUT("Failed to verify integrity of migration: cannot convert version string to number!");
+				Out("Failed to verify integrity of migration: cannot convert version string to number!");
 				return false;
 			}
 
 			if (verToStr != rowId) {
-				DB_OUT("Failed to verify integrity of migration: version {} does not match row ID {}. Did the developer order the versions wrong? Is there a gap?", version, rowId)
+				Out("Failed to verify integrity of migration: version {} does not match row ID {}. Did the developer order the versions wrong? Is there a gap?", version, rowId);
 				return false;
 			}
 
 			if (rowId > prevRowId && prevVersion > version) {
-				DB_OUT("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion)
+				Out("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion);
 				return false;
 			}
 
@@ -108,7 +109,7 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 			prevTimestamp = timestamp;
 		} else {
 			if (step != SQLITE_DONE) {
-				DB_OUT("Failed to verify integrity of migration: could not select from migration table. Maybe it doesn't exist?")
+				Out("Failed to verify integrity of migration: could not select from migration table. Maybe it doesn't exist?");
 			}
 			return step == SQLITE_DONE;
 		}
@@ -121,46 +122,46 @@ bool EmuDb::MigrateToLatestVersion() {
 	if (mAutoCommit) {
 		bool transactionStmt = ExecStatement("BEGIN TRANSACTION;");
 		if (!transactionStmt) {
-			DB_OUT("Failed to begin new transaction in order to perform migration")
+			Out("Failed to begin new transaction in order to perform migration");
 			return false;
 		}
 	}
 
 #define CREATE_TABLE(var) \
 	if (!ExecStatement(var)) { \
-		DB_OUT("Failed to create table from variable \"{}\"", #var) \
+		Out("Failed to create table from variable \"{}\"", #var); \
 		return false; \
 	}
 
 	CREATE_TABLE(schema_migration);
 
 	if (!VerifyIntegrityOfMigration()) {
-		DB_OUT("Failed to begin migration because the integrity check failed.")
+		Out("Failed to begin migration because the integrity check failed.");
 		return false;
 	}
 
 	bool bindingsSet = false;
 	Statement migrationStmt = PrepareStatement("SELECT RowId, Version FROM Migration WHERE Version = ?");
 	if (migrationStmt.Fail()) {
-		DB_OUT("Failed to prepare select statement for Migration table")
+		Out("Failed to prepare select statement for Migration table");
 		return false;
 	}
 
 #define MIGRATE(migration) \
 	if (bindingsSet) { \
-		if (migrationStmt.Reset() != SQLITE_OK) { DB_OUT("Failed to reset selecting migration statement") return false; } \
-		if (migrationStmt.ClearBindings() != SQLITE_OK) { DB_OUT("Failed to clear bindings for selecting migration statement") return false; } \
+		if (migrationStmt.Reset() != SQLITE_OK) { Out("Failed to reset selecting migration statement"); return false; } \
+		if (migrationStmt.ClearBindings() != SQLITE_OK) { Out("Failed to clear bindings for selecting migration statement"); return false; } \
 	} \
-	if (migrationStmt.Bind(1, #migration) != SQLITE_OK) { DB_OUT("Failed to bind value to selecting migration statement") return false; }; \
+	if (migrationStmt.Bind(1, #migration) != SQLITE_OK) { Out("Failed to bind value to selecting migration statement"); return false; }; \
 	bindingsSet = true; \
 	if (migrationStmt.Step() == SQLITE_DONE) { \
 		bool success = ExecStatement(migration_##migration); \
 		if (success) { \
 			Statement addToListStmt = PrepareStatement("INSERT INTO Migration (Version) VALUES (?)"); \
 			addToListStmt.Bind(1, #migration); \
-			if (addToListStmt.Step() == SQLITE_DONE) { DB_OUT("Migrated to " #migration) } \
-			else { DB_OUT("Failed to insert row into migraton table. What the fuck?") return false; } \
-		} else { DB_OUT("Migration to " #migration " failed.") return false; } \
+			if (addToListStmt.Step() == SQLITE_DONE) { Out("Migrated to " #migration); } \
+			else { Out("Failed to insert row into migraton table. What the fuck?"); return false; } \
+		} else { Out("Migration to " #migration " failed."); return false; } \
 	}
 
 	/** All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!! **/
@@ -183,14 +184,14 @@ bool EmuDb::MigrateToLatestVersion() {
 #undef CREATE_TABLE
 
 	if (!VerifyIntegrityOfMigration()) {
-		DB_OUT("Failed to finish migration because the integrity check failed. Changes will not be saved.")
+		Out("Failed to finish migration because the integrity check failed. Changes will not be saved.");
 		return false;
 	}
 
 	if (mAutoCommit) {
 		bool commitStmt = ExecStatement("COMMIT;");
 		if (!commitStmt) {
-			DB_OUT("Failed to commit transaction in order to complete migration. Changes will not be saved.")
+			Out("Failed to commit transaction in order to complete migration. Changes will not be saved.");
 			return false;
 		}
 	}

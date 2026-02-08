@@ -28,7 +28,6 @@
 #include "Project/Project.h"
 #include "BackgroundTask/BackgroundTask.h"
 #include "WelcomeWidget.h"
-#include "OverviewWidget.h"
 #include "FileManagerWidget.h"
 
 #include <QMainWindow>
@@ -46,18 +45,21 @@ public:
     Sdk(QWidget *parent = nullptr);
     ~Sdk();
 
-    void OpenProject(const std::filesystem::path &path);
-    void TryToCloseProject(Project* project);
+    bool AddProject(Project* project);
+    bool AddProjectFromPath(const std::filesystem::path &path);
+    bool RemoveProject(Project* project);
+    bool TryToRemoveProject(Project* project);
+    bool SaveProject(Project* project);
+
+    bool TryToRemoveFocusedProject();
+    bool SaveFocusedProject();
 
     /**
-        * @brief Refreshes all widgets that may have dirty data in them
-        */
+     * @brief Refreshes all widgets that may have dirty data in them
+     */
     void Refresh();
 
-    int TryToCloseCurrentDatabase();
-    void TryToOpenFile(const QString &path = ":memory:");
-
-    EmuDb *GetCurrentlyEditingDatabase();
+    Project* GetFocusedProject();
 
     ItemBrowserWidget *GetItemBrowser();
 protected:
@@ -111,15 +113,13 @@ private:
     QTabWidget *mTabWidget;
 
     WelcomeWidget* mWelcomeWidget;
-    OverviewWidget *mOverviewWidget;
 
     //////////////////// Dockable Widgets ////////////////////
     ItemBrowserWidget *mItemBrowser;
     FileManagerWidget *mFileManager;
 
-    EmuDb *mCurrentDatabase;
-
     std::vector<Project*> mProjects;
+    Project* mFocusedProject;
 
     //////////////////// Status Bar ////////////////////
     BackgroundTasks mBackgroundTasks;

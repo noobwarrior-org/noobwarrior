@@ -37,7 +37,8 @@
 #include <optional>
 #include <fstream>
 
-#include "../Sdk.h"
+#include "Sdk/Sdk.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
 
 namespace NoobWarrior {
 template<typename Item>
@@ -46,9 +47,8 @@ public:
     ItemDialog(QWidget *parent = nullptr, Item item = {}) : QDialog(parent),
         mItem(item)
     {
-        assert(dynamic_cast<Sdk*>(this->parent()) != nullptr && "ItemDialog should not be parented to anything other than DatabaseEditor");
-        mDatabaseEditor = dynamic_cast<Sdk*>(this->parent());
-        mDatabase = mDatabaseEditor->GetCurrentlyEditingDatabase();
+        assert(dynamic_cast<Sdk*>(this->parent()) != nullptr && "ItemDialog should not be parented to anything other than Sdk");
+        mSdk = dynamic_cast<Sdk*>(this->parent());
 
         setWindowTitle("Item Editor");
         RegenWidgets();
@@ -253,13 +253,15 @@ public:
     }
 
     EmuDb* GetDatabase() {
-        return mDatabase;
+        auto dbProj = dynamic_cast<EmuDbProject*>(mSdk->GetFocusedProject());
+        if (dbProj != nullptr)
+            return dbProj->GetDb();
+        return nullptr;
     }
 protected:
     Item mItem;
 
-    Sdk *mDatabaseEditor;
-    EmuDb *mDatabase;
+    Sdk* mSdk;
 
     QLabel *mIcon;
     QLineEdit *mIdInput;

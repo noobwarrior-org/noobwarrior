@@ -25,10 +25,12 @@
 #pragma once
 #include <NoobWarrior/Roblox/Api/Asset.h>
 #include <NoobWarrior/EmuDb/Item/Asset.h>
+#include <NoobWarrior/EmuDb/EmuDb.h>
 
-#include "../Sdk.h"
+#include "Sdk/Sdk.h"
 #include "BrowserItem.h"
 #include "AssetPage.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
 
 #include <QDockWidget>
 #include <QLineEdit>
@@ -51,7 +53,9 @@ protected:
 
     void RefreshEx(int index) {
         auto editor = dynamic_cast<Sdk*>(parent());
-        EmuDb *db = editor->GetCurrentlyEditingDatabase();
+        Project *proj = editor->GetFocusedProject();
+
+        bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
 
         ItemBrowserPage *page = mPages.at(index);
         bool isAssetPage = dynamic_cast<AssetPage*>(page) != nullptr;
@@ -67,8 +71,8 @@ protected:
         AssetCategoryDropdown->setVisible(isAssetPage);
         AssetTypeDropdown->setVisible(isAssetPage);
 
-        NoDatabaseFoundLabel->setVisible(db == nullptr);
-        if (db != nullptr) {
+        NoDatabaseFoundLabel->setVisible(isProjectDatabase);
+        if (isProjectDatabase) {
             page->setVisible(true);
             page->clear();
             page->Refresh();

@@ -18,37 +18,41 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: EmuDbProject.cpp
+// File: EmuDbProject.h
 // Started by: Hattozo
 // Started on: 2/2/2024
 // Description:
-#include "EmuDbProject.h"
+#pragma once
+#include "Sdk/Project/Project.h"
+#include "Widget/OverviewWidget.h"
 
-using namespace NoobWarrior;
+#include <NoobWarrior/EmuDb/EmuDb.h>
 
-EmuDbProject::EmuDbProject(Sdk* sdk, const std::string &path) : Project(sdk),
-    mDb(new EmuDb(path))
-{
+namespace NoobWarrior {
+class EmuDbProject : public Project {
+public:
+    EmuDbProject(const std::string &path = ":memory:");
+    ~EmuDbProject();
 
+    EmuDb* GetDb();
+
+    bool Fail() override;
+    std::string GetFailMsg() override;
+
+    QString GetTitle() override;
+    QIcon GetIcon() override;
+    bool IsDirty() override;
+
+    bool Save() override;
+    std::string GetSaveFailMsg() override;
+
+    void OnShown() override;
+    void OnHidden() override;
+protected:
+    EmuDb* mDb;
+    OverviewWidget* mOverviewWidget;
+
+    SqlDb::Response mLastSaveRes;
+    std::string mSaveFailMsg;
+};
 }
-
-EmuDbProject::~EmuDbProject() { }
-
-bool EmuDbProject::Fail() {
-    return mDb->Fail();
-}
-
-std::string EmuDbProject::GetFailMsg() {
-    return mDb->GetLastErrorMsg();
-}
-
-std::string EmuDbProject::GetTitle() {
-    return "Database";
-}
-
-QIcon EmuDbProject::GetIcon() {
-    return QIcon(":/images/silk/database.png");
-}
-
-void EmuDbProject::OnShown() { }
-void EmuDbProject::OnHidden() { }

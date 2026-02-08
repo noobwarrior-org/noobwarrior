@@ -25,10 +25,12 @@
 #include "EmuDbEmpty.h"
 #include "TemplatePage.h"
 #include "Sdk/Sdk.h"
-#include "Sdk/Project/EmuDbProject.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "Application.h"
 
 #include <NoobWarrior/Log.h>
+#include <filesystem>
+#include <qmessagebox.h>
 
 using namespace NoobWarrior;
 
@@ -102,12 +104,22 @@ bool EmuDbEmptyIntroPage::validatePage() {
             Out("EmuDbEmptyIntroPage", "Failed to create project: Sdk is not a parent of wizard");
             return false;
         }
-        auto project = new EmuDbProject(sdk, mPathEdit->text().toStdString());
+        auto project = new EmuDbProject(mPathEdit->text().toStdString());
+        if (project->Fail()) {
+            auto error = QMessageBox::critical(this,
+                "Cannot Create Project",
+                QString("Failed to create the project.\nMessage received: \"%1\"")
+                    .arg(project->GetFailMsg())
+            );
+        }
+        sdk->AddProject(project);
     }
     return res;
 }
 
 bool EmuDbEmptyIntroPage::isComplete() const {
+    if (std::filesystem::exists(mPathEdit->text().toStdString()) || std::filesystem::is_directory(mPathEdit->text().toStdString()))
+        return false;
     return !mPathEdit->text().isEmpty() && !mTitleEdit->text().isEmpty();
 }
 

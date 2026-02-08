@@ -25,16 +25,28 @@
 #include <NoobWarrior/SqlDb/SqlDb.h>
 
 #include <format>
+#include <fstream>
 
 using namespace NoobWarrior;
 
-SqlDb::SqlDb(const std::string &path) : mDb(nullptr), mFailReason(FailReason::Uninitialized), mPath(path) {
+SqlDb::SqlDb(const std::string &path, const std::string &logName) :
+    mLogName(logName),
+    mDb(nullptr),
+    mFailReason(FailReason::Uninitialized),
+    mPath(path)
+{
+    if (!IsMemory() && !std::filesystem::exists(path)) {
+        std::ofstream out(path, std::ios::app); // create dummy file
+        if (out.is_open())
+            out.close();
+    }
+
     int val = sqlite3_open_v2(path.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr);
 
     switch (val) {
-    case SQLITE_OK: break;
-    case SQLITE_CANTOPEN: mFailReason = FailReason::CantOpen; return;
-    default: mFailReason = FailReason::Unknown; return;
+    case SQLITE_OK: Out("Opened"); break;
+    case SQLITE_CANTOPEN: Out("Failed to open: {}", GetLastErrorMsg()); mFailReason = FailReason::CantOpen; return;
+    default: Out("Failed to open: {}", GetLastErrorMsg()); mFailReason = FailReason::Unknown; return;
     }
 
     mFailReason = FailReason::None;
@@ -67,14 +79,14 @@ int SqlDb::GetLastError() {
 }
 
 std::string SqlDb::GetFileName() {
-	if (mPath.compare(":memory:"))
+	if (mPath.compare(":memory:") == 0)
 		return "Unsaved Database";
     std::string::size_type last_slash = mPath.find_last_of("/");
 	return last_slash != std::string::npos ? mPath.substr(last_slash + 1) : mPath;
 }
 
 std::filesystem::path SqlDb::GetFilePath() {
-    if (mPath.compare(":memory:"))
+    if (mPath.compare(":memory:") == 0)
         return "";
     return mPath;
 }
@@ -97,4 +109,3 @@ SqlDb::FailReason SqlDb::GetFailReason() {
 Statement SqlDb::PrepareStatement(const std::string &stmtStr) {
 	return Statement(this, stmtStr);
 }
-
