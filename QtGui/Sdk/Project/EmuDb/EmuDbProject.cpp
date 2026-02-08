@@ -30,7 +30,7 @@
 using namespace NoobWarrior;
 
 EmuDbProject::EmuDbProject(const std::string &path) : Project(),
-    mDb(new EmuDb(path))
+    mDb(new EmuDb(path, false))
 {
     if (mDb->IsMemory()) {
         // If we're making a new file, then fill in some defaults (like the author of the database) with the name of the
@@ -49,7 +49,7 @@ EmuDbProject::EmuDbProject(const std::string &path) : Project(),
 
     // our own functions
     mOverviewWidget = new OverviewWidget(mDb);
-    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
+    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, "Overview"));
 }
 
 EmuDbProject::~EmuDbProject() {
@@ -70,11 +70,7 @@ std::string EmuDbProject::GetFailMsg() {
 }
 
 QString EmuDbProject::GetTitle() {
-    return QString("%1%2%3")
-            .arg(!mDb->IsMemory() ? QString::fromStdString(mDb->GetFileName()) : "Unsaved File")
-            .arg(mDb->IsDirty() ? "* " : " ")
-            .arg((!mDb->IsMemory() ? "- " : "") + QString::fromStdString(mDb->GetTitle()));
-    // return QString::fromStdString(mDb->GetTitle());
+    return !mDb->IsMemory() ? QString::fromStdString(mDb->GetFileName()) : "Unsaved File";
 }
 
 QIcon EmuDbProject::GetIcon() {

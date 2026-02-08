@@ -45,7 +45,7 @@ OverviewWidget::OverviewWidget(EmuDb *db, QWidget *parent) : QWidget(parent),
     ToplevelLayout(nullptr),
     ContentLayout(nullptr)
 {
-    setWindowTitle(QString::fromStdString(mDatabase->GetTitle()));
+    setWindowTitle("Overview");
     InitWidgets();
 }
 

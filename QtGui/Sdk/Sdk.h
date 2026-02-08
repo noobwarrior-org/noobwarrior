@@ -80,8 +80,10 @@ private:
     QMenu *mFileMenu;
     QMenu *mEditMenu;
     QMenu *mViewMenu;
+    QMenu *mProjectMenu;
     QMenu *mInsertMenu;
     QMenu *mToolsMenu;
+    QMenu *mPluginsMenu;
     QMenu *mHelpMenu;
 
     QAction* mNewProjectAction;

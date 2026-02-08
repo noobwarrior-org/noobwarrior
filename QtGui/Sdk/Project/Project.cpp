@@ -30,7 +30,7 @@ using namespace NoobWarrior;
 Project::Project() : mSdk(nullptr),
     mTabWidget(new QTabWidget(nullptr)) // dw the sdk window will reparent it for us
 {
-
+    mTabWidget->setProperty("Project", QVariant::fromValue(this));
 }
 
 Project::~Project() { }
@@ -41,3 +41,11 @@ std::string Project::GetSaveFailMsg() {
 
 void Project::OnShown() { }
 void Project::OnHidden() { }
+
+void Project::TryClose() {
+
+}
+
+QTabWidget* Project::GetTabWidget() {
+    return mTabWidget;
+}

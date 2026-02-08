@@ -29,18 +29,18 @@ set(SOURCES
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
     Sdk/EmuDbListWidget.cpp
+    Sdk/Browser/ItemBrowserWidget.cpp
+    Sdk/Browser/ItemBrowserPage.cpp
+    Sdk/Browser/AssetPage.cpp
+    Sdk/Item/AssetDialog.cpp
+    Sdk/Backup/BackupDialog.cpp
+    Sdk/Backup/BackupTask.cpp
+    Sdk/Backup/BackupTreeView.cpp
+    Sdk/Backup/ItemDescriptorModel.cpp
     Sdk/Project/Project.cpp
     Sdk/Project/EmuDb/EmuDbProject.cpp
     Sdk/Project/EmuDb/Widget/OverviewWidget.cpp
-    Sdk/Project/EmuDb/Widget/Browser/ItemBrowserWidget.cpp
-    Sdk/Project/EmuDb/Widget/Browser/ItemBrowserPage.cpp
-    Sdk/Project/EmuDb/Widget/Browser/AssetPage.cpp
-    Sdk/Project/EmuDb/Widget/Item/AssetDialog.cpp
-    Sdk/Project/EmuDb/Widget/Preview/ItemPreviewWidget.cpp
-    Sdk/Project/EmuDb/Widget/Backup/BackupDialog.cpp
-    Sdk/Project/EmuDb/Widget/Backup/BackupTask.cpp
-    Sdk/Project/EmuDb/Widget/Backup/BackupTreeView.cpp
-    Sdk/Project/EmuDb/Widget/Backup/ItemDescriptorModel.cpp
+    Sdk/Project/EmuDb/Widget/ItemPreviewWidget.cpp
     Sdk/Project/PluginProject.cpp
     Sdk/Project/Wizard/ProjectWizard.cpp
     Sdk/Project/Wizard/ProjectWizardIntroPage.cpp

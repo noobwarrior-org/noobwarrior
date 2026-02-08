@@ -24,10 +24,10 @@
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "Sdk.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
-#include "Sdk/Project/EmuDb/Widget/Browser/ItemBrowserWidget.h"
-#include "Sdk/Project/EmuDb/Widget/Item/ItemDialog.h"
-#include "Sdk/Project/EmuDb/Widget/Item/AssetDialog.h"
-#include "Sdk/Project/EmuDb/Widget/Backup/BackupDialog.h"
+#include "Sdk/Browser/ItemBrowserWidget.h"
+#include "Sdk/Item/ItemDialog.h"
+#include "Sdk/Item/AssetDialog.h"
+#include "Sdk/Backup/BackupDialog.h"
 #include "Sdk/Project/Wizard/ProjectWizard.h"
 #include "Sdk/BackgroundTask/BackgroundTask.h"
 #include "Sdk/BackgroundTask/BackgroundTaskPopupWidget.h"
@@ -89,6 +89,62 @@ Sdk::~Sdk() {
         if (success) {
             NOOBWARRIOR_FREE_PTR(proj)
         }
+    }
+}
+
+void Sdk::closeEvent(QCloseEvent *event) {
+    bool refusedCancelOnOneProject = false;
+    for (Project* proj : mProjects) {
+        if (TryToRemoveProject(proj)) {
+            NOOBWARRIOR_FREE_PTR(proj)
+        } else {
+            refusedCancelOnOneProject = true;
+            break;
+        }
+    }
+    !refusedCancelOnOneProject ? event->accept() : event->ignore();
+}
+
+void Sdk::paintEvent(QPaintEvent *event) {
+    QMainWindow::paintEvent(event);
+
+    if (mFocusedProject != nullptr) {
+        QString title = mFocusedProject->GetTitle() + (mFocusedProject->IsDirty() ? "*" : "");
+        setWindowTitle(
+            QString("%1 - noobWarrior SDK")
+            .arg(title)
+        );
+        int tabIndex = mTabWidget->indexOf(mFocusedProject->mTabWidget);
+        if (tabIndex != -1) {
+            mTabWidget->setTabText(tabIndex, title);
+        }
+    } else setWindowTitle(QString("noobWarrior SDK"));
+}
+
+void Sdk::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void Sdk::dragMoveEvent(QDragMoveEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void Sdk::dropEvent(QDropEvent *event) {
+    QMainWindow::dropEvent(event);
+    if (event->mimeData()->hasUrls()) {
+        for (const QUrl &url : event->mimeData()->urls())
+            AddProjectFromPath(std::filesystem::path(url.toLocalFile().toStdString()));
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
     }
 }
 
@@ -204,60 +260,20 @@ bool Sdk::SaveFocusedProject() {
 }
 
 void Sdk::Refresh() {
-    mItemBrowser->Refresh();
-}
-
-void Sdk::closeEvent(QCloseEvent *event) {
-    bool refusedCancelOnOneProject = false;
-    for (Project* proj : mProjects) {
-        if (TryToRemoveProject(proj)) {
-            NOOBWARRIOR_FREE_PTR(proj)
-        } else {
-            refusedCancelOnOneProject = true;
-            break;
-        }
+    if (mTabWidget != nullptr) {
+        QWidget* widget = mTabWidget->widget(mTabWidget->currentIndex());
+        QVariant qvariant = widget->property("Project");
+        mFocusedProject = !qvariant.isNull() ? qvariant.value<Project*>() : nullptr;
+        repaint();
     }
-    !refusedCancelOnOneProject ? event->accept() : event->ignore();
-}
 
-void Sdk::paintEvent(QPaintEvent *event) {
-    QMainWindow::paintEvent(event);
+    auto *dbProj = dynamic_cast<EmuDbProject*>(mFocusedProject);
+    if (dbProj != nullptr) {
+        DisableRequiredProjectButtons(false);
+    } else DisableRequiredProjectButtons(true);
 
-    // I don't want to have to create all kinds of hooks and callbacks when our database has been marked dirty
-    // So we're just checking if it's dirty here in our paint event that Qt gives us. Much easier
-    if (mFocusedProject != nullptr) {
-        setWindowTitle(
-            QString("%1 - noobWarrior SDK")
-            .arg(mFocusedProject->GetTitle())
-        );
-    } else setWindowTitle(QString("noobWarrior SDK"));
-}
-
-void Sdk::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasUrls()) {
-        event->acceptProposedAction();
-    } else {
-        event->ignore();
-    }
-}
-
-void Sdk::dragMoveEvent(QDragMoveEvent *event) {
-    if (event->mimeData()->hasUrls()) {
-        event->acceptProposedAction();
-    } else {
-        event->ignore();
-    }
-}
-
-void Sdk::dropEvent(QDropEvent *event) {
-    QMainWindow::dropEvent(event);
-    if (event->mimeData()->hasUrls()) {
-        for (const QUrl &url : event->mimeData()->urls())
-            AddProjectFromPath(std::filesystem::path(url.toLocalFile().toStdString()));
-        event->acceptProposedAction();
-    } else {
-        event->ignore();
-    }
+    if (mItemBrowser != nullptr)
+        mItemBrowser->Refresh();
 }
 
 /* FUCK YUOU
@@ -359,10 +375,14 @@ void Sdk::InitMenus() {
     mViewMenu->addAction(mItemBrowserViewAction);
     mViewMenu->addAction(mFileManagerViewAction);
 
+    mProjectMenu = menuBar()->addMenu(tr("&Project"));
+
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
     ADD_ITEMTYPE(Asset, AssetDialog)
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
+
+    mPluginsMenu = menuBar()->addMenu(tr("&Plugins"));
 
     mHelpMenu = menuBar()->addMenu(tr("&Help"));
 
@@ -397,7 +417,9 @@ void Sdk::InitMenus() {
     });
 
     connect(mCloseProjectAction, &QAction::triggered, [&]() {
+        Project* focused = mFocusedProject; // save reference to pointer because removing it will set mFocusedProject to nullptr without freeing it
         TryToRemoveFocusedProject();
+        NOOBWARRIOR_FREE_PTR(focused)
     });
 
     connect(mSaveProjectAction, &QAction::triggered, [&]() {
@@ -438,6 +460,10 @@ void Sdk::InitStatusBarWidgets() {
 void Sdk::InitWidgets() {
     mTabWidget = new QTabWidget(this);
     setCentralWidget(mTabWidget);
+
+    connect(mTabWidget, &QTabWidget::currentChanged, [this](int index) {
+        Refresh();
+    });
 
     /*
     auto *hi = new QLabel("New Database  Ctrl-N\nOpen Database  Ctrl-O");

@@ -25,6 +25,8 @@
 #pragma once
 #include <QIcon>
 #include <QTabWidget>
+#include <QMenu>
+
 #include <string>
 
 namespace NoobWarrior {
