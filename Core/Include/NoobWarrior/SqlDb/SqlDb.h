@@ -88,6 +88,26 @@ public:
     FailReason GetFailReason();
 
     Statement PrepareStatement(const std::string &stmtStr);
+
+    SqlRows Query(const std::string &stmtStr);
+
+    /* Supports binding. Note that this only supports a single SQL statement since the bindings do not reset after the first statement.
+       If you don't need binding and need to execute multiple statements in a single function call, use Query() instead */
+    template <std::same_as<SqlValue>... Args>
+    SqlRows QueryTyped(const std::string &stmtStr, Args&&... args) {
+        SqlRows rows;
+        Statement stmt = PrepareStatement(stmtStr);
+
+        int idx = 0;
+        for (const auto arg : {args...}) {
+            idx++;
+            stmt.Bind(idx, arg);
+        }
+        while (stmt.Step() == SQLITE_ROW) {
+            rows.push_back(stmt.GetColumns());
+        }
+        return rows;
+    }
 protected:
     std::string mLogName;
     template <typename... Args>

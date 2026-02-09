@@ -25,12 +25,20 @@
 #pragma once
 #include "ItemDialog.h"
 #include <NoobWarrior/EmuDb/Item/Asset.h>
+#include <NoobWarrior/EmuDb/Repository/Item/AssetRepository.h>
+
+#include <QComboBox>
+
+#include <optional>
 
 namespace NoobWarrior {
 class AssetDialog : public ItemDialog<Asset> {
     Q_OBJECT
 public:
-    AssetDialog(QWidget *parent = nullptr, Asset asset = {});
-    void RegenWidgets() override;
+    AssetDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt);
+    void AddCustomWidgets() override;
+    void OnSave() override;
+protected:
+    QComboBox* mAssetTypeInput;
 };
 }

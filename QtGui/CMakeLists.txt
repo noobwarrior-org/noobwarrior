@@ -29,6 +29,7 @@ set(SOURCES
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
     Sdk/EmuDbListWidget.cpp
+    Sdk/CreatorInfoWidget.cpp
     Sdk/Browser/ItemBrowserWidget.cpp
     Sdk/Browser/ItemBrowserPage.cpp
     Sdk/Browser/AssetPage.cpp

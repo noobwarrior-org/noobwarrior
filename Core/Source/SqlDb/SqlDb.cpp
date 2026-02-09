@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 1/31/2026
 // Description:
+#include "NoobWarrior/SqlDb/Statement.h"
 #include <NoobWarrior/SqlDb/SqlDb.h>
 
 #include <format>
@@ -108,4 +109,13 @@ SqlDb::FailReason SqlDb::GetFailReason() {
 
 Statement SqlDb::PrepareStatement(const std::string &stmtStr) {
 	return Statement(this, stmtStr);
+}
+
+SqlRows SqlDb::Query(const std::string &stmtStr) {
+    SqlRows rows;
+    Statement stmt = PrepareStatement(stmtStr);
+    while (stmt.Step() == SQLITE_ROW) {
+        rows.push_back(stmt.GetColumns());
+    }
+    return rows;
 }

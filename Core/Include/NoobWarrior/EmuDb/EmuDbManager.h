@@ -54,7 +54,7 @@ template<typename Item, typename RepositoryClass>
 class ItemRepositoryManager : public ItemRepository<Item> {
 public:
     ItemRepositoryManager(EmuDbManager *dbMgr) : mDbMgr(dbMgr) {}
-    virtual RepositoryClass& GetRepository(EmuDb *db) = 0;
+    virtual RepositoryClass* GetRepository(EmuDb *db) = 0;
     SqlDb::Response Save(const Item &item) override {
         return GetRepository(mDbMgr->GetMasterDatabase())->Save(item);
     }
@@ -103,7 +103,7 @@ protected:
 
 class AssetRepositoryManager : public ItemRepositoryManager<Asset, AssetRepository> {
 public:
-    inline AssetRepository& GetRepository(EmuDb *db) override {
+    inline AssetRepository* GetRepository(EmuDb *db) override {
         return db->GetAssetRepository();
     }
 };

@@ -18,33 +18,31 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPage.cpp
+// File: CreatorInfoWidget.h
 // Started by: Hattozo
-// Started on: 11/30/2025
+// Started on: 2/8/2026
 // Description:
-#include "AssetPage.h"
-#include "ItemBrowserWidget.h"
-#include "BrowserItem.h"
-#include <NoobWarrior/EmuDb/EmuDb.h>
+#pragma once
+#include <NoobWarrior/Roblox/Api/User.h>
+#include <QWidget>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <cstdint>
 
-using namespace NoobWarrior;
-
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemBrowserPage(browser), mBrowser(browser) {}
-
-void AssetPage::Refresh() {
-    SearchOptions opt {};
-    opt.Offset = 0;
-    opt.Limit = 100;
-    opt.AssetType = mType;
-
-    EmuDb* db = mBrowser->GetDatabase();
-
-    std::vector<Asset> list = db->GetAssetRepository()->List();
-    for (auto &item : list) {
-        new BrowserItem<Asset>(item, db, this);
-    }
-}
-
-void AssetPage::SetType(Roblox::AssetType type) {
-    mType = type;
+namespace NoobWarrior {
+class CreatorInfoWidget : public QWidget {
+    Q_OBJECT
+public:
+    CreatorInfoWidget(QWidget* parent = nullptr);
+    void Update(int64_t id, Roblox::CreatorType type);
+private:
+    QHBoxLayout* mMainLayout;
+    QVBoxLayout* mContentLayout;
+    
+    QLabel* mImageLabel;
+    QLabel* mNameLabel;
+    QLabel* mTypeLabel;
+    QLabel* mIdLabel;
+};
 }

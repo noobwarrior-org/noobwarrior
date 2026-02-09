@@ -32,4 +32,5 @@ namespace NoobWarrior {
 typedef std::variant<std::monostate, int, bool, int64_t, double, std::string, std::vector<unsigned char>> SqlValue;
 typedef std::pair<std::string, SqlValue> SqlColumn;
 typedef std::vector<SqlColumn> SqlRow;
+typedef std::vector<SqlRow> SqlRows;
 }

@@ -28,6 +28,7 @@
 #include <sqlite3.h>
 
 #include <string>
+#include <variant>
 #include <vector>
 #include <map>
 
@@ -40,6 +41,19 @@ public:
 
     inline sqlite3_stmt* Get() { return mStmt; }
 
+    inline int Bind(int pos, SqlValue val) {
+        switch (val.index()) {
+        default: return SQLITE_FAIL;
+        // to understand the magic numbers: refer to the positions of the allowed values in the SqlValue alias in SqlDb/Common.h
+        case 0: return Bind(pos);
+        case 1: return Bind(pos, std::get<int>(val));
+        case 2: return Bind(pos, std::get<bool>(val));
+        case 3: return Bind(pos, std::get<int64_t>(val));
+        case 4: return Bind(pos, std::get<double>(val));
+        case 5: return Bind(pos, std::get<std::string>(val));
+        case 6: return Bind(pos, std::get<std::vector<unsigned char>>(val));
+        }
+    }
     inline int Bind(int pos, const std::string &val) { return sqlite3_bind_text(mStmt, pos, val.c_str(), -1, nullptr); }
     inline int Bind(int pos, const char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, nullptr); }
     inline int Bind(int pos, char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, nullptr); }
@@ -64,7 +78,5 @@ protected:
     SqlDb *mDatabase;
     sqlite3_stmt *mStmt;
     bool mFailed;
-
-    SqlRow mRow;
 };
 }

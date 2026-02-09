@@ -72,7 +72,12 @@ SqlValue Statement::GetValueFromColumnIndex(int columnIndex) {
 }
 
 SqlRow Statement::GetColumns() {
-    return mRow;
+    SqlRow row;
+    for (int i = 0; i < sqlite3_column_count(mStmt); i++) {
+        SqlColumn column = {sqlite3_column_name(mStmt, i), GetValueFromColumnIndex(i)};
+        row.push_back(column);
+    }
+    return row;
 }
 
 std::map<std::string, SqlValue> Statement::GetColumnMap() {

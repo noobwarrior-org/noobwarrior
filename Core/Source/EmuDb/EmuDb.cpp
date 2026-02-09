@@ -48,7 +48,7 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 {
 	if (Fail())
 		return;
-	
+
 	// if auto-commit is disabled, explicitly initiate a transaction
 	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION")) {
 		Out("Failed to begin new transaction. Aborting!");
@@ -324,8 +324,8 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
-AssetRepository& EmuDb::GetAssetRepository() {
-	return mAssetRepository;
+AssetRepository* EmuDb::GetAssetRepository() {
+	return &mAssetRepository;
 }
 
 std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,

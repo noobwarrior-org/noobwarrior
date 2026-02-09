@@ -36,8 +36,7 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	CONSTRAINT "TYPE_CANNOT_BE_NULL" CHECK(Type IS NOT NULL AND Type > 0)
+	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "Badge" (

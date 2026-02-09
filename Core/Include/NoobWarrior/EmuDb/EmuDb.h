@@ -156,7 +156,7 @@ public:
     SqlDb::Response SetAuthor(const std::string &author);
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
 
-    AssetRepository& GetAssetRepository();
+    AssetRepository* GetAssetRepository();
 
     template<typename T>
     static T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {

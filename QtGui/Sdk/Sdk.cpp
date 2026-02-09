@@ -55,15 +55,18 @@
 #include <qnamespace.h>
 
 #define ADD_ITEMTYPE(type, dialogType) \
-    QString name = QString::fromStdString(#type); \
-    auto insertAction = new QAction(QIcon(""), name, mInsertMenu); \
-    insertAction->setObjectName("RequireProjectButton"); \
-    mInsertMenu->addAction(insertAction); \
-    connect(insertAction, &QAction::triggered, [this]() { \
-        dialogType dialog(this); \
-        dialog.exec(); \
+    QString type##_Name = QString::fromStdString(#type); \
+    auto type##_InsertAction = new QAction(QIcon(""), type##_Name, mInsertMenu); \
+    type##_InsertAction->setObjectName("RequireProjectButton"); \
+    mInsertMenu->addAction(type##_InsertAction); \
+    connect(type##_InsertAction, &QAction::triggered, [this]() { \
+        auto *dbProj = dynamic_cast<EmuDbProject*>(mFocusedProject); \
+        if (dbProj != nullptr) { \
+            dialogType dialog(this); \
+            dialog.exec(); \
+        } else QMessageBox::critical(this, "Cannot Insert Item", "The current project is not a valid database.", QMessageBox::Ok); \
     }); \
-    mInsertItemTypeActions.push_back(insertAction);
+    mInsertItemTypeActions.push_back(type##_InsertAction);
 
 using namespace NoobWarrior;
 
