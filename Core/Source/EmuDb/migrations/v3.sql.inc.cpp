@@ -37,8 +37,7 @@ CREATE TABLE IF NOT EXISTS "Asset" (
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	CONSTRAINT "TYPE_CANNOT_BE_NULL" CHECK(Type IS NOT NULL AND Type > 0),
-    CONSTRAINT "ONLY_ONE_CREATOR_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+	CONSTRAINT "TYPE_CANNOT_BE_NULL" CHECK(Type IS NOT NULL AND Type > 0)
 );
 
 CREATE TABLE IF NOT EXISTS "Badge" (
@@ -62,8 +61,7 @@ CREATE TABLE IF NOT EXISTS "Badge" (
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+    FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "Bundle" (
@@ -90,8 +88,7 @@ CREATE TABLE IF NOT EXISTS "Bundle" (
     "Historical_Favorites"	INTEGER,
 	PRIMARY KEY("Id","Snapshot"),
     FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+	FOREIGN KEY("UserId") REFERENCES "User"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "DevProduct" (
@@ -157,8 +154,7 @@ CREATE TABLE IF NOT EXISTS "Pass" (
 	FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
 	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+	FOREIGN KEY("UniverseId") REFERENCES "Universe"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "Set" (
@@ -178,8 +174,7 @@ CREATE TABLE IF NOT EXISTS "Set" (
 	PRIMARY KEY("Id","Snapshot"),
     FOREIGN KEY("ImageId", "ImageSnapshot") REFERENCES "Asset"("Id", "Snapshot"),
     FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-    FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+    FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "Universe" (
@@ -198,8 +193,7 @@ CREATE TABLE IF NOT EXISTS "Universe" (
 	"Visits"	INTEGER,
 	PRIMARY KEY("Id","Snapshot"),
 	FOREIGN KEY("UserId") REFERENCES "User"("Id"),
-	FOREIGN KEY("GroupId") REFERENCES "Group"("Id"),
-    CONSTRAINT "ONLY_ONE_VALUE" CHECK((UserId IS NULL OR GroupId IS NULL) AND NOT (UserId IS NULL AND GroupId IS NULL))
+	FOREIGN KEY("GroupId") REFERENCES "Group"("Id")
 );
 
 CREATE TABLE IF NOT EXISTS "User" (
