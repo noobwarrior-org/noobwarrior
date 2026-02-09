@@ -31,7 +31,6 @@ ItemBrowserPage::ItemBrowserPage(QWidget *parent) : QListWidget(parent) {
 }
 
 void ItemBrowserPage::InitWidgets() {
-    setAutoFillBackground(true);
     setMovement(QListView::Static);
     setViewMode(QListView::IconMode);
     setIconSize(QSize(64, 64));

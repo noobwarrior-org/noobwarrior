@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetDialog.cpp
+// File: UniverseDialog.cpp
 // Started by: Hattozo
-// Started on: 11/30/2025
+// Started on: 2/8/2026
 // Description:
-#include "AssetDialog.h"
+#include "UniverseDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
 #include "Sdk/Browser/ItemBrowserWidget.h"
 
@@ -36,11 +36,11 @@
 
 using namespace NoobWarrior;
 
-AssetDialog::AssetDialog(QWidget *parent, std::optional<int64_t> id, std::optional<int64_t> snapshot) : ItemDialog(parent, id, snapshot) {
+UniverseDialog::UniverseDialog(QWidget *parent, std::optional<int64_t> id, std::optional<int64_t> snapshot) : ItemDialog(parent, id, snapshot) {
     RegenWidgets();
 }
 
-void AssetDialog::AddCustomWidgets() {
+void UniverseDialog::AddCustomWidgets() {
     auto *db = GetDatabase();
 
     mAssetTypeInput = new QComboBox();
@@ -53,7 +53,7 @@ void AssetDialog::AddCustomWidgets() {
     mContentLayout->addRow("Creator", info);
 
     if (mId != std::nullopt) {
-        std::string stmtStr = std::format("SELECT * FROM Asset WHERE Id = ? {};", mSnapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
+        std::string stmtStr = std::format("SELECT * FROM Universe WHERE Id = ? {};", mSnapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
         Statement stmt = db->PrepareStatement(stmtStr);
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
@@ -70,11 +70,11 @@ void AssetDialog::AddCustomWidgets() {
     }
 }
 
-void AssetDialog::OnSave() {
+void UniverseDialog::OnSave() {
     auto *db = GetDatabase();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO Asset (Id, Snapshot, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Universe (Id, Snapshot, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id, Snapshot) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
     )");
     stmt.Bind(1, mIdInput->text().toInt());

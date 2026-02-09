@@ -71,7 +71,7 @@ protected:
         AssetCategoryDropdown->setVisible(isAssetPage);
         AssetTypeDropdown->setVisible(isAssetPage);
 
-        NoDatabaseFoundLabel->setVisible(isProjectDatabase);
+        NoDatabaseFoundLabel->setVisible(!isProjectDatabase);
         if (isProjectDatabase) {
             page->setVisible(true);
             page->clear();

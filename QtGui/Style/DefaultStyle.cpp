@@ -40,6 +40,8 @@
 #include <QMenu>
 #include <QAction>
 #include <QStyleOption>
+#include <QListView>
+#include <QListWidget>
 #include <qnamespace.h>
 #include <qstyle.h>
 
@@ -140,6 +142,14 @@ void DefaultStyle::polish(QWidget *widget) {
         palette.setColor(QPalette::Window, QColor(43, 42, 43));
         // palette.setColor(widget->backgroundRole(), palette.color(widget->backgroundRole()).darker(128));
         widget->setPalette(palette);
+    }
+
+    auto *listView = qobject_cast<QListView*>(widget->parentWidget());
+    if (listView != nullptr) {
+        QPalette palette = listView->viewport()->palette();
+        palette.setColor(QPalette::Base, QColor(43, 42, 43));
+        listView->viewport()->setPalette(palette);
+        listView->setAutoFillBackground(true);
     }
 
     QProxyStyle::polish(widget);

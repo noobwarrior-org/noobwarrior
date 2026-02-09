@@ -144,7 +144,7 @@ std::vector<Asset> AssetRepository::List() {
     std::vector<Asset> list;
     Statement stmt(mDb, "SELECT * FROM Asset;");
     while (stmt.Step() == SQLITE_ROW) {
-        int64_t id = std::get<int64_t>(stmt.GetValueFromColumnIndex(0));
+        int64_t id = std::get<int>(stmt.GetValueFromColumnIndex(0));
         std::optional<Asset> asset = Get(id);
         if (asset.has_value()) list.push_back(asset.value());
     }

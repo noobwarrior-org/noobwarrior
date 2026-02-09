@@ -23,7 +23,9 @@
 // Started on: 2/8/2026
 // Description:
 #pragma once
+#include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Roblox/Api/User.h>
+
 #include <QWidget>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -35,7 +37,7 @@ class CreatorInfoWidget : public QWidget {
     Q_OBJECT
 public:
     CreatorInfoWidget(QWidget* parent = nullptr);
-    void Update(int64_t id, Roblox::CreatorType type);
+    void Update(EmuDb* db, int64_t id, Roblox::CreatorType type);
 private:
     QHBoxLayout* mMainLayout;
     QVBoxLayout* mContentLayout;

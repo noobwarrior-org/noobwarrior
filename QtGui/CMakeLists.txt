@@ -28,12 +28,15 @@ set(SOURCES
     Sdk/WelcomeWidget.cpp
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
-    Sdk/EmuDbListWidget.cpp
+    Sdk/EmuDbBrowserWidget.cpp
+    Sdk/CreatorBrowserWidget.cpp
     Sdk/CreatorInfoWidget.cpp
     Sdk/Browser/ItemBrowserWidget.cpp
     Sdk/Browser/ItemBrowserPage.cpp
     Sdk/Browser/AssetPage.cpp
+    Sdk/Item/ItemDialog.cpp
     Sdk/Item/AssetDialog.cpp
+    Sdk/Item/UniverseDialog.cpp
     Sdk/Backup/BackupDialog.cpp
     Sdk/Backup/BackupTask.cpp
     Sdk/Backup/BackupTreeView.cpp

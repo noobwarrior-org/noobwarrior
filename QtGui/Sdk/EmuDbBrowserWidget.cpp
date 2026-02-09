@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: EmuDbListWidget.cpp
+// File: EmuDbBrowserWidget.cpp
 // Started by: Hattozo
 // Started on: 2/2/2024
 // Description:
-#include "EmuDbListWidget.h"
+#include "EmuDbBrowserWidget.h"
 
 #include "../Application.h"
 #include <NoobWarrior/NoobWarrior.h>
@@ -31,15 +31,15 @@
 
 using namespace NoobWarrior;
 
-EmuDbListWidget::EmuDbListWidget(QWidget* parent) : QListWidget(parent) {
+EmuDbBrowserWidget::EmuDbBrowserWidget(QWidget* parent) : QListWidget(parent) {
     Refresh();
 }
 
-EmuDbListWidget::~EmuDbListWidget() {
+EmuDbBrowserWidget::~EmuDbBrowserWidget() {
     
 }
 
-void EmuDbListWidget::Refresh() {
+void EmuDbBrowserWidget::Refresh() {
     clear();
 
     std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / "databases";

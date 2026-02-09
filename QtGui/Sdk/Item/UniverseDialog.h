@@ -18,35 +18,26 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPage.cpp
+// File: UniverseDialog.h
 // Started by: Hattozo
-// Started on: 11/30/2025
+// Started on: 2/8/2026
 // Description:
-#include "AssetPage.h"
-#include "ItemBrowserWidget.h"
-#include "BrowserItem.h"
-#include <NoobWarrior/EmuDb/EmuDb.h>
+#pragma once
+#include "ItemDialog.h"
+#include <NoobWarrior/EmuDb/Item/Universe.h>
 
-using namespace NoobWarrior;
+#include <QComboBox>
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemBrowserPage(browser), mBrowser(browser) {}
+#include <optional>
 
-void AssetPage::Refresh() {
-    SearchOptions opt {};
-    opt.Offset = 0;
-    opt.Limit = 100;
-    opt.AssetType = mType;
-
-    EmuDb* db = mBrowser->GetDatabase();
-
-    db->PrepareStatement("SELECT * FROM ")
-
-    std::vector<Asset> list = db->GetAssetRepository()->List();
-    for (auto &item : list) {
-        new BrowserItem<Asset>(item, db, this);
-    }
-}
-
-void AssetPage::SetType(Roblox::AssetType type) {
-    mType = type;
+namespace NoobWarrior {
+class UniverseDialog : public ItemDialog {
+    Q_OBJECT
+public:
+    UniverseDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt, std::optional<int64_t> snapshot = std::nullopt);
+    void AddCustomWidgets() override;
+    void OnSave() override;
+protected:
+    QComboBox* mAssetTypeInput;
+};
 }

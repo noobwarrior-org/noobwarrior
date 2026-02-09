@@ -124,7 +124,7 @@ void ItemBrowserWidget::InitWidgets() {
     AssetFilterDropdownLayout->addWidget(AssetCategoryDropdown);
     AssetFilterDropdownLayout->addWidget(AssetTypeDropdown);
 
-    NoDatabaseFoundLabel = new QLabel("No database loaded", MainWidget);
+    NoDatabaseFoundLabel = new QLabel("Switch to a database project in order to browse it", MainWidget);
     SearchBox = new QLineEdit(MainWidget);
 
     NoDatabaseFoundLabel->setWordWrap(true);

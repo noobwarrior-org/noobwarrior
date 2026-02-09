@@ -18,35 +18,27 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPage.cpp
+// File: CreatorBrowserWidget.cpp
 // Started by: Hattozo
-// Started on: 11/30/2025
+// Started on: 2/2/2024
 // Description:
-#include "AssetPage.h"
-#include "ItemBrowserWidget.h"
-#include "BrowserItem.h"
-#include <NoobWarrior/EmuDb/EmuDb.h>
+#include "CreatorBrowserWidget.h"
+
+#include "../Application.h"
+#include <NoobWarrior/NoobWarrior.h>
+#include <QDir>
+#include <QFileInfo>
 
 using namespace NoobWarrior;
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemBrowserPage(browser), mBrowser(browser) {}
-
-void AssetPage::Refresh() {
-    SearchOptions opt {};
-    opt.Offset = 0;
-    opt.Limit = 100;
-    opt.AssetType = mType;
-
-    EmuDb* db = mBrowser->GetDatabase();
-
-    db->PrepareStatement("SELECT * FROM ")
-
-    std::vector<Asset> list = db->GetAssetRepository()->List();
-    for (auto &item : list) {
-        new BrowserItem<Asset>(item, db, this);
-    }
+CreatorBrowserWidget::CreatorBrowserWidget(QWidget* parent) : QListWidget(parent) {
+    Refresh();
 }
 
-void AssetPage::SetType(Roblox::AssetType type) {
-    mType = type;
+CreatorBrowserWidget::~CreatorBrowserWidget() {
+    
+}
+
+void CreatorBrowserWidget::Refresh() {
+    clear();
 }

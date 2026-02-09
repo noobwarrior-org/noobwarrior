@@ -18,20 +18,20 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: EmuDbListWidget.h
+// File: CreatorBrowserWidget.h
 // Started by: Hattozo
-// Started on: 2/2/2024
+// Started on: 2/8/2024
 // Description:
 #pragma once
 #include <QListWidget>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
 namespace NoobWarrior {
-class EmuDbListWidget : public QListWidget {
+class CreatorBrowserWidget : public QListWidget {
     Q_OBJECT
 public:
-    EmuDbListWidget(QWidget* parent = nullptr);
-    ~EmuDbListWidget();
+    CreatorBrowserWidget(QWidget* parent = nullptr);
+    ~CreatorBrowserWidget();
 
     void Refresh();
 };

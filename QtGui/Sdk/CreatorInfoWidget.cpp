@@ -23,6 +23,7 @@
 // Started on: 2/8/2026
 // Description:
 #include "CreatorInfoWidget.h"
+#include "NoobWarrior/Roblox/Api/User.h"
 
 #include <NoobWarrior/EmuDb/ContentImages.h>
 
@@ -34,7 +35,7 @@ CreatorInfoWidget::CreatorInfoWidget(QWidget* parent) : QWidget(parent),
     mImageLabel(new QLabel()),
     mNameLabel(new QLabel("No One!")),
     mTypeLabel(new QLabel("Type: N/A")),
-    mIdLabel(new QLabel("Id: 0"))
+    mIdLabel(new QLabel("Id: N/A"))
 {
     mMainLayout->addWidget(mImageLabel);
     mMainLayout->addLayout(mContentLayout);
@@ -53,6 +54,21 @@ CreatorInfoWidget::CreatorInfoWidget(QWidget* parent) : QWidget(parent),
     mImageLabel->setPixmap(pixmap.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }
 
-void CreatorInfoWidget::Update(int64_t id, Roblox::CreatorType type) {
+void CreatorInfoWidget::Update(EmuDb* db, int64_t id, Roblox::CreatorType type) {
+    if (type == Roblox::CreatorType::User || type == Roblox::CreatorType::Group)
+        mTypeLabel->setText(QString("Type: %1").arg(type == Roblox::CreatorType::User ? "User" : "Group"));
+    else {
+        return;
+    }
 
+    Statement stmt = db->PrepareStatement(std::format("SELECT * FROM {} WHERE Id = ?;", type == Roblox::CreatorType::User ? "User" : "Group"));
+    stmt.Bind(1, id);
+    if (stmt.Step() == SQLITE_ROW) {
+        std::map<std::string, SqlValue> columns = stmt.GetColumnMap();
+        mNameLabel->setText(QString::fromStdString(std::get<std::string>(columns["Name"])));
+        mIdLabel->setText(QString::number(std::get<int64_t>(columns["Id"])));
+    } else {
+        mNameLabel->setText("No One!");
+        mIdLabel->setText("Id: N/A");
+    }
 }
