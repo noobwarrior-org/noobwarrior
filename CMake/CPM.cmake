@@ -45,7 +45,7 @@ endif()
 if(DEFINED EXTRACTED_CPM_VERSION)
   set(CURRENT_CPM_VERSION "${EXTRACTED_CPM_VERSION}${CPM_DEVELOPMENT}")
 else()
-  set(CURRENT_CPM_VERSION 0.42.0)
+  set(CURRENT_CPM_VERSION 0.42.1)
 endif()
 
 get_filename_component(CPM_CURRENT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" REALPATH)
@@ -63,6 +63,7 @@ See https://github.com/cpm-cmake/CPM.cmake for more information."
     if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
       include(FetchContent)
     endif()
+    return()
   endif()
 
   get_property(
