@@ -1,8 +1,7 @@
-# install these with your package manager
-# if you are on windows then install msys2
-# if you are on mac then install homebrew
-# if you are on linux and you don't have a package manager then i don't know what to tell you
-find_package(CURL REQUIRED)
+CPMAddPackage(
+    URI "gh:curl/curl#85a895c"
+    OPTIONS "BUILD_CURL_EXE OFF" "BUILD_SHARED_LIBS OFF"
+)
 
 add_library(sqlite3 STATIC ${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3/sqlite3.c)
 
@@ -53,17 +52,6 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:rm5248/libcppgenerate#6bf89d9"
 )
-
-#if (LuaJIT_ADDED)
-#    FILE(GLOB LuaJIT_sources ${LuaJIT_SOURCE_DIR}/src/*.c)
-#    list(REMOVE_ITEM LuaJIT_sources "${LuaJIT_SOURCE_DIR}/src/lua.c" "${LuaJIT_SOURCE_DIR}/src/luac.c")
-#    add_library(LuaJIT STATIC ${LuaJIT_sources})
-#
-#    target_include_directories(LuaJIT
-#            PUBLIC
-#            $<BUILD_INTERFACE:${LuaJIT_SOURCE_DIR}/src>
-#    )
-#endif()
 
 if (NOOBWARRIOR_LIBTYPE_STATIC)
     message(STATUS "Configured noobWarrior as a static library")
@@ -127,7 +115,19 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/base64.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json event_core event_extra inja libzip::zip pugixml-static cppgenerate_static)
+target_link_libraries(NoobWarrior.Core PUBLIC
+    sqlite3
+    libcurl
+    libluajit
+    nlohmann_json
+    event_core
+    event_extra
+    inja
+    libzip::zip
+    pugixml-static
+    cppgenerate_static
+)
+
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 # some code here borrowed from https://github.com/hrantzsch/keychain/blob/master/CMakeLists.txt
