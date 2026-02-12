@@ -24,7 +24,7 @@
 // Description: A thin layer over libcurl that makes it less annoying to use
 #pragma once
 #include <NoobWarrior/Url.h>
-#include <NoobWarrior/Auth/RobloxAuth.h>
+#include <NoobWarrior/Keychain/RbxKeychain.h>
 
 #include <curl/curl.h>
 
@@ -62,7 +62,7 @@ public:
         Unknown
     };
 
-    NetClient(RobloxAccount *account);
+    NetClient(Account *account);
     NetClient();
     ~NetClient();
 
@@ -86,7 +86,7 @@ private:
     std::vector<std::thread> mDownloadThreads;
 
     struct curl_slist *mHeaderList;
-    RobloxAccount *mRobloxAccount;
+    Account *mAccount;
     CURL *mHandle;
 };
 }

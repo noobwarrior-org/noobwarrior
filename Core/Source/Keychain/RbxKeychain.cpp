@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: RobloxAuth.cpp
+// File: RbxKeychain.cpp
 // Started by: Hattozo
 // Started on: 11/7/2025
 // Description: Manages authentication of Roblox accounts for use with the noobWarrior library
-#include <NoobWarrior/Auth/RobloxAuth.h>
+#include <NoobWarrior/Keychain/RbxKeychain.h>
 
 #include <curl/curl.h>
 
@@ -34,13 +34,13 @@ static size_t CurlWriteToBuf(void *contents, size_t size, size_t nmemb, std::str
     return totalSize;
 }
 
-RobloxAuth::RobloxAuth(Config *config) : BaseAuth(config) {}
+RbxKeychain::RbxKeychain(Config *config) : Keychain(config) {}
 
-std::string RobloxAuth::GetName() {
-    return "roblox";
+std::string RbxKeychain::GetName() {
+    return "rbx";
 }
 
-nlohmann::json RobloxAuth::GetJsonFromToken(const std::string &token) {
+nlohmann::json RbxKeychain::GetJsonFromToken(const std::string &token) {
     std::string jsonStr;
 
     CURL *handle = curl_easy_init();

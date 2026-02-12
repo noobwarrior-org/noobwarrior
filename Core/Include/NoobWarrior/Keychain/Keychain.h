@@ -25,13 +25,13 @@
 // These keys are securely stored using the appropriate API's for your operating system
 #pragma once
 #include <NoobWarrior/Config.h>
+#include <NoobWarrior/Keychain/OsKeychain.h>
 
 #include <string>
 #include <vector>
 #include <cstdint>
 
 #include <nlohmann/json.hpp>
-#include <keychain/keychain.h>
 #include <curl/curl.h>
 
 namespace NoobWarrior {
@@ -57,124 +57,33 @@ struct Account {
 
 class Keychain {
 public:
+    static nlohmann::json AccStructToJson(Account &acc);
+    static Account AccJsonToStruct(nlohmann::json &json);
+
+    Keychain(Config* config);
 
     bool HasAccountExpired(Account &acc);
 
-    Keychain(Config *config) :
-        ActiveAccount(nullptr),
-        mConfig(config)
-    {}
-
     virtual std::string GetName() = 0;
 
-    virtual nlohmann::json AccStructToJson(Account &acc) {
-        nlohmann::json accJson {};
-        accJson["id"] = acc.Id;
-        accJson["name"] = acc.Name;
-        accJson["token"] = acc.Token;
-        accJson["expire_timestamp"] = acc.ExpireTimestamp;
-        return accJson;
-    }
+    AuthResponse ReadFromKeychain();
+    AuthResponse WriteToKeychain();
 
-    virtual Account AccJsonToStruct(nlohmann::json &json) {
-        Account acc {};
-        acc.Id = json["id"].get<int64_t>();
-        acc.Name = json["name"].get<std::string>();
-        acc.Token = json["token"].get<std::string>();
-        acc.ExpireTimestamp = json["expire_timestamp"].get<long>();
-        return acc;
-    }
+    bool IsLoggedIn();
 
-    AuthResponse ReadFromKeychain() {
-        keychain::Error err;
-        std::string jsonStr = keychain::getPassword("org.noobwarrior", GetName(), "accounts", err);
-        if (err.type == keychain::ErrorType::NotFound)
-            return AuthResponse::Success;
-        if (err.type != keychain::ErrorType::NoError)
-            return AuthResponse::KeychainFailed;
-        try {
-            nlohmann::json accountsJson = nlohmann::json::parse(jsonStr);
-            for (auto &accJson : accountsJson) {
-                Account acc = AccJsonToStruct(accJson);
-                Accounts.push_back(acc);
-
-                std::optional<std::string> active_account_thing = mConfig->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
-                if (active_account_thing.has_value() && active_account_thing.value().compare(acc.Name) == 0)
-                    ActiveAccount = &Accounts.back();
-            }
-        } catch (nlohmann::json::exception) {
-            return AuthResponse::InvalidJson;
-        }
-        return AuthResponse::Success;
-    }
-
-    AuthResponse WriteToKeychain() {
-        if (ActiveAccount != nullptr)
-            mConfig->SetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()), ActiveAccount->Name);
-
-        nlohmann::json accountsJson {};
-        for (auto &acc : Accounts) {
-            nlohmann::json accJson = AccStructToJson(acc);
-            accountsJson.push_back(accJson);
-        }
-
-        keychain::Error err;
-        keychain::setPassword("org.noobwarrior", GetName(), "accounts", accountsJson.dump(), err);
-        if (err.type != keychain::ErrorType::NoError)
-            return AuthResponse::KeychainFailed;
-        return AuthResponse::Success;
-    }
-
-    bool IsLoggedIn() {
-        return ActiveAccount != nullptr;
-    }
-
-    AuthResponse AddAccountFromToken(const std::string &token, Account **acc = nullptr) {
-        if (acc != nullptr) *acc = nullptr;
-
-        Account accStack {};
-        accStack.Token = token;
-
-        nlohmann::json userInfo = GetJsonFromToken(token);
-        Out("Auth", "{}", userInfo.dump());
-        if (userInfo.empty() || userInfo.contains("errors") || !userInfo.contains("id") || !userInfo.contains("name"))
-            return AuthResponse::Failed;
-
-        accStack.Id = userInfo["id"].get<long>();
-        accStack.Name = userInfo["name"].get<std::string>();
-
-        Accounts.push_back(accStack);
-        *acc = &Accounts.back();
-        return AuthResponse::Success;
-    }
+    AuthResponse AddAccountFromToken(const std::string &token, Account **acc = nullptr);
 
     void AddAccount(Account&);
 
-    void SetActiveAccount(Account *acc) {
-        ActiveAccount = acc;
-    }
+    void SetActiveAccount(Account *acc);
 
-    Account* GetActiveAccount() {
-        return ActiveAccount;
-    }
+    Account* GetActiveAccount();
     
-    std::vector<Account>& GetAccounts() {
-        return Accounts;
-    }
+    std::vector<Account>& GetAccounts();
 
-    AuthResponse TryAuthAccount(std::string& name, std::string& pass) {
-        Out("Auth", "Attempting to log into account {}", name);
-        CURL *handle = curl_easy_init();
-        if (handle == nullptr) return AuthResponse::Failed;
-        curl_easy_setopt(handle, CURLOPT_URL, "http://example.com/");
-        CURLcode ret = curl_easy_perform(handle);
-        curl_easy_cleanup(handle);
-        return AuthResponse::Failed;
-    }
+    AuthResponse TryAuthAccount(std::string& name, std::string& pass);
 
-    AuthResponse TryMultiAuth(int code) {
-        return AuthResponse::Failed;
-    }
+    AuthResponse TryMultiAuth(int code);
 protected:
     virtual nlohmann::json GetJsonFromToken(const std::string &token) = 0;
 

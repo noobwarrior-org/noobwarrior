@@ -300,7 +300,7 @@ Backup::Response Backup::StartProcess(Process* proc) {
     if (!asset_download_url.has_value())
         return Backup::Response::UrlNotSet;
 
-    NetClient client(proc->Core->GetRobloxAuth()->GetActiveAccount());
+    NetClient client(proc->Core->GetRbxKeychain()->GetActiveAccount());
     if (client.Fail())
         return Backup::Response::Failed;
     client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {

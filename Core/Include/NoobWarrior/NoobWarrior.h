@@ -29,6 +29,7 @@
 #include "Lua/LuaState.h"
 #include "EmuDb/EmuDb.h"
 #include "Config.h"
+#include "NoobWarrior/Keychain/RbxKeychain.h"
 #include "PluginManager.h"
 #include "EmuDb/EmuDb.h"
 #include "RccServiceManager.h"
@@ -38,9 +39,9 @@
 #include "Roblox/Api/Asset.h"
 #include "RobloxClient.h"
 #include "NetClient.h"
-#include "Auth/MasterServerAuth.h"
-#include "Auth/ServerEmulatorAuth.h"
-#include "Auth/RobloxAuth.h"
+#include "Keychain/MasterKeychain.h"
+#include "Keychain/EmuKeychain.h"
+#include "Keychain/RbxKeychain.h"
 #include "Url.h"
 
 #include <lua.hpp>
@@ -108,9 +109,9 @@ public:
     EmuDbManager *GetDatabaseManager();
     PluginManager *GetPluginManager();
 
-    MasterServerAuth *GetMasterServerAuth();
-    ServerEmulatorAuth *GetServerEmulatorAuth();
-    RobloxAuth *GetRobloxAuth();
+    MasterKeychain* GetMasterKeychain();
+    EmuKeychain* GetEmuKeychain();
+    RbxKeychain* GetRbxKeychain();
 
     std::filesystem::path GetInstallationDir() const;
 
@@ -154,14 +155,14 @@ private:
     Init                            mInit;
     LuaState                        mLuaState;
     Config*                         mConfig;
-    EmuDbManager                 mDatabaseManager;
+    EmuDbManager                    mDatabaseManager;
     PluginManager                   mPluginManager;
 
     ServerEmulator*                 mServerEmulator;
 
-    MasterServerAuth*               mMasterServerAuth;
-    ServerEmulatorAuth*             mServerEmulatorAuth;
-    RobloxAuth*                     mRobloxAuth;
+    MasterKeychain*                 mMasterKeychain;
+    EmuKeychain*                    mEmuKeychain;
+    RbxKeychain*                    mRbxKeychain;
     std::vector<RccServiceManager*> mRccServiceManagers;
     bool                            mPortable;
 

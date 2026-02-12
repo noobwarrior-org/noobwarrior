@@ -25,6 +25,7 @@
 #include "AccountPage.h"
 #include "../Application.h"
 #include "../Dialog/AuthTokenDialog.h"
+#include "NoobWarrior/Keychain/RbxKeychain.h"
 
 using namespace NoobWarrior;
 
@@ -69,8 +70,8 @@ void AccountPage::InitWidgets() {
             if (!selectedIndexes.empty()) {
                 QStandardItem *primaryItem = ListModel->itemFromIndex(selectedIndexes.at(0));
                 if (!primaryItem->data().isNull()) {
-                    RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-                    RobloxAccount *acc = &auth->GetAccounts().at(primaryItem->data().toInt());
+                    RbxKeychain *auth = gApp->GetCore()->GetRbxKeychain();
+                    Account *acc = &auth->GetAccounts().at(primaryItem->data().toInt());
                     auth->SetActiveAccount(acc);
                     Refresh();
                 }
@@ -90,10 +91,10 @@ void AccountPage::Refresh() {
     ListModel->removeRows(0, ListModel->rowCount());
     ListModel->setRowCount(0);
 
-    RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-    std::vector<RobloxAccount> &accounts = auth->GetAccounts();
+    RbxKeychain *auth = gApp->GetCore()->GetRbxKeychain();
+    std::vector<Account> &accounts = auth->GetAccounts();
     for (int i = 0; i < static_cast<int>(accounts.size()); ++i) {
-        RobloxAccount &acc = accounts[i];
+        Account &acc = accounts[i];
         QList<QStandardItem*> accRow;
         auto *emptyFieldThatContainsData = new QStandardItem();
         emptyFieldThatContainsData->setData(i);

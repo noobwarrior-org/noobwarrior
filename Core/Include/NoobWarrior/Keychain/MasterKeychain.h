@@ -18,16 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerAuth.cpp
+// File: MasterKeychain.h
 // Started by: Hattozo
 // Started on: 11/7/2025
-// Description:
-#include <NoobWarrior/Auth/MasterServerAuth.h>
+// Description: Keychain for master servers.
+// Don't get the name mixed up. It is not the keychains of keychains.
+#pragma once
+#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Keychain/Keychain.h>
 
-using namespace NoobWarrior;
-
-MasterServerAuth::MasterServerAuth(Config *config) : NoobWarriorAuth(config) {}
-
-std::string MasterServerAuth::GetName() {
-    return "master_server";
+namespace NoobWarrior {
+class MasterKeychain : public Keychain {
+public:
+    MasterKeychain(Config *config);
+    std::string GetName() override;
+};
 }

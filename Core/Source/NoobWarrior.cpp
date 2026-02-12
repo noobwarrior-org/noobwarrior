@@ -26,8 +26,6 @@
 #include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
-#include <NoobWarrior/Auth/MasterServerAuth.h>
-#include <NoobWarrior/Auth/ServerEmulatorAuth.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Url.h>
 
@@ -74,7 +72,7 @@ Core::Core(Init init) :
     mEventBase = event_base_new();
     mLuaState.Open();
     mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
-    mRobloxAuth = new RobloxAuth(mConfig);
+    mRbxKeychain = new RbxKeychain(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
@@ -82,7 +80,7 @@ Core::Core(Init init) :
     mDatabaseManager.AutocreateMasterDatabase();
 
     if (mInit.EnableKeychain)
-        GetRobloxAuth()->ReadFromKeychain();
+        GetRbxKeychain()->ReadFromKeychain();
 
     if (mInit.LoadPlugins)
         GetPluginManager()->LoadPlugins();
@@ -95,7 +93,7 @@ Core::~Core() {
     GetPluginManager()->UnloadPlugins();
     
     if (mInit.EnableKeychain)
-        GetRobloxAuth()->WriteToKeychain();
+        GetRbxKeychain()->WriteToKeychain();
 
     StopServerEmulator();
     sqlite3_shutdown();
@@ -133,16 +131,16 @@ PluginManager *Core::GetPluginManager() {
     return &mPluginManager;
 }
 
-MasterServerAuth *Core::GetMasterServerAuth() {
-    return mMasterServerAuth;
+MasterKeychain *Core::GetMasterKeychain() {
+    return mMasterKeychain;
 }
 
-ServerEmulatorAuth *Core::GetServerEmulatorAuth() {
-    return mServerEmulatorAuth;
+EmuKeychain *Core::GetEmuKeychain() {
+    return mEmuKeychain;
 }
 
-RobloxAuth *Core::GetRobloxAuth() {
-    return mRobloxAuth;
+RbxKeychain *Core::GetRbxKeychain() {
+    return mRbxKeychain;
 }
 
 std::filesystem::path Core::GetInstallationDir() const {

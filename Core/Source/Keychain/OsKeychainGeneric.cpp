@@ -40,3 +40,15 @@ void OsKeychain::SetPassword(const std::string &package, const std::string &serv
 {
     
 }
+
+std::string OsKeychain::GetPassword(const std::string &package, const std::string &service,
+                        const std::string &user, Error &err)
+{
+    return "";
+}
+
+void OsKeychain::DeletePassword(const std::string &package, const std::string &service,
+                    const std::string &user, Error &err)
+{
+
+}

@@ -37,10 +37,10 @@ static size_t WriteToDisk(void *contents, size_t size, size_t nmemb, void *userp
     return size * nmemb;
 }
 
-NetClient::NetClient(RobloxAccount *account) : NetClient() {
+NetClient::NetClient(Account *account) : NetClient() {
     std::string cookies;
-    if (mRobloxAccount != nullptr) {
-        cookies.append(std::format(".ROBLOSECURITY={};", mRobloxAccount->Token));
+    if (mAccount != nullptr) {
+        cookies.append(std::format(".ROBLOSECURITY={};", mAccount->Token));
         curl_easy_setopt(mHandle, CURLOPT_USERAGENT, "Roblox/WinINet");
     }
 

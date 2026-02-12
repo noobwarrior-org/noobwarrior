@@ -18,18 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerAuth.h
+// File: EmuKeychain.h
 // Started by: Hattozo
-// Started on: 11/7/2025
-// Description:
+// Started on: 2/11/2026
+// Description: Manages authentication of server emulator accounts for use with the noobWarrior library
+// This is based off the Roblox keychain since the API endpoints are the same
 #pragma once
 #include <NoobWarrior/Config.h>
-#include <NoobWarrior/Keychain/Keychain.h>
+#include <NoobWarrior/Keychain/RbxKeychain.h>
 
 namespace NoobWarrior {
-class MasterServerAuth : public Keychain {
+class EmuKeychain : public RbxKeychain {
 public:
-    MasterServerAuth(Config *config);
+    EmuKeychain(Config *config);
     std::string GetName() override;
 };
 }
