@@ -18,7 +18,6 @@ android {
 
         externalNativeBuild {
             cmake {
-                val pkgConfigScript = file("${rootProject.projectDir}/../ThirdParty/pkgconfig/fake-pkg-config.sh").absolutePath
                 arguments += listOf(
                     "-DNOOBWARRIOR_LIBTYPE_STATIC=OFF",
                     "-DNOOBWARRIOR_TARGET_NOGUI=OFF",
@@ -50,7 +49,7 @@ android {
 
     externalNativeBuild {
         cmake {
-            path = file("../../CMakeLists.txt")
+//            path = file("../../CMakeLists.txt")
         }
     }
 }
