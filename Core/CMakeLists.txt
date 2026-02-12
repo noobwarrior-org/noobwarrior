@@ -2,10 +2,14 @@
 # if you are on windows then install msys2
 # if you are on mac then install homebrew
 # if you are on linux and you don't have a package manager then i don't know what to tell you
-find_package(ZLIB REQUIRED)
-find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
-find_package(SQLite3 REQUIRED)
+
+add_library(sqlite3 STATIC ${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3/sqlite3.c)
+
+target_include_directories(sqlite3
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3>
+)
 
 # packages that might not be included in some package managers are included here:
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -27,13 +31,23 @@ CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
 )
+
 CPMAddPackage(
     URI "gh:madler/zlib#v1.3.1"
+    OPTIONS "ZLIB_BUILD_STATIC ON" "ZLIB_BUILD_SHARED OFF"
 )
+
+if (zlib_ADDED)
+    add_library(ZLIB::ZLIB ALIAS zlibstatic)
+else()
+    message(FATAL_ERROR "Could not add zlib")
+endif()
+
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
     OPTIONS "BUILD_SHARED_LIBS OFF" "LIBZIP_DO_INSTALL OFF" "ENABLE_ZSTD OFF"
 )
+
 CPMAddPackage(
     URI "gh:hrantzsch/keychain#8846e78"
 )
@@ -78,10 +92,10 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
     Source/FileSystem/ZipFileSystem.cpp
-    Source/Auth/NoobWarriorAuth.cpp
-    Source/Auth/MasterServerAuth.cpp
-    Source/Auth/ServerEmulatorAuth.cpp
-    Source/Auth/RobloxAuth.cpp
+    Source/Keychain/Keychain.cpp
+    Source/Keychain/MasterServerKeychain.cpp
+    Source/Keychain/RbxKeychain.cpp
+    Source/Keychain/OsKeychainGeneric.cpp
     Source/Lua/LuaState.cpp
     Source/Lua/LuaScript.cpp
     Source/Lua/LuaHypertextPreprocessor.cpp
@@ -119,6 +133,38 @@ target_sources(NoobWarrior.Core PRIVATE
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC sqlite3 curl libluajit nlohmann_json event_core event_extra inja libzip::zip keychain pugixml-static cppgenerate_static)
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
+
+# some code here borrowed from https://github.com/hrantzsch/keychain/blob/master/CMakeLists.txt
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainWin.cpp)
+
+    target_link_libraries(NoobWarrior.Core
+        PRIVATE
+            crypt32)
+elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainMac.cpp)
+
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
+    find_library(SECURITY_LIBRARY Security REQUIRED)
+
+    target_link_libraries(NoobWarrior.Core
+        PRIVATE
+            ${COREFOUNDATION_LIBRARY}
+            ${SECURITY_LIBRARY})
+elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainLinux.cpp)
+
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLIB2 IMPORTED_TARGET glib-2.0)
+    pkg_check_modules(LIBSECRET IMPORTED_TARGET libsecret-1)
+
+    target_link_libraries(NoobWarrior.Core
+        PRIVATE
+            PkgConfig::GLIB2
+            PkgConfig::LIBSECRET)
+else()
+    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainGeneric.cpp)
+endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(NoobWarrior.Core PUBLIC -static-libgcc -static-libstdc++)

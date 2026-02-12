@@ -9,9 +9,11 @@ activityCompose = "1.12.3"
 kotlin = "2.0.21"
 composeBom = "2024.09.00"
 androidx-compose-material3="1.5.0-alpha13"
+curl = "7.85.0-beta-1"
 openssl = "1.1.1q-beta-1"
 
 [libraries]
+curl = { module = "com.android.ndk.thirdparty:curl", version.ref = "curl" }
 openssl = { module = "com.android.ndk.thirdparty:openssl", version.ref = "openssl" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "org.noobwarrior"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "org.noobwarrior"
@@ -17,6 +15,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                val pkgConfigScript = file("${rootProject.projectDir}/../ThirdParty/pkgconfig/fake-pkg-config.sh").absolutePath
+                arguments += listOf(
+                    "-DNOOBWARRIOR_LIBTYPE_STATIC=OFF",
+                    "-DNOOBWARRIOR_TARGET_NOGUI=OFF",
+                    "-DNOOBWARRIOR_TARGET_QTGUI=OFF",
+                    "-DNOOBWARRIOR_TARGET_GAMELAUNCHER=OFF",
+                    "-DANDROID_STL=c++_shared"
+                )
+            }
+        }
     }
 
     buildTypes {
@@ -45,6 +56,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.curl)
     implementation(libs.openssl)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

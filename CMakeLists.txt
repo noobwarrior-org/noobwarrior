@@ -3,7 +3,15 @@ project(NoobWarrior)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/cpm")
-include("${CMAKE_SOURCE_DIR}/CMake/CPM.cmake")
+include("${CMAKE_SOURCE_DIR}/ThirdParty/cmake/CPM.cmake")
+
+if (ANDROID)
+    # fake it til you make it
+    set(FAKE_PKG_CONFIG "${CMAKE_SOURCE_DIR}/ThirdParty/pkgconfig/fake-pkg-config.sh")
+    file(CHMOD "${FAKE_PKG_CONFIG}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+    set(PKG_CONFIG_EXECUTABLE "${FAKE_PKG_CONFIG}" CACHE FILEPATH "pkg-config executable" FORCE)
+endif()
 
 option(NOOBWARRIOR_LIBTYPE_STATIC "Compile noobWarrior as a static library" ON)
 option(NOOBWARRIOR_TARGET_NOGUI "Add target noobWarrior NoGui" ON)

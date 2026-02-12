@@ -39,7 +39,7 @@ void AssetPage::Refresh() {
 
     EmuDb* db = mBrowser->GetDatabase();
 
-    db->PrepareStatement("SELECT * FROM ")
+    db->PrepareStatement("SELECT * FROM ");
 
     std::vector<Asset> list = db->GetAssetRepository()->List();
     for (auto &item : list) {
