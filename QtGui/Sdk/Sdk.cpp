@@ -21,7 +21,7 @@
 // File: Sdk.cpp
 // Started by: Hattozo
 // Started on: 12/15/2024
-// Description: Qt window that lets users view and edit a noobWarrior database
+// Description: Qt window that lets users view and edit noobWarrior databases and plugins
 #include "Sdk.h"
 #include "NoobWarrior/SqlDb/SqlDb.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"

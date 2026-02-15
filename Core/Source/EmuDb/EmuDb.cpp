@@ -32,7 +32,8 @@
 #include <cstdio>
 
 #include "../base64.h"
-#include "schema/table/migration.sql.inc.cpp"
+#include "NoobWarrior/EmuDb/ContentImages.h"
+#include "migrations/migration_table.sql.inc.cpp"
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
 #include "migrations/v3.sql.inc.cpp"
@@ -364,6 +365,67 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 
 AssetRepository* EmuDb::GetAssetRepository() {
 	return &mAssetRepository;
+}
+
+std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int id, int snapshot) {
+	std::vector<unsigned char> imgData;
+#define FAIL(...) \
+	Out(std::format("Failed to retrieve image data for ID {} from table {}: ", id, tableName) + __VA_ARGS__); \
+	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
+	return imgData;
+
+	if (Fail()) {
+		FAIL("Database initialization failed")
+	}
+
+	if (tableName.compare("Asset") == 0) {
+		// if we are an image asset, we need to get the data from ourselves directly
+		int type;
+
+        Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ? {}", tableName, snapshot > 0 ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1"));
+        if (typeStmt.Fail()) {
+			FAIL("Failed to retrieve asset type for ID {}", id)
+        }
+        typeStmt.Bind(1, id);
+        if (snapshot > 0)
+            typeStmt.Bind(2, snapshot);
+
+        if (typeStmt.Step() == SQLITE_ROW) {
+            type = typeStmt.GetIntFromColumnIndex(0);
+        }
+
+        if (type == static_cast<int>(Roblox::AssetType::Image)) {
+            Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? AND Snapshot = ?");
+            hashStmt.Bind(1, id);
+            hashStmt.Bind(2, snapshot);
+
+            if (hashStmt.Step() == SQLITE_ROW) {
+                int imageId = hashStmt.GetIntFromColumnIndex(0);
+                int imageSnapshot = hashStmt.GetIntFromColumnIndex(1);
+
+                Statement imageDataStmt = PrepareStatement(std::format("SELECT AssetData FROM ContentImage WHERE Id = ? AND Snapshot = ?"));
+                imageDataStmt.Bind(1, imageId);
+                imageDataStmt.Bind(2, imageSnapshot);
+            }
+        }
+	}
+
+	Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId, ImageSnapshot FROM {} WHERE Id = ? {}",
+		tableName,
+		snapshot > 0 ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1"
+	));
+	if (imgIdStmt.Fail()) {
+		FAIL("Failed to prepare statement in order to retrieve image id")
+	}
+	imgIdStmt.Bind(1, id);
+	if (snapshot > 0)
+		imgIdStmt.Bind(2, snapshot);
+
+	if (imgIdStmt.Step() == SQLITE_ROW) {
+		int64_t imageId = sqlite3_column_int64(imgIdStmt.Get(), 0);
+		int imageSnapshot = sqlite3_column_int(imgIdStmt.Get(), 1);
+	}
+#undef FAIL
 }
 
 std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,

@@ -31,7 +31,7 @@
 namespace NoobWarrior {
 class BrowserItem : public QListWidgetItem {
 public:
-    BrowserItem(const int id, const std::string &name, EmuDb *db, QListWidget *listview = nullptr);
+    BrowserItem(EmuDb *db, const std::string &tableName, int id, int snapshot = 0, QListWidget *listview = nullptr);
 
     void Configure(Sdk *editor);
 };

@@ -39,14 +39,11 @@ void AssetPage::Refresh() {
 
     EmuDb* db = mBrowser->GetDatabase();
 
-    Statement stmt = db->PrepareStatement("SELECT Id, Name FROM Asset");
+    Statement stmt = db->PrepareStatement("SELECT Id, Snapshot FROM Asset");
     while (stmt.Step() == SQLITE_ROW) {
-        SqlColumnMap row = stmt.GetColumnMap();
-        int *id = std::get_if<int>(&row["Id"]);
-        std::string *name = std::get_if<std::string>(&row["Name"]);
-
-        if (id != nullptr && name != nullptr)
-            new BrowserItem(*id, *name, db, this);
+        int id = stmt.GetIntFromColumnIndex(0);
+        int snapshot = stmt.GetIntFromColumnIndex(1);
+        new BrowserItem(db, "Asset", id, snapshot, this);
     }
 
     /*

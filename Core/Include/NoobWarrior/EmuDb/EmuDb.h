@@ -160,6 +160,8 @@ public:
 
     AssetRepository* GetAssetRepository();
 
+    std::vector<unsigned char> RetrieveImageData(const std::string &tableName, int id, int snapshot = 0);
+
     template<typename T>
     static T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {
         if constexpr (std::is_same_v<T, int> || std::is_same_v<T, bool>)

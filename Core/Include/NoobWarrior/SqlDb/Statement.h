@@ -72,6 +72,19 @@ public:
     bool IsColumnIndexNull(int columnIndex);
     SqlValue GetValueFromColumnIndex(int columnIndex);
 
+    inline int GetIntFromColumnIndex(int columnIndex) {
+        return sqlite3_column_int(mStmt, columnIndex);
+    }
+    inline sqlite3_int64 GetInt64FromColumnIndex(int columnIndex) {
+        return sqlite3_column_int64(mStmt, columnIndex);
+    }
+    inline double GetDoubleFromColumnIndex(int columnIndex) {
+        return sqlite3_column_double(mStmt, columnIndex);
+    }
+    inline std::string GetStringFromColumnIndex(int columnIndex) {
+        return std::string(reinterpret_cast<const char*>(sqlite3_column_text(mStmt, columnIndex)));
+    }
+
     SqlRow GetColumns();
     SqlColumnMap GetColumnMap();
 protected:
