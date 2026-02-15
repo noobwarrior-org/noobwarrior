@@ -39,11 +39,10 @@ void AssetPage::Refresh() {
 
     EmuDb* db = mBrowser->GetDatabase();
 
-    Statement stmt = db->PrepareStatement("SELECT Id, Snapshot FROM Asset");
+    Statement stmt = db->PrepareStatement("SELECT Id FROM Asset");
     while (stmt.Step() == SQLITE_ROW) {
         int id = stmt.GetIntFromColumnIndex(0);
-        int snapshot = stmt.GetIntFromColumnIndex(1);
-        new BrowserItem(db, "Asset", id, snapshot, this);
+        new BrowserItem(db, "Asset", id, this);
     }
 
     /*

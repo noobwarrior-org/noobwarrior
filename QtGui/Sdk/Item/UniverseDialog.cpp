@@ -36,7 +36,7 @@
 
 using namespace NoobWarrior;
 
-UniverseDialog::UniverseDialog(QWidget *parent, std::optional<int64_t> id, std::optional<int64_t> snapshot) : ItemDialog(parent, id, snapshot) {
+UniverseDialog::UniverseDialog(QWidget *parent, std::optional<int64_t> id) : ItemDialog(parent, id) {
     RegenWidgets();
 }
 
@@ -53,7 +53,7 @@ void UniverseDialog::AddCustomWidgets() {
     mContentLayout->addRow("Creator", info);
 
     if (mId != std::nullopt) {
-        std::string stmtStr = std::format("SELECT * FROM Universe WHERE Id = ? {};", mSnapshot.has_value() ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1");
+        std::string stmtStr = std::format("SELECT * FROM Universe WHERE Id = ?;");
         Statement stmt = db->PrepareStatement(stmtStr);
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
@@ -74,21 +74,19 @@ void UniverseDialog::OnSave() {
     auto *db = GetDatabase();
 
     int64_t id = mIdInput->text().toInt();
-    int snapshot = 1;
     std::string name = mNameInput->text().toStdString();
     std::string description = mDescriptionInput->text().toStdString();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO Universe (Id, Snapshot, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (Id, Snapshot) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
+        INSERT INTO Universe (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (Id) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
     )");
     stmt.Bind(1, id);
-    stmt.Bind(2, snapshot);
-    stmt.Bind(3, name);
-    stmt.Bind(4, description);
-    stmt.Bind(5, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
-    stmt.Bind(6, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
-    stmt.Bind(7, static_cast<int>(mAssetTypeInput->currentIndex()));
+    stmt.Bind(2, name);
+    stmt.Bind(3, description);
+    stmt.Bind(4, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(5, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(6, static_cast<int>(mAssetTypeInput->currentIndex()));
 
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);

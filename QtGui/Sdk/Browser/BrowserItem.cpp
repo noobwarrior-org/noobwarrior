@@ -31,26 +31,24 @@
 
 using namespace NoobWarrior;
 
-BrowserItem::BrowserItem(EmuDb *db, const std::string &tableName, int id, int snapshot, QListWidget *listview)  :
+BrowserItem::BrowserItem(EmuDb *db, const std::string &tableName, int id, QListWidget *listview)  :
     QListWidgetItem(listview)
 {
     std::string name;
 
-    Statement stmt = db->PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ? {}", tableName, snapshot > 0 ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1"));
+    Statement stmt = db->PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", tableName));
     if (stmt.Fail()) {
         Out("BrowserItem", "Failed to retrieve name for ID {}", id);
         return;
     }
     stmt.Bind(1, id);
-    if (snapshot > 0)
-        stmt.Bind(2, snapshot);
     if (stmt.Step() == SQLITE_ROW) {
         name = stmt.GetStringFromColumnIndex(0);
     }
 
     setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(id)));
 
-    std::vector<unsigned char> imageData = db->RetrieveImageData(tableName, id, snapshot);
+    std::vector<unsigned char> imageData = db->RetrieveImageData(tableName, id);
     if (!imageData.empty()) {
         QImage image;
         image.loadFromData(imageData);

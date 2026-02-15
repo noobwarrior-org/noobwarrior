@@ -28,10 +28,9 @@
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(QWidget *parent, std::optional<int64_t> id, std::optional<int64_t> snapshot) :
+ItemDialog::ItemDialog(QWidget *parent, std::optional<int64_t> id) :
     QDialog(parent),
-    mId(id),
-    mSnapshot(snapshot)
+    mId(id)
 {
     assert(dynamic_cast<Sdk*>(this->parent()) != nullptr && "ItemDialog should not be parented to anything other than Sdk");
     mSdk = dynamic_cast<Sdk*>(this->parent());

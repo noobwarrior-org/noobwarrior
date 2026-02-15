@@ -188,7 +188,7 @@ bool EmuDb::MigrateToLatestVersion() {
 		if (success) { \
 			Statement addToListStmt = PrepareStatement("INSERT INTO Migration (Version) VALUES (?)"); \
 			addToListStmt.Bind(1, #migration); \
-			if (addToListStmt.Step() == SQLITE_DONE) { Out("Migrated to " #migration); } \
+			if (addToListStmt.Step() == SQLITE_DONE) { Out("Migrated to " #migration); MarkDirty(); } \
 			else { Out("Failed to insert row into migraton table. What the fuck?"); return false; } \
 		} else { \
 			mMigrationFailMsg = std::format("Migration to " #migration " failed: \"{}\"",GetLastErrorMsg()); \
@@ -367,7 +367,7 @@ AssetRepository* EmuDb::GetAssetRepository() {
 	return &mAssetRepository;
 }
 
-std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int id, int snapshot) {
+std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int id) {
 	std::vector<unsigned char> imgData;
 #define FAIL(...) \
 	Out(std::format("Failed to retrieve image data for ID {} from table {}: ", id, tableName) + __VA_ARGS__); \
@@ -382,49 +382,59 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
 		// if we are an image asset, we need to get the data from ourselves directly
 		int type;
 
-        Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ? {}", tableName, snapshot > 0 ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1"));
+        Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ?;", tableName));
         if (typeStmt.Fail()) {
 			FAIL("Failed to retrieve asset type for ID {}", id)
         }
         typeStmt.Bind(1, id);
-        if (snapshot > 0)
-            typeStmt.Bind(2, snapshot);
 
         if (typeStmt.Step() == SQLITE_ROW) {
             type = typeStmt.GetIntFromColumnIndex(0);
         }
 
         if (type == static_cast<int>(Roblox::AssetType::Image)) {
-            Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? AND Snapshot = ?");
+            Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;");
+			if (hashStmt.Fail()) {
+				FAIL("Failed to prepare statement in order to retrieve image hash")
+			}
             hashStmt.Bind(1, id);
-            hashStmt.Bind(2, snapshot);
 
             if (hashStmt.Step() == SQLITE_ROW) {
-                int imageId = hashStmt.GetIntFromColumnIndex(0);
-                int imageSnapshot = hashStmt.GetIntFromColumnIndex(1);
+                std::string hash = hashStmt.GetStringFromColumnIndex(0);
 
-                Statement imageDataStmt = PrepareStatement(std::format("SELECT AssetData FROM ContentImage WHERE Id = ? AND Snapshot = ?"));
-                imageDataStmt.Bind(1, imageId);
-                imageDataStmt.Bind(2, imageSnapshot);
+                Statement imgDataStmt = PrepareStatement(std::format("SELECT Blob FROM BlobStorage WHERE Hash = ?;"));
+				if (imgDataStmt.Fail()) {
+					FAIL("Failed to prepare statement in order to retrieve image data")
+				}
+                imgDataStmt.Bind(1, hash);
+
+                if (imgDataStmt.Step() == SQLITE_ROW) {
+					std::vector<unsigned char> imgBlob = imgDataStmt.GetBlobFromColumnIndex(0);
+					if (imgBlob.size() == 0) {
+						imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
+						return imgData;
+					}
+					return imgBlob;
+				}
             }
         }
 	}
 
-	Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId, ImageSnapshot FROM {} WHERE Id = ? {}",
-		tableName,
-		snapshot > 0 ? "AND Snapshot = ?" : "ORDER BY Snapshot DESC LIMIT 1"
+	Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;",
+		tableName
 	));
 	if (imgIdStmt.Fail()) {
-		FAIL("Failed to prepare statement in order to retrieve image id")
+		FAIL("Failed to prepare statement in order to retrieve image ID")
 	}
 	imgIdStmt.Bind(1, id);
-	if (snapshot > 0)
-		imgIdStmt.Bind(2, snapshot);
 
 	if (imgIdStmt.Step() == SQLITE_ROW) {
 		int64_t imageId = sqlite3_column_int64(imgIdStmt.Get(), 0);
-		int imageSnapshot = sqlite3_column_int(imgIdStmt.Get(), 1);
+		return RetrieveImageData("Asset", imageId);
 	}
+
+	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
+	return imgData;
 #undef FAIL
 }
 

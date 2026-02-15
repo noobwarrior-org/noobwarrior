@@ -34,7 +34,7 @@ namespace NoobWarrior {
 class UniverseDialog : public ItemDialog {
     Q_OBJECT
 public:
-    UniverseDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt, std::optional<int64_t> snapshot = std::nullopt);
+    UniverseDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt);
     void AddCustomWidgets() override;
     void OnSave() override;
 protected:

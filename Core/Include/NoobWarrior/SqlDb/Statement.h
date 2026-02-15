@@ -84,6 +84,12 @@ public:
     inline std::string GetStringFromColumnIndex(int columnIndex) {
         return std::string(reinterpret_cast<const char*>(sqlite3_column_text(mStmt, columnIndex)));
     }
+    inline std::vector<unsigned char> GetBlobFromColumnIndex(int columnIndex) {
+        std::vector<unsigned char> data;
+        auto *buf = static_cast<unsigned char*>(const_cast<void*>(sqlite3_column_blob(mStmt, columnIndex)));
+        data.assign(buf, buf + sqlite3_column_bytes(mStmt, columnIndex));
+        return data;
+    }
 
     SqlRow GetColumns();
     SqlColumnMap GetColumnMap();

@@ -160,7 +160,7 @@ public:
 
     AssetRepository* GetAssetRepository();
 
-    std::vector<unsigned char> RetrieveImageData(const std::string &tableName, int id, int snapshot = 0);
+    std::vector<unsigned char> RetrieveImageData(const std::string &tableName, int id);
 
     template<typename T>
     static T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {
