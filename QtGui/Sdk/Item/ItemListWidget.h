@@ -23,13 +23,35 @@
 // Started on: 11/30/2025
 // Description:
 #pragma once
+#include <NoobWarrior/EmuDb/ItemType.h>
+#include <NoobWarrior/Roblox/Api/Asset.h>
+
 #include <QListWidget>
+#include <QAbstractListModel>
+
+#include <string>
 
 namespace NoobWarrior {
-class ItemBrowserPage : public QListWidget {
+class ItemListWidget : public QListWidget {
 public:
-    ItemBrowserPage(QWidget *parent = nullptr);
-    virtual void Refresh() = 0;
+    struct PopulateOptions {
+        /* ItemType and AssetType have no effect if EnforceType is set to false */
+        ItemType ItemType { ItemType::Asset };
+        Roblox::AssetType AssetType { Roblox::AssetType::None };
+        /* Offset and Limit have no effect if EnforceLimit is set to false */
+        int Offset { 0 };
+        int Limit { 100 };
+        bool EnforceType { false };
+        bool EnforceLimit { false };
+        /* Query has no effect if it is set to blank */
+        std::string Query { "" };
+    };
+
+    ItemListWidget(QWidget *parent = nullptr);
+    virtual void Refresh();
+    void AddItem(ItemType type, int id);
+    void Populate(const PopulateOptions options);
+protected:
     void InitWidgets();
 };
 }

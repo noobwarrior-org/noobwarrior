@@ -18,27 +18,23 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: CreatorBrowserWidget.cpp
+// File: AssetPage.h
 // Started by: Hattozo
-// Started on: 2/2/2024
+// Started on: 11/30/2025
 // Description:
-#include "CreatorBrowserWidget.h"
+#pragma once
+#include "Sdk/Item/ItemListWidget.h"
+#include <NoobWarrior/EmuDb/Item/Asset.h>
 
-#include "../Application.h"
-#include <NoobWarrior/NoobWarrior.h>
-#include <QDir>
-#include <QFileInfo>
-
-using namespace NoobWarrior;
-
-CreatorBrowserWidget::CreatorBrowserWidget(QWidget* parent) : QListWidget(parent) {
-    Refresh();
-}
-
-CreatorBrowserWidget::~CreatorBrowserWidget() {
-    
-}
-
-void CreatorBrowserWidget::Refresh() {
-    clear();
+namespace NoobWarrior {
+class ItemBrowserWidget;
+class AssetPage : public ItemListWidget {
+public:
+    AssetPage(ItemBrowserWidget *browser);
+    void Refresh() override;
+    void SetType(Roblox::AssetType);
+private:
+    ItemBrowserWidget *mBrowser;
+    Roblox::AssetType mType { Roblox::AssetType::None };
+};
 }

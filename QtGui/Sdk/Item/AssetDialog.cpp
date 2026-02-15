@@ -23,8 +23,9 @@
 // Started on: 11/30/2025
 // Description:
 #include "AssetDialog.h"
+#include "NoobWarrior/EmuDb/ContentImages.h"
 #include "Sdk/CreatorInfoWidget.h"
-#include "Sdk/Browser/ItemBrowserWidget.h"
+#include "Sdk/Item/Browser/ItemBrowserWidget.h"
 
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
@@ -42,6 +43,18 @@ AssetDialog::AssetDialog(QWidget *parent, std::optional<int64_t> id) : ItemDialo
 
 void AssetDialog::AddCustomWidgets() {
     auto *db = GetDatabase();
+
+    std::vector<unsigned char> data;
+
+    QImage image;
+
+    if (mId.has_value())
+        data = std::move(db->RetrieveImageData("Asset", mId.has_value() ? mId.value() : -1));
+    else
+        data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+
+    image.loadFromData(data);
+    mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     mAssetTypeInput = new QComboBox();
     for (int i = 0; i < Roblox::AssetTypeCount; i++) {

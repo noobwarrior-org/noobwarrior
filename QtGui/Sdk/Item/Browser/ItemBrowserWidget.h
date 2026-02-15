@@ -57,10 +57,10 @@ protected:
 
         bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
 
-        ItemBrowserPage *page = mPages.at(index);
+        ItemListWidget *page = mPages.at(index);
         bool isAssetPage = dynamic_cast<AssetPage*>(page) != nullptr;
 
-        for (ItemBrowserPage* page : mPages) {
+        for (ItemListWidget* page : mPages) {
             page->setVisible(false);
         }
 
@@ -79,7 +79,7 @@ protected:
         }
     }
 
-    void RefreshEx(ItemBrowserPage *page) {
+    void RefreshEx(ItemListWidget *page) {
         auto pageIndex = std::find(mPages.begin(), mPages.end(), page);
         RefreshEx(std::distance(mPages.begin(), pageIndex));
     }
@@ -93,7 +93,7 @@ private:
     Roblox::AssetType   mAssetType;
 
     //////////// QWidget stuff ////////////
-    std::vector<ItemBrowserPage*> mPages;
+    std::vector<ItemListWidget*> mPages;
     int mCurrentPageIndex { 0 };
 
     QWidget*        MainWidget;

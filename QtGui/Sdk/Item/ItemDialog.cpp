@@ -23,6 +23,7 @@
 // Started on: 2/8/2026
 // Description: Dialog window that allows you to edit or create an item.
 #include "ItemDialog.h"
+#include "ItemOpenSaveDialog.h"
 
 #define RAND_MAX 2147483647
 
@@ -55,28 +56,15 @@ void ItemDialog::RegenWidgets() {
     mIcon = new QLabel();
     mIcon->setAlignment(Qt::AlignLeft);
     mSidebarLayout->addWidget(mIcon);
-    mSidebarLayout->addStretch();
-
-    QImage image;
-
-    // std::vector<unsigned char> data;
-
-    /*
-    if (mId.has_value())
-        data = std::move(mDatabase->RetrieveContentImageData(mItemType, mId.has_value() ? mId.value() : -1));
-    else
-        data.assign(mItemType.DefaultImage, mItemType.DefaultImage + mItemType.DefaultImageSize);
-    */
-
-    // image.loadFromData(data);
-
-    QPixmap pixmap = QPixmap::fromImage(image);
-    mIcon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    // mSidebarLayout->addStretch();
 
     if (!(Item::TypeName.compare("Asset") == 0 || Item::TypeName.compare("User") == 0)) {
         auto *changeIcon = new QPushButton("Change Icon");
         mSidebarLayout->addWidget(changeIcon);
         connect(changeIcon, &QPushButton::clicked, [this]() {
+            // TODO: Add ItemOpenSaveDialog here
+            int id = ItemOpenSaveDialog::GetOpenId(this, ItemType::Asset, Roblox::AssetType::Image, true);
+            /*
             QString filePath = QFileDialog::getOpenFileName(
                 this,
                 "Change Icon",
@@ -95,6 +83,7 @@ void ItemDialog::RegenWidgets() {
                 QPixmap newPixmap = QPixmap::fromImage(newImage);
                 mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             }
+            */
         });
     }
 

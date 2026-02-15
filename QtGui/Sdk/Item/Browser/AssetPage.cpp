@@ -23,13 +23,14 @@
 // Started on: 11/30/2025
 // Description:
 #include "AssetPage.h"
-#include "ItemBrowserWidget.h"
+#include "Sdk/Item/ItemListWidget.h"
 #include "BrowserItem.h"
+#include "ItemBrowserWidget.h"
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
 using namespace NoobWarrior;
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemBrowserPage(browser), mBrowser(browser) {}
+AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
 
 void AssetPage::Refresh() {
     SearchOptions opt {};

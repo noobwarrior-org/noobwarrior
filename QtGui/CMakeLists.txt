@@ -30,12 +30,12 @@ set(SOURCES
     Sdk/ThumbnailPreviewWidget.cpp
     Sdk/EmuDbBrowserWidget.cpp
     Sdk/ExecuteSqlDialog.cpp
-    Sdk/CreatorBrowserWidget.cpp
     Sdk/CreatorInfoWidget.cpp
-    Sdk/Browser/ItemBrowserWidget.cpp
-    Sdk/Browser/ItemBrowserPage.cpp
-    Sdk/Browser/AssetPage.cpp
-    Sdk/Browser/BrowserItem.cpp
+    Sdk/Item/Browser/ItemBrowserWidget.cpp
+    Sdk/Item/Browser/AssetPage.cpp
+    Sdk/Item/Browser/BrowserItem.cpp
+    Sdk/Item/ItemOpenSaveDialog.cpp
+    Sdk/Item/ItemListWidget.cpp
     Sdk/Item/ItemDialog.cpp
     Sdk/Item/AssetDialog.cpp
     Sdk/Item/UniverseDialog.cpp

@@ -24,7 +24,7 @@
 // Description:
 #include "UniverseDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
-#include "Sdk/Browser/ItemBrowserWidget.h"
+#include "Sdk/Item/Browser/ItemBrowserWidget.h"
 
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
@@ -53,8 +53,7 @@ void UniverseDialog::AddCustomWidgets() {
     mContentLayout->addRow("Creator", info);
 
     if (mId != std::nullopt) {
-        std::string stmtStr = std::format("SELECT * FROM Universe WHERE Id = ?;");
-        Statement stmt = db->PrepareStatement(stmtStr);
+        Statement stmt = db->PrepareStatement("SELECT * FROM Universe WHERE Id = ?;");
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
             std::map<std::string, SqlValue> columns = stmt.GetColumnMap();

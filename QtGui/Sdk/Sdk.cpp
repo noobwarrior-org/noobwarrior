@@ -25,7 +25,7 @@
 #include "Sdk.h"
 #include "NoobWarrior/SqlDb/SqlDb.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
-#include "Sdk/Browser/ItemBrowserWidget.h"
+#include "Sdk/Item/Browser/ItemBrowserWidget.h"
 #include "Sdk/Item/ItemDialog.h"
 #include "Sdk/Item/AssetDialog.h"
 #include "Sdk/Backup/BackupDialog.h"

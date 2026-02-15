@@ -36,7 +36,7 @@
 #include <QVBoxLayout>
 
 #define ADD_ITEMTYPE(type, pageType) mPages.push_back(new pageType(this)); \
-    ItemBrowserPage* type##_page = mPages.back(); \
+    ItemListWidget* type##_page = mPages.back(); \
     MainLayout->addWidget(type##_page); \
     QString type##_Str = QString::fromStdString(#type); \
     ItemTypeDropdown->addItem(QIcon(), type##_Str, QVariant::fromValue(type##_page));

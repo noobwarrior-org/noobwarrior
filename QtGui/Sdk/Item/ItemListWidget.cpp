@@ -22,15 +22,31 @@
 // Started by: Hattozo
 // Started on: 11/30/2025
 // Description:
-#include "ItemBrowserPage.h"
+#include "ItemListWidget.h"
 
 using namespace NoobWarrior;
 
-ItemBrowserPage::ItemBrowserPage(QWidget *parent) : QListWidget(parent) {
+ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent) {
     InitWidgets();
 }
 
-void ItemBrowserPage::InitWidgets() {
+void ItemListWidget::Refresh() {
+
+}
+
+void ItemListWidget::AddItem(ItemType type, int id) {
+
+}
+
+void ItemListWidget::Populate(const PopulateOptions options) {
+    clear();
+}
+
+void ItemListWidget::InitWidgets() {
+    // optimizations to make it less laggy
+    setUniformItemSizes(true);
+    setLayoutMode(QListView::Batched);
+
     setMovement(QListView::Static);
     setViewMode(QListView::IconMode);
     setIconSize(QSize(64, 64));
@@ -41,3 +57,4 @@ void ItemBrowserPage::InitWidgets() {
         // contentItem->Configure(editor);
     });
 }
+

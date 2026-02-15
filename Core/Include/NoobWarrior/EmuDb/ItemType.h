@@ -18,21 +18,41 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: CreatorBrowserWidget.h
+// File: ItemType.h
 // Started by: Hattozo
-// Started on: 2/8/2024
+// Started on: 2/14/2026
 // Description:
 #pragma once
-#include <QListWidget>
-#include <NoobWarrior/EmuDb/EmuDb.h>
+#include <string>
 
 namespace NoobWarrior {
-class CreatorBrowserWidget : public QListWidget {
-    Q_OBJECT
-public:
-    CreatorBrowserWidget(QWidget* parent = nullptr);
-    ~CreatorBrowserWidget();
+constexpr int ItemTypeCount = 9;
+enum class ItemType {
+    Asset,
+    Badge,
+    Bundle,
+    DevProduct,
+    Group,
+    Outfit,
+    Pass,
+    Set,
+    Universe,
+    User
+};
 
-    void Refresh();
+inline std::string ItemTypeAsTranslatableString(ItemType type) {
+    switch (type) {
+    case ItemType::Asset: return "Asset";
+    case ItemType::Badge: return "Badge";
+    case ItemType::Bundle: return "Bundle";
+    case ItemType::DevProduct: return "Dev Product";
+    case ItemType::Group: return "Group";
+    case ItemType::Outfit: return "Outfit";
+    case ItemType::Pass: return "Pass";
+    case ItemType::Set: return "Set";
+    case ItemType::Universe: return "Universe";
+    case ItemType::User: return "User";
+    default: return "Unknown";
+    }
 };
 }
