@@ -10,6 +10,9 @@ target_include_directories(sqlite3
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3>
 )
 
+# we need this enabled for full text search
+target_compile_definitions(sqlite3 PRIVATE SQLITE_ENABLE_FTS5=1)
+
 # packages that might not be included in some package managers are included here:
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
 CPMAddPackage(

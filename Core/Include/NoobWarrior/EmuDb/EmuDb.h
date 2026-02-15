@@ -144,6 +144,8 @@ public:
     void MarkDirty();
     void UnmarkDirty();
 
+    std::string GetMigrationFailMsg();
+
     std::string GetMetaKeyValue(const std::string &key);
     std::string GetTitle();
     std::string GetDescription();
@@ -229,5 +231,7 @@ private:
     std::filesystem::path mPath;
     bool mAutoCommit;
     bool mDirty;
+
+    std::string mMigrationFailMsg;
 };
 }

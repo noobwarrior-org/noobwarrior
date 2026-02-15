@@ -73,7 +73,7 @@ public:
     SqlValue GetValueFromColumnIndex(int columnIndex);
 
     SqlRow GetColumns();
-    std::map<std::string, SqlValue> GetColumnMap();
+    SqlColumnMap GetColumnMap();
 protected:
     SqlDb *mDatabase;
     sqlite3_stmt *mStmt;

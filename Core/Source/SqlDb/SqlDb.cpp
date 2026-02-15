@@ -96,13 +96,6 @@ std::string SqlDb::GetLastErrorMsg() {
     return sqlite3_errmsg(mDb);
 }
 
-std::string SqlDb::GetPragma(const std::string &key) {
-    Statement stmt = PrepareStatement("PRAGMA " + key + ";");
-    if (stmt.Fail())
-        return "";
-    return std::get<std::string>(stmt.GetValueFromColumnIndex(0));
-}
-
 SqlDb::FailReason SqlDb::GetFailReason() {
     return mFailReason;
 }
@@ -111,9 +104,15 @@ Statement SqlDb::PrepareStatement(const std::string &stmtStr) {
 	return Statement(this, stmtStr);
 }
 
+SqlRows SqlDb::GetPragma(const std::string &key) {
+    return Query("PRAGMA " + key + ";");
+}
+
 SqlRows SqlDb::Query(const std::string &stmtStr) {
     SqlRows rows;
     Statement stmt = PrepareStatement(stmtStr);
+    if (stmt.Fail())
+        return {};
     while (stmt.Step() == SQLITE_ROW) {
         rows.push_back(stmt.GetColumns());
     }

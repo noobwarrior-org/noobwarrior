@@ -53,7 +53,6 @@ EmuDbProject::EmuDbProject(const std::string &path) : Project(),
 }
 
 EmuDbProject::~EmuDbProject() {
-    mTabWidget->deleteLater();
     NOOBWARRIOR_FREE_PTR(mDb)
 }
 
@@ -65,8 +64,29 @@ bool EmuDbProject::Fail() {
     return mDb->Fail();
 }
 
-std::string EmuDbProject::GetFailMsg() {
-    return mDb->GetLastErrorMsg();
+QString EmuDbProject::GetFailMsg() {
+    return QString::fromStdString(mDb->GetLastErrorMsg());
+}
+
+QString EmuDbProject::GetOpenFailMsg() {
+    SqlDb::FailReason fail = GetDb()->GetFailReason();
+    switch (fail) {
+    default: return GetFailMsg();
+    case SqlDb::FailReason::MigrationFailed:
+        return QString("The database file failed to migrate to the latest version.\n%1")
+            .arg(GetDb()->GetMigrationFailMsg());
+    case SqlDb::FailReason::FeatureUnavailable:
+        return QString("The database could not open because a feature is not enabled in this program's build of SQLite. Check the output for more details.");
+    }
+}
+
+QString EmuDbProject::GetSaveFailMsg() {
+    switch (mLastSaveRes) {
+    default: return "Unknown failure: is this file read-only?"; break;
+    case SqlDb::Response::Success: return "Didn't fail";
+    case SqlDb::Response::Busy: return "The database seems to be busy.";
+    case SqlDb::Response::Misuse: return "There was an internal error.";
+    }
 }
 
 QString EmuDbProject::GetTitle() {
@@ -85,15 +105,6 @@ bool EmuDbProject::Save() {
     SqlDb::Response res = mDb->WriteChangesToDisk();
     mLastSaveRes = res;
     return res == SqlDb::Response::Success;
-}
-
-std::string EmuDbProject::GetSaveFailMsg() {
-    switch (mLastSaveRes) {
-        default: return "Unknown failure: is this file read-only?"; break;
-        case SqlDb::Response::Success: return "Didn't fail";
-        case SqlDb::Response::Busy: return "The database seems to be busy.";
-        case SqlDb::Response::Misuse: return "There was an internal error.";
-    }
 }
 
 void EmuDbProject::OnShown() { }

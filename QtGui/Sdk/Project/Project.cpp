@@ -33,9 +33,16 @@ Project::Project() : mSdk(nullptr),
     mTabWidget->setProperty("Project", QVariant::fromValue(this));
 }
 
-Project::~Project() { }
+Project::~Project() {
+    OnHidden();
+    mTabWidget->deleteLater();
+}
 
-std::string Project::GetSaveFailMsg() {
+QString Project::GetOpenFailMsg() {
+    return GetFailMsg();
+}
+
+QString Project::GetSaveFailMsg() {
     return "N/A";
 }
 

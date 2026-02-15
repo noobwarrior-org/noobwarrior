@@ -56,7 +56,8 @@ public:
         Uninitialized,
         CantOpen,
         TransactionFailed,
-        MigrationFailed
+        MigrationFailed,
+        FeatureUnavailable
     };
 
     SqlDb(const std::string &path = ":memory:", const std::string &logName = "SqlDb");
@@ -83,12 +84,12 @@ public:
     std::string GetFileName();
     std::filesystem::path GetFilePath();
     std::string GetLastErrorMsg();
-    std::string GetPragma(const std::string &key);
 
     FailReason GetFailReason();
 
     Statement PrepareStatement(const std::string &stmtStr);
 
+    SqlRows GetPragma(const std::string &key);
     SqlRows Query(const std::string &stmtStr);
 
     /* Supports binding. Note that this only supports a single SQL statement since the bindings do not reset after the first statement.

@@ -27,8 +27,6 @@
 #include <QTabWidget>
 #include <QMenu>
 
-#include <string>
-
 namespace NoobWarrior {
 class Sdk;
 class Project {
@@ -38,14 +36,15 @@ public:
     virtual ~Project();
 
     virtual bool Fail() = 0;
-    virtual std::string GetFailMsg() = 0;
+    virtual QString GetFailMsg() = 0;
+    virtual QString GetOpenFailMsg();
+    virtual QString GetSaveFailMsg();
 
     virtual QString GetTitle() = 0;
     virtual QIcon GetIcon() = 0;
     virtual bool IsDirty() = 0;
 
     virtual bool Save() = 0;
-    virtual std::string GetSaveFailMsg();
 
     virtual void OnShown();
     virtual void OnHidden();

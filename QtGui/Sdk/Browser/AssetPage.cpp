@@ -39,12 +39,22 @@ void AssetPage::Refresh() {
 
     EmuDb* db = mBrowser->GetDatabase();
 
-    db->PrepareStatement("SELECT * FROM ");
+    Statement stmt = db->PrepareStatement("SELECT Id, Name FROM Asset");
+    while (stmt.Step() == SQLITE_ROW) {
+        SqlColumnMap row = stmt.GetColumnMap();
+        int *id = std::get_if<int>(&row["Id"]);
+        std::string *name = std::get_if<std::string>(&row["Name"]);
 
+        if (id != nullptr && name != nullptr)
+            new BrowserItem(*id, *name, db, this);
+    }
+
+    /*
     std::vector<Asset> list = db->GetAssetRepository()->List();
     for (auto &item : list) {
         new BrowserItem<Asset>(item, db, this);
     }
+    */
 }
 
 void AssetPage::SetType(Roblox::AssetType type) {

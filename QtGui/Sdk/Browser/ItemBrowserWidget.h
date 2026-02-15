@@ -53,7 +53,7 @@ protected:
 
     void RefreshEx(int index) {
         auto editor = dynamic_cast<Sdk*>(parent());
-        Project *proj = editor->GetFocusedProject();
+        Project* proj = editor->GetFocusedProject();
 
         bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
 

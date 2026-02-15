@@ -29,11 +29,13 @@ set(SOURCES
     Sdk/FileManagerWidget.cpp
     Sdk/ThumbnailPreviewWidget.cpp
     Sdk/EmuDbBrowserWidget.cpp
+    Sdk/ExecuteSqlDialog.cpp
     Sdk/CreatorBrowserWidget.cpp
     Sdk/CreatorInfoWidget.cpp
     Sdk/Browser/ItemBrowserWidget.cpp
     Sdk/Browser/ItemBrowserPage.cpp
     Sdk/Browser/AssetPage.cpp
+    Sdk/Browser/BrowserItem.cpp
     Sdk/Item/ItemDialog.cpp
     Sdk/Item/AssetDialog.cpp
     Sdk/Item/UniverseDialog.cpp
@@ -63,13 +65,23 @@ if (WIN32)
     set(SOURCES ${SOURCES} Resources/resources.rc)
 endif()
 
+# TODO: fix this
+# CPMAddPackage(
+#     URI "gh:KDE/extra-cmake-modules#b372037" # required by ktexteditor
+#     OPTIONS "BUILD_DOC OFF" "BUILD_TESTING OFF"
+# )
+
+# CPMAddPackage(
+#     URI "gh:KDE/ktexteditor#9f7def2"
+# )
+
 add_executable(NoobWarrior.QtGui)
 target_sources(NoobWarrior.QtGui PRIVATE ${SOURCES})
 set_target_properties(NoobWarrior.QtGui PROPERTIES
     OUTPUT_NAME "noobwarrior"
 #    WIN32_EXECUTABLE ON
 )
-target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia)
+target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared KF6TextEditor Qt6::Core Qt6::Widgets Qt6::Multimedia)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 

@@ -18,21 +18,22 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: BrowserItem.h
+// File: ExecuteSqlDialog.h
 // Started by: Hattozo
-// Started on: 7/26/2025
-// Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
+// Started on: 2/13/2026
+// Description:
 #pragma once
-#include "Sdk/Sdk.h"
-
-#include <NoobWarrior/EmuDb/EmuDb.h>
-#include <QListWidgetItem>
+#include <QDialog>
+#include <QWidget>
 
 namespace NoobWarrior {
-class BrowserItem : public QListWidgetItem {
+class Sdk;
+class ExecuteSqlDialog : public QDialog {
+    Q_OBJECT
 public:
-    BrowserItem(const int id, const std::string &name, EmuDb *db, QListWidget *listview = nullptr);
-
-    void Configure(Sdk *editor);
+    ExecuteSqlDialog(QWidget *parent = nullptr);
+    void Refresh();
+private:
+    Sdk* mSdk;
 };
 }

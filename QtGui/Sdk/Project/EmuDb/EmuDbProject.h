@@ -37,14 +37,15 @@ public:
     EmuDb* GetDb();
 
     bool Fail() override;
-    std::string GetFailMsg() override;
+    QString GetFailMsg() override;
+    QString GetOpenFailMsg() override;
+    QString GetSaveFailMsg() override;
 
     QString GetTitle() override;
     QIcon GetIcon() override;
     bool IsDirty() override;
 
     bool Save() override;
-    std::string GetSaveFailMsg() override;
 
     void OnShown() override;
     void OnHidden() override;
@@ -53,6 +54,6 @@ protected:
     OverviewWidget* mOverviewWidget;
 
     SqlDb::Response mLastSaveRes;
-    std::string mSaveFailMsg;
+    QString mSaveFailMsg;
 };
 }

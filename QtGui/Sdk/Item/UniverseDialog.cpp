@@ -73,14 +73,19 @@ void UniverseDialog::AddCustomWidgets() {
 void UniverseDialog::OnSave() {
     auto *db = GetDatabase();
 
+    int64_t id = mIdInput->text().toInt();
+    int snapshot = 1;
+    std::string name = mNameInput->text().toStdString();
+    std::string description = mDescriptionInput->text().toStdString();
+
     Statement stmt = db->PrepareStatement(R"(
         INSERT INTO Universe (Id, Snapshot, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id, Snapshot) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
     )");
-    stmt.Bind(1, mIdInput->text().toInt());
-    stmt.Bind(2, 1);
-    stmt.Bind(3, mNameInput->text().toStdString());
-    stmt.Bind(4, mDescriptionInput->text().toStdString());
+    stmt.Bind(1, id);
+    stmt.Bind(2, snapshot);
+    stmt.Bind(3, name);
+    stmt.Bind(4, description);
     stmt.Bind(5, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(6, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(7, static_cast<int>(mAssetTypeInput->currentIndex()));

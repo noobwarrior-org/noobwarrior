@@ -37,6 +37,7 @@
 #include "migrations/v2.sql.inc.cpp"
 #include "migrations/v3.sql.inc.cpp"
 #include "migrations/v4.sql.inc.cpp"
+#include "migrations/v5.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -44,10 +45,29 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 	SqlDb(path, "EmuDb"),
 	mAutoCommit(autocommit),
 	mDirty(false),
-	mAssetRepository(this)
+	mAssetRepository(this),
+	mMigrationFailMsg("no failure detected")
 {
 	if (Fail())
 		return;
+
+	bool fts5_enabled = false;
+	Out("Compile options:");
+	SqlRows compileOptions = GetPragma("compile_options");
+	for (SqlRow compileOption : compileOptions) {
+		SqlColumn column = compileOption.at(0);
+		const std::string *str = std::get_if<std::string>(&column.second);
+		if (str != nullptr) {
+			Out(*str);
+			if (str->compare("ENABLE_FTS5") == 0)
+				fts5_enabled = true;
+		}
+	}
+	if (!fts5_enabled) {
+		Out("Fatal error: FTS5 is not enabled! This is required for search indexing to work. Aborting!\nIf you are the developer, please include it in your build of SQLite.");
+		mFailReason = FailReason::FeatureUnavailable;
+		return;
+	}
 
 	// if auto-commit is disabled, explicitly initiate a transaction
 	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION")) {
@@ -69,7 +89,8 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 	Statement stmt = PrepareStatement("SELECT * FROM Migration");
 	if (stmt.Fail()) {
 		// and what do you do if you're the user? NOTHING
-		Out("Failed to verify integrity of migration: select statement failed. The Migration table most likely does not exist.");
+		mMigrationFailMsg = GetLastErrorMsg();
+		Out("Failed to verify integrity of migration: select statement failed. The Migration table most likely does not exist. Fail message: {}", mMigrationFailMsg);
 		return false;
 	}
 
@@ -90,17 +111,20 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 					version = version.substr(1, std::string::npos);
 				verToStr = std::stoi(version);
 			} catch (std::exception &ex) {
-				Out("Failed to verify integrity of migration: cannot convert version string to number!");
+				mMigrationFailMsg = "Failed to verify integrity of migration: cannot convert version string to number!";
+				Out(mMigrationFailMsg);
 				return false;
 			}
 
 			if (verToStr != rowId) {
-				Out("Failed to verify integrity of migration: version {} does not match row ID {}. Did the developer order the versions wrong? Is there a gap?", version, rowId);
+				mMigrationFailMsg = std::format("Failed to verify integrity of migration: version {} does not match row ID {}. Did the developer order the versions wrong? Is there a gap?", version, rowId);
+				Out(mMigrationFailMsg);
 				return false;
 			}
 
 			if (rowId > prevRowId && prevVersion > version) {
-				Out("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion);
+				mMigrationFailMsg = std::format("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion);
+				Out(mMigrationFailMsg);
 				return false;
 			}
 
@@ -109,7 +133,8 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 			prevTimestamp = timestamp;
 		} else {
 			if (step != SQLITE_DONE) {
-				Out("Failed to verify integrity of migration: could not select from migration table. Maybe it doesn't exist?");
+				mMigrationFailMsg = GetLastErrorMsg();
+				Out("Failed to verify integrity of migration: could not select from migration table. Maybe it doesn't exist?\nFull error: {}", mMigrationFailMsg);
 			}
 			return step == SQLITE_DONE;
 		}
@@ -122,14 +147,16 @@ bool EmuDb::MigrateToLatestVersion() {
 	if (mAutoCommit) {
 		bool transactionStmt = ExecStatement("BEGIN TRANSACTION;");
 		if (!transactionStmt) {
-			Out("Failed to begin new transaction in order to perform migration");
+			mMigrationFailMsg = GetLastErrorMsg();
+			Out("Failed to begin new transaction in order to perform migration: \"{}\"", mMigrationFailMsg);
 			return false;
 		}
 	}
 
 #define CREATE_TABLE(var) \
 	if (!ExecStatement(var)) { \
-		Out("Failed to create table from variable \"{}\"", #var); \
+		mMigrationFailMsg = std::format("Failed to create table from variable \"{}\"", #var); \
+		Out(mMigrationFailMsg); \
 		return false; \
 	}
 
@@ -143,7 +170,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	bool bindingsSet = false;
 	Statement migrationStmt = PrepareStatement("SELECT RowId, Version FROM Migration WHERE Version = ?");
 	if (migrationStmt.Fail()) {
-		Out("Failed to prepare select statement for Migration table");
+		mMigrationFailMsg = GetLastErrorMsg();
+		Out("Failed to prepare select statement for Migration table: \"{}\"", mMigrationFailMsg);
 		return false;
 	}
 
@@ -161,7 +189,11 @@ bool EmuDb::MigrateToLatestVersion() {
 			addToListStmt.Bind(1, #migration); \
 			if (addToListStmt.Step() == SQLITE_DONE) { Out("Migrated to " #migration); } \
 			else { Out("Failed to insert row into migraton table. What the fuck?"); return false; } \
-		} else { Out("Migration to " #migration " failed."); return false; } \
+		} else { \
+			mMigrationFailMsg = std::format("Migration to " #migration " failed: \"{}\"",GetLastErrorMsg()); \
+			Out(mMigrationFailMsg); \
+			return false; \
+		} \
 	}
 
 	/** All of this is done in order. DO IT IN THE RIGHT ORDER OR YOU'RE FUCKED!!!!!!! **/
@@ -173,6 +205,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v3)
 	/* V4: enables enforcement of foreign keys */
 	MIGRATE(v4)
+	/* V5: adding search index for assets */
+	MIGRATE(v5)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
@@ -208,6 +242,10 @@ int EmuDb::GetMigrationVersion() {
 cleanup:
     sqlite3_finalize(stmt);
     return val;
+}
+
+std::string EmuDb::GetMigrationFailMsg() {
+	return mMigrationFailMsg;
 }
 
 SqlDb::Response EmuDb::SaveAs(const std::string &path) {

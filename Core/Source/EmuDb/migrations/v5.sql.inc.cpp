@@ -17,22 +17,24 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
-// === noobWarrior ===
-// File: BrowserItem.h
-// Started by: Hattozo
-// Started on: 7/26/2025
-// Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
-#pragma once
-#include "Sdk/Sdk.h"
+static const char *migration_v5 = R"***(
+PRAGMA foreign_keys = OFF;
 
-#include <NoobWarrior/EmuDb/EmuDb.h>
-#include <QListWidgetItem>
+CREATE VIRTUAL TABLE AssetSearchIndex USING fts5 (id, name);
+INSERT INTO AssetSearchIndex (id, name) SELECT Id, Name FROM Asset;
 
-namespace NoobWarrior {
-class BrowserItem : public QListWidgetItem {
-public:
-    BrowserItem(const int id, const std::string &name, EmuDb *db, QListWidget *listview = nullptr);
+CREATE TRIGGER AssetSearchIndexInsertTrigger AFTER INSERT ON Asset
+  BEGIN
+    INSERT INTO AssetSearchIndex (id, name) VALUES (new.Id, new.Name);
+  END;
+  
+CREATE TRIGGER AssetSearchIndexUpdateTrigger UPDATE OF Name ON Asset
+  BEGIN
+    UPDATE AssetSearchIndex SET Name = new.Name WHERE Id = old.Id AND Name = old.Name;
+  END;
 
-    void Configure(Sdk *editor);
-};
-}
+CREATE TRIGGER AssetSearchIndexDeleteTrigger BEFORE DELETE ON Asset
+  BEGIN
+    DELETE FROM AssetSearchIndex WHERE Id = old.Id;
+  END;
+)***";

@@ -18,21 +18,36 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: BrowserItem.h
+// File: BrowserItem.cpp
 // Started by: Hattozo
-// Started on: 7/26/2025
+// Started on: 2/14/2026
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
-#pragma once
+#include "BrowserItem.h"
 #include "Sdk/Sdk.h"
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
-#include <QListWidgetItem>
 
-namespace NoobWarrior {
-class BrowserItem : public QListWidgetItem {
-public:
-    BrowserItem(const int id, const std::string &name, EmuDb *db, QListWidget *listview = nullptr);
+using namespace NoobWarrior;
 
-    void Configure(Sdk *editor);
-};
+BrowserItem::BrowserItem(const int id, const std::string &name, EmuDb *db, QListWidget *listview)  :
+    QListWidgetItem(listview)
+{
+    setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(id)));
+
+    /*
+    std::vector<unsigned char> imageData = db->RetrieveContentImageData<T>(mRecord.Id);
+    if (!imageData.empty()) {
+        QImage image;
+        image.loadFromData(imageData);
+
+        QPixmap pixmap = QPixmap::fromImage(image);
+
+        setIcon(QIcon(pixmap));
+    }
+    */
+}
+
+void Configure(Sdk *editor) {
+    // auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
+    // editDialog.exec();
 }

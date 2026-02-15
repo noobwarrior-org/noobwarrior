@@ -23,6 +23,7 @@
 // Started on: 12/15/2024
 // Description: Qt window that lets users view and edit a noobWarrior database
 #include "Sdk.h"
+#include "NoobWarrior/SqlDb/SqlDb.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "Sdk/Browser/ItemBrowserWidget.h"
 #include "Sdk/Item/ItemDialog.h"
@@ -162,7 +163,8 @@ bool Sdk::AddProject(Project* project) {
     }
 
     if (project->Fail()) {
-        Out("Sdk", "Tried adding project but it is in fail mode!");
+        Out("Sdk", "Tried adding project but it is in fail mode! Msg: \"{}\"", project->GetOpenFailMsg().toStdString());
+        QMessageBox::critical(this, "Failed To Open Project", QString("The project could not be opened.\n%1").arg(project->GetOpenFailMsg()));
         return false;
     }
     project->mSdk = this;
@@ -247,7 +249,7 @@ bool Sdk::SaveProject(Project* project) {
 
     bool success = project->Save();
     if (!success) {
-        std::string msg = project->GetSaveFailMsg();
+        QString msg = project->GetSaveFailMsg();
         QMessageBox::critical(this, "Failed To Save Database", QString("The database could not be saved to disk. %1").arg(msg));
         return false;
     }
@@ -262,10 +264,16 @@ bool Sdk::SaveFocusedProject() {
     return SaveProject(mFocusedProject);
 }
 
+Project* Sdk::GetFocusedProject() {
+    return mFocusedProject;
+}
+
 void Sdk::Refresh() {
     if (mTabWidget != nullptr) {
         QWidget* widget = mTabWidget->widget(mTabWidget->currentIndex());
         QVariant qvariant = widget->property("Project");
+        Project* project = !qvariant.isNull() ? qvariant.value<Project*>() : nullptr;
+
         mFocusedProject = !qvariant.isNull() ? qvariant.value<Project*>() : nullptr;
         repaint();
     }
@@ -277,46 +285,6 @@ void Sdk::Refresh() {
 
     if (mItemBrowser != nullptr)
         mItemBrowser->Refresh();
-}
-
-/* FUCK YUOU
-void Sdk::TryToOpenFile(const QString &path) {
-    if (!TryToCloseCurrentDatabase()) return;
-
-    // noobWarrior core database API calls
-    mCurrentDatabase = new EmuDb(path.toStdString(), false);
-    if (mCurrentDatabase->Fail()) {
-        QMessageBox::critical(this, "Error", QString("Cannot open database \"%1\"\n\nLast Error Received: \"%2\"\nError Code: %3").arg(path, QString::fromStdString(mCurrentDatabase->GetLastErrorMsg()), QString::fromStdString(std::format("{:#010x}", (int)mCurrentDatabase->GetLastError()))));
-        NOOBWARRIOR_FREE_PTR(mCurrentDatabase)
-        return;
-    }
-    if (mCurrentDatabase->IsMemory()) {
-        // If we're making a new file, then fill in some defaults (like the author of the database) with the name of the
-        // person running the program.
-        if (mCurrentDatabase->GetAuthor().empty()) {
-            QString name = qgetenv("USER");
-            if (name.isEmpty())
-                name = qgetenv("USERNAME");
-            mCurrentDatabase->SetAuthor(name.toStdString());
-        }
-
-        // It got marked as dirty because we programmatically changed the author of the DB.
-        // Unmark it so that you won't get the stupid "you forgot to save your changes" screen when closing this empty new file.
-        mCurrentDatabase->UnmarkDirty();
-    }
-
-    // our own functions
-    mOverviewWidget = new OverviewWidget(mCurrentDatabase);
-    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, mOverviewWidget->windowTitle()));
-
-    mItemBrowser->Refresh();
-
-    DisableRequiredProjectButtons(false);
-}
-*/
-
-Project* Sdk::GetFocusedProject() {
-    return mFocusedProject;
 }
 
 ItemBrowserWidget *Sdk::GetItemBrowser() {
@@ -467,15 +435,6 @@ void Sdk::InitWidgets() {
     connect(mTabWidget, &QTabWidget::currentChanged, [this](int index) {
         Refresh();
     });
-
-    /*
-    auto *hi = new QLabel("New Database  Ctrl-N\nOpen Database  Ctrl-O");
-    hi->setFont(QFont(QApplication::font().family(), 20));
-    hi->setAlignment(Qt::AlignCenter);
-    hi->setWordWrap(true);
-
-    mTabWidget->addTab(hi, "Welcome");
-    */
 
     mWelcomeWidget = new WelcomeWidget();
     mTabWidget->addTab(mWelcomeWidget, "Welcome");
