@@ -118,7 +118,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
     Source/Roblox/FileFormat/Tree/Instance.cpp
-    Source/base64.cpp
+    Source/algorithm/base64.cpp
+    Source/algorithm/sha256.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC

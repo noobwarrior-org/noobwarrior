@@ -31,7 +31,9 @@
 #include <sqlite3.h>
 #include <cstdio>
 
-#include "../base64.h"
+#include "../algorithm/base64.h"
+#include "../algorithm/sha256.h"
+
 #include "NoobWarrior/EmuDb/ContentImages.h"
 #include "migrations/migration_table.sql.inc.cpp"
 #include "migrations/v1.sql.inc.cpp"
@@ -39,6 +41,7 @@
 #include "migrations/v3.sql.inc.cpp"
 #include "migrations/v4.sql.inc.cpp"
 #include "migrations/v5.sql.inc.cpp"
+#include "migrations/v6.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -206,8 +209,10 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v3)
 	/* V4: enables enforcement of foreign keys */
 	MIGRATE(v4)
-	/* V5: adding search index for assets */
+	/* V5: added search index for assets */
 	MIGRATE(v5)
+	/* V5: added outfits table */
+	MIGRATE(v6)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
@@ -361,6 +366,30 @@ SqlDb::Response EmuDb::SetAuthor(const std::string &author) {
 
 SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
+}
+
+/* Note: This just adds it to the storage. */
+SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	uint8_t buf[SHA256_BLOCK_SIZE];
+
+	SHA256_CTX ctx;
+	sha256_init(&ctx);
+	sha256_update(&ctx, data.data(), data.size());
+	sha256_final(&ctx, buf);
+
+	Statement checkStmt = PrepareStatement("SELECT * FROM BlobStorage WHERE Hash = ?;");
+	checkStmt.Bind(1, std::string(reinterpret_cast<const char*>(buf), SHA256_BLOCK_SIZE));
+	if (checkStmt.Step() == SQLITE_ROW) {
+		return SqlDb::Response::DidNothing;
+	}
+
+	Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
+	stmt.Bind(1, std::string(reinterpret_cast<const char*>(buf), SHA256_BLOCK_SIZE));
+	stmt.Bind(2, data);
+
+	return stmt.Step() == SQLITE_DONE ? SqlDb::Response::Success : SqlDb::Response::Failed;
 }
 
 AssetRepository* EmuDb::GetAssetRepository() {

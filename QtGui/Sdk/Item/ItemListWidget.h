@@ -23,6 +23,7 @@
 // Started on: 11/30/2025
 // Description:
 #pragma once
+#include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
@@ -32,26 +33,32 @@
 #include <string>
 
 namespace NoobWarrior {
+class ItemListModel : public QAbstractListModel {
+public:
+
+};
+
 class ItemListWidget : public QListWidget {
 public:
     struct PopulateOptions {
-        /* ItemType and AssetType have no effect if EnforceType is set to false */
         ItemType ItemType { ItemType::Asset };
         Roblox::AssetType AssetType { Roblox::AssetType::None };
         /* Offset and Limit have no effect if EnforceLimit is set to false */
         int Offset { 0 };
         int Limit { 100 };
-        bool EnforceType { false };
         bool EnforceLimit { false };
         /* Query has no effect if it is set to blank */
         std::string Query { "" };
     };
 
-    ItemListWidget(QWidget *parent = nullptr);
+    ItemListWidget(EmuDb *db, QWidget *parent = nullptr);
     virtual void Refresh();
     void AddItem(ItemType type, int id);
     void Populate(const PopulateOptions options);
 protected:
     void InitWidgets();
+    PopulateOptions mLastOptions;
+
+    EmuDb* mDb;
 };
 }

@@ -40,12 +40,12 @@ enum class ItemType {
     User
 };
 
-inline std::string ItemTypeAsTranslatableString(ItemType type) {
+inline std::string GetTableNameFromItemType(ItemType type) {
     switch (type) {
     case ItemType::Asset: return "Asset";
     case ItemType::Badge: return "Badge";
     case ItemType::Bundle: return "Bundle";
-    case ItemType::DevProduct: return "Dev Product";
+    case ItemType::DevProduct: return "DevProduct";
     case ItemType::Group: return "Group";
     case ItemType::Outfit: return "Outfit";
     case ItemType::Pass: return "Pass";

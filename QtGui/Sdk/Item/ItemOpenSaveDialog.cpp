@@ -26,15 +26,16 @@
 
 using namespace NoobWarrior;
 
-int ItemOpenSaveDialog::GetOpenId(QWidget *parent, ItemType itemType, Roblox::AssetType assetType, bool enforce) {
-    ItemOpenSaveDialog dialog(ItemOpenSaveDialog::Mode::Open, parent);
+int ItemOpenSaveDialog::GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType, Roblox::AssetType assetType, bool enforce) {
+    ItemOpenSaveDialog dialog(db, ItemOpenSaveDialog::Mode::Open, parent);
     dialog.ToggleItemTypeDropdown(!enforce);
     dialog.ToggleAssetTypeDropdown(!enforce);
     dialog.exec();
     return 0;
 }
 
-ItemOpenSaveDialog::ItemOpenSaveDialog(Mode mode, QWidget *parent) : QDialog(parent),
+ItemOpenSaveDialog::ItemOpenSaveDialog(EmuDb* db, Mode mode, QWidget *parent) : QDialog(parent),
+    mDb(db),
     mLayout(new QVBoxLayout(this))
 {
     setWindowTitle(mode == Mode::Open ? "Open Item" : "Save Item");
@@ -52,7 +53,7 @@ void ItemOpenSaveDialog::ToggleAssetTypeDropdown(bool val) {
 void ItemOpenSaveDialog::InitWidgets() {
     mItemTypeDropdown = new QComboBox();
     for (int i = 0; i < ItemTypeCount; i++) {
-        mItemTypeDropdown->addItem(QString::fromStdString(ItemTypeAsTranslatableString(static_cast<ItemType>(i))));
+        mItemTypeDropdown->addItem(QString::fromStdString(GetTableNameFromItemType(static_cast<ItemType>(i))));
     }
 
     mAssetTypeDropdown = new QComboBox();
@@ -60,7 +61,7 @@ void ItemOpenSaveDialog::InitWidgets() {
         mAssetTypeDropdown->addItem(QString::fromStdString(Roblox::AssetTypeAsTranslatableString(static_cast<Roblox::AssetType>(i))));
     }
 
-    mList = new ItemListWidget();
+    mList = new ItemListWidget(mDb);
 
     mLayout->addWidget(mItemTypeDropdown);
     mLayout->addWidget(mAssetTypeDropdown);

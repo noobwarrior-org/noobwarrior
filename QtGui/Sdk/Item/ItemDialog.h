@@ -45,7 +45,7 @@
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
 public:
-    ItemDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt);
+    ItemDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt);
 
     void RegenWidgets();
 
@@ -54,7 +54,7 @@ protected:
     virtual void AddCustomWidgets() = 0;
     virtual void OnSave() = 0;
 
-    std::optional<int64_t> mId;
+    std::optional<int> mId;
 
     Sdk* mSdk;
 

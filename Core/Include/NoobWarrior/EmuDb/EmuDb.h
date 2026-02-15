@@ -157,6 +157,8 @@ public:
     SqlDb::Response SetTitle(const std::string &title);
     SqlDb::Response SetAuthor(const std::string &author);
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
+    
+    SqlDb::Response AddBlob(const std::vector<unsigned char> &data);
 
     AssetRepository* GetAssetRepository();
 

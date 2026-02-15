@@ -35,10 +35,12 @@ namespace NoobWarrior {
 class AssetDialog : public ItemDialog {
     Q_OBJECT
 public:
-    AssetDialog(QWidget *parent = nullptr, std::optional<int64_t> id = std::nullopt);
-    void AddCustomWidgets() override;
-    void OnSave() override;
+    AssetDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt);
 protected:
+    void AddCustomWidgets() override;
+    void AddTypeWidgets();
+    void OnSave() override;
+
     QComboBox* mAssetTypeInput;
 };
 }

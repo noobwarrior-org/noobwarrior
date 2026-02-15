@@ -30,7 +30,7 @@
 
 using namespace NoobWarrior;
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
+AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser->GetDatabase(), browser), mBrowser(browser) {}
 
 void AssetPage::Refresh() {
     SearchOptions opt {};

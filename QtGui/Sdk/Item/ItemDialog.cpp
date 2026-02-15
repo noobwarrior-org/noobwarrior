@@ -25,11 +25,11 @@
 #include "ItemDialog.h"
 #include "ItemOpenSaveDialog.h"
 
-#define RAND_MAX 2147483647
+#include <random>
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(QWidget *parent, std::optional<int64_t> id) :
+ItemDialog::ItemDialog(QWidget *parent, std::optional<int> id) :
     QDialog(parent),
     mId(id)
 {
@@ -63,7 +63,7 @@ void ItemDialog::RegenWidgets() {
         mSidebarLayout->addWidget(changeIcon);
         connect(changeIcon, &QPushButton::clicked, [this]() {
             // TODO: Add ItemOpenSaveDialog here
-            int id = ItemOpenSaveDialog::GetOpenId(this, ItemType::Asset, Roblox::AssetType::Image, true);
+            int id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
             /*
             QString filePath = QFileDialog::getOpenFileName(
                 this,
@@ -89,9 +89,12 @@ void ItemDialog::RegenWidgets() {
 
     mSidebarLayout->addStretch();
 
-    mIdInput = new QLineEdit(QString::number(rand()));
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, 2147483647);
+
+    mIdInput = new QLineEdit(QString::number(distrib(gen)));
     mContentLayout->addRow("Id", mIdInput);
-    // mContentLayout->addRow("Snapshot", idInput);
 
     mNameInput = new QLineEdit();
     mNameInput->setPlaceholderText("Cool Name");

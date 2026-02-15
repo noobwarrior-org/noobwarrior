@@ -26,7 +26,9 @@
 
 using namespace NoobWarrior;
 
-ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent) {
+ItemListWidget::ItemListWidget(EmuDb* db, QWidget *parent) : QListWidget(parent),
+    mDb(db)
+{
     InitWidgets();
 }
 
@@ -40,6 +42,13 @@ void ItemListWidget::AddItem(ItemType type, int id) {
 
 void ItemListWidget::Populate(const PopulateOptions options) {
     clear();
+    std::string tableName = GetTableNameFromItemType(options.ItemType);
+
+    Statement stmt = mDb->PrepareStatement("SELECT Id, Name FROM " + tableName + ";");
+
+    while (stmt.Step() == SQLITE_ROW) {
+        
+    }
 }
 
 void ItemListWidget::InitWidgets() {
