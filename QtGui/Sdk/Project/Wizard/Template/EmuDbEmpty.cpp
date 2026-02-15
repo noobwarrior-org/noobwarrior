@@ -87,7 +87,7 @@ EmuDbEmptyIntroPage::EmuDbEmptyIntroPage(QWidget* parent) : TemplatePage(parent)
         std::filesystem::path path(gApp->GetCore()->GetUserDataDir() / "databases");
         QString fileName = mTitleEdit->text().toLower().replace(" ", "_") + ".nwdb";
         path /= fileName.toStdString();
-        mPathEdit->setText(QString::fromStdString(path));
+        mPathEdit->setText(QString::fromStdString(path.string()));
         completeChanged();
     });
 

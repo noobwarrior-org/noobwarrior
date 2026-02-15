@@ -1,6 +1,21 @@
 CPMAddPackage(
+    URI "gh:madler/zlib#v1.3.1"
+    OPTIONS "ZLIB_BUILD_STATIC ON" "ZLIB_BUILD_SHARED OFF"
+)
+
+if (zlib_ADDED)
+    add_library(ZLIB::ZLIB ALIAS zlibstatic)
+
+    set(ZLIB_FOUND TRUE)
+    set(ZLIB_LIBRARIES ZLIB::ZLIB)
+    set(ZLIB_INCLUDE_DIR ${zlib_SOURCE_DIR})
+else()
+    message(FATAL_ERROR "Could not add zlib")
+endif()
+
+CPMAddPackage(
     URI "gh:curl/curl#85a895c"
-    OPTIONS "BUILD_CURL_EXE OFF" "BUILD_SHARED_LIBS OFF"
+    OPTIONS "BUILD_CURL_EXE OFF" "BUILD_SHARED_LIBS OFF" "CURL_USE_ZLIB ON" "CURL_DISABLE_INSTALL ON" "CURL_ENABLE_EXPORT_TARGET OFF"
 )
 
 add_library(sqlite3 STATIC ${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3/sqlite3.c)
@@ -13,7 +28,6 @@ target_include_directories(sqlite3
 # we need this enabled for full text search
 target_compile_definitions(sqlite3 PRIVATE SQLITE_ENABLE_FTS5=1)
 
-# packages that might not be included in some package managers are included here:
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
 CPMAddPackage(
     URI "gh:WohlSoft/LuaJIT#59d961b"
@@ -33,17 +47,6 @@ CPMAddPackage(
     URI "gh:pantor/inja#2d1f0d0"
     OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
 )
-
-CPMAddPackage(
-    URI "gh:madler/zlib#v1.3.1"
-    OPTIONS "ZLIB_BUILD_STATIC ON" "ZLIB_BUILD_SHARED OFF"
-)
-
-if (zlib_ADDED)
-    add_library(ZLIB::ZLIB ALIAS zlibstatic)
-else()
-    message(FATAL_ERROR "Could not add zlib")
-endif()
 
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"

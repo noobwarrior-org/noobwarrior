@@ -186,7 +186,7 @@ bool Sdk::AddProjectFromPath(const std::filesystem::path &path) {
     file.read(header.data(), 6);
     file.close();
     if (header.compare("SQLite") == 0) {
-        auto *project = new EmuDbProject(path);
+        auto *project = new EmuDbProject(path.string());
         AddProject(project);
         return true;
     }

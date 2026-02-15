@@ -147,7 +147,7 @@ void updateError(OsKeychain::Error &err) {
 
     err.Message = getErrorMessage(code);
     err.Code = code;
-    err.Type = err.code == ERROR_NOT_FOUND ? OsKeychain::ErrorType::NotFound
+    err.Type = err.Code == ERROR_NOT_FOUND ? OsKeychain::ErrorType::NotFound
                                            : OsKeychain::ErrorType::GenericError;
 }
 

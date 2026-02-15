@@ -81,7 +81,7 @@ set_target_properties(NoobWarrior.QtGui PROPERTIES
     OUTPUT_NAME "noobwarrior"
 #    WIN32_EXECUTABLE ON
 )
-target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared KF6TextEditor Qt6::Core Qt6::Widgets Qt6::Multimedia)
+target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 
