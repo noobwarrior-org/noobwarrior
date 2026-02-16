@@ -99,8 +99,24 @@ void EmuDbListWidget::Refresh() {
                 title = fileName;
 
             auto* item = new QListWidgetItem(icon, title, this);
-            item->setData(Qt::UserRole, filePath);
+            item->setData(Qt::UserRole, QVariant::fromValue(db));
             item->setToolTip(filePath);
         }
     }
+}
+
+EmuDb* EmuDbListWidget::GetSelectedDatabase() {
+    QListWidgetItem *item = currentItem();
+    if (item != nullptr)
+        return item->data(Qt::UserRole).value<EmuDb*>();
+    return nullptr;
+}
+
+QList<EmuDb*> EmuDbListWidget::GetSelectedDatabases() {
+    QList<EmuDb*> dbs;
+    QList<QListWidgetItem*> items = selectedItems();
+    for (auto *item : items) {
+        dbs.push_back(item->data(Qt::UserRole).value<EmuDb*>());
+    }
+    return dbs;
 }

@@ -39,6 +39,8 @@ public:
     ~EmuDbListWidget();
 
     void Refresh();
+    EmuDb* GetSelectedDatabase();
+    QList<EmuDb*> GetSelectedDatabases();
 private:
     Mode mMode;
 };
