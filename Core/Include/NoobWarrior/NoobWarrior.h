@@ -106,7 +106,7 @@ public:
     event_base *GetEventBase();
     LuaState *GetLuaState();
     Config *GetConfig();
-    EmuDbManager *GetDatabaseManager();
+    EmuDbManager *GetEmuDbManager();
     PluginManager *GetPluginManager();
 
     MasterKeychain* GetMasterKeychain();
@@ -155,7 +155,7 @@ private:
     Init                            mInit;
     LuaState                        mLuaState;
     Config*                         mConfig;
-    EmuDbManager                    mDatabaseManager;
+    EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 
     ServerEmulator*                 mServerEmulator;

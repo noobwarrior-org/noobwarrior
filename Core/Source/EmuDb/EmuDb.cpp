@@ -106,6 +106,12 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 	}
 
+	if (GetIcon().empty()) {
+		std::vector<unsigned char> imgData;
+		imgData.assign(g_database_png, g_database_png + g_database_png_size);
+		SetIcon(imgData);
+	}
+
 	if (mThisIsANewFileOnDisk && !mAutoCommit) {
 		// Remember that we just migrated the database and everything in this new file, so the DB is already dirty if auto-commit is disabled.
 		// Since we have a new file it is currently at zero bytes.
@@ -385,6 +391,14 @@ SqlDb::Response EmuDb::SetMetaKeyValue(const std::string &key, const std::string
 
 SqlDb::Response EmuDb::SetTitle(const std::string &title) {
 	return SetMetaKeyValue("Title", title);
+}
+
+SqlDb::Response EmuDb::SetDescription(const std::string &desc) {
+	return SetMetaKeyValue("Description", desc);
+}
+
+SqlDb::Response EmuDb::SetVersion(const std::string &ver) {
+	return SetMetaKeyValue("Version", ver);
 }
 
 SqlDb::Response EmuDb::SetAuthor(const std::string &author) {

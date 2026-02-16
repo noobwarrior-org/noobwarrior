@@ -34,6 +34,10 @@ HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent) {
 
 void HostServerDialog::InitWidgets() {
     mMainLayout = new QHBoxLayout(this);
+
+    mListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted, this);
+    mMainLayout->addWidget(mListWidget);
+
     mStartServer = new QPushButton("Start Server");
     mMainLayout->addWidget(mStartServer);
 

@@ -33,6 +33,9 @@ extern const int g_icon_content_deleted_size;
 extern const int g_question_mark_png[];
 extern const int g_question_mark_png_size;
 
+extern const int g_database_png[];
+extern const int g_database_png_size;
+
 extern const int g_model_png[];
 extern const int g_model_png_size;
 

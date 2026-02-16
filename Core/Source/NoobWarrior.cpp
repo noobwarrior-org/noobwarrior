@@ -46,6 +46,7 @@ using namespace NoobWarrior;
 Core::Core(Init init) :
     mInit(std::move(init)),
     mLuaState(this),
+    mEmuDbManager(this),
     mServerEmulator(nullptr),
     mPortable(mInit.Portable),
     mPluginManager(this),
@@ -77,16 +78,14 @@ Core::Core(Init init) :
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
 
-    mDatabaseManager.AutocreateMasterDatabase();
+    GetEmuDbManager()->MountDatabases();
+    GetEmuDbManager()->CreateMasterDatabaseIfDoesntExist();
 
     if (mInit.EnableKeychain)
         GetRbxKeychain()->ReadFromKeychain();
 
     if (mInit.LoadPlugins)
         GetPluginManager()->LoadPlugins();
-
-    // TODO: remove this when project feature works
-    EmuDb *db = new EmuDb();
 }
 
 Core::~Core() {
@@ -95,6 +94,7 @@ Core::~Core() {
     if (mInit.EnableKeychain)
         GetRbxKeychain()->WriteToKeychain();
 
+    GetEmuDbManager()->UnmountDatabases();
     StopServerEmulator();
     sqlite3_shutdown();
     curl_global_cleanup();
@@ -123,8 +123,8 @@ Config *Core::GetConfig() {
     return mConfig;
 }
 
-EmuDbManager *Core::GetDatabaseManager() {
-    return &mDatabaseManager;
+EmuDbManager *Core::GetEmuDbManager() {
+    return &mEmuDbManager;
 }
 
 PluginManager *Core::GetPluginManager() {

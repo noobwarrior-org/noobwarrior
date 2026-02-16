@@ -18,16 +18,28 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ContentImages.cpp
+// File: EmuDbListWidget.h
 // Started by: Hattozo
-// Started on: 8/2/2025
-// Description: Contains implementations of image data used for id and asset types
-#include <NoobWarrior/EmuDb/ContentImages.h>
-#include <array>
+// Started on: 2/2/2024
+// Description:
+#pragma once
+#include <QListWidget>
+#include <NoobWarrior/EmuDb/EmuDb.h>
 
-#include "icons/content_deleted.png.inc.cpp"
-#include "icons/question_mark.png.inc.cpp"
-#include "icons/database.png.inc.cpp"
-#include "icons/asset_type/model.png.inc.cpp"
-#include "icons/asset_type/audio.png.inc.cpp"
-#include "icons/asset_type/animation.png.inc.cpp"
+namespace NoobWarrior {
+class EmuDbListWidget : public QListWidget {
+    Q_OBJECT
+public:
+    enum class Mode {
+        ShowEntriesInDir, // Shows every database file in the databases folder, even the ones that aren't mounted
+        ShowMounted // Shows only the currently mounted databases in the database manager
+    };
+
+    EmuDbListWidget(Mode mode = Mode::ShowEntriesInDir, QWidget* parent = nullptr);
+    ~EmuDbListWidget();
+
+    void Refresh();
+private:
+    Mode mMode;
+};
+}

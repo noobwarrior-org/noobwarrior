@@ -26,33 +26,90 @@
 // but these databases may have conflicting IDs in them. In this case, a system to manage priority is required.
 //
 // This also handles authentication, but will outsource it to a master server if set.
+#include "NoobWarrior/EmuDb/ContentImages.h"
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Config.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <vector>
 
 using namespace NoobWarrior;
 
-SqlDb::Response EmuDbManager::AutocreateMasterDatabase() {
-    if (GetMasterDatabase() != nullptr)
-        return SqlDb::Response::Success;
-    return SqlDb::Response::Success;
+EmuDbManager::EmuDbManager(Core *core) :
+    mCore(core)
+{}
+
+void EmuDbManager::MountDatabases() {
+    int filePriority = 0;
+    auto mounted = mCore->GetConfig()->GetKeyValue<nlohmann::json>("databases.mounted");
+    if (!mounted.has_value())
+        return;
+
+    for (auto &fileNameElement : *mounted) {
+        if (!fileNameElement.is_string()) continue;
+        auto fileName = fileNameElement.get<std::string>();
+        Mount(fileName, filePriority);
+        filePriority++;
+    }
 }
 
-SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
-    auto *database = new EmuDb(filePath.string());
+void EmuDbManager::UnmountDatabases() {
+    for (auto *db : MountedDatabases) {
+        Unmount(db);
+        NOOBWARRIOR_FREE_PTR(db)
+    }
+}
+
+SqlDb::Response EmuDbManager::CreateMasterDatabaseIfDoesntExist() {
+    if (GetMasterDatabase() == nullptr) {
+        Out("EmuDbManager", "Creating master database because it doesn't exist...");
+        std::filesystem::path absolutePath = mCore->GetUserDataDir() / "databases" / "master.nwdb";
+        auto *db = new EmuDb(absolutePath.string(), true);
+        if (db->Fail()) {
+            Out("EmuDbManager", "Failed to create master database");
+            return SqlDb::Response::DatabaseFailed;
+        }
+        db->SetTitle("Master Database");
+        db->SetDescription("This is the default database created by noobWarrior.\nThis will only be the primary database if it is the highest on the list.");
+        bool res = Mount(db, 0);
+        return SqlDb::Response::Success;
+    }
+    return SqlDb::Response::DidNothing;
+}
+
+SqlDb::FailReason EmuDbManager::Mount(const std::string &fileName, unsigned int priority) {
+    std::filesystem::path absolutePath = mCore->GetUserDataDir() / "databases" / fileName;
+    auto *database = new EmuDb(absolutePath.string(), true);
     if (database->Fail()) return database->GetFailReason();
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
     return database->GetFailReason();
 }
 
-void EmuDbManager::Mount(EmuDb *database, unsigned int priority) {
+bool EmuDbManager::Mount(EmuDb* database, unsigned int priority) {
+    if (database->Fail()) return false;
+    if (std::find(MountedDatabases.begin(), MountedDatabases.end(), database) != MountedDatabases.end())
+        return false;
     MountedDatabases.insert(MountedDatabases.begin() + priority, database);
+    Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
+    return true;
+}
+
+bool EmuDbManager::Unmount(EmuDb* database) {
+    auto it = std::find(MountedDatabases.begin(), MountedDatabases.end(), database);
+    if (it == MountedDatabases.end())
+        return false;
+    MountedDatabases.erase(it);
+    Out("EmuDbManager", "Unmounted database \"{}\"", database->GetFileName());
+    return true;
 }
 
 EmuDb *EmuDbManager::GetMasterDatabase() {
     return MountedDatabases.size() > 0 ? MountedDatabases.at(0) : nullptr;
+}
+
+std::vector<EmuDb*> EmuDbManager::GetMountedDatabases() {
+    return MountedDatabases;
 }
 
 bool EmuDbManager::GetUserFromToken(User *user, const std::string &token) {

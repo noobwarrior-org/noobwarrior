@@ -30,13 +30,22 @@
 #include <vector>
 
 namespace NoobWarrior {
+class Core;
 class EmuDbManager {
 public:
-    SqlDb::Response AutocreateMasterDatabase();
+    EmuDbManager(Core *core);
 
-    SqlDb::FailReason Mount(const std::filesystem::path &filePath, unsigned int priority);
-    void Mount(EmuDb *database, unsigned int priority);
-    int Unmount(EmuDb *database);
+    void MountDatabases();
+
+    // NOTE: THIS DELETES ALL THE MOUNTED DATABASES FROM MEMORY!!!!
+    void UnmountDatabases();
+
+    // CALL MOUNTDATABASES() BEFORE WASTING YOUR TIME ON THIS FUNCTION!!!
+    SqlDb::Response CreateMasterDatabaseIfDoesntExist();
+
+    SqlDb::FailReason Mount(const std::string &fileName, unsigned int priority);
+    bool Mount(EmuDb* database, unsigned int priority);
+    bool Unmount(EmuDb* database);
 
     EmuDb *GetMasterDatabase();
     std::vector<EmuDb*> GetMountedDatabases();
@@ -46,6 +55,7 @@ public:
     // TODO: PLEASE FIX THE CIRCULATORY DEPENDENCIES. FUCK.
     // AssetRepositoryManager& GetAssetRepository();
 private:
+    Core* mCore;
     std::vector<EmuDb*> MountedDatabases;
     // AssetRepositoryManager mAssetRepository;
 };

@@ -39,7 +39,7 @@ int ServerEmulator::Start(uint16_t port) {
     int res = HttpServer::Start(port);
     if (!res) goto finish;
 
-    mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetDatabaseManager());
+    mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetEmuDbManager());
 
     SetRequestHandler("/asset", mAssetHandler.get());
     SetRequestHandler("/v1/asset", mAssetHandler.get());

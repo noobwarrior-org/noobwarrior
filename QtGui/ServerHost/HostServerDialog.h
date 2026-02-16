@@ -23,6 +23,8 @@
 // Started on: 11/6/2025
 // Description: Dialog that allows for starting a Roblox game server
 #pragma once
+#include "EmuDbListWidget.h"
+
 #include <QDialog>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -35,6 +37,7 @@ public:
 private:
     void InitWidgets();
     QHBoxLayout *mMainLayout;
+    EmuDbListWidget *mListWidget;
     QPushButton *mStartServer;
 };
 }

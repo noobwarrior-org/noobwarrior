@@ -157,6 +157,8 @@ public:
 
     SqlDb::Response SetMetaKeyValue(const std::string &key, const std::string &value);
     SqlDb::Response SetTitle(const std::string &title);
+    SqlDb::Response SetDescription(const std::string &desc);
+    SqlDb::Response SetVersion(const std::string &ver);
     SqlDb::Response SetAuthor(const std::string &author);
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
     
