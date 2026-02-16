@@ -35,6 +35,7 @@
 #include "../algorithm/base64.h"
 
 #include "NoobWarrior/EmuDb/ContentImages.h"
+#include "NoobWarrior/EmuDb/ItemType.h"
 #include "NoobWarrior/Roblox/Api/Asset.h"
 #include "migrations/migration_table.sql.inc.cpp"
 #include "migrations/v1.sql.inc.cpp"
@@ -76,13 +77,11 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 
 	bool fts5_enabled = false;
-	Out("Compile options:");
 	SqlRows compileOptions = GetPragma("compile_options");
 	for (SqlRow compileOption : compileOptions) {
 		SqlColumn column = compileOption.at(0);
 		const std::string *str = std::get_if<std::string>(&column.second);
 		if (str != nullptr) {
-			Out(*str);
 			if (str->compare("ENABLE_FTS5") == 0)
 				fts5_enabled = true;
 		}
@@ -437,6 +436,68 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data) {
 	case SQLITE_BUSY: return SqlDb::Response::Busy;
 	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
 	case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+	}
+}
+
+SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	std::string tableName = GetTableNameFromItemType(type);
+	std::string stmtStr = "INSERT INTO " + tableName + " (";
+
+	int values = 0;
+	for (int i = 0; i < row.size(); i++) {
+		SqlColumn column = row.at(i);
+		std::string columnName = column.first;
+		stmtStr += columnName + (i != row.size() - 1 ? ", " : "");
+		values++;
+	}
+
+	stmtStr += ") VALUES (";
+	for (int i = 0; i < values; i++)
+		stmtStr += std::string("?") + (i != values - 1 ? ", " : ");");
+
+	Out("Adding item using statement \"{}\"", stmtStr);
+	Statement stmt = PrepareStatement(stmtStr);
+	if (stmt.Fail()) {
+		Out("Failed to prepare statement");
+		return SqlDb::Response::Failed;
+	}
+
+	for (int i = 0; i < row.size(); i++) {
+		SqlColumn column = row.at(i);
+		SqlValue columnValue = column.second;
+		stmt.Bind(i + 1, columnValue);
+	}
+	
+	switch (stmt.Step()) {
+	default:
+		return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		return SqlDb::Response::Success;
+	case SQLITE_BUSY:
+		return SqlDb::Response::Busy;
+	case SQLITE_MISUSE:
+		return SqlDb::Response::Misuse;
+	case SQLITE_CONSTRAINT:
+		return SqlDb::Response::ConstraintViolation;
+	}
+}
+
+SqlDb::Response EmuDb::DeleteItem(ItemType type, int id) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	Statement stmt = PrepareStatement("DELETE FROM " + GetTableNameFromItemType(type) + " WHERE Id = ?;");
+	stmt.Bind(1, id);
+	switch (stmt.Step()) {
+	default:
+		return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		return SqlDb::Response::Success;
+	case SQLITE_BUSY:
+		return SqlDb::Response::Busy;
+	case SQLITE_MISUSE:
+		return SqlDb::Response::Misuse;
 	}
 }
 

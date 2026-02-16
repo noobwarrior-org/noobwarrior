@@ -45,6 +45,7 @@
 using namespace NoobWarrior;
 
 Core::Core(Init init) :
+    mInitResponse(Response::Failed),
     mInit(std::move(init)),
     mLuaState(this),
     mEmuDbManager(this),
@@ -87,6 +88,8 @@ Core::Core(Init init) :
 
     if (mInit.LoadPlugins)
         GetPluginManager()->LoadPlugins();
+
+    mInitResponse = Response::Success;
 }
 
 Core::~Core() {
@@ -106,6 +109,10 @@ Core::~Core() {
 #if defined(_WIN32)
     WSACleanup();
 #endif
+}
+
+bool Core::Fail() {
+    return mInitResponse != Response::Success;
 }
 
 int Core::ProcessEvents(bool block) {

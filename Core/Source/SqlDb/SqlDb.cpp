@@ -57,8 +57,10 @@ SqlDb::SqlDb(const std::string &path, const std::string &logName) :
 }
 
 SqlDb::~SqlDb() {
-    if (mDb != nullptr)
+    if (mDb != nullptr) {
         sqlite3_close_v2(mDb);
+        Out("Closed");
+    }
 }
 
 bool SqlDb::Fail() {

@@ -29,8 +29,10 @@
 #include <map>
 #include <cstdint>
 
+#include <sqlite3.h>
+
 namespace NoobWarrior {
-typedef std::variant<std::monostate, int, bool, int64_t, double, std::string, std::vector<unsigned char>> SqlValue;
+typedef std::variant<std::monostate, int, bool, sqlite3_int64, double, std::string, std::vector<unsigned char>> SqlValue;
 typedef std::pair<std::string, SqlValue> SqlColumn;
 typedef std::map<std::string, SqlValue> SqlColumnMap;
 typedef std::vector<SqlColumn> SqlRow;

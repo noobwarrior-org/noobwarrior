@@ -48,7 +48,7 @@ public:
         case 0: return Bind(pos);
         case 1: return Bind(pos, std::get<int>(val));
         case 2: return Bind(pos, std::get<bool>(val));
-        case 3: return Bind(pos, std::get<int64_t>(val));
+        case 3: return Bind(pos, std::get<sqlite3_int64>(val));
         case 4: return Bind(pos, std::get<double>(val));
         case 5: return Bind(pos, std::get<std::string>(val));
         case 6: return Bind(pos, std::get<std::vector<unsigned char>>(val));

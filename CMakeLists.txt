@@ -14,6 +14,7 @@ if (ANDROID)
 endif()
 
 option(NOOBWARRIOR_LIBTYPE_STATIC "Compile noobWarrior as a static library" ON)
+option(NOOBWARRIOR_TARGET_UNITTEST "Add target noobWarrior UnitTest" ON)
 option(NOOBWARRIOR_TARGET_NOGUI "Add target noobWarrior NoGui" ON)
 option(NOOBWARRIOR_TARGET_QTGUI "Add target noobWarrior QtGui" ON)
 option(NOOBWARRIOR_TARGET_GAMELAUNCHER "Add target noobWarrior GameLauncher" OFF)
@@ -23,6 +24,10 @@ option(NOOBWARRIOR_TARGET_HOOK "Add target noobWarrior Hook" OFF)
 option(NOOBWARRIOR_TARGET_INJECTOR "Add target noobWarrior Injector" OFF)
 
 add_subdirectory(Core)
+
+if (NOOBWARRIOR_TARGET_UNITTEST)
+    add_subdirectory(UnitTest)
+endif()
 
 if (NOOBWARRIOR_TARGET_NOGUI)
     add_subdirectory(NoGui)

@@ -92,8 +92,16 @@ std::string WideCharToUTF8(wchar_t* wc);
 
 class Core {
 public:
+    enum class Response {
+        Failed,
+        Success,
+        RegistryFailed
+    };
+
     Core(Init init = {});
     ~Core();
+
+    bool Fail();
 
     /**
      * @brief Must be called in order to poll async I/O events, like for HTTP requests.
@@ -152,6 +160,8 @@ public:
     EngineLaunchResponse LaunchEngine(const Engine &client);
 private:
     EngineLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
+
+    Response                        mInitResponse;
 
     event_base*                     mEventBase;
 

@@ -76,6 +76,7 @@
 #include <NoobWarrior/SqlDb/SqlDb.h>
 #include <NoobWarrior/SqlDb/Common.h>
 #include <NoobWarrior/SqlDb/Statement.h>
+#include <NoobWarrior/EmuDb/ItemType.h>
 #include <NoobWarrior/EmuDb/ContentImages.h>
 #include <NoobWarrior/EmuDb/Repository/Item/AssetRepository.h>
 #include <NoobWarrior/EmuDb/Item/Asset.h>
@@ -163,6 +164,8 @@ public:
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
     
     SqlDb::Response AddBlob(const std::vector<unsigned char> &data);
+    SqlDb::Response AddItem(ItemType type, SqlRow row);
+    SqlDb::Response DeleteItem(ItemType, int id);
 
     AssetRepository* GetAssetRepository();
 
