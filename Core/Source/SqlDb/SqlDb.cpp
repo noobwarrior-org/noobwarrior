@@ -34,12 +34,15 @@ SqlDb::SqlDb(const std::string &path, const std::string &logName) :
     mLogName(logName),
     mDb(nullptr),
     mFailReason(FailReason::Uninitialized),
-    mPath(path)
+    mPath(path),
+    mThisIsANewFileOnDisk(false)
 {
     if (!IsMemory() && !std::filesystem::exists(path)) {
         std::ofstream out(path, std::ios::app); // create dummy file
-        if (out.is_open())
+        if (out.is_open()) {
+            mThisIsANewFileOnDisk = true;
             out.close();
+        }
     }
 
     int val = sqlite3_open_v2(path.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr);

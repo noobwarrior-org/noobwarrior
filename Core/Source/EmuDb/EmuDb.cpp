@@ -106,6 +106,13 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 	}
 
+	if (mThisIsANewFileOnDisk && !mAutoCommit) {
+		// Remember that we just migrated the database and everything in this new file, so the DB is already dirty if auto-commit is disabled.
+		// Since we have a new file it is currently at zero bytes.
+		// We need to auto-save it for the user because they just created the file and it would be weird to have an unsaved zero byte file.
+		WriteChangesToDisk();
+	}
+
 	mFailReason = FailReason::None;
 };
 

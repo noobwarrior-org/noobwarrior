@@ -119,5 +119,7 @@ protected:
     sqlite3 *mDb;
     FailReason mFailReason;
     std::string mPath;
+
+    bool mThisIsANewFileOnDisk;
 };
 }
