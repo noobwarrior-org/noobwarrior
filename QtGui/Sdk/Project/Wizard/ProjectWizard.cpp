@@ -38,6 +38,7 @@ using namespace NoobWarrior;
 
 ProjectWizard::ProjectWizard(QWidget *parent) : QWizard(parent) {
     setWindowTitle("New Project");
+    setWizardStyle(QWizard::ClassicStyle);
     InitWidgets();
 }
 
