@@ -41,6 +41,7 @@ public:
 class ItemListWidget : public QListWidget {
 public:
     struct PopulateOptions {
+        EmuDb* Database { nullptr };
         ItemType ItemType { ItemType::Asset };
         Roblox::AssetType AssetType { Roblox::AssetType::None };
         /* Offset and Limit have no effect if EnforceLimit is set to false */
@@ -51,15 +52,12 @@ public:
         std::string Query { "" };
     };
 
-    ItemListWidget(EmuDb *db, QWidget *parent = nullptr);
+    ItemListWidget(QWidget *parent = nullptr);
     virtual void Refresh();
-    void AddItem(ItemType type, int id);
     void Populate(const PopulateOptions options);
 protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);
     PopulateOptions mLastOptions;
-
-    EmuDb* mDb;
 };
 }

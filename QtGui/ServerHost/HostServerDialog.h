@@ -23,13 +23,29 @@
 // Started on: 11/6/2025
 // Description: Dialog that allows for starting a Roblox game server
 #pragma once
-#include "EmuDbListWidget.h"
+#include <NoobWarrior/EmuDb/EmuDb.h>
+
+#include "Sdk/EmuDbListWidget.h"
+#include "Sdk/Item/ItemListWidget.h"
 
 #include <QDialog>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QDialogButtonBox>
+#include <QFrame>
+#include <QStackedWidget>
 
 namespace NoobWarrior {
+class HostServerDbPage : public QWidget {
+    Q_OBJECT
+public:
+    HostServerDbPage(EmuDb* db, QWidget* parent = nullptr);
+private:
+    EmuDb* mDb;
+    ItemListWidget *mUniverseListWidget;
+    ItemListWidget *mPlaceListWidget;
+};
+
 class HostServerDialog : public QDialog {
     Q_OBJECT
 public:
@@ -37,7 +53,13 @@ public:
 private:
     void InitWidgets();
     QHBoxLayout *mMainLayout;
-    EmuDbListWidget *mListWidget;
+
+    EmuDbListWidget *mDbListWidget;
+    QStackedWidget* mDbPages;
+    HostServerDbPage *mCurrentDbPage;
+
+    QDialogButtonBox *mButtonBox;
     QPushButton *mStartServer;
+    QPushButton *mCloseButton;
 };
 }

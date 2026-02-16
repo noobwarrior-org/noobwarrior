@@ -24,7 +24,7 @@
 // Description:
 #include "EmuDbListWidget.h"
 
-#include "Application.h"
+#include "../Application.h"
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <QDir>

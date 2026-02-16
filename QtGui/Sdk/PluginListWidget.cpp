@@ -24,7 +24,7 @@
 // Description:
 #include "PluginListWidget.h"
 
-#include "Application.h"
+#include "../Application.h"
 #include <NoobWarrior/NoobWarrior.h>
 #include <QDir>
 #include <QFileInfo>

@@ -144,6 +144,9 @@ public:
     std::vector<RobloxClient> GetAllClients();
     std::filesystem::path GetClientDirectory(const RobloxClient &client);
 
+    /* This searches your engines directory and compiles a list of usable engines */
+    void DiscoverEngines();
+
     bool IsClientInstalled(const RobloxClient &client);
     void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
     ClientLaunchResponse LaunchClient(const RobloxClient &client);

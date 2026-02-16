@@ -5,8 +5,6 @@ set(CMAKE_AUTORCC ON)
 set(SOURCES
     Application.cpp
     Launcher.cpp
-    EmuDbListWidget.cpp
-    PluginListWidget.cpp
     Style/DefaultStyle.cpp
     Settings/SettingsDialog.cpp
     Settings/SettingsPage.cpp
@@ -32,6 +30,8 @@ set(SOURCES
     Sdk/ThumbnailPreviewWidget.cpp
     Sdk/ExecuteSqlDialog.cpp
     Sdk/CreatorInfoWidget.cpp
+    Sdk/EmuDbListWidget.cpp
+    Sdk/PluginListWidget.cpp
     Sdk/Item/Browser/ItemBrowserWidget.cpp
     Sdk/Item/Browser/AssetPage.cpp
     Sdk/Item/Browser/BrowserItem.cpp

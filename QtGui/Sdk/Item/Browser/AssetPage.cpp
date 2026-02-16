@@ -30,7 +30,7 @@
 
 using namespace NoobWarrior;
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser->GetDatabase(), browser), mBrowser(browser) {}
+AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
 
 void AssetPage::Refresh() {
     SearchOptions opt {};
@@ -45,6 +45,16 @@ void AssetPage::Refresh() {
         int id = stmt.GetIntFromColumnIndex(0);
         new BrowserItem(db, ItemType::Asset, id, this);
     }
+
+    Populate({
+        .Database = db,
+        .ItemType = ItemType::Asset,
+        .AssetType = mType,
+        .Offset = 0,
+        .Limit = 100,
+        .EnforceLimit = true,
+        .Query = ""
+    });
 
     /*
     std::vector<Asset> list = db->GetAssetRepository()->List();

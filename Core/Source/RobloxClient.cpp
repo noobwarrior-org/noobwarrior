@@ -70,6 +70,10 @@ std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
     return dir;
 }
 
+void Core::DiscoverEngines() {
+
+}
+
 bool Core::IsClientInstalled(const RobloxClient &client) {
     if (!std::filesystem::exists(GetClientDirectory(client))) return false;
     bool foundExe = false;

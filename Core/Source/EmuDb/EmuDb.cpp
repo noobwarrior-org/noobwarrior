@@ -106,7 +106,7 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 	}
 
-	if (GetIcon().empty()) {
+	if (GetMetaKeyValue("Icon").empty()) {
 		std::vector<unsigned char> imgData;
 		imgData.assign(g_database_png, g_database_png + g_database_png_size);
 		SetIcon(imgData);

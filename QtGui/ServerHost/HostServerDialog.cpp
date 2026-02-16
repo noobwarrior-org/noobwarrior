@@ -21,13 +21,15 @@
 // File: HostServerDialog.cpp
 // Started by: Hattozo
 // Started on: 11/6/2025
-// Description: Dialog that allows for starting a Roblox game server
+// Description: Dialog that allows for starting a game server
 #include "HostServerDialog.h"
 #include "../Application.h"
 
 using namespace NoobWarrior;
 
-HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent) {
+HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent),
+    mCurrentDbPage(nullptr)
+{
     setWindowTitle("Host Server");
     InitWidgets();
 }
@@ -35,11 +37,37 @@ HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent) {
 void HostServerDialog::InitWidgets() {
     mMainLayout = new QHBoxLayout(this);
 
-    mListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted, this);
-    mMainLayout->addWidget(mListWidget);
+    mDbListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted);
+    mDbPages = new QStackedWidget(this);
+
+    mMainLayout->addWidget(mDbListWidget);
+    mMainLayout->addWidget(mDbPages);
+
+    connect(mDbListWidget, &QListWidget::itemSelectionChanged, [this]() {
+        EmuDb* db = mDbListWidget->GetSelectedDatabase();
+        if (db != nullptr) {
+            if (mCurrentDbPage != nullptr) {
+                mDbPages->removeWidget(mCurrentDbPage);
+                mCurrentDbPage->deleteLater();
+                mCurrentDbPage = nullptr;
+            }
+            mCurrentDbPage = new HostServerDbPage(db);
+            mDbPages->addWidget(mCurrentDbPage);
+            mDbPages->setCurrentWidget(mCurrentDbPage);
+        }
+    });
+    mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    mDbListWidget->setCurrentRow(0);
+
+    mButtonBox = new QDialogButtonBox();
 
     mStartServer = new QPushButton("Start Server");
-    mMainLayout->addWidget(mStartServer);
+    mButtonBox->addButton(mStartServer, QDialogButtonBox::AcceptRole);
+
+    mCloseButton = new QPushButton("Close");
+    mButtonBox->addButton(mCloseButton, QDialogButtonBox::RejectRole);
+
+    mMainLayout->addWidget(mButtonBox);
 
     connect(mStartServer, &QPushButton::clicked, []() {
         gApp->LaunchClient({
@@ -49,4 +77,15 @@ void HostServerDialog::InitWidgets() {
             .Version = "0.463.0.417004"
         });
     });
+}
+
+HostServerDbPage::HostServerDbPage(EmuDb* db, QWidget* parent) : QWidget(parent) {
+    auto *layout = new QHBoxLayout(this);
+    setLayout(layout);
+
+    mUniverseListWidget = new ItemListWidget();
+    layout->addWidget(mUniverseListWidget);
+
+    mPlaceListWidget = new ItemListWidget();
+    layout->addWidget(mPlaceListWidget);
 }
