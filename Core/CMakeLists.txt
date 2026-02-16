@@ -119,7 +119,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Shell.cpp
     Source/Url.cpp
     Source/RccServiceManager.cpp
-    Source/RobloxClient.cpp
+    Source/Engine.cpp
     Source/NetClient.cpp
     Source/Backup.cpp
     Source/HttpServer/Base/HttpServer.cpp

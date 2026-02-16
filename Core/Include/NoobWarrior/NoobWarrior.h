@@ -33,11 +33,11 @@
 #include "PluginManager.h"
 #include "EmuDb/EmuDb.h"
 #include "RccServiceManager.h"
-#include "RobloxClient.h"
+#include "Engine.h"
 #include "HttpServer/Emulator/ServerEmulator.h"
 #include "Roblox/FileFormat/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
-#include "RobloxClient.h"
+#include "Engine.h"
 #include "NetClient.h"
 #include "Keychain/MasterKeychain.h"
 #include "Keychain/EmuKeychain.h"
@@ -139,19 +139,19 @@ public:
     std::string GetIndexMessage();
 
     //////////////// Client Related Functions ////////////////
-    std::vector<RobloxClient> GetInstalledClients();
-    std::vector<RobloxClient> GetClientsFromIndex();
-    std::vector<RobloxClient> GetAllClients();
-    std::filesystem::path GetClientDirectory(const RobloxClient &client);
+    std::vector<Engine> GetInstalledEngines();
+    std::vector<Engine> GetEnginesFromIndex();
+    std::vector<Engine> GetAllEngines();
+    std::filesystem::path GetEngineDirectory(const Engine &client);
 
     /* This searches your engines directory and compiles a list of usable engines */
     void DiscoverEngines();
 
-    bool IsClientInstalled(const RobloxClient &client);
-    void DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback);
-    ClientLaunchResponse LaunchClient(const RobloxClient &client);
+    bool IsEngineInstalled(const Engine &client);
+    void DownloadAndInstallEngine(const Engine &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback);
+    EngineLaunchResponse LaunchEngine(const Engine &client);
 private:
-    ClientLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
+    EngineLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
 
     event_base*                     mEventBase;
 

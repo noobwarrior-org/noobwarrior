@@ -29,7 +29,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Config.h>
 #include <NoobWarrior/Log.h>
-#include <NoobWarrior/RobloxClient.h>
+#include <NoobWarrior/Engine.h>
 
 #include <QApplication>
 #include <QDir>
@@ -179,7 +179,7 @@ void Application::DownloadAndInstallWine(std::function<void(bool)> callback) {
     dialog->setModal(false);
 }
 
-void Application::DownloadAndInstallClient(const RobloxClient &client, std::function<void(bool)> callback) {
+void Application::DownloadAndInstallEngine(const Engine &client, std::function<void(bool)> callback) {
     Out("Application", "Installing client {}", client.Version);
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -197,8 +197,8 @@ void Application::DownloadAndInstallClient(const RobloxClient &client, std::func
 
     QPointer<LoadingDialog> dialogPtr(dialog);
 
-    auto install_callback = std::make_shared<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>>(
-        [=](ClientInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
+    auto install_callback = std::make_shared<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>>(
+        [=](EngineInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
             double sizeMb = static_cast<double>(size) / (1024 * 1024);
             double totalSizeMb = static_cast<double>(totalSize) / (1024 * 1024);
 
@@ -208,69 +208,69 @@ void Application::DownloadAndInstallClient(const RobloxClient &client, std::func
 
                 switch (state) {
                 default: break;
-                case ClientInstallState::RetrievingIndex:
+                case EngineInstallState::RetrievingIndex:
                     dialogPtr->SetText("Retrieving index...");
                     dialogPtr->SetProgress(-1);
                     break;
-                case ClientInstallState::DownloadingFiles:
-                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(ClientTypeAsTranslatableString(client.Type)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
+                case EngineInstallState::DownloadingFiles:
+                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(EngineSideAsTranslatableString(client.Side)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
                     if (totalSizeMb > 0) // pls dont ever divide by 0
                         dialogPtr->SetProgress(sizeMb / totalSizeMb);
                     break;
-                case ClientInstallState::ExtractingFiles:
+                case EngineInstallState::ExtractingFiles:
                     dialogPtr->SetText("Extracting files...");
                     dialogPtr->SetProgress(-1);
                     break;
                 }
 
-                if (state == ClientInstallState::Failed || state == ClientInstallState::Success) {
-                    if (state == ClientInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
+                if (state == EngineInstallState::Failed || state == EngineInstallState::Success) {
+                    if (state == EngineInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
                     dialogPtr->close();
-                    callback(state == ClientInstallState::Success);
+                    callback(state == EngineInstallState::Success);
                 }
             });
         }
     );
 
-    mCore->DownloadAndInstallClient(client, transfers, install_callback);
+    mCore->DownloadAndInstallEngine(client, transfers, install_callback);
 }
 
-void Application::LaunchClient(const RobloxClient &client) {
-    std::function callback = [this, client](bool success) {
+void Application::LaunchEngine(const Engine &engine) {
+    std::function callback = [this, engine](bool success) {
         if (!success) return;
         
         auto *dialog = new LoadingDialog(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModal(false);
-        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(ClientTypeAsTranslatableString(client.Type)), QString::fromStdString(client.Version)));
+        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsTranslatableString(engine.Side)), QString::fromStdString(engine.Version)));
         dialog->DisableCancel(true);
         dialog->show();
 
-        ClientLaunchResponse res = mCore->LaunchClient(client);
-        if (res != ClientLaunchResponse::Success) {
+        EngineLaunchResponse res = mCore->LaunchEngine(engine);
+        if (res != EngineLaunchResponse::Success) {
             QString errMsg;
             switch (res) {
             default: errMsg = "An error occurred while trying to launch Roblox."; break;
-            case ClientLaunchResponse::NotInstalled: errMsg = "The client that you are trying to launch is not installed on your computer. Please install it and try again."; break;
-            case ClientLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
-            case ClientLaunchResponse::FailedToCreateProcess: errMsg = "Could not create a valid process for Roblox."; break;
-            case ClientLaunchResponse::InjectFailed: errMsg = "Failed to inject into the Roblox process."; break;
-            case ClientLaunchResponse::InjectDllMissing: errMsg = "Failed to locate DLL file. Please make sure it's in the right place."; break;
-            case ClientLaunchResponse::InjectCannotAccessProcess: errMsg = "Could not access the Roblox process in order to perform DLL injection. Do you have a kernel-level anti-cheat running?"; break;
-            case ClientLaunchResponse::InjectWrongArchitecture: errMsg = "Tried injecting 64-bit DLL into 32-bit process. If you are on a 32-bit version of Windows, this error message is misleading. Feel free to fix it!"; break;
-            case ClientLaunchResponse::InjectCannotWriteToProcessMemory: errMsg = "Could not write arbitrary memory to the Roblox process."; break;
-            case ClientLaunchResponse::InjectCannotCreateThreadInProcess: errMsg = "Could not create a thread in the Roblox process."; break;
-            case ClientLaunchResponse::InjectCouldNotGetReturnValueOfLoadLibrary: errMsg = "Could not get the return value of the LoadLibrary API call."; break;
-            case ClientLaunchResponse::InjectFailedToLoadLibrary: errMsg = "Failed to load the DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
-            case ClientLaunchResponse::InjectFailedToResumeProcess: errMsg = "Failed to resume Roblox process after injecting DLL."; break;
+            case EngineLaunchResponse::NotInstalled: errMsg = "The engine that you are trying to launch is not installed on your computer. Please install it and try again."; break;
+            case EngineLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
+            case EngineLaunchResponse::FailedToCreateProcess: errMsg = "Could not create a valid process for Roblox."; break;
+            case EngineLaunchResponse::InjectFailed: errMsg = "Failed to inject into the Roblox process."; break;
+            case EngineLaunchResponse::InjectDllMissing: errMsg = "Failed to locate DLL file. Please make sure it's in the right place."; break;
+            case EngineLaunchResponse::InjectCannotAccessProcess: errMsg = "Could not access the Roblox process in order to perform DLL injection. Do you have a kernel-level anti-cheat running?"; break;
+            case EngineLaunchResponse::InjectWrongArchitecture: errMsg = "Tried injecting 64-bit DLL into 32-bit process. If you are on a 32-bit version of Windows, this error message is misleading. Feel free to fix it!"; break;
+            case EngineLaunchResponse::InjectCannotWriteToProcessMemory: errMsg = "Could not write arbitrary memory to the Roblox process."; break;
+            case EngineLaunchResponse::InjectCannotCreateThreadInProcess: errMsg = "Could not create a thread in the Roblox process."; break;
+            case EngineLaunchResponse::InjectCouldNotGetReturnValueOfLoadLibrary: errMsg = "Could not get the return value of the LoadLibrary API call."; break;
+            case EngineLaunchResponse::InjectFailedToLoadLibrary: errMsg = "Failed to load the DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
+            case EngineLaunchResponse::InjectFailedToResumeProcess: errMsg = "Failed to resume Roblox process after injecting DLL."; break;
             }
-            QMessageBox::critical(dialog, "Cannot Launch Client", errMsg);
+            QMessageBox::critical(dialog, "Cannot Launch Engine", errMsg);
             dialog->close();
         }
     };
 
-    if (!mCore->IsClientInstalled(client)) {
-        DownloadAndInstallClient(client, callback);
+    if (!mCore->IsEngineInstalled(engine)) {
+        DownloadAndInstallEngine(engine, callback);
     } else callback(true);
 }
 

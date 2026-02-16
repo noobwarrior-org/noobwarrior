@@ -25,7 +25,7 @@
 #include "InstallationPage.h"
 #include "../Application.h"
 
-#include <NoobWarrior/RobloxClient.h>
+#include <NoobWarrior/Engine.h>
 
 #include <QGroupBox>
 #include <QLabel>
@@ -37,10 +37,10 @@
 
 using namespace NoobWarrior;
 
-static std::map<ClientType, QString> sIcons = {
-    { ClientType::Client, QString(":/images/client.png") },
-    { ClientType::Server, QString(":/images/server.png") },
-    { ClientType::Studio, QString(":/images/studio.png") }
+static std::map<EngineSide, QString> sIcons = {
+    { EngineSide::Client, QString(":/images/client.png") },
+    { EngineSide::Server, QString(":/images/server.png") },
+    { EngineSide::Studio, QString(":/images/studio.png") }
 };
 
 InstallationPage::InstallationPage(QWidget *parent) : SettingsPage(parent),
@@ -62,29 +62,29 @@ void InstallationPage::InitWidgets() {
 
     StackedWidget = new QStackedWidget();
 
-    for (int i = 0; i <= ClientTypeCount; i++) {
-        auto clientType = static_cast<ClientType>(i);
-        auto clientTypeItem = new QListWidgetItem(QIcon(sIcons[clientType]), ClientTypeAsTranslatableString(clientType), ListWidget);
-        QFont font = clientTypeItem->font();
+    for (int i = 0; i < EngineSideCount; i++) {
+        auto engineSide = static_cast<EngineSide>(i);
+        auto engineSideItem = new QListWidgetItem(QIcon(sIcons[engineSide]), EngineSideAsTranslatableString(engineSide), ListWidget);
+        QFont font = engineSideItem->font();
         font.setPointSize(12);
-        clientTypeItem->setFont(font);
+        engineSideItem->setFont(font);
 
-        auto clientView = new QTreeView(StackedWidget);
-        clientView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        clientView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        auto engineView = new QTreeView(StackedWidget);
+        engineView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        engineView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-        auto clientModel = new QStandardItemModel(clientView);
-        clientModel->setColumnCount(6);
-        clientModel->setHorizontalHeaderLabels({"", "Latest", "Installed", "Version", "Hash", "Date"});
-        clientView->setModel(clientModel);
-        clientView->setColumnHidden(0, true); // for some odd reason, the first column cannot be reordered. so we just make it blank and hide it. good job!
+        auto engineModel = new QStandardItemModel(engineView);
+        engineModel->setColumnCount(6);
+        engineModel->setHorizontalHeaderLabels({"", "Latest", "Installed", "Version", "Hash", "Date"});
+        engineView->setModel(engineModel);
+        engineView->setColumnHidden(0, true); // for some odd reason, the first column cannot be reordered. so we just make it blank and hide it. good job!
 
-        ClientVersionViewMap.emplace(clientType, clientView);
-        ClientVersionModelMap.emplace(clientType, clientModel);
-        StackedWidget->addWidget(clientView);
+        EngineVersionViewMap.emplace(engineSide, engineView);
+        EngineVersionModelMap.emplace(engineSide, engineModel);
+        StackedWidget->addWidget(engineView);
 
-        connect(ListWidget, &QListWidget::currentItemChanged, [this, i, clientTypeItem](QListWidgetItem *current, QListWidgetItem *previous) {
-            if (current == clientTypeItem)
+        connect(ListWidget, &QListWidget::currentItemChanged, [this, i, engineSideItem](QListWidgetItem *current, QListWidgetItem *previous) {
+            if (current == engineSideItem)
                 StackedWidget->setCurrentIndex(i);
         });
     }
@@ -131,45 +131,46 @@ void InstallationPage::Refresh() {
         IndexMessageLabel->setVisible(true);
     }
 
-    for (int i = 0; i <= ClientTypeCount; i++) {
-        auto clientType = static_cast<ClientType>(i);
-        const char* clientTypeStr = ClientTypeAsTranslatableString(clientType);
-        QStandardItemModel *clientVersionModel = ClientVersionModelMap.at(clientType);
-        clientVersionModel->removeRows(0, clientVersionModel->rowCount());
-        clientVersionModel->setRowCount(0);
+    for (int i = 0; i <= EngineSideCount; i++) {
+        auto engineSide = static_cast<EngineSide>(i);
+        const char* clientTypeStr = EngineSideAsTranslatableString(engineSide);
+        QStandardItemModel *engineVersionModel = EngineVersionModelMap.at(engineSide);
+        engineVersionModel->removeRows(0, engineVersionModel->rowCount());
+        engineVersionModel->setRowCount(0);
 
         if (!index["Roblox"].contains(clientTypeStr)) {
             QMessageBox::critical(this, "Error", QString("The index does not contain \"%1\" within the list.").arg(clientTypeStr));
             continue;
         }
 
-        for (auto &clientInfo : index["Roblox"][clientTypeStr]) {
-            std::string hash = clientInfo.at("Hash").get<std::string>();
-            std::string version = clientInfo.at("Version").get<std::string>();
-            std::string date = clientInfo.at("Date").get<std::string>();
+        for (auto &engineInfo : index["Roblox"][clientTypeStr]) {
+            std::string hash = engineInfo.at("Hash").get<std::string>();
+            std::string version = engineInfo.at("Version").get<std::string>();
+            std::string date = engineInfo.at("Date").get<std::string>();
 
             auto dateTime = QDateTime::fromString(QString::fromStdString(date), Qt::ISODate);
 
-            RobloxClient client = {
-                .Type = clientType,
+            Engine engine = {
+                .Type = EngineType::Roblox,
+                .Side = engineSide,
                 .Hash = hash,
                 .Version = version
             };
 
-            QList<QStandardItem*> clientRow;
-            clientRow
+            QList<QStandardItem*> engineRow;
+            engineRow
                 << new QStandardItem("")
                 << new QStandardItem(QIcon(":/images/silk/star.png"), "")
-                << new QStandardItem(QIcon(gApp->GetCore()->IsClientInstalled(client) ? ":/images/silk/tick.png" : ":/images/silk/cross.png"), "")
+                << new QStandardItem(QIcon(gApp->GetCore()->IsEngineInstalled(engine) ? ":/images/silk/tick.png" : ":/images/silk/cross.png"), "")
                 << new QStandardItem(QString::fromStdString(version))
                 << new QStandardItem(QString::fromStdString(hash))
                 << new QStandardItem(dateTime.toString("ddd MMMM d yyyy h:mm:ss AP"));
-            clientVersionModel->appendRow(clientRow);
+            engineVersionModel->appendRow(engineRow);
         }
 
-        QTreeView *clientVersionView = ClientVersionViewMap.at(clientType);
-        for (int i = 0; i < clientVersionModel->columnCount(); i++) {
-            clientVersionView->resizeColumnToContents(i);
+        QTreeView *engineVersionView = EngineVersionViewMap.at(engineSide);
+        for (int i = 0; i < engineVersionModel->columnCount(); i++) {
+            engineVersionView->resizeColumnToContents(i);
         }
     }
 }

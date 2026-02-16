@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: RobloxClient.h
+// File: Engine.h
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description:
@@ -26,30 +26,35 @@
 #include <string>
 
 namespace NoobWarrior {
-constexpr int ClientTypeCount = 2;
-enum class ClientType {
+constexpr int EngineTypeCount = 1;
+enum class EngineType {
+    Roblox
+};
+
+constexpr int EngineSideCount = 3;
+enum class EngineSide {
     Client,
     Server,
     Studio
 };
 
-inline const char *ClientTypeAsTranslatableString(ClientType type) {
-    switch (type) {
-    case ClientType::Client: return "Client";
-    case ClientType::Server: return "Server";
-    case ClientType::Studio: return "Studio";
+inline const char *EngineSideAsTranslatableString(EngineSide side) {
+    switch (side) {
+    case EngineSide::Client: return "Client";
+    case EngineSide::Server: return "Server";
+    case EngineSide::Studio: return "Studio";
     }
     return "None";
 }
 
-struct RobloxClient {
-    int                     NoobWarriorVersion  {};
-    ClientType              Type                {};
-    std::string             Hash                {};
-    std::string             Version             {};
+struct Engine {
+    EngineType  Type    {};
+    EngineSide  Side    {};
+    std::string Hash    {};
+    std::string Version {};
 };
 
-enum class ClientInstallState {
+enum class EngineInstallState {
     Failed,
     Success,
     RetrievingIndex,
@@ -57,7 +62,7 @@ enum class ClientInstallState {
     ExtractingFiles
 };
 
-enum class ClientLaunchResponse {
+enum class EngineLaunchResponse {
     Failed,
     Success,
     NotInstalled,

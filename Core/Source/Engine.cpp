@@ -18,14 +18,15 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: RobloxClient.cpp
+// File: Engine.cpp
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description: Implementation for all methods related to handling Roblox clients
 #include <NoobWarrior/Log.h>
-#include <NoobWarrior/RobloxClient.h>
+#include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/NetClient.h>
+#include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>
 #include <curl/multi.h>
@@ -44,29 +45,34 @@
 
 using namespace NoobWarrior;
 
-std::vector<RobloxClient> Core::GetInstalledClients() {
+std::vector<Engine> Core::GetInstalledEngines() {
     return {};
 }
 
-std::vector<RobloxClient> Core::GetClientsFromIndex() {
+std::vector<Engine> Core::GetEnginesFromIndex() {
     nlohmann::json index;
     int res = RetrieveIndex(index);
     if (res != CURLE_OK)
         return {};
-}
-
-std::vector<RobloxClient> Core::GetAllClients() {
     return {};
 }
 
-std::filesystem::path Core::GetClientDirectory(const RobloxClient &client) {
-    std::string dirName;
-    switch (client.Type) {
-    case ClientType::Client: dirName = "client"; break;
-    case ClientType::Server: dirName = "server"; break;
-    case ClientType::Studio: dirName = "studio"; break;
-    }
-    const std::filesystem::path dir = GetUserDataDir() / "roblox" / dirName / ("version-" + client.Hash);
+std::vector<Engine> Core::GetAllEngines() {
+    return {};
+}
+
+std::filesystem::path Core::GetEngineDirectory(const Engine &engine) {
+    std::filesystem::path dir = GetUserDataDir();
+    switch (engine.Type) {
+    default:
+        switch (engine.Side) {
+        case EngineSide::Client: dir = dir / NW_PATH_ENGINES_ROBLOX_CLIENT; break;
+        case EngineSide::Server: dir = dir / NW_PATH_ENGINES_ROBLOX_SERVER; break;
+        case EngineSide::Studio: dir = dir / NW_PATH_ENGINES_ROBLOX_STUDIO; break;
+        }
+        break;
+    }  
+    dir /= ("version-" + engine.Hash);
     return dir;
 }
 
@@ -74,10 +80,10 @@ void Core::DiscoverEngines() {
 
 }
 
-bool Core::IsClientInstalled(const RobloxClient &client) {
-    if (!std::filesystem::exists(GetClientDirectory(client))) return false;
+bool Core::IsEngineInstalled(const Engine &engine) {
+    if (!std::filesystem::exists(GetEngineDirectory(engine))) return false;
     bool foundExe = false;
-    for (const auto &entry : std::filesystem::directory_iterator(GetClientDirectory(client))) {
+    for (const auto &entry : std::filesystem::directory_iterator(GetEngineDirectory(engine))) {
         if (entry.path().extension() == ".exe")
             foundExe = true;
     }
@@ -94,17 +100,17 @@ struct data_to_pass_to_progress_callback {
     int transfer_id;
     std::vector<std::shared_ptr<Transfer>> *transfers_vector;
     std::mutex *transfers_vector_mutex; // Our mutex that locks down access to the std::vector<> object that contains the data for the download total and stuff.
-    std::function<void(ClientInstallState, CURLcode, size_t, size_t)> *callback;
+    std::function<void(EngineInstallState, CURLcode, size_t, size_t)> *callback;
     std::mutex *callback_mutex;
     std::atomic_bool *cancelled;
 };
 
-static int ProgressCallback(void *clientp,
+static int ProgressCallback(void *enginep,
                       curl_off_t dltotal,
                       curl_off_t dlnow,
                       curl_off_t ultotal,
                       curl_off_t ulnow) {
-    auto data = static_cast<data_to_pass_to_progress_callback*>(clientp);
+    auto data = static_cast<data_to_pass_to_progress_callback*>(enginep);
     if (data->cancelled && data->cancelled->load()) {
         return 1; // Aborts the transfer
     }
@@ -130,31 +136,31 @@ static int ProgressCallback(void *clientp,
     data->transfers_vector_mutex->unlock();
 
     data->callback_mutex->lock();
-        (*data->callback)(ClientInstallState::DownloadingFiles, CURLE_OK, combinedDownloadNow, combinedDownloadTotal);
+        (*data->callback)(EngineInstallState::DownloadingFiles, CURLE_OK, combinedDownloadNow, combinedDownloadTotal);
     data->callback_mutex->unlock();
     return 0;
 }
 
-void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(ClientInstallState, CURLcode, size_t, size_t)>> callback) {
+void Core::DownloadAndInstallEngine(const Engine &engine, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback) {
     nlohmann::json index;
     int res = RetrieveIndex(index);
     if (res != CURLE_OK) {
         Out("Download", "Failed to retrieve index");
-        (*callback)(ClientInstallState::Failed, static_cast<CURLcode>(res), 0, 0);
+        (*callback)(EngineInstallState::Failed, static_cast<CURLcode>(res), 0, 0);
         return;
     }
 
-    bool foundClient = false;
+    bool foundEngine = false;
 
     auto output_mutex = std::make_shared<std::mutex>(); // Don't ask me why I didn't just make this part of the Out function. Because I don't know either!
     auto callback_mutex = std::make_shared<std::mutex>();
     auto access_transfers_mutex = std::make_shared<std::mutex>();
     
-    for (nlohmann::json &clientInfo : index["Roblox"][ClientTypeAsTranslatableString(client.Type)]) {
-        if (clientInfo.contains("Hash") && clientInfo["Hash"].get<std::string>().compare(client.Hash) == 0) {
+    for (nlohmann::json &engineInfo : index["Roblox"][EngineSideAsTranslatableString(engine.Side)]) {
+        if (engineInfo.contains("Hash") && engineInfo["Hash"].get<std::string>().compare(engine.Hash) == 0) {
             // we have found the client we want to install!
-            Out("Download", "Found client {}", clientInfo["Hash"].get<std::string>());
-            foundClient = true;
+            Out("Download", "Found client {}", engineInfo["Hash"].get<std::string>());
+            foundEngine = true;
             std::function addFile = [&](nlohmann::json &fileInfo) {
                 std::string url;
                 std::string customFileName;
@@ -180,8 +186,8 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     Out("Download", "Downloading file {} from URL \"{}\"", customFileName, url);
                 output_mutex->unlock();
 
-                std::filesystem::path client_dir = GetClientDirectory(client);
-                std::filesystem::path tmp_download_dir = GetUserDataDir() / "temp" / "downloads" / "clients" / client.Hash;
+                std::filesystem::path client_dir = GetEngineDirectory(engine);
+                std::filesystem::path tmp_download_dir = GetUserDataDir() / NW_PATH_TEMP_DOWNLOADS_ENGINES / engine.Hash;
                 std::filesystem::create_directories(client_dir);
                 std::filesystem::create_directories(tmp_download_dir);
 
@@ -193,7 +199,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     output_mutex->lock();
                         Out("Download", "Error downloading: Detected file \"{}\"; Only .zip files are allowed when it comes to archives!", tmp_download_file.string());
                     output_mutex->unlock();
-                    (*callback)(ClientInstallState::Failed, CURLE_OK, 0, 0);
+                    (*callback)(EngineInstallState::Failed, CURLE_OK, 0, 0);
                     return;
                 }
 
@@ -204,7 +210,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     output_mutex->lock();
                         Out("Download", "Failed to open file \"{}\" for writing", tmp_download_file.string());
                     output_mutex->unlock();
-                    (*callback)(ClientInstallState::Failed, CURLE_OK, 0, 0);
+                    (*callback)(EngineInstallState::Failed, CURLE_OK, 0, 0);
                     return;
                 }
                 
@@ -215,7 +221,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                     // Downloading the file
                     CURL *handle = curl_easy_init();
                     if (!handle) {
-                        (*callback)(ClientInstallState::Failed, CURLE_FAILED_INIT, 0, 0);
+                        (*callback)(EngineInstallState::Failed, CURLE_FAILED_INIT, 0, 0);
                         return;
                     }
                     transfer->Handle = handle;
@@ -238,7 +244,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
 
                     CURLcode res = curl_easy_perform(handle);
                     callback_mutex->lock();
-                        (*callback)(res != CURLE_OK ? ClientInstallState::Failed : ClientInstallState::ExtractingFiles, res, 0, 0);
+                        (*callback)(res != CURLE_OK ? EngineInstallState::Failed : EngineInstallState::ExtractingFiles, res, 0, 0);
                     callback_mutex->unlock();
 
                     access_transfers_mutex->lock();
@@ -276,7 +282,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                             Out("Download", "Failed to open zip archive \"{}\"", tmp_download_file.string());
                         output_mutex->unlock();
                         callback_mutex->lock();
-                            (*callback)(ClientInstallState::Failed, res, 0, 0);
+                            (*callback)(EngineInstallState::Failed, res, 0, 0);
                         callback_mutex->unlock();
                         std::filesystem::remove(tmp_download_file);
                         delete my_data;
@@ -379,7 +385,7 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
                             Out("Download", "Successfully extracted archive {}", customFileName);
                         output_mutex->unlock();
                         callback_mutex->lock();
-                            (*callback)(ClientInstallState::Success, res, 0, 0);
+                            (*callback)(EngineInstallState::Success, res, 0, 0);
                         callback_mutex->unlock();
                     }
                     std::filesystem::remove(tmp_download_file);
@@ -388,18 +394,18 @@ void Core::DownloadAndInstallClient(const RobloxClient &client, std::shared_ptr<
             };
 
             // TODO: make this not shit and make sure my future employers wont see this
-            if (clientInfo["Files"].contains("Win32"))
-                for (nlohmann::json &fileInfo : clientInfo["Files"]["Win32"]) { addFile(fileInfo); }
-            if (clientInfo["Files"].contains("Win64"))
-                for (nlohmann::json &fileInfo : clientInfo["Files"]["Win64"]) { addFile(fileInfo); }
-            if (clientInfo["Files"].contains("Shared"))
-                for (nlohmann::json &fileInfo : clientInfo["Files"]["Shared"]) { addFile(fileInfo); }
+            if (engineInfo["Files"].contains("Win32"))
+                for (nlohmann::json &fileInfo : engineInfo["Files"]["Win32"]) { addFile(fileInfo); }
+            if (engineInfo["Files"].contains("Win64"))
+                for (nlohmann::json &fileInfo : engineInfo["Files"]["Win64"]) { addFile(fileInfo); }
+            if (engineInfo["Files"].contains("Shared"))
+                for (nlohmann::json &fileInfo : engineInfo["Files"]["Shared"]) { addFile(fileInfo); }
         }
     }
 
-    if (!foundClient) {
+    if (!foundEngine) {
         Out("Download", "Failed to find a client");
-        (*callback)(ClientInstallState::Failed, CURLE_OK, 0, 0);
+        (*callback)(EngineInstallState::Failed, CURLE_OK, 0, 0);
     }
 }
 
@@ -413,7 +419,7 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
 }
 #endif
 
-ClientLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::path &filePath) {
+EngineLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::path &filePath) {
     const std::filesystem::path &injectorPath = GetInstallationDir() / "noobhook_x86_injector.exe";
     std::wstring wargs = std::format(L"{} --file {}", injectorPath.wstring(), filePath.wstring());
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
@@ -425,7 +431,7 @@ ClientLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::p
     if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
         DWORD err = GetLastError();
         Out("Inject", "Failed to create injector process: {} ({})", err, LastErrorStr(err));
-        return ClientLaunchResponse::FailedToCreateProcess;
+        return EngineLaunchResponse::FailedToCreateProcess;
     }
 
     WaitForSingleObject(pi.hProcess, INFINITE);
@@ -434,23 +440,23 @@ ClientLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::p
     if (!GetExitCodeProcess(pi.hProcess, &exitCode)) {
         DWORD err = GetLastError();
         Out("Inject", "Failed to get exit code for injector process: {} ({})", err, LastErrorStr(err));
-        return ClientLaunchResponse::Failed;
+        return EngineLaunchResponse::Failed;
     }
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    return static_cast<ClientLaunchResponse>(exitCode);
+    return static_cast<EngineLaunchResponse>(exitCode);
 #elif defined(__unix__) || defined(__APPLE__)
     // where wine comes in
-    return ClientLaunchResponse::Failed;
+    return EngineLaunchResponse::Failed;
 #endif
 }
 
-ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
-    bool installed = IsClientInstalled(client);
-    if (!installed) return ClientLaunchResponse::NotInstalled;
-    const std::filesystem::path dir = GetClientDirectory(client);
+EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
+    bool installed = IsEngineInstalled(engine);
+    if (!installed) return EngineLaunchResponse::NotInstalled;
+    const std::filesystem::path dir = GetEngineDirectory(engine);
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
         std::string fn = entry.path().filename().string();
@@ -459,5 +465,5 @@ ClientLaunchResponse Core::LaunchClient(const RobloxClient &client) {
             break;
         }
     }
-    if (!exe.empty()) return LaunchProcessThroughInjector(exe); else return ClientLaunchResponse::NoValidExecutable;
+    if (!exe.empty()) return LaunchProcessThroughInjector(exe); else return EngineLaunchResponse::NoValidExecutable;
 }

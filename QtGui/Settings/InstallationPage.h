@@ -25,7 +25,7 @@
 #pragma once
 #include "SettingsPage.h"
 
-#include <NoobWarrior/RobloxClient.h>
+#include <NoobWarrior/Engine.h>
 
 #include <QListWidget>
 #include <QStackedWidget>
@@ -53,7 +53,7 @@ private:
     QLabel *IndexMessageLabel;
     QLabel *CannotConnectLabel;
 
-    std::map<ClientType, QTreeView*> ClientVersionViewMap;
-    std::map<ClientType, QStandardItemModel*> ClientVersionModelMap;
+    std::map<EngineSide, QTreeView*> EngineVersionViewMap;
+    std::map<EngineSide, QStandardItemModel*> EngineVersionModelMap;
 };
 }

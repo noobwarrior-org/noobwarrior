@@ -70,9 +70,9 @@ void HostServerDialog::InitWidgets() {
     mMainLayout->addWidget(mButtonBox);
 
     connect(mStartServer, &QPushButton::clicked, []() {
-        gApp->LaunchClient({
-            .NoobWarriorVersion = 1,
-            .Type = ClientType::Server,
+        gApp->LaunchEngine({
+            .Type = EngineType::Roblox,
+            .Side = EngineSide::Server,
             .Hash = "07b64feec0bd47c1",
             .Version = "0.463.0.417004"
         });

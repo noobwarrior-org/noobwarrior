@@ -28,6 +28,7 @@
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Url.h>
+#include <NoobWarrior/Paths.h>
 
 #include <event.h>
 #include <sqlite3.h>
@@ -188,16 +189,21 @@ std::filesystem::path Core::GetUserDataDir() {
 
 void Core::CreateStandardUserDataDirectories() {
 #define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path);
-    NW_CREATE("databases")
-    NW_CREATE("plugins")
-    NW_CREATE("registry")
-    NW_CREATE("roblox" / "client")
-    NW_CREATE("roblox" / "server")
-    NW_CREATE("roblox" / "studio")
-    NW_CREATE("temp" / "downloads" / "clients")
+    NW_CREATE(NW_PATH_DATABASES)
+    NW_CREATE(NW_PATH_PLUGINS)
+    NW_CREATE(NW_PATH_REGISTRY)
+    NW_CREATE(NW_PATH_ENGINES)
+    NW_CREATE(NW_PATH_ENGINES_ROBLOX)
+    NW_CREATE(NW_PATH_ENGINES_ROBLOX_CLIENT)
+    NW_CREATE(NW_PATH_ENGINES_ROBLOX_SERVER)
+    NW_CREATE(NW_PATH_ENGINES_ROBLOX_STUDIO)
+    NW_CREATE(NW_PATH_TEMP)
+    NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
+    NW_CREATE(NW_PATH_TEMP_DOWNLOADS_ENGINES)
 #if defined(__unix__) || defined(__APPLE__)
-    NW_CREATE("wine" / "root")
-    NW_CREATE("wine" / "prefix")
+    NW_CREATE(NW_PATH_WINE)
+    NW_CREATE(NW_PATH_WINE_ROOT)
+    NW_CREATE(NW_PATH_WINE_PREFIX)
 #endif
 #undef NW_CREATE
 }

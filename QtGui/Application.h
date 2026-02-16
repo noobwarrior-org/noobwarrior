@@ -36,10 +36,10 @@ public:
     Core *GetCore();
     bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
 
-    // GUI versions for downloading clients
+    // GUI versions for downloading engines
     void DownloadAndInstallWine(std::function<void(bool)> callback);
-    void DownloadAndInstallClient(const RobloxClient &client, std::function<void(bool)> callback);
-    void LaunchClient(const RobloxClient &client);
+    void DownloadAndInstallEngine(const Engine &engine, std::function<void(bool)> callback);
+    void LaunchEngine(const Engine &engine);
 private:
     Init mInit {};
     Core *mCore;
