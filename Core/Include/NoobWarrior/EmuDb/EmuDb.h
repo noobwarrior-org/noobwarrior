@@ -123,6 +123,8 @@ public:
         ZStandard
     };
 
+    static std::vector<unsigned char> RetrieveAssetTypeImageData(Roblox::AssetType type);
+
     /**
      * @param autocommit Will enable SQLite's auto-commit feature if true; any writes you do to the database are immediately saved to disk. Set this to false if you are not using this in the context of a rapidly changing online database.
      */

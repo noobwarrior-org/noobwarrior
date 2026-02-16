@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 2/8/2026
 // Description: Dialog window that allows you to edit or create an item.
+// Warning: This code fucking sucks. Everything is hardcoded. Don't tell me to do reflection in C++
 #include "ItemDialog.h"
 #include "ItemOpenSaveDialog.h"
 #include "NoobWarrior/EmuDb/ItemType.h"
@@ -50,6 +51,8 @@ void ItemDialog::RegenWidgets() {
         return;
     }
 
+    std::string tableName = GetTableNameFromItemType(mType);
+
     setWindowTitle(tr("Configure %1").arg(QString::fromStdString(Item::TypeName)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
@@ -68,10 +71,22 @@ void ItemDialog::RegenWidgets() {
     mSidebarLayout->addWidget(mIcon);
     // mSidebarLayout->addStretch();
 
-    if (!(Item::TypeName.compare("Asset") == 0 || Item::TypeName.compare("User") == 0)) {
-        auto *changeIcon = new QPushButton("Change Icon");
-        mSidebarLayout->addWidget(changeIcon);
-        connect(changeIcon, &QPushButton::clicked, [this]() {
+    std::vector<unsigned char> data;
+
+    QImage image;
+
+    if (mId.has_value())
+        data = std::move(db->RetrieveImageData(tableName, mId.has_value() ? mId.value() : -1));
+    else
+        data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+
+    image.loadFromData(data);
+    mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    if (!(tableName.compare("Asset") == 0 || tableName.compare("User") == 0)) {
+        auto *changeImage = new QPushButton("Change Image");
+        mSidebarLayout->addWidget(changeImage);
+        connect(changeImage, &QPushButton::clicked, [this]() {
             // TODO: Add ItemOpenSaveDialog here
             int id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
             /*
@@ -122,25 +137,9 @@ void ItemDialog::RegenWidgets() {
     mUpdatedInput->setDate(QDate::currentDate());
     mContentLayout->addRow("Updated", mUpdatedInput);
 
-    if (mType == ItemType::Asset) {
-        AddAssetWidgets();
-    }
-
-    std::vector<unsigned char> data;
-
-    QImage image;
-
-    if (mId.has_value())
-        data = std::move(db->RetrieveImageData("Asset", mId.has_value() ? mId.value() : -1));
-    else
-        data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
-
-    image.loadFromData(data);
-    mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-
     if (mId.has_value()) {
         // deserialization
-        Statement stmt = db->PrepareStatement("SELECT Id, Name, Description, Created, Updated FROM Asset WHERE Id = ?;");
+        Statement stmt = db->PrepareStatement(std::format("SELECT Id, Name, Description, Created, Updated FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
             int id = stmt.GetIntFromColumnIndex(0);
@@ -157,6 +156,19 @@ void ItemDialog::RegenWidgets() {
         }
     }
 
+    switch (mType) {
+    default:
+        QMessageBox::warning(
+            this,
+            "Warning",
+            "The item type you are trying to configure does not have a custom implementation for this screen. Things will probably not work."
+        );
+        break;
+    case ItemType::Asset:
+        AddAssetWidgets();
+        break;
+    }
+
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
     mContentLayout->addWidget(mButtonBox);
 
@@ -165,6 +177,26 @@ void ItemDialog::RegenWidgets() {
     connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
         close();
     });
+}
+
+void ItemDialog::OnSave() {
+    auto *db = GetDatabase();
+
+    switch (mType) {
+    default:
+        QMessageBox::warning(
+            this,
+            "Cannot Save Changes",
+            "No save implementation has been made for this item type. Your changes will not be saved."
+        );
+        return;
+    case ItemType::Asset:
+        OnSaveAsset();
+        break;
+    }
+    
+    db->MarkDirty();
+    close();
 }
 
 void ItemDialog::AddAssetWidgets() {
@@ -254,33 +286,28 @@ void ItemDialog::AddAssetTypeWidgets() {
     }
 }
 
-void ItemDialog::OnSave() {
+void ItemDialog::OnSaveAsset() {
     auto *db = GetDatabase();
 
     int64_t id = mIdInput->text().toInt();
     std::string name = mNameInput->text().toStdString();
     std::string description = mDescriptionInput->text().toStdString();
 
-    if (mType == ItemType::Asset) {
-        Statement stmt = db->PrepareStatement(R"(
-            INSERT INTO Asset (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT (Id) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
-        )");
-        stmt.Bind(1, id);
-        stmt.Bind(2, name);
-        stmt.Bind(3, description);
-        stmt.Bind(4, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
-        stmt.Bind(5, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
-        stmt.Bind(6, static_cast<int>(mAssetTypeInput->currentIndex()));
+    Statement stmt = db->PrepareStatement(R"(
+        INSERT INTO Asset (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (Id) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
+    )");
+    stmt.Bind(1, id);
+    stmt.Bind(2, name);
+    stmt.Bind(3, description);
+    stmt.Bind(4, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(5, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(6, static_cast<int>(mAssetTypeInput->currentIndex()));
 
-        if (stmt.Step() != SQLITE_DONE) {
-            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
-            return;
-        }
+    if (stmt.Step() != SQLITE_DONE) {
+        QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        return;
     }
-    
-    db->MarkDirty();
-    close();
 }
 
 EmuDb* ItemDialog::GetDatabase() {

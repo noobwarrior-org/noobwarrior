@@ -48,14 +48,15 @@ namespace NoobWarrior {
 class ItemDialog : public QDialog {
 public:
     ItemDialog(EmuDb* db, ItemType type, std::optional<int> id = std::nullopt, QWidget *parent = nullptr);
-
+protected:
     void RegenWidgets();
+    void OnSave();
+
+    void AddAssetWidgets();
+    void AddAssetTypeWidgets();    
+    void OnSaveAsset();
 
     EmuDb* GetDatabase();
-protected:
-    void AddAssetWidgets();
-    void AddAssetTypeWidgets();
-    void OnSave();
 
     EmuDb* mDb;
     ItemType mType;

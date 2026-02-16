@@ -54,9 +54,9 @@
 #include <fstream>
 #include <qnamespace.h>
 
-#define ADD_ITEMTYPE(typeName, itemType) \
+#define ADD_ITEMTYPE(typeName, iconStr, itemType) \
     QString typeName##_Name = QString::fromStdString(#typeName); \
-    auto typeName##_InsertAction = new QAction(QIcon(""), typeName##_Name, mInsertMenu); \
+    auto typeName##_InsertAction = new QAction(QIcon(iconStr), typeName##_Name, mInsertMenu); \
     typeName##_InsertAction->setObjectName("RequireProjectButton"); \
     mInsertMenu->addAction(typeName##_InsertAction); \
     connect(typeName##_InsertAction, &QAction::triggered, [this]() { \
@@ -348,7 +348,16 @@ void Sdk::InitMenus() {
     mProjectMenu = menuBar()->addMenu(tr("&Project"));
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    ADD_ITEMTYPE(Asset, ItemType::Asset)
+    ADD_ITEMTYPE(Asset, ":/images/silk/brick_add.png", ItemType::Asset)
+    ADD_ITEMTYPE(Badge, ":/images/silk/medal_gold_add.png", ItemType::Badge)
+    ADD_ITEMTYPE(Bundle, ":/images/silk/package_add.png", ItemType::Bundle)
+    ADD_ITEMTYPE(DevProduct, ":/images/silk/key_add.png", ItemType::DevProduct)
+    ADD_ITEMTYPE(Group, ":/images/silk/group.png", ItemType::Group)
+    ADD_ITEMTYPE(Outfit, ":/images/silk/user_female.png", ItemType::Outfit)
+    ADD_ITEMTYPE(Pass, ":/images/silk/vcard_add.png", ItemType::Pass)
+    ADD_ITEMTYPE(Set, ":/images/silk/bricks.png", ItemType::Set)
+    ADD_ITEMTYPE(Universe, ":/images/silk/world_add.png", ItemType::Universe)
+    ADD_ITEMTYPE(User, ":/images/silk/user_add.png", ItemType::User)   
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 
@@ -453,8 +462,6 @@ void Sdk::InitWidgets() {
     mViewToolBar->addAction(mFileManagerViewAction);
 
     mInsertToolBar = new QToolBar("Insert", this);
-    mInsertToolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
-
     for (QAction* itemTypeAction : mInsertItemTypeActions) {
         mInsertToolBar->addAction(itemTypeAction);
     }

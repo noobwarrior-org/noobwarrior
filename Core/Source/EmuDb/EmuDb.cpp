@@ -35,6 +35,7 @@
 #include "../algorithm/base64.h"
 
 #include "NoobWarrior/EmuDb/ContentImages.h"
+#include "NoobWarrior/Roblox/Api/Asset.h"
 #include "migrations/migration_table.sql.inc.cpp"
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
@@ -44,6 +45,25 @@
 #include "migrations/v6.sql.inc.cpp"
 
 using namespace NoobWarrior;
+
+std::vector<unsigned char> RetrieveAssetTypeImageData(Roblox::AssetType type) {
+	std::vector<unsigned char> imgData;
+	switch (type) {
+	default:
+		imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+		break;
+	case Roblox::AssetType::Model:
+		imgData.assign(g_model_png, g_model_png + g_model_png_size);
+		break;
+	case Roblox::AssetType::Audio:
+		imgData.assign(g_audio_png, g_audio_png + g_audio_png_size);
+		break;
+	case Roblox::AssetType::Animation:
+		imgData.assign(g_animation_png, g_animation_png + g_animation_png_size);
+		break;
+	}
+	return imgData;
+}
 
 EmuDb::EmuDb(const std::string &path, bool autocommit) :
 	SqlDb(path, "EmuDb"),
@@ -453,7 +473,7 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
 					return imgBlob;
 				}
             }
-        }
+		}
 	}
 
 	Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;",
