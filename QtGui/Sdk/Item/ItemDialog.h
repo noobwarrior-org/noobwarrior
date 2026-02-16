@@ -31,8 +31,10 @@
 #include <QFileDialog>
 #include <QDateTimeEdit>
 #include <QMessageBox>
+#include <QComboBox>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
+#include <NoobWarrior/EmuDb/ItemType.h>
 
 #include <memory>
 #include <optional>
@@ -45,18 +47,20 @@
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
 public:
-    ItemDialog(QWidget *parent = nullptr, std::optional<int> id = std::nullopt);
+    ItemDialog(EmuDb* db, ItemType type, std::optional<int> id = std::nullopt, QWidget *parent = nullptr);
 
     void RegenWidgets();
 
     EmuDb* GetDatabase();
 protected:
-    virtual void AddCustomWidgets() = 0;
-    virtual void OnSave() = 0;
+    void AddAssetWidgets();
+    void AddAssetTypeWidgets();
+    void OnSave();
+
+    EmuDb* mDb;
+    ItemType mType;
 
     std::optional<int> mId;
-
-    Sdk* mSdk;
 
     QLabel* mIcon;
 
@@ -69,6 +73,8 @@ protected:
     QLineEdit* mDescriptionInput;
     QDateTimeEdit* mCreatedInput;
     QDateTimeEdit* mUpdatedInput;
+
+    QComboBox* mAssetTypeInput;
 
     QDialogButtonBox* mButtonBox;
 };

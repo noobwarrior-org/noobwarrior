@@ -1,3 +1,5 @@
+find_package(OpenSSL REQUIRED)
+
 CPMAddPackage(
     URI "gh:madler/zlib#v1.3.1"
     OPTIONS "ZLIB_BUILD_STATIC ON" "ZLIB_BUILD_SHARED OFF"
@@ -119,12 +121,12 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
     Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/algorithm/base64.cpp
-    Source/algorithm/sha256.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC
-    sqlite3
+    OpenSSL::Crypto
     libcurl
+    sqlite3
     libluajit
     nlohmann_json
     event_core

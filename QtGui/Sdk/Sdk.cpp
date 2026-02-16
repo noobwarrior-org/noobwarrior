@@ -27,7 +27,6 @@
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "Sdk/Item/Browser/ItemBrowserWidget.h"
 #include "Sdk/Item/ItemDialog.h"
-#include "Sdk/Item/AssetDialog.h"
 #include "Sdk/Backup/BackupDialog.h"
 #include "Sdk/Project/Wizard/ProjectWizard.h"
 #include "Sdk/BackgroundTask/BackgroundTask.h"
@@ -55,19 +54,19 @@
 #include <fstream>
 #include <qnamespace.h>
 
-#define ADD_ITEMTYPE(type, dialogType) \
-    QString type##_Name = QString::fromStdString(#type); \
-    auto type##_InsertAction = new QAction(QIcon(""), type##_Name, mInsertMenu); \
-    type##_InsertAction->setObjectName("RequireProjectButton"); \
-    mInsertMenu->addAction(type##_InsertAction); \
-    connect(type##_InsertAction, &QAction::triggered, [this]() { \
+#define ADD_ITEMTYPE(typeName, itemType) \
+    QString typeName##_Name = QString::fromStdString(#typeName); \
+    auto typeName##_InsertAction = new QAction(QIcon(""), typeName##_Name, mInsertMenu); \
+    typeName##_InsertAction->setObjectName("RequireProjectButton"); \
+    mInsertMenu->addAction(typeName##_InsertAction); \
+    connect(typeName##_InsertAction, &QAction::triggered, [this]() { \
         auto *dbProj = dynamic_cast<EmuDbProject*>(mFocusedProject); \
         if (dbProj != nullptr) { \
-            dialogType dialog(this); \
+            ItemDialog dialog(dbProj->GetDb(), itemType, std::nullopt, this); \
             dialog.exec(); \
         } else QMessageBox::critical(this, "Cannot Insert Item", "The current project is not a valid database.", QMessageBox::Ok); \
     }); \
-    mInsertItemTypeActions.push_back(type##_InsertAction);
+    mInsertItemTypeActions.push_back(typeName##_InsertAction);
 
 using namespace NoobWarrior;
 
@@ -349,7 +348,7 @@ void Sdk::InitMenus() {
     mProjectMenu = menuBar()->addMenu(tr("&Project"));
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    ADD_ITEMTYPE(Asset, AssetDialog)
+    ADD_ITEMTYPE(Asset, ItemType::Asset)
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 

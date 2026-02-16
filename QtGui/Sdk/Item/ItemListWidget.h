@@ -57,6 +57,7 @@ public:
     void Populate(const PopulateOptions options);
 protected:
     void InitWidgets();
+    void ShowContextMenu(QPoint point);
     PopulateOptions mLastOptions;
 
     EmuDb* mDb;

@@ -28,11 +28,11 @@
 #include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <openssl/sha.h>
 #include <sqlite3.h>
 #include <cstdio>
 
 #include "../algorithm/base64.h"
-#include "../algorithm/sha256.h"
 
 #include "NoobWarrior/EmuDb/ContentImages.h"
 #include "migrations/migration_table.sql.inc.cpp"
@@ -372,24 +372,31 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
-	uint8_t buf[SHA256_BLOCK_SIZE];
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	SHA256(data.data(), data.size(), hash);
 
-	SHA256_CTX ctx;
-	sha256_init(&ctx);
-	sha256_update(&ctx, data.data(), data.size());
-	sha256_final(&ctx, buf);
+	std::string hashStr;
+	for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+		hashStr += std::format("{:02x}", hash[i]);
+	}
 
 	Statement checkStmt = PrepareStatement("SELECT * FROM BlobStorage WHERE Hash = ?;");
-	checkStmt.Bind(1, std::string(reinterpret_cast<const char*>(buf), SHA256_BLOCK_SIZE));
+	checkStmt.Bind(1, hashStr);
 	if (checkStmt.Step() == SQLITE_ROW) {
 		return SqlDb::Response::DidNothing;
 	}
 
 	Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
-	stmt.Bind(1, std::string(reinterpret_cast<const char*>(buf), SHA256_BLOCK_SIZE));
+	stmt.Bind(1, hashStr);
 	stmt.Bind(2, data);
 
-	return stmt.Step() == SQLITE_DONE ? SqlDb::Response::Success : SqlDb::Response::Failed;
+	switch (stmt.Step()) {
+	default: return SqlDb::Response::Failed;
+	case SQLITE_DONE: return SqlDb::Response::Success;
+	case SQLITE_BUSY: return SqlDb::Response::Busy;
+	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+	case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+	}
 }
 
 AssetRepository* EmuDb::GetAssetRepository() {

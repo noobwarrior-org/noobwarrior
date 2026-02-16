@@ -23,17 +23,26 @@
 // Started on: 2/14/2026
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
 #include "BrowserItem.h"
+#include "NoobWarrior/EmuDb/ItemType.h"
 #include "Sdk/Sdk.h"
+#include "Sdk/Item/ItemDialog.h"
 
 #include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
+#include <cassert>
+
 using namespace NoobWarrior;
 
-BrowserItem::BrowserItem(EmuDb *db, const std::string &tableName, int id, QListWidget *listview)  :
-    QListWidgetItem(listview)
+BrowserItem::BrowserItem(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview) :
+    QListWidgetItem(listview),
+    mDb(db),
+    mType(type),
+    mId(id)
 {
+    assert(db != nullptr && "BrowserItem: Passed database is null");
+    std::string tableName = GetTableNameFromItemType(mType);
     std::string name;
 
     Statement stmt = db->PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", tableName));
@@ -59,7 +68,7 @@ BrowserItem::BrowserItem(EmuDb *db, const std::string &tableName, int id, QListW
     }
 }
 
-void Configure(Sdk *editor) {
-    // auto editDialog = ContentEditorDialog<T>(editor, mRecord.Id);
-    // editDialog.exec();
+void BrowserItem::Configure() {
+    ItemDialog dialog(mDb, mType, mId, this->listWidget());
+    dialog.exec();
 }

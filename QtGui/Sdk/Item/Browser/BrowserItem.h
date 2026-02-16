@@ -26,13 +26,19 @@
 #include "Sdk/Sdk.h"
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
+#include <NoobWarrior/EmuDb/ItemType.h>
+
 #include <QListWidgetItem>
 
 namespace NoobWarrior {
 class BrowserItem : public QListWidgetItem {
 public:
-    BrowserItem(EmuDb *db, const std::string &tableName, int id, QListWidget *listview = nullptr);
+    BrowserItem(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview = nullptr);
 
-    void Configure(Sdk *editor);
+    void Configure();
+private:
+    EmuDb* mDb;
+    NoobWarrior::ItemType mType;
+    int mId;
 };
 }

@@ -44,7 +44,7 @@ public:
         CantOpen,
         DidNothing,
         DatabaseFailed,
-        StatementConstraintViolation,
+        ConstraintViolation,
         Busy,
         Misuse,
         DoesNotExist

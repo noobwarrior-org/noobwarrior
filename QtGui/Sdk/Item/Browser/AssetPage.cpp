@@ -43,7 +43,7 @@ void AssetPage::Refresh() {
     Statement stmt = db->PrepareStatement("SELECT Id FROM Asset");
     while (stmt.Step() == SQLITE_ROW) {
         int id = stmt.GetIntFromColumnIndex(0);
-        new BrowserItem(db, "Asset", id, this);
+        new BrowserItem(db, ItemType::Asset, id, this);
     }
 
     /*

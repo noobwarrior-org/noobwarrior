@@ -23,6 +23,10 @@
 // Started on: 11/30/2025
 // Description:
 #include "ItemListWidget.h"
+#include "Browser/BrowserItem.h"
+
+#include <QMenu>
+#include <QMessageBox>
 
 using namespace NoobWarrior;
 
@@ -30,6 +34,9 @@ ItemListWidget::ItemListWidget(EmuDb* db, QWidget *parent) : QListWidget(parent)
     mDb(db)
 {
     InitWidgets();
+
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QListWidget::customContextMenuRequested, this, &ItemListWidget::ShowContextMenu);
 }
 
 void ItemListWidget::Refresh() {
@@ -67,3 +74,32 @@ void ItemListWidget::InitWidgets() {
     });
 }
 
+void ItemListWidget::ShowContextMenu(QPoint point) {
+    if (selectedItems().empty())
+        return;
+
+    QPoint globalPos = mapToGlobal(point);
+
+    QMenu myMenu;
+    QAction* config = myMenu.addAction(QIcon(":/images/silk/cog.png"), "Configure Item");
+    QAction* del = myMenu.addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
+
+    connect(config, &QAction::triggered, [this]() {
+        QListWidgetItem *item = currentItem();
+        auto *contentItem = dynamic_cast<BrowserItem*>(item);
+        contentItem->Configure();
+    });
+
+    connect(del, &QAction::triggered, [this]() {
+        QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
+        if (button != QMessageBox::Yes)
+            return;
+
+        for (QListWidgetItem *item : selectedItems()) {
+            QMessageBox::warning(this, "Notice", "Deleting items doesn't actually work for now lmao. The item has temporarily disappeared as a placeholder.");
+            delete takeItem(row(item));
+        }
+    });
+
+    myMenu.exec(globalPos);
+}
