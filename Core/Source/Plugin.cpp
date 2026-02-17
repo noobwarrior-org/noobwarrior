@@ -49,6 +49,12 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
 {
     std::filesystem::path fullDir = (!mIncludedInInstall ? mCore->GetUserDataDir() : mCore->GetInstallationDir()) / "plugins" / mFileName;
 
+    if (!mCore->GetLuaState()->Opened()) {
+        Out("Plugin", ERR_LOG_TEMPLATE "the Lua subsystem is not open! Perhaps the plugin was initialized too early?", mFileName);
+        mResponse = Response::Failed;
+        return;
+    }
+
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
     VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, fullDir);
 

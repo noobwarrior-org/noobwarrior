@@ -55,14 +55,14 @@ Application *NoobWarrior::gApp = nullptr;
 Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
     mInit.ArgCount = argc;
     mInit.ArgVec = argv;
-    mInit.Portable = QDir(QDir(applicationDirPath()).filePath("NW_PORTABLE")).exists();
+    mInit.Portable = QDir(applicationDirPath()).exists("NW_PORTABLE");
+    mInit.InstallDataRelativePath = "";
 }
 
 int Application::Run() {
     int ret = 1;
 
     mCore = new Core(mInit);
-    mCore->CreateStandardUserDataDirectories();
     mCore->StartServerEmulator(8080);
 
     QTimer* evTimer = new QTimer(this);

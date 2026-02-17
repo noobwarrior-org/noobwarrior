@@ -122,7 +122,9 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
     }
     
     ADD(mCore->GetInstallationDir())
-    ADD(mCore->GetUserDataDir())
+    if (!mCore->GetInit().Portable) {
+        ADD(mCore->GetUserDataDir())
+    }
 #undef ADD
 
     for (std::filesystem::path path : pluginPaths) {

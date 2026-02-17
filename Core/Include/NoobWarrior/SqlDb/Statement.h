@@ -28,9 +28,7 @@
 #include <sqlite3.h>
 
 #include <string>
-#include <variant>
 #include <vector>
-#include <map>
 
 namespace NoobWarrior {
 class SqlDb;

@@ -44,6 +44,7 @@
 #include "Keychain/RbxKeychain.h"
 #include "Url.h"
 
+#include <event.h>
 #include <lua.hpp>
 #include <curl/curl.h>
 
@@ -53,9 +54,14 @@ namespace NoobWarrior {
 struct Init {
     int         ArgCount        {};
     char**      ArgVec          {};
-    bool        Portable        { true };
-    bool        EnableKeychain  { true };
-    bool        LoadPlugins     { true };
+    bool        AutocreateStandardUserDataDirectories { true };
+    bool        Portable                              { true };
+    bool        EnableKeychain                        { true };
+    bool        LoadPlugins                           { true };
+    /* noobWarrior will try to find its installation files in this directory name, relative to the executable location
+       If you are not using noobWarrior as a simple library, you should probably just set this to an empty string
+       so that it uses the root directory of the executable. */
+    std::string InstallDataRelativePath               { "noobwarrior" };
 };
 
 enum class AssetFileNameStyle {
@@ -121,6 +127,8 @@ public:
     EmuKeychain* GetEmuKeychain();
     RbxKeychain* GetRbxKeychain();
 
+    const Init& GetInit();
+
     std::filesystem::path GetInstallationDir() const;
 
     /**
@@ -177,7 +185,6 @@ private:
     EmuKeychain*                    mEmuKeychain;
     RbxKeychain*                    mRbxKeychain;
     std::vector<RccServiceManager*> mRccServiceManagers;
-    bool                            mPortable;
 
     nlohmann::json                  mIndexJson;
     bool                            mIndexDirty;

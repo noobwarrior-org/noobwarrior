@@ -50,7 +50,6 @@ Core::Core(Init init) :
     mLuaState(this),
     mEmuDbManager(this),
     mServerEmulator(nullptr),
-    mPortable(mInit.Portable),
     mPluginManager(this),
     mIndexDirty(true)
 {
@@ -72,6 +71,12 @@ Core::Core(Init init) :
         WSACleanup();
     }
 #endif
+
+    Out("Core", std::format("noobWarrior is{}in portable mode", mInit.Portable ? " " : " not "));
+
+    if (mInit.AutocreateStandardUserDataDirectories)
+        CreateStandardUserDataDirectories();
+
     mEventBase = event_base_new();
     mLuaState.Open();
     mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
@@ -151,44 +156,50 @@ RbxKeychain *Core::GetRbxKeychain() {
     return mRbxKeychain;
 }
 
+const Init& Core::GetInit() {
+    return mInit;
+}
+
 std::filesystem::path Core::GetInstallationDir() const {
     assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallationDir()");
-#if defined(__APPLE__)
-    // Assuming everyone who calls this function wants to access non-executable files.
+
     auto path = std::filesystem::path(mInit.ArgVec[0]).parent_path();
+    if (!mInit.InstallDataRelativePath.empty()) {
+        std::filesystem::create_directories(path / mInit.InstallDataRelativePath);
+        path /= mInit.InstallDataRelativePath;
+    }
+    
+#if defined(__APPLE__)
     // Are we part of an app bundle?
     if (path.filename().compare("MacOS") == 0)
         return std::filesystem::path(path / ".." / "Resources");
-    // No? okay just do it like how everyone else is doing it lol
-    return path;
 #else
-    return std::filesystem::path(mInit.ArgVec[0]).parent_path();
+    return path;
 #endif
 }
 
 std::filesystem::path Core::GetUserDataDir() {
-    if (!mPortable) {
+    if (!mInit.Portable) {
 #if defined(_WIN32)
-    // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
-    // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
-    // Typically it won't actually do this and it will instead move it away to a Windows.old folder
-    // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
-    WCHAR *path;
-    SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
-    std::filesystem::path documentsDir(path);
-    std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
-    CoTaskMemFree(path);
-    return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
+        // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
+        // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
+        // Typically it won't actually do this and it will instead move it away to a Windows.old folder
+        // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
+        WCHAR *path;
+        SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
+        std::filesystem::path documentsDir(path);
+        std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
+        CoTaskMemFree(path);
+        return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
 #elif defined(__unix__) || defined(__APPLE__)
-    // portable versions aren't allowed. cause, reasons.
-    std::filesystem::path home_path(getenv("HOME"));
-    #if defined(__APPLE__)
-        std::filesystem::path user_data_path(home_path / "Library" / "Application Support" / NOOBWARRIOR_USERDATA_DIRNAME);
-    #else
-        std::filesystem::path user_data_path(home_path / ".local" / "share" / NOOBWARRIOR_USERDATA_DIRNAME);
-    #endif
-    std::filesystem::create_directory(user_data_path);
-    return user_data_path;
+        std::filesystem::path home_path(getenv("HOME"));
+        #if defined(__APPLE__)
+            std::filesystem::path user_data_path(home_path / "Library" / "Application Support" / NOOBWARRIOR_USERDATA_DIRNAME);
+        #else
+            std::filesystem::path user_data_path(home_path / ".local" / "share" / NOOBWARRIOR_USERDATA_DIRNAME);
+        #endif
+        std::filesystem::create_directory(user_data_path);
+        return user_data_path;
 #endif
     }
     return GetInstallationDir();

@@ -149,6 +149,7 @@ public:
 
     std::string GetMigrationFailMsg();
 
+    /* Meta functions */
     std::string GetMetaKeyValue(const std::string &key);
     std::string GetTitle();
     std::string GetDescription();
@@ -163,9 +164,37 @@ public:
     SqlDb::Response SetAuthor(const std::string &author);
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
     
-    SqlDb::Response AddBlob(const std::vector<unsigned char> &data);
+    /* Generic item functions */
+    SqlDb::Response AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput = nullptr);
     SqlDb::Response AddItem(ItemType type, SqlRow row);
+    SqlDb::Response UpdateItem(ItemType, int id, SqlRow row);
     SqlDb::Response DeleteItem(ItemType, int id);
+
+    /* Asset functions */
+    SqlDb::Response AttachDataToAsset(int id, int version, const std::vector<unsigned char> &data);
+    SqlDb::Response DetachDataFromAsset(int id, int version);
+
+    SqlDb::Response AttachHistoricalDataToAsset(int id, SqlRow row);
+    SqlDb::Response DetachHistoricalDataFromAsset(int id, SqlRow row);
+
+    SqlDb::Response AttachMicrotransactionDataToAsset(int id, SqlRow row);
+    SqlDb::Response DetachMicrotransactionDataFromAsset(int id, SqlRow row);
+
+    SqlDb::Response AddThumbnailToPlace(int id, int imageId);
+    SqlDb::Response RemoveThumbnailFromPlace(int id, int imageId);
+
+    SqlDb::Response RenderThumbnailForAsset(int id, int version = 0);
+
+    /* Bundle functions */
+    SqlDb::Response AddAssetToBundle(int bundleId, int assetId);
+    SqlDb::Response RemoveAssetFromBundle(int bundleId, int assetId);
+
+    SqlDb::Response AddAssetToOutfit(int outfitId, int assetId);
+    SqlDb::Response RemoveAssetFromOutfit(int outfitId, int assetId);
+
+    /* User functions */
+    SqlDb::Response AddAssetToUserCharacter(int userId, int assetId);
+    SqlDb::Response RemoveAssetFromUserCharacter(int userId, int assetId);
 
     AssetRepository* GetAssetRepository();
 

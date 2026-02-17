@@ -44,6 +44,7 @@
 #include "migrations/v4.sql.inc.cpp"
 #include "migrations/v5.sql.inc.cpp"
 #include "migrations/v6.sql.inc.cpp"
+#include "migrations/v7.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -243,8 +244,10 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v4)
 	/* V5: added search index for assets */
 	MIGRATE(v5)
-	/* V5: added outfits table */
+	/* V6: added outfits table */
 	MIGRATE(v6)
+	/* V7: merged AssetMisc table with Asset. Also added new character appearance system for users */
+	MIGRATE(v7)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
@@ -408,8 +411,14 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
+#define CHECK_STMT(stmt) \
+	if (stmt.Fail()) { \
+		Out("Failed to prepare SQL statement. Message: \"{}\"", GetLastErrorMsg()); \
+		return SqlDb::Response::Failed; \
+	}
+
 /* Note: This just adds it to the storage. */
-SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data) {
+SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
 	unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -421,18 +430,25 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data) {
 	}
 
 	Statement checkStmt = PrepareStatement("SELECT * FROM BlobStorage WHERE Hash = ?;");
+	CHECK_STMT(checkStmt)
 	checkStmt.Bind(1, hashStr);
 	if (checkStmt.Step() == SQLITE_ROW) {
+		if (hashOutput != nullptr)
+			*hashOutput = hashStr;
 		return SqlDb::Response::DidNothing;
 	}
 
 	Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
+	CHECK_STMT(stmt)
 	stmt.Bind(1, hashStr);
 	stmt.Bind(2, data);
 
 	switch (stmt.Step()) {
 	default: return SqlDb::Response::Failed;
-	case SQLITE_DONE: return SqlDb::Response::Success;
+	case SQLITE_DONE:
+		if (hashOutput != nullptr)
+			*hashOutput = hashStr;
+		return SqlDb::Response::Success;
 	case SQLITE_BUSY: return SqlDb::Response::Busy;
 	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
 	case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
@@ -469,7 +485,50 @@ SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
 		SqlValue columnValue = column.second;
 		stmt.Bind(i + 1, columnValue);
 	}
-	
+
+	switch (stmt.Step()) {
+	default:
+		return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		return SqlDb::Response::Success;
+	case SQLITE_BUSY:
+		return SqlDb::Response::Busy;
+	case SQLITE_MISUSE:
+		return SqlDb::Response::Misuse;
+	case SQLITE_CONSTRAINT:
+		return SqlDb::Response::ConstraintViolation;
+	}
+}
+
+SqlDb::Response EmuDb::UpdateItem(ItemType type, int id, SqlRow row) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	std::string tableName = GetTableNameFromItemType(type);
+	std::string stmtStr = "UPDATE " + tableName + " SET ";
+
+	for (int i = 0; i < row.size(); i++) {
+		SqlColumn column = row.at(i);
+		std::string columnName = column.first;
+		stmtStr += columnName + " = ?" + (i != row.size() - 1 ? ", " : "");
+	}
+
+	stmtStr += " WHERE Id = ?;";
+
+	Out("Updating item using statement \"{}\"", stmtStr);
+	Statement stmt = PrepareStatement(stmtStr);
+	if (stmt.Fail()) {
+		Out("Failed to prepare statement");
+		return SqlDb::Response::Failed;
+	}
+
+	int i = 0;
+	for (i = 0; i < row.size(); i++) {
+		SqlColumn column = row.at(i);
+		SqlValue columnValue = column.second;
+		stmt.Bind(i, columnValue);
+	}
+	stmt.Bind(i, id);
+
 	switch (stmt.Step()) {
 	default:
 		return SqlDb::Response::Failed;
@@ -499,6 +558,67 @@ SqlDb::Response EmuDb::DeleteItem(ItemType type, int id) {
 	case SQLITE_MISUSE:
 		return SqlDb::Response::Misuse;
 	}
+}
+
+SqlDb::Response EmuDb::AttachDataToAsset(int id, int version, const std::vector<unsigned char> &data) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	std::string hashStr;
+	SqlDb::Response res = AddBlob(data, &hashStr);
+	if (res != SqlDb::Response::Success && res != SqlDb::Response::DidNothing) {
+		Out("Failed to attach data to asset id {} because the blob could not be added to the database", id);
+		return SqlDb::Response::Failed;
+	}
+
+	if (version > 0) {
+		Statement checkStmt = PrepareStatement("SELECT * FROM AssetData WHERE Id = ? AND Version = ?;");
+		CHECK_STMT(checkStmt)
+		checkStmt.Bind(1, hashStr);
+		checkStmt.Bind(2, version);
+		int checkStmtRes = checkStmt.Step();
+		if (checkStmtRes == SQLITE_ROW) {
+			Statement updateStmt = PrepareStatement("UPDATE AssetData SET DataHash WHERE Id = ?;");
+			CHECK_STMT(updateStmt)
+			if (updateStmt.Step() != SQLITE_DONE) {
+				Out("Failed to attach data to asset id {} because updating the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+				return SqlDb::Response::Failed;
+			}
+			return SqlDb::Response::Success;
+		} else if (checkStmtRes != SQLITE_DONE) {
+			Out("Failed to attach data to asset id {} because checking the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+			return SqlDb::Response::Failed;
+		}
+	}	
+
+	// if version is set to 0 or lower, this means that the guy who ran the function wants to create a newer version instead of overwriting an existing one.
+	// so get the maximum version that is in the database and increment it by 1 to get a newer version.
+	if (version <= 0) {
+		Statement highestVerStmt = PrepareStatement("SELECT MAX(Version) FROM AssetData WHERE Id = ?;");
+		CHECK_STMT(highestVerStmt)
+		highestVerStmt.Bind(1, id);
+		if (highestVerStmt.Step() == SQLITE_ROW) {
+			version = highestVerStmt.GetIntFromColumnIndex(0) + 1;
+		} else {
+			Out("Failed to attach data to asset id {} because the latest version could not be retrieved.", id);
+			return SqlDb::Response::Failed;
+		}
+	}
+
+	// if an entry does not exist in database, just insert a new one
+	Statement stmt = PrepareStatement("INSERT INTO AssetData (Id, Version, DataHash) VALUES (?, ?, ?);");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, id);
+	stmt.Bind(2, version);
+	stmt.Bind(3, hashStr);
+	if (stmt.Step() != SQLITE_DONE) {
+		Out("Failed to attach data to asset id {} because inserting the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+	return SqlDb::Response::Success;
+}
+
+SqlDb::Response EmuDb::DetachDataFromAsset(int id, int version) {
+
 }
 
 AssetRepository* EmuDb::GetAssetRepository() {
