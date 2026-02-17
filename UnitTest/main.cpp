@@ -39,7 +39,7 @@ TEST(NoobWarrior, Init) {
 }
 
 TEST(NoobWarrior, OpenDatabase) {
-    sEmuDb = new EmuDb(":memory:"); // Contrary to what the test title says, this database is still residing in memory
+    sEmuDb = new EmuDb(":memory:");
     EXPECT_EQ(sEmuDb->Fail(), false);
 }
 
