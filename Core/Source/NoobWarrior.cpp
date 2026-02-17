@@ -163,7 +163,8 @@ const Init& Core::GetInit() {
 std::filesystem::path Core::GetInstallationDir() const {
     assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallationDir()");
 
-    auto path = std::filesystem::path(mInit.ArgVec[0]).parent_path();
+    auto exePath = std::filesystem::path(mInit.ArgVec[0]);
+    auto path = exePath.parent_path();
     if (!mInit.InstallDataRelativePath.empty()) {
         std::filesystem::create_directories(path / mInit.InstallDataRelativePath);
         path /= mInit.InstallDataRelativePath;
@@ -173,9 +174,8 @@ std::filesystem::path Core::GetInstallationDir() const {
     // Are we part of an app bundle?
     if (path.filename().compare("MacOS") == 0)
         return std::filesystem::path(path / ".." / "Resources");
-#else
-    return path;
 #endif
+    return path;
 }
 
 std::filesystem::path Core::GetUserDataDir() {
