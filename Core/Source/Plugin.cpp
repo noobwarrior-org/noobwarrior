@@ -203,6 +203,10 @@ Plugin::Response Plugin::GetInitResponse() {
     return mResponse;
 }
 
+VirtualFileSystem* Plugin::GetVfs() {
+    return mVfs;
+}
+
 std::string Plugin::GetFileName() {
     return mFileName;
 }

@@ -36,20 +36,20 @@ class PluginManager {
 public:
     PluginManager(Core* core);
     ~PluginManager();
-    Plugin::Response Load(Plugin* plugin, int priority = 1);
-    Plugin::Response Load(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+    Plugin::Response Mount(Plugin* plugin, int priority = 1);
+    Plugin::Response Mount(const std::string &fileName, int priority = 1, bool includedInInstall = false);
 
-    void Unload(Plugin* plugin);
+    void Unmount(Plugin* plugin);
 
-    void LoadPlugins();
-    void UnloadPlugins();
+    void MountPlugins();
+    void UnmountPlugins();
 
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
 
     /**
      * @brief Gets all loaded plugins. This does not include plugins that are not loaded (enabled)
      */
-    std::vector<Plugin*> GetPlugins();
+    std::vector<Plugin*> GetMountedPlugins();
 
     /**
      * @brief Gets properties of all plugins found in the install & userdata directories
@@ -59,6 +59,6 @@ protected:
     std::vector<Plugin::Properties> GetCriticalPluginProperties();
 private:
     Core* mCore;
-    std::vector<Plugin*> mPlugins;
+    std::vector<Plugin*> mMountedPlugins;
 };
 }

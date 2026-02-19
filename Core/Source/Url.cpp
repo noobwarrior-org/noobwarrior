@@ -22,9 +22,11 @@
 // Started by: Hattozo
 // Started on: 1/10/2026
 // Description: Url class that supports a bunch of cool custom protocols and shit
-#include "NoobWarrior/FileSystem/VirtualFileSystem.h"
 #include <NoobWarrior/Url.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/PluginManager.h>
 
 #include <map>
 
@@ -50,7 +52,26 @@ Url::Url(const std::string &str, const UrlContext ctx) :
     mStr(str),
     mFailReason(FailReason::None),
     mCtx(ctx)
-{}
+{
+    if ((mCtx.EnforceProtocolType || !DoesStringHaveProtocol())
+            && mCtx.DefaultProtocolType == ProtocolType::Unsupported) // Why would you ever do this?
+    {
+        mFailReason = FailReason::ForbiddenProtocol;
+        return;
+    }
+
+    ProtocolType userSubmittedProtocol = GetProtocol();
+    if (mCtx.EnforceProtocolType && userSubmittedProtocol != mCtx.DefaultProtocolType) {
+        mFailReason = FailReason::ForbiddenProtocol;
+        return;
+    }
+
+    std::string userSubmittedHostName = GetHostName();
+    if (mCtx.EnforceHostName && userSubmittedHostName.compare(mCtx.DefaultHostName) != 0) {
+        mFailReason = FailReason::ForbiddenHostName;
+        return;
+    }
+}
 
 bool Url::Fail() const {
     return mFailReason != FailReason::None;
@@ -66,12 +87,11 @@ bool Url::IsBlank() const {
 }
 
 bool Url::DoesStringHaveProtocol() const {
-    std::string::size_type pos = mStr.find_first_of("://");
+    std::string::size_type pos = mStr.find("://");
     return pos != std::string::npos;
 }
 
 bool Url::DoesStringHaveHostName() const {
-    // YOU MUST NEED THE FUCKING PROTOCOL FIRST IF YOU GUARANTEE THAT THIS HAS A HOST NAME
     return DoesStringHaveProtocol() && !GetHostName().empty();
 }
 
@@ -91,46 +111,38 @@ ProtocolType Url::GetProtocol() const {
 }
 
 std::string Url::GetProtocolString() const {
-    std::string protocol;
-    std::string::size_type pos = mStr.find_first_of("://");
+    std::string fullUrl = Resolve();
+    std::string::size_type pos = fullUrl.find("://");
     if (pos != std::string::npos) {
-        protocol = mStr.substr(0 , pos);
-        return protocol;
+        return fullUrl.substr(0, pos);
     }
-    if (protocol.empty()) {
-        // user did not include a protocol in url, use default submitted in context
-        for (const auto& pair : sProtocolMap) {
-            if (pair.second == mCtx.DefaultProtocolType)
-                return pair.first;
+
+    // user did not include a protocol in url, use default submitted in context
+    for (const auto& pair : sProtocolMap) {
+        if (pair.second == mCtx.DefaultProtocolType) {
+            return pair.first;
         }
     }
     return ""; // give up
 }
 
 std::string Url::GetHostName() const {
-    bool doesItHaveAProtocol = DoesStringHaveProtocol();
-    if (!doesItHaveAProtocol)
-        return ""; // MAKE NO FALSE ASSUMPTIONS. WE HAVE NO IDEA IF THIS IS EITHER A RELATIVE PATH OR HOST NAME. NO I DONT WANT TO RELY ON "WWW" OR ".COM"
+    if (GetProtocol() == ProtocolType::File)
+        return ""; // Local files SHOULD NOT have a host name!
 
-    ProtocolType protocol = GetProtocol();
-    if (protocol == ProtocolType::File) {
-        return ""; // local file, no hostname required
-    }
-
+    std::string fullUrl = Resolve();
     std::string hostName;
-    std::string::size_type protocolPos = mStr.find_first_of("://");
+    std::string::size_type protocolPos = fullUrl.find("://");
+    
     if (protocolPos != std::string::npos) {
-        hostName = mStr.substr(protocolPos + 3);
+        hostName = fullUrl.substr(protocolPos + 3); // Skip "://"
     }
 
-    std::string::size_type rootPos = hostName.find_first_of("/");
+    std::string::size_type rootPos = hostName.find("/");
     if (rootPos != std::string::npos) {
-        hostName = mStr.substr(0, rootPos - 1);
+        hostName = hostName.substr(0, rootPos);
     }
     
-    if (hostName.empty())
-        hostName = mCtx.DefaultHostName;
-    Out("Url", "Host name: {}", hostName);
     return hostName;
 }
 
@@ -138,19 +150,34 @@ std::string Url::GetCwd() const {
     return mCtx.Cwd;
 }
 
+/* constructs a full absolute URL using the information from the UrlContext object */
 std::string Url::Resolve() const {
-    std::string protocolStr = GetProtocolString();
-    std::string hostName = GetHostName();
-    std::string cwd = GetCwd();
+    std::string fullUrl;
+    bool foundProtocolInUserString = false;
 
-    std::string origin = protocolStr + "://" + hostName;
+    std::string::size_type protocolPos = mStr.find("://");
+    if (protocolPos != std::string::npos) {
+        foundProtocolInUserString = true;
+    }
 
-    /* if user-submitted string starts with "/", assume they are bypassing the
-       current working directory completely and start from root */
-    if (mStr.starts_with("/"))
-        return origin + mStr;
-    
-    return origin + "/" + cwd + "/" + mStr;
+    if (!foundProtocolInUserString) {
+        for (const auto& pair : sProtocolMap) {
+            if (pair.second == mCtx.DefaultProtocolType)
+                fullUrl += pair.first;
+        }
+        fullUrl += "://";
+        fullUrl += mCtx.DefaultHostName;
+        
+        // current working directory
+        if (!mStr.starts_with("/"))
+            fullUrl += mCtx.Cwd;
+
+        fullUrl += mStr;
+    } else {
+        fullUrl = mStr;
+    }
+
+    return fullUrl;
 }
 
 std::string Url::ResolveAsProtocolRelative() const {
@@ -172,14 +199,22 @@ std::string Url::ResolveAsPathName() const {
 
 VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsPtr, FSEntryHandle *handlePtr) const {
     ProtocolType protocol = GetProtocol();
+    Out("Url", "String: {}", mStr);
+    Out("Url", "Full Resolve: {}", Resolve());
+    Out("Url", "Protocol for OpenHandle(): {}", static_cast<int>(protocol));
+
+#define NETWORK_UNSUPPORTED \
+    Out("Url", "Core::OpenHandle() called but submitted protocol type relies on networking!"); \
+    return VirtualFileSystem::Response::Failed;
 
     switch (protocol) {
     default:
-        Out("Url", "Core::OpenHandle() called but submitted protocol type relies on networking!");
-        return VirtualFileSystem::Response::Failed;
-    case ProtocolType::Unsupported:
         Out("Url", "Core::OpenHandle() called on a URL with an unsupported protocol");
         return VirtualFileSystem::Response::Failed;
+    case ProtocolType::Http: NETWORK_UNSUPPORTED
+    case ProtocolType::Https: NETWORK_UNSUPPORTED
+    case ProtocolType::RbxAssetId: NETWORK_UNSUPPORTED
+    case ProtocolType::RbxThumb: NETWORK_UNSUPPORTED
     case ProtocolType::Database:
         Out("Url", "Database protocol URLs are WIP");
         return VirtualFileSystem::Response::Failed;
@@ -194,6 +229,8 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
         return VirtualFileSystem::Response::Failed;
     case ProtocolType::Plugin: break;
     }
+
+#undef NETWORK_UNSUPPORTED
 
     /* maybe ill finish this one day
     if (protocol == ProtocolType::File) {
@@ -221,7 +258,20 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
 VirtualFileSystem* Url::GetVfs(Core* core) const {
     ProtocolType protocol = GetProtocol();
     if (protocol == ProtocolType::Plugin) {
-        GetHostName();
+        std::string hostName = GetHostName();
+        PluginManager* plgMgr = core->GetPluginManager();
+        Plugin* plugin = plgMgr->GetPluginFromIdentifier(hostName);
+        if (plugin != nullptr)
+            return plugin->GetVfs();
+    // fuck u
+    } else if (protocol == ProtocolType::File) {
+
+    } else if (protocol == ProtocolType::Database) {
+
+    } else if (protocol == ProtocolType::InstallData) {
+
+    } else if (protocol == ProtocolType::UserData) {
+
     }
     return nullptr;
 }

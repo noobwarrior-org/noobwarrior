@@ -55,7 +55,7 @@ void EmuDbManager::MountDatabases() {
 }
 
 void EmuDbManager::UnmountDatabases() {
-    for (auto *db : MountedDatabases) {
+    for (auto *db : mMountedDatabases) {
         Unmount(db);
         NOOBWARRIOR_FREE_PTR(db)
     }
@@ -82,34 +82,34 @@ SqlDb::FailReason EmuDbManager::Mount(const std::string &fileName, unsigned int 
     std::filesystem::path absolutePath = mCore->GetUserDataDir() / "databases" / fileName;
     auto *database = new EmuDb(absolutePath.string(), true);
     if (database->Fail()) return database->GetFailReason();
-    MountedDatabases.insert(MountedDatabases.begin() + priority, database);
+    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
     return database->GetFailReason();
 }
 
 bool EmuDbManager::Mount(EmuDb* database, unsigned int priority) {
     if (database->Fail()) return false;
-    if (std::find(MountedDatabases.begin(), MountedDatabases.end(), database) != MountedDatabases.end())
+    if (std::find(mMountedDatabases.begin(), mMountedDatabases.end(), database) != mMountedDatabases.end())
         return false;
-    MountedDatabases.insert(MountedDatabases.begin() + priority, database);
+    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
     Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return true;
 }
 
 bool EmuDbManager::Unmount(EmuDb* database) {
-    auto it = std::find(MountedDatabases.begin(), MountedDatabases.end(), database);
-    if (it == MountedDatabases.end())
+    auto it = std::find(mMountedDatabases.begin(), mMountedDatabases.end(), database);
+    if (it == mMountedDatabases.end())
         return false;
-    MountedDatabases.erase(it);
+    mMountedDatabases.erase(it);
     Out("EmuDbManager", "Unmounted database \"{}\"", database->GetFileName());
     return true;
 }
 
 EmuDb *EmuDbManager::GetMasterDatabase() {
-    return MountedDatabases.size() > 0 ? MountedDatabases.at(0) : nullptr;
+    return mMountedDatabases.size() > 0 ? mMountedDatabases.at(0) : nullptr;
 }
 
 std::vector<EmuDb*> EmuDbManager::GetMountedDatabases() {
-    return MountedDatabases;
+    return mMountedDatabases;
 }
 
 bool EmuDbManager::GetUserFromToken(User *user, const std::string &token) {

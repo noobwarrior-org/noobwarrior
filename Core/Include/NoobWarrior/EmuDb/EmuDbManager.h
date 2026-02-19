@@ -56,7 +56,7 @@ public:
     // AssetRepositoryManager& GetAssetRepository();
 private:
     Core* mCore;
-    std::vector<EmuDb*> MountedDatabases;
+    std::vector<EmuDb*> mMountedDatabases;
     // AssetRepositoryManager mAssetRepository;
 };
 

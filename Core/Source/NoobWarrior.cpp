@@ -92,13 +92,13 @@ Core::Core(Init init) :
         GetRbxKeychain()->ReadFromKeychain();
 
     if (mInit.LoadPlugins)
-        GetPluginManager()->LoadPlugins();
+        GetPluginManager()->MountPlugins();
 
     mInitResponse = Response::Success;
 }
 
 Core::~Core() {
-    GetPluginManager()->UnloadPlugins();
+    GetPluginManager()->UnmountPlugins();
     
     if (mInit.EnableKeychain)
         GetRbxKeychain()->WriteToKeychain();

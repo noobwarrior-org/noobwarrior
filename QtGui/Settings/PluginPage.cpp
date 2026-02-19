@@ -54,7 +54,7 @@ void PluginPage::InitWidgets() {
 
     mSelectedFrame->setAutoFillBackground(true);
 
-    gApp->GetCore()->GetPluginManager()->GetPlugins();
+    gApp->GetCore()->GetPluginManager()->GetMountedPlugins();
 
     mGridLayout->addWidget(mAvailableFrame, 0, 0);
     mGridLayout->addWidget(mSelectedFrame, 0, 1);

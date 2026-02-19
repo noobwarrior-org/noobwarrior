@@ -24,8 +24,8 @@
 // Description:
 #pragma once
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Log.h>
 
-#include <filesystem>
 #include <vector>
 #include <string>
 
@@ -74,6 +74,8 @@ public:
     Response Execute();
     bool Fail();
     Response GetInitResponse();
+
+    VirtualFileSystem* GetVfs();
 
     std::vector<unsigned char> GetIconData();
     std::string GetFileName();

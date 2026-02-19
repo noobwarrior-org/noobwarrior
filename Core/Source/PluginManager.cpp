@@ -32,45 +32,48 @@ PluginManager::PluginManager(Core* core) : mCore(core) {}
 
 PluginManager::~PluginManager() {}
 
-Plugin::Response PluginManager::Load(Plugin *plugin, int priority) {
+Plugin::Response PluginManager::Mount(Plugin *plugin, int priority) {
+    mMountedPlugins.push_back(plugin);
     Plugin::Response res = plugin->GetInitResponse();
-    if (res != Plugin::Response::Success)
+    if (res != Plugin::Response::Success) {
+        mMountedPlugins.pop_back();
         return res;
-    Plugin::Response execRes = plugin->Execute();
-    if (execRes == Plugin::Response::Success) {
-        Out("PluginManager", "Loaded plugin \"{}\"", plugin->GetFileName());
-        mPlugins.push_back(plugin);
     }
+    Plugin::Response execRes = plugin->Execute();
+    if (res != Plugin::Response::Success)
+        mMountedPlugins.pop_back();
     return execRes;
 }
 
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
-Plugin::Response PluginManager::Load(const std::string &fileName, int priority, bool includedInInstall) {
+Plugin::Response PluginManager::Mount(const std::string &fileName, int priority, bool includedInInstall) {
     Plugin* plugin = new Plugin(fileName, mCore, includedInInstall);
-    Plugin::Response res = Load(plugin, priority);
+    Plugin::Response res = Mount(plugin, priority);
     if (res != Plugin::Response::Success) {
         NOOBWARRIOR_FREE_PTR(plugin)
     }
     return res;
 }
 
-void PluginManager::Unload(Plugin* plugin) {
+void PluginManager::Unmount(Plugin* plugin) {
     if (!mCore->GetLuaState()->Opened()) {
-        Out("PluginManager", "WARNING! noobWarrior tried to unload a plugin but the Lua subsystem is not open! Perhaps it was closed too early?");
+        Out("PluginManager", "WARNING! noobWarrior tried to unmount a plugin but the Lua subsystem is not open! Perhaps it was closed too early?");
         return;
     }
 
-    auto it = std::find(mPlugins.begin(), mPlugins.end(), plugin);
-    if (it != mPlugins.end()) {
-        mPlugins.erase(it);
+    auto it = std::find(mMountedPlugins.begin(), mMountedPlugins.end(), plugin);
+    if (it != mMountedPlugins.end()) {
+        std::string fileName = plugin->GetFileName();
+        mMountedPlugins.erase(it);
         NOOBWARRIOR_FREE_PTR(plugin)
+        Out("PluginManager", "Unmounted plugin \"{}\"", fileName);
     }
 }
 
-void PluginManager::LoadPlugins() {
+void PluginManager::MountPlugins() {
     int loaded = 0;
     for (Plugin::Properties prop : GetCriticalPluginProperties()) {
-        if (Load(prop.FileName, 1, true) == Plugin::Response::Success)
+        if (Mount(prop.FileName, 1, true) == Plugin::Response::Success)
             loaded++;
     }
 
@@ -81,7 +84,7 @@ void PluginManager::LoadPlugins() {
     for (auto &fileNameElement : *selected) {
         if (!fileNameElement.is_string()) continue;
         auto fileName = fileNameElement.get<std::string>();
-        if (Load(fileName) == Plugin::Response::Success)
+        if (Mount(fileName) == Plugin::Response::Success)
             loaded++;
     }
     
@@ -89,22 +92,27 @@ void PluginManager::LoadPlugins() {
         Out("PluginManager", "Loaded all enabled plugins");
 }
 
-void PluginManager::UnloadPlugins() {
+void PluginManager::UnmountPlugins() {
     if (!mCore->GetLuaState()->Opened()) {
-        Out("PluginManager", "WARNING! noobWarrior tried to unload all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
+        Out("PluginManager", "WARNING! noobWarrior tried to unmount all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
         return;
     }
-    for (Plugin* plugin : mPlugins) {
-        Unload(plugin);
+    for (Plugin* plugin : mMountedPlugins) {
+        Unmount(plugin);
     }
 }
 
 Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {
-
+    for (Plugin *plugin : GetMountedPlugins()) {
+        Plugin::Properties props = plugin->GetProperties();
+        if (identifier.compare(props.Identifier) == 0)
+            return plugin;
+    }
+    return nullptr;
 }
 
-std::vector<Plugin*> PluginManager::GetPlugins() {
-    return mPlugins;
+std::vector<Plugin*> PluginManager::GetMountedPlugins() {
+    return mMountedPlugins;
 }
 
 std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {

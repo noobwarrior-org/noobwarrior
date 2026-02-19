@@ -51,12 +51,12 @@ enum class ProtocolType {
  * with no absolute path & no name of the plugin and its protocol, how do we
  * know where to find it?
  *
- * This gives us some parameters to work with in-case that is the case.
+ * This gives us some parameters to work with in case that happens.
  */
 struct UrlContext {
     std::string Cwd { "/" };
-    ProtocolType DefaultProtocolType { ProtocolType::Plugin }; // The default protocol type if one is not specified in the string.
-    std::string DefaultHostName {};
+    ProtocolType DefaultProtocolType { ProtocolType::File }; // The default protocol type if one is not specified in the string.
+    std::string DefaultHostName { "" };
 
     /* If set to true, will force the user submitted url string to have this protocol.
        Any other protocol will result in an error. */
@@ -77,6 +77,7 @@ public:
         Malformed,
         UnsupportedProtocol,
         ForbiddenProtocol,
+        ForbiddenHostName,
         ForbiddenPlugin
     };
 

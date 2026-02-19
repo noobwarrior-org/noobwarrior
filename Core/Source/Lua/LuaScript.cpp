@@ -31,7 +31,7 @@ using namespace NoobWarrior;
 
 LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(identifier), mFailReason(FailReason::Unknown) {
     if (!lua->Opened()) {
-        Out("LuaScript", "Tried compiling script but Lua subsystem is not open!");
+        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
@@ -42,7 +42,13 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
     FSEntryHandle scriptHandle;
 
     VirtualFileSystem::Response fileRes = mUrl.OpenHandle(core, &vfs, &scriptHandle);
-    if (vfs == nullptr || scriptHandle == 0) {
+    if (vfs == nullptr) {
+        Out("Lua", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
+        mFailReason = FailReason::UrlFailed;
+        return;
+    }
+    if (scriptHandle == 0) {
+        Out("Lua", "[{}] (Load Failure) {}", mUrl.Resolve(), "The file handle failed to open.");
         mFailReason = FailReason::UrlFailed;
         return;
     }
@@ -58,7 +64,7 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
 
     int res = luaL_loadstring(L, src.c_str());
     if (res != LUA_OK) {
-        Out("Lua", "({}) (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
+        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
         lua_pop(L, 1);
     }
     switch (res) {
@@ -70,7 +76,7 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
 
 LuaScript::LuaScript(LuaState* lua, const std::string &src) : mLua(lua), mSource(src) {
     if (!lua->Opened()) {
-        Out("LuaScript", "Tried compiling script but Lua subsystem is not open!");
+        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
@@ -78,7 +84,7 @@ LuaScript::LuaScript(LuaState* lua, const std::string &src) : mLua(lua), mSource
 
     int res = luaL_loadstring(L, src.c_str());
     if (res != LUA_OK) {
-        Out("Lua", "({}) (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
+        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
         lua_pop(L, 1);
     }
     switch (res) {
@@ -92,11 +98,15 @@ bool LuaScript::Fail() {
     return mFailReason != FailReason::None;
 }
 
+LuaScript::FailReason LuaScript::GetFailReason() {
+    return mFailReason;
+}
+
 LuaScript::ExecResponse LuaScript::Execute() {
     lua_State *L = mLua->Get();
     int res = lua_pcall(L, 0, 0, 0);
     if (res != LUA_OK) {
-        Out("Lua", "({}) (Execution Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
+        Out("Lua", "[{}] (Execution Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
         lua_pop(L, 1);
     }
     switch (res) {

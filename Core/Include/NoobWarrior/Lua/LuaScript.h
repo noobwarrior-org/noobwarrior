@@ -47,6 +47,7 @@ public:
     LuaScript(LuaState* lua, const std::string &src);
 
     bool Fail();
+    FailReason GetFailReason();
     ExecResponse Execute();
 
     Url& GetUrl();
