@@ -6,6 +6,5 @@ return {
     icon = "icon.png",
     authors = { "hattozo@noobwarrior.org" },
     autorun = { "lua/main.lua" },
-    permissions = {  },
-    critical = true
+    permissions = {  }
 }
