@@ -215,18 +215,16 @@ void OsKeychain::SetPassword(const std::string &package, const std::string &serv
     if (err.Type != OsKeychain::ErrorType::NoError)
         return;
 
-    CFDictionaryAddValue(query.get(), kSecValueData, cfPassword.get());
-    OSStatus status = SecItemAdd(query.get(), NULL);
+    auto attributesToUpdate = createCFMutableDictionary(err);
+    if (err.Type != OsKeychain::ErrorType::NoError)
+        return;
+    CFDictionaryAddValue(attributesToUpdate.get(), kSecValueData, cfPassword.get());
 
-    if (status == errSecDuplicateItem) {
-        // password exists -- override
-        auto attributesToUpdate = createCFMutableDictionary(err);
-        if (err.Type != OsKeychain::ErrorType::NoError)
-            return;
+    OSStatus status = SecItemUpdate(query.get(), attributesToUpdate.get());
 
-        CFDictionaryAddValue(
-            attributesToUpdate.get(), kSecValueData, cfPassword.get());
-        status = SecItemUpdate(query.get(), attributesToUpdate.get());
+    if (status == errSecItemNotFound) {
+        CFDictionaryAddValue(query.get(), kSecValueData, cfPassword.get());
+        status = SecItemAdd(query.get(), NULL);
     }
 
     updateError(err, status);
