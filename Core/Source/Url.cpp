@@ -199,9 +199,6 @@ std::string Url::ResolveAsPathName() const {
 
 VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsPtr, FSEntryHandle *handlePtr) const {
     ProtocolType protocol = GetProtocol();
-    Out("Url", "String: {}", mStr);
-    Out("Url", "Full Resolve: {}", Resolve());
-    Out("Url", "Protocol for OpenHandle(): {}", static_cast<int>(protocol));
 
 #define NETWORK_UNSUPPORTED \
     Out("Url", "Core::OpenHandle() called but submitted protocol type relies on networking!"); \
