@@ -8,8 +8,30 @@
 
 using namespace NoobWarrior;
 
+static int HttpServer_OnRequestCallback(lua_State *L) {
+    HttpServer* udata = (HttpServer*)luaL_checkudata(L, lua_upvalueindex(1), "HttpServer");
+    
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+
+    // lua_pushvalue(L, 2); // copy function
+    // udata->onRequestRef = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "sex");
+    return 1;
+}
+
 static int HttpServer_index(lua_State *L) {
-    return 0;
+    HttpServer* udata = (HttpServer*)luaL_checkudata(L, 1, "HttpServer"); // self
+    const char* key = luaL_checkstring(L, 2); // key
+
+    if (strcmp(key, "OnRequest") == 0) {
+        lua_pushvalue(L, 1); // push user data to this closure
+        lua_pushcclosure(L, HttpServer_OnRequestCallback, 1);
+        return 1;
+    }
+
+    lua_pushnil(L);
+    return 1;
 }
 
 static int HttpServer_new(lua_State *L) {

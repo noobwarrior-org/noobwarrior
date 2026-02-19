@@ -53,10 +53,11 @@ LuaState::LuaState(Core* core) :
     L(nullptr),
     mCore(core),
     mLhp(this),
-    mPluginBinding(this),
-    mLhpBinding(this),
-    mVfsBinding(this),
-    mHttpServerBinding(this)
+    mPluginBridge(this),
+    mLhpBridge(this),
+    mVfsBridge(this),
+    mHttpServerBridge(this),
+    mServerEmulatorBridge(this)
 {}
 
 int LuaState::Open() {
@@ -89,10 +90,11 @@ int LuaState::Open() {
 
 #undef LOADLIBRARY
 
-    mPluginBinding.Open();
-    mLhpBinding.Open();
-    mVfsBinding.Open();
-    mHttpServerBinding.Open();
+    mPluginBridge.Open();
+    mLhpBridge.Open();
+    mVfsBridge.Open();
+    mHttpServerBridge.Open();
+    mServerEmulatorBridge.Open();
 
     Out("Lua", "Initialized Lua");
     return 1;

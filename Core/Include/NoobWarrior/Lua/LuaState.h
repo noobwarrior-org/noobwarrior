@@ -31,6 +31,7 @@
 #include <NoobWarrior/Lua/Bridge/LhpBridge.h>
 #include <NoobWarrior/Lua/Bridge/VfsBridge.h>
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
+#include <NoobWarrior/Lua/Bridge/ServerEmulatorBridge.h>
 
 namespace NoobWarrior {
 class Core;
@@ -54,9 +55,10 @@ private:
 
     Core* mCore;
     LuaHypertextPreprocessor mLhp;
-    PluginBridge mPluginBinding;
-    LhpBridge mLhpBinding;
-    VfsBridge mVfsBinding;
-    HttpServerBridge mHttpServerBinding;
+    PluginBridge mPluginBridge;
+    LhpBridge mLhpBridge;
+    VfsBridge mVfsBridge;
+    HttpServerBridge mHttpServerBridge;
+    ServerEmulatorBridge mServerEmulatorBridge;
 };
 }

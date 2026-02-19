@@ -110,6 +110,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Lua/Bridge/LuaScriptBridge.cpp
     Source/Lua/Bridge/PluginBridge.cpp
     Source/Lua/Bridge/HttpServerBridge.cpp
+    Source/Lua/Bridge/ServerEmulatorBridge.cpp
     Source/Lua/Bridge/VfsBridge.cpp
     Source/BaseConfig.cpp
     Source/Config.cpp
@@ -117,6 +118,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/PluginManager.cpp
     Source/Log.cpp
     Source/Shell.cpp
+    Source/Signal.cpp
     Source/Url.cpp
     Source/RccServiceManager.cpp
     Source/Engine.cpp

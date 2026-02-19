@@ -49,7 +49,7 @@ Core::Core(Init init) :
     mInit(std::move(init)),
     mLuaState(this),
     mEmuDbManager(this),
-    mServerEmulator(nullptr),
+    mServerEmulator(this),
     mPluginManager(this),
     mIndexDirty(true)
 {
@@ -144,6 +144,10 @@ PluginManager *Core::GetPluginManager() {
     return &mPluginManager;
 }
 
+ServerEmulator *Core::GetServerEmulator() {
+    return &mServerEmulator;
+}
+
 MasterKeychain *Core::GetMasterKeychain() {
     return mMasterKeychain;
 }
@@ -227,26 +231,19 @@ void Core::CreateStandardUserDataDirectories() {
 }
 
 int Core::StartServerEmulator(uint16_t port) {
-    if (mServerEmulator != nullptr && !StopServerEmulator()) { // try stopping the HTTP server if it's already on
+    if (!StopServerEmulator()) {
         return -2;
     }
 
-    mServerEmulator = new ServerEmulator(this);
-    return mServerEmulator->Start(port);
+    return mServerEmulator.Start(port);
 }
 
 int Core::StopServerEmulator() {
-    if (mServerEmulator != nullptr && !mServerEmulator->Stop()) {
-        return 0;
-    }
-    NOOBWARRIOR_FREE_PTR(mServerEmulator)
-    return 1;
+    return mServerEmulator.Stop();
 }
 
 bool Core::IsServerEmulatorRunning() {
-    if (mServerEmulator == nullptr)
-        return false;
-    return mServerEmulator->IsRunning();
+    return mServerEmulator.IsRunning();
 }
 
 static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {

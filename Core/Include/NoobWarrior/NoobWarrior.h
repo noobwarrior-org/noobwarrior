@@ -124,6 +124,8 @@ public:
     EmuDbManager *GetEmuDbManager();
     PluginManager *GetPluginManager();
 
+    ServerEmulator *GetServerEmulator();
+
     MasterKeychain* GetMasterKeychain();
     EmuKeychain* GetEmuKeychain();
     RbxKeychain* GetRbxKeychain();
@@ -180,7 +182,7 @@ private:
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 
-    ServerEmulator*                 mServerEmulator;
+    ServerEmulator                  mServerEmulator;
 
     MasterKeychain*                 mMasterKeychain;
     EmuKeychain*                    mEmuKeychain;
