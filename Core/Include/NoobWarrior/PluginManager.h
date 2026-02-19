@@ -37,7 +37,7 @@ public:
     PluginManager(Core* core);
     ~PluginManager();
     Plugin::Response Mount(Plugin* plugin, int priority = 1);
-    Plugin::Response Mount(const std::string &fileName, int priority = 1, bool includedInInstall = false);
+    Plugin::Response Mount(const std::filesystem::path &filePath, int priority = 1);
 
     void Unmount(Plugin* plugin);
 
@@ -45,6 +45,9 @@ public:
     void UnmountPlugins();
 
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
+
+    std::vector<std::filesystem::path> GetPrivilegedPluginPaths();
+    std::vector<std::filesystem::path> GetPluginPaths();
 
     /**
      * @brief Gets all loaded plugins. This does not include plugins that are not loaded (enabled)
@@ -56,7 +59,7 @@ public:
      */
     std::vector<Plugin::Properties> GetAllPluginProperties();
 protected:
-    std::vector<Plugin::Properties> GetCriticalPluginProperties();
+    std::vector<Plugin::Properties> GetPrivilegedPluginProperties();
 private:
     Core* mCore;
     std::vector<Plugin*> mMountedPlugins;

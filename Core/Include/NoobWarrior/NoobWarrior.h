@@ -26,6 +26,7 @@
 
 #include "Macros.h"
 #include "Log.h"
+#include "Paths.h"
 #include "Lua/LuaState.h"
 #include "EmuDb/EmuDb.h"
 #include "Config.h"

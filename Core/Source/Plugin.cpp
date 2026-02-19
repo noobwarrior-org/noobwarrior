@@ -40,32 +40,30 @@
 using namespace NoobWarrior;
 
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
-Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) :
+Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     mResponse(Response::Failed),
     mCore(core),
-    mFileName(fileName),
-    mVfs(nullptr),
-    mIncludedInInstall(includedInInstall)
+    mFilePath(filePath),
+    mVfs(nullptr)
 {
-    std::filesystem::path fullDir = (!mIncludedInInstall ? mCore->GetUserDataDir() : mCore->GetInstallationDir()) / "plugins" / mFileName;
-
     if (!mCore->GetLuaState()->Opened()) {
-        Out("Plugin", ERR_LOG_TEMPLATE "the Lua subsystem is not open! Perhaps the plugin was initialized too early?", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "the Lua subsystem is not open! Perhaps the plugin was initialized too early?", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
-    VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, fullDir);
+    VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, mFilePath);
+    Out("Plugin", "Our file path: {}", mFilePath.string());
 
     if (fsRes != VirtualFileSystem::Response::Success || mVfs == nullptr) {
-        Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     if (!mVfs->EntryExists("/plugin.lua")) {
-        Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -80,13 +78,13 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
     lua_State *L = mCore->GetLuaState()->Get();
     int res = luaL_dostring(L, pluginLuaString.c_str());
     if (res != LUA_OK) {
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", mFileName, lua_tostring(L, -1));
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), lua_tostring(L, -1));
         lua_pop(L, 1);
         mResponse = Response::Failed;
         return;
     }
     if (!lua_istable(L, -1)) {
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a string.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a string.", GetFileName());
         lua_pop(L, 1);
         mResponse = Response::Failed;
         return;
@@ -94,7 +92,7 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
 
     lua_getfield(L, -1, "identifier");
     if (lua_isnil(L, -1)) {
-        Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", GetFileName());
         lua_pop(L, 2);
         mResponse = Response::Failed;
         return;
@@ -103,7 +101,7 @@ Plugin::Plugin(const std::string &fileName, Core* core, bool includedInInstall) 
 
     lua_getfield(L, -1, "title");
     if (lua_isnil(L, -1)) {
-        Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", mFileName);
+        Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", GetFileName());
         lua_pop(L, 2);
         mResponse = Response::Failed;
         return;
@@ -127,7 +125,7 @@ Plugin::~Plugin() {
 
 Plugin::Response Plugin::Execute() {
     if (Fail()) {
-        Out("Plugin", "Plugin::Execute() called but plugin \"{}\" failed to initialize!", mFileName);
+        Out("Plugin", "Plugin::Execute() called but plugin \"{}\" failed to initialize!", GetFileName());
         return Plugin::Response::Failed;
     }
 
@@ -207,20 +205,27 @@ VirtualFileSystem* Plugin::GetVfs() {
     return mVfs;
 }
 
+std::filesystem::path Plugin::GetFilePath() {
+    return mFilePath;
+}
+
 std::string Plugin::GetFileName() {
-    return mFileName;
+    std::string str = mFilePath.string();
+    std::string::size_type last_slash = str.find_last_of("/");
+	return last_slash != std::string::npos ? str.substr(last_slash + 1) : str;
 }
 
 const Plugin::Properties Plugin::GetProperties() {
     if (Fail()) {
-        Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", mFileName);
+        Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
         return {};
     }
     lua_State *L = mCore->GetLuaState()->Get();
     PushManifest();
 
     Properties props {};
-    props.FileName = mFileName;
+    props.FilePath = mFilePath;
+    props.FileName = GetFileName();
 
     lua_getfield(L, -1, "identifier");
     if (lua_isstring(L, -1))
@@ -242,9 +247,7 @@ const Plugin::Properties Plugin::GetProperties() {
         props.Description = lua_tostring(L, -1);
     lua_pop(L, 1);
 
-    lua_getfield(L, -1, "critical");
-    props.IsCritical = lua_toboolean(L, -1);
-    lua_pop(L, 1);
+    props.IsPrivileged = mFilePath.parent_path().filename().compare("priv-plugins") == 0;
 
     lua_pop(L, 1);
     return props;

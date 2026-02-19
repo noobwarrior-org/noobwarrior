@@ -25,6 +25,7 @@
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Paths.h>
 
 using namespace NoobWarrior;
 
@@ -46,8 +47,8 @@ Plugin::Response PluginManager::Mount(Plugin *plugin, int priority) {
 }
 
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
-Plugin::Response PluginManager::Mount(const std::string &fileName, int priority, bool includedInInstall) {
-    Plugin* plugin = new Plugin(fileName, mCore, includedInInstall);
+Plugin::Response PluginManager::Mount(const std::filesystem::path &filePath, int priority) {
+    Plugin* plugin = new Plugin(filePath, mCore);
     Plugin::Response res = Mount(plugin, priority);
     if (res != Plugin::Response::Success) {
         NOOBWARRIOR_FREE_PTR(plugin)
@@ -72,8 +73,8 @@ void PluginManager::Unmount(Plugin* plugin) {
 
 void PluginManager::MountPlugins() {
     int loaded = 0;
-    for (Plugin::Properties prop : GetCriticalPluginProperties()) {
-        if (Mount(prop.FileName, 1, true) == Plugin::Response::Success)
+    for (const std::filesystem::path &path : GetPrivilegedPluginPaths()) {
+        if (Mount(path, 0) == Plugin::Response::Success)
             loaded++;
     }
 
@@ -84,8 +85,20 @@ void PluginManager::MountPlugins() {
     for (auto &fileNameElement : *selected) {
         if (!fileNameElement.is_string()) continue;
         auto fileName = fileNameElement.get<std::string>();
-        if (Mount(fileName) == Plugin::Response::Success)
+
+        std::filesystem::path installPath = mCore->GetInstallationDir() / NW_PATH_PLUGINS / fileName;
+        std::filesystem::path userPath = mCore->GetUserDataDir() / NW_PATH_PLUGINS / fileName;
+
+        if (std::filesystem::exists(userPath) && Mount(userPath) == Plugin::Response::Success) {
+            // Plugins in the user data folder take higher priority, in order to foster modding more easily
             loaded++;
+            continue;
+        }
+
+        if (std::filesystem::exists(installPath) && Mount(installPath) == Plugin::Response::Success) {
+            loaded++;
+            continue;
+        }
     }
     
     if (loaded > 0)
@@ -111,34 +124,49 @@ Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {
     return nullptr;
 }
 
+static std::vector<std::filesystem::path> GetEntriesInDir(const std::filesystem::path &path) {
+    std::vector<std::filesystem::path> paths;
+    if (!std::filesystem::exists(path))
+        return paths;
+    for (const auto &entry : std::filesystem::directory_iterator { path }) {
+        std::string file_name = entry.path().filename().string();
+        if (file_name.compare(".DS_Store") == 0)
+            continue;
+        paths.push_back(entry.path());
+    }
+    return paths;
+}
+
+std::vector<std::filesystem::path> PluginManager::GetPrivilegedPluginPaths() {
+    return GetEntriesInDir(mCore->GetInstallationDir() / NW_PATH_PRIVILEGED_PLUGINS);
+}
+
+std::vector<std::filesystem::path> PluginManager::GetPluginPaths() {
+    auto installEntries = GetEntriesInDir(mCore->GetInstallationDir() / NW_PATH_PLUGINS);
+    auto userEntries = GetEntriesInDir(mCore->GetUserDataDir() / NW_PATH_PLUGINS);
+    std::vector<std::filesystem::path> paths;
+    paths.insert(paths.end(), installEntries.begin(), installEntries.end());
+    paths.insert(paths.end(), userEntries.begin(), userEntries.end());
+    return paths;
+}
+
 std::vector<Plugin*> PluginManager::GetMountedPlugins() {
     return mMountedPlugins;
 }
 
 std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
     std::vector<Plugin::Properties> allProps;
-    std::vector<std::filesystem::path> pluginPaths;
 
-#define ADD(dir) \
-    if (std::filesystem::exists(dir / "plugins")) { \
-        for (const auto &entry : std::filesystem::directory_iterator { dir / "plugins" }) { \
-            std::string file_name = entry.path().filename().string(); \
-            if (file_name.compare(".DS_Store") == 0) \
-                continue; \
-            pluginPaths.push_back(entry.path()); \
-        } \
-    }
-    
-    ADD(mCore->GetInstallationDir())
-    if (!mCore->GetInit().Portable) {
-        ADD(mCore->GetUserDataDir())
-    }
-#undef ADD
+    auto privPluginPaths = GetPrivilegedPluginPaths();
+    auto pluginPaths = GetPluginPaths();
+    std::vector<std::filesystem::path> allPluginPaths;
+    allPluginPaths.insert(allPluginPaths.end(), privPluginPaths.begin(), privPluginPaths.end());
+    allPluginPaths.insert(allPluginPaths.end(), pluginPaths.begin(), pluginPaths.end());
 
-    for (std::filesystem::path path : pluginPaths) {
+    for (std::filesystem::path path : allPluginPaths) {
         std::string file_name = path.filename().string();
         
-        Plugin* plugin = new Plugin(file_name, mCore, path.parent_path().parent_path() == mCore->GetInstallationDir());
+        Plugin* plugin = new Plugin(file_name, mCore);
         if (plugin->Fail()) {
             NOOBWARRIOR_FREE_PTR(plugin)
             continue;
@@ -152,65 +180,13 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
     return allProps;
 }
 
-std::vector<Plugin::Properties> PluginManager::GetCriticalPluginProperties() {
-    if (!std::filesystem::exists(mCore->GetInstallationDir() / "plugins"))
-        return {};
-
+std::vector<Plugin::Properties> PluginManager::GetPrivilegedPluginProperties() {
     std::vector<Plugin::Properties> allCriticalProps;
     std::vector<Plugin::Properties> allProps = GetAllPluginProperties();
     for (const auto &prop : allProps) {
-        if (prop.IsCritical)
+        if (prop.IsPrivileged)
             allCriticalProps.push_back(prop);
     }
 
     return allCriticalProps;
-
-    /*
-    std::vector<std::string> critical_list;
-    for (const auto &entry : std::filesystem::directory_iterator { mCore->GetInstallationDir() / "plugins" }) {
-        const std::filesystem::path &path = entry.path();
-        std::string file_name = path.filename().string();
-
-        if (file_name.compare(".DS_Store") == 0) // why does apple do this?
-            continue;
-
-        VirtualFileSystem* vfs = nullptr;
-        VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, path);
-        if (res != VirtualFileSystem::Response::Success) {
-            if (vfs != nullptr)
-                VirtualFileSystem::Free(vfs);
-            Out("PluginManager", "Failed to check if plugin \"{}\" is critical because the virtual file system failed to open.", file_name);
-            continue;
-        }
-        
-        FSEntryHandle handle = vfs->OpenHandle("/plugin.lua");
-        if (handle == NULL) {
-            Out("PluginManager", "Failed to check if plugin \"{}\" is critical because a handle for plugin.lua could not be opened.", file_name);
-            VirtualFileSystem::Free(vfs);
-            continue;
-        }
-
-        std::string pluginLuaString;
-        std::string buf;
-        while (vfs->ReadHandleLine(handle, &buf))
-            pluginLuaString.append(buf + '\n');
-        vfs->CloseHandle(handle);
-        VirtualFileSystem::Free(vfs);
-
-        lua_State* L = mCore->GetLuaState()->Get();
-        int luaRet = luaL_dostring(L, pluginLuaString.c_str());
-        if (luaRet != LUA_OK) {
-            Out("PluginManager", "Failed to check if plugin \"{}\" is critical because plugin.lua failed: \"{}\"", file_name, lua_tostring(L, -1));
-            lua_pop(L, 1);
-            continue;
-        }
-        lua_getfield(L, -1, "critical");
-        bool critical = lua_toboolean(L, -1);
-        lua_pop(L, 2);
-
-        if (critical)
-            critical_list.push_back(entry.path().filename().string());
-    }
-    return critical_list;
-    */
 }

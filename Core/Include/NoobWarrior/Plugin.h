@@ -34,14 +34,15 @@ class Core;
 class Plugin {
 public:
     struct Properties {
-        std::string Identifier;
+        std::filesystem::path FilePath;
         std::string FileName;
+        std::string Identifier;
         std::string Title;
         std::string Version;
         std::string Description;
         std::string IconFileName;
         std::vector<std::string> Authors;
-        bool IsCritical;
+        bool IsPrivileged;
     };
 
     enum class Permission {
@@ -62,13 +63,8 @@ public:
      * Do not use an absolute path; this will only check in the user's plugins directory.
      *
      * @param core A pointer to the main noobWarrior instance, so that it can access other services.
-     *
-     * @param includedInInstall A boolean that tells us if this plugin is included in the program's installation directory.
-     * This will make it look for the plugin in the installation directory instead of the user data directory.
-     * It will also allow it special privileges (like force-enabling it if needed), and it will make it unremovable from the menu
-     * unless if manually removed through the computer's file manager.
      */
-    Plugin(const std::string &fileName, Core* core, bool includedInInstall = false);
+    Plugin(const std::filesystem::path &filePath, Core* core);
     ~Plugin();
 
     Response Execute();
@@ -78,6 +74,7 @@ public:
     VirtualFileSystem* GetVfs();
 
     std::vector<unsigned char> GetIconData();
+    std::filesystem::path GetFilePath();
     std::string GetFileName();
 
     const Properties GetProperties();
@@ -90,7 +87,7 @@ private:
     void CloseEnv();
 
     Core* mCore;
-    std::string mFileName;
+    std::filesystem::path mFilePath;
     VirtualFileSystem* mVfs;
     FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;

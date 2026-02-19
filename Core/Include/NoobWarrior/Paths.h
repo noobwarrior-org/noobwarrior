@@ -25,6 +25,7 @@
 #pragma once
 #define NW_PATH_DATABASES "databases"
 #define NW_PATH_PLUGINS "plugins"
+#define NW_PATH_PRIVILEGED_PLUGINS "priv-plugins"
 #define NW_PATH_REGISTRY "registry"
 
 #define NW_PATH_ENGINES "engines"
