@@ -99,10 +99,7 @@ int LuaState::Open() {
 }
 
 void LuaState::Close() {
-    mHttpServerBinding.Close();
-    mVfsBinding.Close();
-    mLhpBinding.Close();
-    mPluginBinding.Close();
+    // Closing the bridges seen in LuaState::Open() is not required since Lua will just close it for us by using this function.
     lua_close(L);
     L = nullptr;
 }

@@ -74,9 +74,3 @@ void LhpBridge::Open() {
     luaL_newlib(L, Funcs);
     lua_setglobal(L, "lhp");
 }
-
-void LhpBridge::Close() {
-    lua_State *L = mLua->Get();
-    lua_pushnil(L);
-    lua_setglobal(L, "lhp");
-}

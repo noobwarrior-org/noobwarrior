@@ -29,7 +29,7 @@ using namespace NoobWarrior;
 static int gc(lua_State *L) {
     PluginWrapper* p = (PluginWrapper*)luaL_checkudata(L, 1, "Plugin");
     if (p != nullptr) {
-        delete p;
+        p->~PluginWrapper();
     }
     return 0;
 }

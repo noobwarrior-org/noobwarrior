@@ -56,7 +56,7 @@ private:
     LuaHypertextPreprocessor mLhp;
     PluginBridge mPluginBinding;
     LhpBridge mLhpBinding;
-    PluginBridge mVfsBinding;
+    VfsBridge mVfsBinding;
     HttpServerBridge mHttpServerBinding;
 };
 }

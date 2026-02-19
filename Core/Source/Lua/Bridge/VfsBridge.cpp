@@ -52,7 +52,7 @@ static int VirtualFileSystem_new(lua_State *L) {
 static int VirtualFileSystem_gc(lua_State *L) {
     VirtualFileSystem* vfs = (VirtualFileSystem*)luaL_checkudata(L, 1, "VirtualFileSystem");
     if (vfs != nullptr) {
-        delete vfs;
+        vfs->~VirtualFileSystem();
     }
     return 0;
 }

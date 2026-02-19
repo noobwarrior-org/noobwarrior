@@ -71,12 +71,6 @@ void LuaObjectBridge::Open() {
     lua_setglobal(L, mMtName.c_str());
 }
 
-void LuaObjectBridge::Close() {
-    lua_State *L = mLua->Get();
-    lua_pushnil(L);
-    lua_setfield(L, LUA_REGISTRYINDEX, mMtName.c_str());
-}
-
 LuaReg LuaObjectBridge::GetStaticFuncs() {
     return {};
 }

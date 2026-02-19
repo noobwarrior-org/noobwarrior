@@ -30,7 +30,6 @@ class LhpBridge {
 public:
     LhpBridge(LuaState* lua);
     void Open();
-    void Close();
 private:
     LuaState* mLua;
 };

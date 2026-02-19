@@ -8,6 +8,10 @@
 
 using namespace NoobWarrior;
 
+static int HttpServer_index(lua_State *L) {
+    return 0;
+}
+
 static int HttpServer_new(lua_State *L) {
     lua_getfield(L, LUA_REGISTRYINDEX, "core");
     auto core = (Core*)lua_topointer(L, -1);
@@ -24,7 +28,7 @@ static int HttpServer_new(lua_State *L) {
 static int HttpServer_gc(lua_State *L) {
     HttpServer* srv = (HttpServer*)luaL_checkudata(L, 1, "HttpServer");
     if (srv != nullptr) {
-        delete srv;
+        srv->~HttpServer();
     }
     return 0;
 }
@@ -41,6 +45,7 @@ LuaReg HttpServerBridge::GetStaticFuncs() {
 
 LuaReg HttpServerBridge::GetObjectMetaFuncs() {
     return {
+        {"__index", HttpServer_index},
         {"__gc", HttpServer_gc}
     };
 }

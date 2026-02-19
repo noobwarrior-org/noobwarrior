@@ -40,7 +40,6 @@ class LuaObjectBridge {
 public:
     LuaObjectBridge(LuaState* lua, const std::string &mtName);
     virtual void Open();
-    virtual void Close();
     virtual LuaReg GetStaticFuncs();
     virtual LuaReg GetObjectMetaFuncs();
     virtual LuaReg GetObjectFuncs();
