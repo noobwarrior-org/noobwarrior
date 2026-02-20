@@ -55,6 +55,10 @@ CPMAddPackage(
 )
 endif()
 
+CPMAddPackage(
+    URI "gh:ThePhD/sol2#c1f95a7"
+)
+
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
@@ -146,6 +150,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     libcurl
     sqlite3
     libluajit
+    sol2
     nlohmann_json
     event_core
     event_extra

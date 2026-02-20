@@ -26,6 +26,8 @@
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Log.h>
 
+#include <sol/sol.hpp>
+
 #include <vector>
 #include <string>
 
@@ -79,12 +81,9 @@ public:
 
     const Properties GetProperties();
 protected:
-    void PushManifest();
-    bool PushEnv();
     Response mResponse { 0 };
 private:
     void OpenEnv();
-    void CloseEnv();
 
     Core* mCore;
     std::filesystem::path mFilePath;
@@ -92,9 +91,7 @@ private:
     FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;
 
-    // Lua references
-    int mManifestRef;
-    int mEnvRef;
-    int mMtRef;
+    sol::table mManifestTbl;
+    sol::environment mEnv;
 };
 }

@@ -24,6 +24,7 @@
 // Description:
 #pragma once
 #include <lua.hpp>
+#include <sol/sol.hpp>
 
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Lua/Lhp.h>
@@ -41,19 +42,16 @@ enum class LuaContext {
     InstallPlugin,
     UserPlugin,
 };
-class LuaState {
+class LuaState : public sol::state {
 public:
     LuaState(Core* core);
     int Open();
-    void Close();
     bool Opened();
 
     lua_State* Get();
     Lhp *GetLhp();
     Core *GetCore();
 private:
-    lua_State *L;
-
     Core* mCore;
     Lhp mLhp;
     LuaSignalBridge mLuaSignalBridge;

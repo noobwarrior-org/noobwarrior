@@ -25,6 +25,8 @@
 #pragma once
 #include <NoobWarrior/Url.h>
 
+#include <sol/sol.hpp>
+
 namespace NoobWarrior {
 class LuaState;
 
@@ -58,5 +60,6 @@ private:
     Url mUrl;
     std::string mSource;
     FailReason mFailReason;
+    sol::load_result mBytecode;
 };
 }

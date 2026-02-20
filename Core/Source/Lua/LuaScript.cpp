@@ -26,6 +26,9 @@
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Log.h>
+#include <sol/load_result.hpp>
+#include <sol/protected_function_result.hpp>
+#include <sol/types.hpp>
 
 using namespace NoobWarrior;
 
@@ -35,7 +38,6 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
-    lua_State *L = lua->Get();
     Core* core = lua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;
@@ -62,14 +64,14 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
 
     mSource = src;
 
-    int res = luaL_loadstring(L, src.c_str());
-    if (res != LUA_OK) {
-        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
-        lua_pop(L, 1);
+    mBytecode = mLua->load(src);
+    if (!mBytecode.valid()) {
+        sol::error err = mBytecode;
+        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
     }
-    switch (res) {
-    case LUA_OK: mFailReason = FailReason::None; break;
-    case LUA_ERRSYNTAX: mFailReason = FailReason::SyntaxError; return;
+    switch (mBytecode.status()) {
+    case sol::load_status::ok: mFailReason = FailReason::None; break;
+    case sol::load_status::syntax: mFailReason = FailReason::SyntaxError; return;
     default: mFailReason = FailReason::Unknown; return;
     }
 }
@@ -80,16 +82,15 @@ LuaScript::LuaScript(LuaState* lua, const std::string &src) : mLua(lua), mSource
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
-    lua_State *L = lua->Get();
 
-    int res = luaL_loadstring(L, src.c_str());
-    if (res != LUA_OK) {
-        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function_result res = mLua->safe_script(src);
+    if (!res.valid()) {
+        sol::error err = res;
+        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
     }
-    switch (res) {
-    case LUA_OK: mFailReason = FailReason::None; break;
-    case LUA_ERRSYNTAX: mFailReason = FailReason::SyntaxError; return;
+    switch (res.status()) {
+    case sol::call_status::ok: mFailReason = FailReason::None; break;
+    case sol::call_status::syntax: mFailReason = FailReason::SyntaxError; return;
     default: mFailReason = FailReason::Unknown; return;
     }
 }
@@ -103,14 +104,13 @@ LuaScript::FailReason LuaScript::GetFailReason() {
 }
 
 LuaScript::ExecResponse LuaScript::Execute() {
-    lua_State *L = mLua->Get();
-    int res = lua_pcall(L, 0, 0, 0);
-    if (res != LUA_OK) {
-        Out("Lua", "[{}] (Execution Failure) {}", mUrl.Resolve(), lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function_result res = mBytecode.get<sol::protected_function>().call();
+    if (!res.valid()) {
+        sol::error err = res;
+        Out("Lua", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
     }
-    switch (res) {
-    case LUA_OK: return ExecResponse::Ok;
+    switch (res.status()) {
+    case sol::call_status::ok: return ExecResponse::Ok;
     default: return ExecResponse::Failed;
     }
 }

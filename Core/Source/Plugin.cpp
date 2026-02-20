@@ -32,7 +32,8 @@
 
 #include "Lua/files/plugin_env_metatable.lua.inc.cpp"
 
-#include <lua.h>
+#include <lua.hpp>
+#include <sol/sol.hpp>
 
 #define ERR_LOG_TEMPLATE "Failed to load plugin \"{}\" because "
 #define PLUGIN_OUT(...) Out("Plugin", "[" + identifier + "] " + __VA_ARGS__);
@@ -73,40 +74,35 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     while (mVfs->ReadHandleLine(mVfsHandle, &buf))
         pluginLuaString.append(buf + '\n');
 
-    lua_State *L = mCore->GetLuaState()->Get();
-    int res = luaL_dostring(L, pluginLuaString.c_str());
-    if (res != LUA_OK) {
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), lua_tostring(L, -1));
-        lua_pop(L, 1);
+    sol::protected_function_result res = mCore->GetLuaState()->safe_script(pluginLuaString);
+    if (!res.valid()) {
+        sol::error err = res;
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), err.what());
         mResponse = Response::Failed;
         return;
     }
-    if (!lua_istable(L, -1)) {
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a string.", GetFileName());
-        lua_pop(L, 1);
+    if (res.get_type() != sol::type::table) {
+        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a table.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
-    lua_getfield(L, -1, "identifier");
-    if (lua_isnil(L, -1)) {
+    mManifestTbl = res.get<sol::table>();
+    auto identifier = mManifestTbl.get<std::optional<std::string>>("identifier");
+    auto title = mManifestTbl.get<std::optional<std::string>>("title");
+
+    if (identifier == std::nullopt) {
         Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", GetFileName());
-        lua_pop(L, 2);
         mResponse = Response::Failed;
         return;
     }
-    lua_pop(L, 1);
 
-    lua_getfield(L, -1, "title");
-    if (lua_isnil(L, -1)) {
+    if (title == std::nullopt) {
         Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", GetFileName());
-        lua_pop(L, 2);
         mResponse = Response::Failed;
         return;
     }
-    lua_pop(L, 1);
 
-    mManifestRef = luaL_ref(L, LUA_REGISTRYINDEX);
     mResponse = Response::Success;
 }
 
@@ -117,8 +113,6 @@ Plugin::~Plugin() {
         mVfs->CloseHandle(mVfsHandle);
         VirtualFileSystem::Free(mVfs);
     }
-    CloseEnv();
-    luaL_unref(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, mManifestRef);
 }
 
 Plugin::Response Plugin::Execute() {
@@ -127,66 +121,26 @@ Plugin::Response Plugin::Execute() {
         return Plugin::Response::Failed;
     }
 
-    lua_State *L = mCore->GetLuaState()->Get();
-    PushManifest();
-
-    lua_getfield(L, -1, "identifier");
-    std::string identifier = lua_tostring(L, -1);
-    lua_pop(L, 1);
+    auto identifier = mManifestTbl.get<std::string>("identifier");
 
     PLUGIN_OUT("Executing...")
 
-    lua_getfield(L, -1, "autorun");
-    if (lua_istable(L, -1)) {
-        lua_pushnil(L);
-        while (lua_next(L, -2) != 0) {
-            if (!lua_isstring(L, -1)) {
-                lua_pop(L, 1);
+    auto autorunTbl = mManifestTbl.get<std::optional<sol::table>>("autorun");
+    if (autorunTbl != std::nullopt) {
+        for (int i = 1; i <= autorunTbl->size(); i++) {
+            auto val = autorunTbl->get<sol::object>(i);
+            if (!val.is<std::string>()) {
+                PLUGIN_OUT("Value in index {} in autorun is not string!", i)
                 continue;
             }
-
-            const char* path = lua_tostring(L, -1);
-            lua_pop(L, 1); // Pop the value that lua_next just pushed.
-
-            LuaScript script(mCore->GetLuaState(), (Url(path, {
+            LuaScript script(mCore->GetLuaState(), (Url(val.as<std::string>(), {
                 .DefaultProtocolType = ProtocolType::Plugin,
                 .DefaultHostName = identifier
             })));
             if (!script.Fail())
                 script.Execute();
-
-            /*
-            FSEntryHandle scriptHandle = mVfs->OpenHandle(path);
-            
-            std::string script, line;
-            while (mVfs->ReadHandleLine(scriptHandle, &line)) {
-                script += line + "\n";
-            }
-
-            mVfs->CloseHandle(scriptHandle);
-
-            int compileRes = luaL_loadstring(L, script.c_str());
-            if (compileRes != LUA_OK) {
-                PLUGIN_OUT("({}) (Compile Failure) {}", path, lua_tostring(L, -1))
-                lua_pop(L, 1);
-                continue;
-            }
-            if (!PushEnv())
-                continue;
-            lua_setfenv(L, -2);
-
-            int execRes = lua_pcall(L, 0, 0, 0);
-            if (execRes != LUA_OK) {
-                PLUGIN_OUT("({}) (Execution Failure) {}", path, lua_tostring(L, -1))
-                lua_pop(L, 1);
-                continue;
-            }
-            */
         }
     }
-    lua_pop(L, 1);
-
-    lua_pop(L, 1);
 
     return Response::Success;
 }
@@ -218,112 +172,31 @@ const Plugin::Properties Plugin::GetProperties() {
         Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
         return {};
     }
-    lua_State *L = mCore->GetLuaState()->Get();
-    PushManifest();
 
     Properties props {};
     props.FilePath = mFilePath;
     props.FileName = GetFileName();
 
-    lua_getfield(L, -1, "identifier");
-    if (lua_isstring(L, -1))
-        props.Identifier = lua_tostring(L, -1);
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "title");
-    if (lua_isstring(L, -1))
-        props.Title = lua_tostring(L, -1);
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "version");
-    if (lua_isstring(L, -1))
-        props.Version = lua_tostring(L, -1);
-    lua_pop(L, 1);
-
-    lua_getfield(L, -1, "description");
-    if (lua_isstring(L, -1))
-        props.Description = lua_tostring(L, -1);
-    lua_pop(L, 1);
+    props.Identifier = mManifestTbl.get_or<std::string>("identifier", "");
+    props.Title = mManifestTbl.get_or<std::string>("title", "");
+    props.Version = mManifestTbl.get_or<std::string>("version", "");
+    props.Description = mManifestTbl.get_or<std::string>("description", "");
 
     props.IsPrivileged = mFilePath.parent_path().filename().compare("priv-plugins") == 0;
 
-    lua_pop(L, 1);
     return props;
-}
-
-void Plugin::PushManifest() {
-    if (Fail())
-        return;
-    lua_rawgeti(mCore->GetLuaState()->Get(), LUA_REGISTRYINDEX, mManifestRef);
-}
-
-bool Plugin::PushEnv() {
-    if (Fail() || mEnvRef == 0)
-        return false;
-    lua_State *L = mCore->GetLuaState()->Get();
-    lua_rawgeti(L, LUA_REGISTRYINDEX, mEnvRef);
-    return true;
-}
-
-static int plugin_print(lua_State *L) {
-    std::string identifier = luaL_checkstring(L, lua_upvalueindex(1));
-
-    int nargs = lua_gettop(L); 
-
-    std::string msg;
-    for (int i = 1; i <= nargs; i++) {
-        const char *str = lua_tolstring(L, i, NULL);
-        msg += str;
-        lua_pop(L, 1);
-    }
-    PLUGIN_OUT(msg)
-    return 0;
 }
 
 void Plugin::OpenEnv() {
     if (Fail())
         return;
+
+    auto identifier = mManifestTbl.get<std::string>("identifier");
+
+    mEnv = sol::environment(*mCore->GetLuaState(), sol::create, mCore->GetLuaState()->globals());
+    mEnv["plugin"] = sol::new_table();
     
-    lua_State *L = mCore->GetLuaState()->Get();
-
-    PushManifest();
-    lua_getfield(L, -1, "identifier");
-    const char* identifier = lua_tostring(L, -1);
-    lua_pop(L, 2);
-
-    // Environment
-    lua_newtable(L);
-    mEnvRef = luaL_ref(L, LUA_REGISTRYINDEX);
-
-    PushEnv();
-
-    PluginWrapper* plugin_wrapper = (PluginWrapper*) lua_newuserdata(L, sizeof(PluginWrapper));
-    new(plugin_wrapper) PluginWrapper(this);
-    luaL_setmetatable(L, "Plugin");
-    lua_setfield(L, -2, "plugin");
-
-    lua_pushstring(L, identifier);
-    lua_pushcclosure(L, plugin_print, 1);
-    lua_setfield(L, -2, "print");
-
-    lua_pop(L, 1);
-
-    /*
-    // Metatable
-    int res = luaL_dostring(L, plugin_env_metatable_lua);
-    if (res != LUA_OK) {
-        const char* err = lua_tostring(L, -1);
-        Out("Lua", "Failed to create plugin environment: {}", err);
-        lua_pop(L, 1);
-        return;
-    }
-    lua_setmetatable(L, -2);
-    */
-}
-
-void Plugin::CloseEnv() {
-    if (Fail() || mEnvRef == 0)
-        return;
-    lua_State *L = mCore->GetLuaState()->Get();
-    luaL_unref(L, LUA_REGISTRYINDEX, mEnvRef);
+    mEnv.set_function("print", [identifier](std::string msg) {
+        PLUGIN_OUT(msg);
+    });
 }

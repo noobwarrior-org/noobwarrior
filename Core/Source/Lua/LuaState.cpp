@@ -21,7 +21,7 @@
 // File: LuaState.cpp
 // Started by: Hattozo
 // Started on: 12/3/2025
-// Description:
+// Description: Uses sol
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/LuaSignal.h>
 #include <NoobWarrior/Lua/Bridge/PluginBridge.h>
@@ -32,6 +32,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <sol/forward.hpp>
 
 #include "files/global_env_metatable.lua.inc.cpp"
 #include "files/rawget_path.lua.inc.cpp"
@@ -59,7 +60,6 @@ static int Listener(lua_State *L) {
 }
 
 LuaState::LuaState(Core* core) :
-    L(nullptr),
     mCore(core),
     mLhp(this),
     mLuaSignalBridge(this),
@@ -68,61 +68,65 @@ LuaState::LuaState(Core* core) :
     mVfsBridge(this),
     mHttpServerBridge(this),
     mServerEmulatorBridge(this)
-{}
+{
+    open_libraries(
+        sol::lib::base,
+        sol::lib::package,
+        sol::lib::coroutine,
+        sol::lib::string,
+        sol::lib::os,
+        sol::lib::math,
+        sol::lib::table,
+        sol::lib::debug,
+        sol::lib::bit32,
+        sol::lib::io,
+        sol::lib::ffi,
+        sol::lib::jit
+    );
+
+    do_string(rawget_path_lua);
+    do_string(global_env_metatable_lua);
+
+    set("core", sol::make_light(mCore));
+    set("print", printBS);
+}
 
 int LuaState::Open() {
-    L = luaL_newstate();
-
-    luaL_openlibs(L);
-
-    // Run lua code to define some functions without having to hassle with Lua C API
-    luaL_dostring(L, rawget_path_lua);
-    luaL_dostring(L, global_env_metatable_lua);
-
-    // Add reference to core in lua registry so that we can retrieve it for any bindings that require its existence
-    lua_pushlightuserdata(L, mCore);
-    lua_setfield(L, LUA_REGISTRYINDEX, "core");
-
-    lua_pushcfunction(L, printBS);
-    lua_setglobal(L, "print");
-
     // lua_pushcfunction(mLuaState, printBS);
     // lua_setglobal(mLuaState, "error");
 
 #define LOADLIBRARY(strVar, name) \
-    int strVar##_exec_res = luaL_dostring(L, strVar); \
-    if (!strVar##_exec_res && lua_istable(L, -1)) { \
-        lua_setglobal(L, name); \
-    } else lua_pop(L, 1);
+    sol::protected_function_result strVar##_res = do_string(strVar); \
+    if (strVar##_res.valid() &&strVar##_res.get_type() == sol::type::table) { \
+        set(name, strVar##_res.get<sol::table>()); \
+    }
     
     LOADLIBRARY(serpent_lua, "serpent")
     LOADLIBRARY(json_lua, "json")
 
+    // sol::protected_function_result res = do_string(serpent_lua);
+    // if (res.valid() &&res.get_type() == sol::type::table) {
+    //     set("serpent", res.get<sol::table>());
+    // }
 #undef LOADLIBRARY
 
-    mLhpBridge.Open();
-    mLuaSignalBridge.Open();
-    mPluginBridge.Open();
-    mVfsBridge.Open();
-    mHttpServerBridge.Open();
-    mServerEmulatorBridge.Open();
+    // mLhpBridge.Open();
+    // mLuaSignalBridge.Open();
+    // mPluginBridge.Open();
+    // mVfsBridge.Open();
+    // mHttpServerBridge.Open();
+    // mServerEmulatorBridge.Open();
 
     Out("Lua", "Initialized Lua");
     return 1;
 }
 
-void LuaState::Close() {
-    // Closing the bridges seen in LuaState::Open() is not required since Lua will just close it for us by using this function.
-    lua_close(L);
-    L = nullptr;
-}
-
 bool LuaState::Opened() {
-    return L != nullptr;
+    return true;
 }
 
 lua_State* LuaState::Get() {
-    return L;
+    return lua_state();
 }
 
 Lhp *LuaState::GetLhp() {

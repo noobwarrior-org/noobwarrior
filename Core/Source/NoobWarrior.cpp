@@ -109,7 +109,6 @@ Core::~Core() {
     curl_global_cleanup();
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
-    mLuaState.Close();
     event_base_free(mEventBase);
 #if defined(_WIN32)
     WSACleanup();
