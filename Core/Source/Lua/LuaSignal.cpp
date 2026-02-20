@@ -18,19 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulatorBridge.h
+// File: Signal.cpp
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
-#pragma once
-#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
+#include <NoobWarrior/Lua/LuaSignal.h>
 
-namespace NoobWarrior {
-class ServerEmulatorBridge {
-public:
-    ServerEmulatorBridge(LuaState* lua);
-    void Open();
-private:
-    LuaState* mLua;
-};
+using namespace NoobWarrior;
+
+LuaSignal::LuaSignal() {
+
+}
+
+void LuaSignal::Connect() {
+    
 }

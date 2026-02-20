@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaHypertextPreprocessor.h
+// File: Lhp.h
 // Started by: Hattozo
 // Started on: 1/9/2026
 // Description: LHP (Lua Hypertext Preprocessor)
@@ -30,7 +30,7 @@
 
 namespace NoobWarrior {
 class LuaState;
-class LuaHypertextPreprocessor {
+class Lhp {
 public:
     enum class RenderResponse {
         Failed,
@@ -39,7 +39,7 @@ public:
         UrlFailed
     };
 
-    LuaHypertextPreprocessor(LuaState* lua);
+    Lhp(LuaState* lua);
     RenderResponse Render(const std::string &input, std::string *output);
     RenderResponse Render(const Url &url, std::string *output);
 private:

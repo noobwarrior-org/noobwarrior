@@ -54,8 +54,6 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
 
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
     VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, mFilePath);
-    Out("Plugin", "Our file path: {}", mFilePath.string());
-
     if (fsRes != VirtualFileSystem::Response::Success || mVfs == nullptr) {
         Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", GetFileName());
         mResponse = Response::Failed;

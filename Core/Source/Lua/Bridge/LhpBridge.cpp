@@ -24,12 +24,12 @@
 // Description:
 #include <NoobWarrior/Lua/Bridge/LhpBridge.h>
 #include <NoobWarrior/Lua/LuaState.h>
-#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
+#include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Url.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
-using Lhp = LuaHypertextPreprocessor; // maybe I should shorten the class name one day
+using Lhp = Lhp; // maybe I should shorten the class name one day
 
 static int Render(lua_State *L) {
     lua_getfenv(L, 1);

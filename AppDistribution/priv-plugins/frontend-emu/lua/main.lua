@@ -6,6 +6,10 @@
 -- Started by: Hattozo
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
+local httpTest = HttpServer.new()
+print("Http test: "..tostring(httpTest))
+print("Http on request: "..tostring(httpTest.OnRequest))
+
 emu.OnRequest:Connect(function(request)
 
 end)

@@ -54,6 +54,7 @@ CPMAddPackage(
     URI "gh:WohlSoft/LuaJIT#59d961b"
 )
 endif()
+
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
@@ -104,10 +105,12 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Keychain/RbxKeychain.cpp
     Source/Lua/LuaState.cpp
     Source/Lua/LuaScript.cpp
-    Source/Lua/LuaHypertextPreprocessor.cpp
+    Source/Lua/LuaSignal.cpp
+    Source/Lua/Lhp.cpp
     Source/Lua/Bridge/LhpBridge.cpp
     Source/Lua/Bridge/LuaObjectBridge.cpp
     Source/Lua/Bridge/LuaScriptBridge.cpp
+    Source/Lua/Bridge/LuaSignalBridge.cpp
     Source/Lua/Bridge/PluginBridge.cpp
     Source/Lua/Bridge/HttpServerBridge.cpp
     Source/Lua/Bridge/ServerEmulatorBridge.cpp
@@ -118,7 +121,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/PluginManager.cpp
     Source/Log.cpp
     Source/Shell.cpp
-    Source/Signal.cpp
     Source/Url.cpp
     Source/RccServiceManager.cpp
     Source/Engine.cpp

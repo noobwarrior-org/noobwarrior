@@ -5,6 +5,7 @@
 // Description:
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
+#include <NoobWarrior/Lua/LuaState.h>
 
 using namespace NoobWarrior;
 
@@ -55,19 +56,41 @@ static int HttpServer_gc(lua_State *L) {
     return 0;
 }
 
-HttpServerBridge::HttpServerBridge(LuaState* lua) : LuaObjectBridge(lua, "HttpServer") {
+static int HttpServer_OnRequest(lua_State *L) {
+    lua_pushnil(L);
+    return 1;
+}
+
+static const luaL_Reg MetaFuncs[] = {
+    {"__gc", HttpServer_gc},
+    {NULL, NULL}
+};
+
+static const luaL_Reg ObjectFuncs[] = {
+    {"new", HttpServer_new},
+    {"OnRequest", HttpServer_OnRequest},
+    {NULL, NULL}
+};
+
+HttpServerBridge::HttpServerBridge(LuaState* lua) : mLua(lua) {
 
 }
 
-LuaReg HttpServerBridge::GetStaticFuncs() {
-    return {
-        {"new", HttpServer_new}
-    };
+void HttpServerBridge::Open() {
+    lua_State *L = mLua->Get();
+
+    luaL_newmetatable(L, "HttpServer");
+    luaL_setfuncs(L, MetaFuncs, 0);
+
+    lua_newtable(L);
+    luaL_setfuncs(L, ObjectFuncs, 0);
+    lua_setfield(L, -2, "__index");
+
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+    luaL_getmetatable(L, "HttpServer");
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "HttpServer");
 }
 
-LuaReg HttpServerBridge::GetObjectMetaFuncs() {
-    return {
-        {"__index", HttpServer_index},
-        {"__gc", HttpServer_gc}
-    };
-}

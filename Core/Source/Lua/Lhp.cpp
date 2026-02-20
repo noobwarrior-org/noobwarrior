@@ -18,12 +18,12 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LuaHypertextPreprocessor.cpp
+// File: Lhp.cpp
 // Started by: Hattozo
 // Started on: 1/9/2026
 // Description: LHP (Lua Hypertext Preprocessor)
 // It's like PHP but for Lua
-#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
+#include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -36,11 +36,11 @@
 
 using namespace NoobWarrior;
 
-LuaHypertextPreprocessor::LuaHypertextPreprocessor(LuaState* lua) : mLua(lua) {
+Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 }
 
-LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const std::string &input, std::string *output) {
+Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
     bool lua_mode = false;
     bool has_processed_text_yet = false;
     std::string text_block;
@@ -92,7 +92,7 @@ LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const 
     return RenderResponse::Success;
 }
 
-LuaHypertextPreprocessor::RenderResponse LuaHypertextPreprocessor::Render(const Url &url, std::string *output) {
+Lhp::RenderResponse Lhp::Render(const Url &url, std::string *output) {
     Core* core = mLua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;

@@ -38,6 +38,8 @@ RootHandler::RootHandler(HttpServer *server) : mServer(server) {
 }
 
 void RootHandler::OnRequest(evhttp_request *req, void *userdata) {
+    mServer->GetOnRequestSignal().Emit(req);
+
     const char* uri = evhttp_request_get_uri(req);
     std::filesystem::path file_path = mServer->GetFilePath(uri);
     if (file_path.empty()) {

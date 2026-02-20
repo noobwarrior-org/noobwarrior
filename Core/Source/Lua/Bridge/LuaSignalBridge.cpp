@@ -18,19 +18,41 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulatorBridge.h
+// File: LuaSignalBridge.cpp
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
-#pragma once
-#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
+#include <NoobWarrior/Lua/Bridge/LuaSignalBridge.h>
+#include <NoobWarrior/Lua/LuaSignal.h>
 
-namespace NoobWarrior {
-class ServerEmulatorBridge {
-public:
-    ServerEmulatorBridge(LuaState* lua);
-    void Open();
-private:
-    LuaState* mLua;
-};
+using namespace NoobWarrior;
+
+static int Connect(lua_State *L) {
+    lua_pushstring(L, "poop");
+    return 1;
+}
+
+static int New(lua_State *L) {
+    LuaSignal *signal = (LuaSignal*)lua_newuserdata(L, sizeof(LuaSignal));
+    new(signal) LuaSignal();
+
+    luaL_setmetatable(L, "Signal");
+
+    return 1;
+}
+
+LuaSignalBridge::LuaSignalBridge(LuaState* lua) : LuaObjectBridge(lua, "Signal") {
+
+}
+
+LuaReg LuaSignalBridge::GetStaticFuncs() {
+    return {
+        {"new", New}
+    };
+}
+
+LuaReg LuaSignalBridge::GetObjectFuncs() {
+    return {
+        {"Connect", Connect}
+    };
 }

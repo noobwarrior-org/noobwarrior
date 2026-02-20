@@ -211,6 +211,10 @@ nlohmann::json HttpServer::GetBaseContextData(evhttp_request *req) {
     return data;
 }
 
+LuaSignal& HttpServer::GetOnRequestSignal() {
+    return mOnRequestSignal;
+}
+
 bool HttpServer::IsRunning() {
     return Running;
 }

@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
+#include "NoobWarrior/Plugin.h"
 #include <NoobWarrior/Lua/Bridge/ServerEmulatorBridge.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Log.h>
@@ -30,41 +31,50 @@
 
 using namespace NoobWarrior;
 
-static int ServerEmulator_index(lua_State *L) {
-    luaL_getmetatable(L, "HttpServer");
-    lua_getfield(L, -1, "__index");
-
-    if (lua_isfunction(L, -1)) {
-        lua_pushvalue(L, 1); // self
-        lua_pushvalue(L, 2); // key
-        lua_call(L, 2, 1);
-        return 1;
-    }
-    if (lua_istable(L, -1)) {
-        lua_pushvalue(L, 2); // key
-        lua_gettable(L, -2);
-        return 1;
-    }
-
+static int New(lua_State *L) {
     lua_pushnil(L);
     return 1;
 }
 
-ServerEmulatorBridge::ServerEmulatorBridge(LuaState* lua) : LuaObjectBridge(lua, "ServerEmulator") {}
+static int BanUserId(lua_State *L) {
+    lua_pushnil(L);
+    return 1;
+}
+
+static const luaL_Reg MetaFuncs[] {
+    {NULL, NULL}
+};
+
+static const luaL_Reg ObjectFuncs[] {
+    {"new", New},
+    {"BanUserId", BanUserId},
+    {NULL, NULL}
+};
+
+ServerEmulatorBridge::ServerEmulatorBridge(LuaState* lua) : mLua(lua) {}
 
 void ServerEmulatorBridge::Open() {
-    LuaObjectBridge::Open();
     lua_State *L = mLua->Get();
+
+    // fuck this shit
+    luaL_newmetatable(L, "ServerEmulator");
+    luaL_setfuncs(L, MetaFuncs, 0);
+
+    lua_newtable(L);
+    luaL_setfuncs(L, ObjectFuncs, 0);
+
+    lua_newtable(L); // our nested metatable for the server emulator's __index metamethod
+    luaL_getmetatable(L, "HttpServer");
+    lua_setfield(L, -2, "__index");
+    lua_setmetatable(L, -2);
+
+    lua_setfield(L, -2, "__index");
+
+    lua_pop(L, 1);
 
     // Let lua memory manage a single pointer instead of the actual data, cuz C++ memory manages the real shit
     ServerEmulator** ptr = static_cast<ServerEmulator**>(lua_newuserdata(L, sizeof(ServerEmulator*)));
     *ptr = mLua->GetCore()->GetServerEmulator();
     luaL_setmetatable(L, "ServerEmulator");
     lua_setglobal(L, "emu");
-}
-
-LuaReg ServerEmulatorBridge::GetObjectMetaFuncs() {
-    return {
-        {"__index", ServerEmulator_index}
-    };
 }

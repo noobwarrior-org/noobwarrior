@@ -23,11 +23,15 @@
 // Started on: 12/3/2025
 // Description:
 #include <NoobWarrior/Lua/LuaState.h>
+#include <NoobWarrior/Lua/LuaSignal.h>
 #include <NoobWarrior/Lua/Bridge/PluginBridge.h>
-#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
+#include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Lua/Bridge/VfsBridge.h>
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/HttpServer/Base/HttpServer.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include "files/global_env_metatable.lua.inc.cpp"
 #include "files/rawget_path.lua.inc.cpp"
@@ -49,10 +53,16 @@ static int printBS(lua_State *L) {
     return 0;
 }
 
+static int Listener(lua_State *L) {
+
+    return 0;
+}
+
 LuaState::LuaState(Core* core) :
     L(nullptr),
     mCore(core),
     mLhp(this),
+    mLuaSignalBridge(this),
     mPluginBridge(this),
     mLhpBridge(this),
     mVfsBridge(this),
@@ -65,6 +75,10 @@ int LuaState::Open() {
 
     luaL_openlibs(L);
 
+    // Run lua code to define some functions without having to hassle with Lua C API
+    luaL_dostring(L, rawget_path_lua);
+    luaL_dostring(L, global_env_metatable_lua);
+
     // Add reference to core in lua registry so that we can retrieve it for any bindings that require its existence
     lua_pushlightuserdata(L, mCore);
     lua_setfield(L, LUA_REGISTRYINDEX, "core");
@@ -74,10 +88,6 @@ int LuaState::Open() {
 
     // lua_pushcfunction(mLuaState, printBS);
     // lua_setglobal(mLuaState, "error");
-
-    // Run lua code to define some functions without having to hassle with Lua C API
-    luaL_dostring(L, rawget_path_lua);
-    luaL_dostring(L, global_env_metatable_lua);
 
 #define LOADLIBRARY(strVar, name) \
     int strVar##_exec_res = luaL_dostring(L, strVar); \
@@ -90,8 +100,9 @@ int LuaState::Open() {
 
 #undef LOADLIBRARY
 
-    mPluginBridge.Open();
     mLhpBridge.Open();
+    mLuaSignalBridge.Open();
+    mPluginBridge.Open();
     mVfsBridge.Open();
     mHttpServerBridge.Open();
     mServerEmulatorBridge.Open();
@@ -114,7 +125,7 @@ lua_State* LuaState::Get() {
     return L;
 }
 
-LuaHypertextPreprocessor *LuaState::GetLhp() {
+Lhp *LuaState::GetLhp() {
     return &mLhp;
 }
 

@@ -18,30 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Signal.h
+// File: LuaScriptBridge.h
 // Started by: Hattozo
-// Started on: 2/19/2026
+// Started on: 1/17/2026
 // Description:
 #pragma once
-#include <functional>
-#include <vector>
+#include <NoobWarrior/Lua/Bridge/LuaObjectBridge.h>
 
 namespace NoobWarrior {
-class SignalReceiver {
+class LuaSignalBridge : public LuaObjectBridge {
 public:
-    SignalReceiver();
-
-};
-
-class SignalEmitter {
-public:
-    SignalEmitter();
-
-    void Emit();
-
-    SignalReceiver Connect(std::function<void()> cool);
-    void Connect(SignalReceiver &receiver);
-private:
-    std::vector<SignalReceiver> mReceivers;
+    LuaSignalBridge(LuaState* lua);
+    LuaReg GetStaticFuncs() override;
+    LuaReg GetObjectFuncs() override;
 };
 }

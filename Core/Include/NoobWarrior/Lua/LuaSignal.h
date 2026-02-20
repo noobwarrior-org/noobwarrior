@@ -18,23 +18,26 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Signal.cpp
+// File: Signal.h
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
-#include <NoobWarrior/Signal.h>
+#pragma once
+#include <functional>
+#include <vector>
 
-using namespace NoobWarrior;
+#include <lua.hpp>
 
-SignalEmitter::SignalEmitter() {
+namespace NoobWarrior {
+class LuaSignal {
+public:
+    LuaSignal();
 
-}
+    template<typename... Args>
+    void Emit(Args... args) {
+    }
 
-SignalReceiver SignalEmitter::Connect(std::function<void()> cool) {
-    SignalReceiver receiver;
-    return receiver;
-}
-
-void SignalEmitter::Connect(SignalReceiver &receiver) {
-    mReceivers.push_back(std::move(receiver));
+    void Connect();
+private:
+};
 }

@@ -26,7 +26,8 @@
 #include <lua.hpp>
 
 #include <NoobWarrior/Lua/LuaScript.h>
-#include <NoobWarrior/Lua/LuaHypertextPreprocessor.h>
+#include <NoobWarrior/Lua/Lhp.h>
+#include <NoobWarrior/Lua/Bridge/LuaSignalBridge.h>
 #include <NoobWarrior/Lua/Bridge/PluginBridge.h>
 #include <NoobWarrior/Lua/Bridge/LhpBridge.h>
 #include <NoobWarrior/Lua/Bridge/VfsBridge.h>
@@ -48,13 +49,14 @@ public:
     bool Opened();
 
     lua_State* Get();
-    LuaHypertextPreprocessor *GetLhp();
+    Lhp *GetLhp();
     Core *GetCore();
 private:
     lua_State *L;
 
     Core* mCore;
-    LuaHypertextPreprocessor mLhp;
+    Lhp mLhp;
+    LuaSignalBridge mLuaSignalBridge;
     PluginBridge mPluginBridge;
     LhpBridge mLhpBridge;
     VfsBridge mVfsBridge;

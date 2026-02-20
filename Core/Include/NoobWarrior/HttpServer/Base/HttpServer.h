@@ -27,6 +27,8 @@
 #include "RootHandler.h"
 #include "TestHandler.h"
 
+#include <NoobWarrior/Lua/LuaSignal.h>
+
 #include <cstdint>
 #include <filesystem>
 #include <vector>
@@ -96,6 +98,8 @@ public:
      */
     virtual nlohmann::json GetBaseContextData(evhttp_request *req = nullptr);
 
+    LuaSignal& GetOnRequestSignal();
+
     Core *GetCore();
 protected:
     bool Running;
@@ -121,5 +125,8 @@ protected:
     std::unique_ptr<TestHandler> mTestHandler;
 
     std::vector<std::unique_ptr<std::pair<Handler*, void*>>> HandlerUserdata;
+
+    //////////////// Signals ////////////////
+    LuaSignal mOnRequestSignal;
 };
 }

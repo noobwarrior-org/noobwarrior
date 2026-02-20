@@ -27,10 +27,11 @@
 #include <lua.hpp>
 
 namespace NoobWarrior {
-class HttpServerBridge : public LuaObjectBridge {
+class HttpServerBridge {
 public:
     HttpServerBridge(LuaState* lua);
-    LuaReg GetStaticFuncs() override;
-    LuaReg GetObjectMetaFuncs() override;
+    void Open();
+private:
+    LuaState* mLua;
 };
 }
