@@ -130,7 +130,10 @@ LuaScript::ExecResponse LuaScript::Execute() {
             if (res.valid() && res.get_type() == sol::type::string)
                 msg += res.get<std::string>();
         }
-        Out("Lua", "[{}] {}", mUrl.Resolve(), msg);
+        if (!mUrl.IsBlank())
+            Out("Lua", "[{}] {}", mUrl.Resolve(), msg);
+        else
+            Out("Lua", msg);
     };
 
     sol::protected_function func = mBytecode.get<sol::protected_function>();
