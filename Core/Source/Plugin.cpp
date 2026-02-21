@@ -196,8 +196,6 @@ void Plugin::OpenEnv() {
     if (Fail())
         return;
 
-    auto identifier = mManifestTbl.get<std::string>("identifier");
-
     mEnv = sol::environment(*mCore->GetLuaState(), sol::create, mCore->GetLuaState()->globals());
     mEnv.set("plugin", this);
 }

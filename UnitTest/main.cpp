@@ -115,6 +115,34 @@ TEST(NoobWarrior, UrlEnforceCorrectProtocolAndHostName) {
         << "Url should fail with incorrect protocol and host name, but it's not.";
 }
 
+TEST(NoobWarrior, LuaRunScript) {
+    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "print(\"Hello from UnitTest!\")");
+    EXPECT_EQ(false, lua.Fail())
+        << "Failed to load Lua script!";
+    LuaScript::ExecResponse res = lua.Execute();
+    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
+        << "Failed to execute Lua script!";
+}
+
+// BTW: This triggers a prompt from Windows Firewall as it starts a HTTP server.
+TEST(NoobWarrior, LuaCreateHttpServerFromScript) {
+    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "local server = HttpServer.new() server:Start(43000) print(\"Created HttpServer from script! Memory Address:\", server) server:Stop()");
+    EXPECT_EQ(false, lua.Fail())
+        << "Failed to load Lua script!";
+    LuaScript::ExecResponse res = lua.Execute();
+    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
+        << "Failed to execute Lua script!";
+}
+
+TEST(NoobWarrior, LuaRenderLhpPage) {
+    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "print(lhp.Render(\"Hello, this is plain text. <?lua echo('And this is from LHP!') ?>\"))");
+    EXPECT_EQ(false, lua.Fail())
+        << "Failed to load Lua script!";
+    LuaScript::ExecResponse res = lua.Execute();
+    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
+        << "Failed to execute Lua script!";
+}
+
 TEST(NoobWarrior, OpenDatabase) {
     sEmuDb = new EmuDb(":memory:");
     EXPECT_EQ(false, sEmuDb->Fail());
