@@ -54,12 +54,12 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
 
     VirtualFileSystem::Response fileRes = mUrl.OpenHandle(core, &vfs, &scriptHandle);
     if (vfs == nullptr) {
-        Out("Lua", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
+        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
         mFailReason = FailReason::UrlFailed;
         return;
     }
     if (scriptHandle == 0) {
-        Out("Lua", "[{}] (Load Failure) {}", mUrl.Resolve(), "The file handle failed to open.");
+        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "The file handle failed to open.");
         mFailReason = FailReason::UrlFailed;
         return;
     }
@@ -76,7 +76,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
     mBytecode = mLua->load(src);
     if (!mBytecode.valid()) {
         sol::error err = mBytecode;
-        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
+        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
     }
     switch (mBytecode.status()) {
     case sol::load_status::ok: mFailReason = FailReason::None; break;
@@ -100,7 +100,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src
     mBytecode = mLua->load(src);
     if (!mBytecode.valid()) {
         sol::error err = mBytecode;
-        Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
+        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
     }
     switch (mBytecode.status()) {
     case sol::load_status::ok: mFailReason = FailReason::None; break;
@@ -131,9 +131,9 @@ LuaScript::ExecResponse LuaScript::Execute() {
                 msg += res.get<std::string>();
         }
         if (!mUrl.IsBlank())
-            Out("Lua", "[{}] {}", mUrl.Resolve(), msg);
+            Out("LuaScript", "[{}] {}", mUrl.Resolve(), msg);
         else
-            Out("Lua", msg);
+            Out("LuaScript", msg);
     };
 
     sol::protected_function func = mBytecode.get<sol::protected_function>();
@@ -141,7 +141,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
     sol::protected_function_result res = func();
     if (!res.valid()) {
         sol::error err = res;
-        Out("Lua", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
+        Out("LuaScript", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
     }
     switch (res.status()) {
     case sol::call_status::ok: return ExecResponse::Ok;
