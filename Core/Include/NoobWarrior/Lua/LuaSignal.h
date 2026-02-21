@@ -29,6 +29,13 @@
 #include <lua.hpp>
 
 namespace NoobWarrior {
+class LuaSignalListener {
+public:
+    LuaSignalListener();
+
+    void Disconnect();
+};
+
 class LuaSignal {
 public:
     LuaSignal();
@@ -37,7 +44,7 @@ public:
     void Emit(Args... args) {
     }
 
-    void Connect();
+    LuaSignalListener Connect();
 private:
 };
 }

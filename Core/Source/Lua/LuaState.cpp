@@ -110,6 +110,9 @@ int LuaState::Open() {
     sol::usertype<Plugin> pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
     pluginType["GetIdentifier"] = &Plugin::GetIdentifier;
 
+    sol::usertype<LuaSignalListener> signalListenerType = new_usertype<LuaSignalListener>("SignalListener", sol::no_constructor);
+    signalListenerType["Disconnect"] = &LuaSignalListener::Disconnect;
+
     sol::usertype<LuaSignal> signalType = new_usertype<LuaSignal>("Signal", sol::constructors<LuaSignal()>());
     signalType["Connect"] = &LuaSignal::Connect;
 
@@ -119,6 +122,9 @@ int LuaState::Open() {
     };
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
+    srvType["OnRequest"] = sol::property([](HttpServer &srv) {
+        return srv.GetOnRequestSignal();
+    });
 
     sol::usertype<ServerEmulator> emuType = new_usertype<ServerEmulator>("ServerEmulator");
 

@@ -26,10 +26,18 @@
 
 using namespace NoobWarrior;
 
+LuaSignalListener::LuaSignalListener() {
+    
+}
+
+void LuaSignalListener::Disconnect() {
+
+}
+
 LuaSignal::LuaSignal() {
 
 }
 
-void LuaSignal::Connect() {
-    
+LuaSignalListener LuaSignal::Connect() {
+    return LuaSignalListener();
 }
