@@ -32,8 +32,12 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <sol/forward.hpp>
 
+#include <lua.hpp>
+#include <sol/raii.hpp>
+#include <sol/sol.hpp>
+
+#include "NoobWarrior/FileSystem/VirtualFileSystem.h"
 #include "files/global_env_metatable.lua.inc.cpp"
 #include "files/rawget_path.lua.inc.cpp"
 #include "files/serpent.lua.inc.cpp"
@@ -51,11 +55,6 @@ static int printBS(lua_State *L) {
         lua_pop(L, 1);
     }
     Out("Lua", msg);
-    return 0;
-}
-
-static int Listener(lua_State *L) {
-
     return 0;
 }
 
@@ -103,12 +102,80 @@ int LuaState::Open() {
     
     LOADLIBRARY(serpent_lua, "serpent")
     LOADLIBRARY(json_lua, "json")
-
-    // sol::protected_function_result res = do_string(serpent_lua);
-    // if (res.valid() &&res.get_type() == sol::type::table) {
-    //     set("serpent", res.get<sol::table>());
-    // }
 #undef LOADLIBRARY
+
+    sol::usertype<LuaScript> scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
+    scriptType["GetUrl"] = &LuaScript::GetUrl;
+
+    sol::usertype<Plugin> pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
+    pluginType["GetIdentifier"] = &Plugin::GetIdentifier;
+
+    sol::usertype<LuaSignal> signalType = new_usertype<LuaSignal>("Signal", sol::constructors<LuaSignal()>());
+    signalType["Connect"] = &LuaSignal::Connect;
+
+    sol::usertype<HttpServer> srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
+    srvType["new"] = [this]() {
+        return std::make_unique<HttpServer>(mCore);
+    };
+    srvType["Start"] = &HttpServer::Start;
+    srvType["Stop"] = &HttpServer::Stop;
+
+    sol::usertype<ServerEmulator> emuType = new_usertype<ServerEmulator>("ServerEmulator");
+
+    set("emu", mCore->GetServerEmulator());
+
+    sol::table lhpLib = create_table();
+    lhpLib.set_function("Render", [this](sol::this_state state, std::string input) -> std::string {
+        lua_State* L = state;
+        std::string output;
+        Lhp::RenderResponse res = mLhp.Render(input, &output);
+        if (res != Lhp::RenderResponse::Success) {
+            luaL_error(L, "failed to render page using lhp");
+        }
+        return output;
+    });
+    lhpLib.set_function("RenderFile", [this](sol::this_state state, std::string fileLocation) -> std::string {
+        lua_State* L = state;
+
+        sol::state_view lua(state);
+        sol::table env = lua.globals();
+        
+        // In each LuaScript (yes we create objects for each script that autoruns) we include a "script" variable
+        // in their personalized environment that contains a self-reference to the script that is currently being ran.
+        // Basically it's like Roblox's "script" global.
+        sol::userdata data = env["script"];
+        LuaScript& script = data.as<LuaScript>();
+
+        UrlContext ctx {};
+        ctx.DefaultProtocolType = script.GetUrl().GetProtocol();
+        ctx.DefaultHostName = script.GetUrl().GetHostName();
+
+        Url url(fileLocation, ctx);
+
+        VirtualFileSystem* vfs;
+        FSEntryHandle fileHandle;
+        VirtualFileSystem::Response vfsRes = url.OpenHandle(mCore, &vfs, &fileHandle);
+        if (vfsRes != VirtualFileSystem::Response::Success) {
+            luaL_error(L, "failed to open file");
+            /* Sol's way of handling C++ exceptions seems to be broken under LuaJIT apparently? */
+            // throw sol::error("failed to open file");
+        }
+
+        std::string src, line;
+        while (vfs->ReadHandleLine(fileHandle, &line)) {
+            src += line + "\n";
+        }
+
+        vfs->CloseHandle(fileHandle);
+
+        std::string output;
+        Lhp::RenderResponse res = mLhp.Render(src, &output);
+        if (res != Lhp::RenderResponse::Success) {
+            luaL_error(L, "failed to render page using lhp");
+        }
+        return output;
+    });
+    set("lhp", lhpLib);
 
     // mLhpBridge.Open();
     // mLuaSignalBridge.Open();

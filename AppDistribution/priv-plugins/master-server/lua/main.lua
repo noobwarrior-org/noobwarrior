@@ -8,4 +8,7 @@
 -- ////////////////////////////////////////////////////////////////////////////////
 master = HttpServer.new()
 
-local res = lhp.Render("/src/index.lhp")
+print("Hello world")
+print(lhp)
+print(script)
+local res = lhp.RenderFile("/src/index.lhp")

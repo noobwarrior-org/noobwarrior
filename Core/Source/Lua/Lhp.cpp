@@ -42,7 +42,6 @@ Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
     bool lua_mode = false;
-    bool has_processed_text_yet = false;
     std::string text_block;
     std::string lua_output;
 
@@ -50,11 +49,11 @@ Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
         if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1) == OPENING_TAG) {
             // Switch to Lua mode, skip cursor to the first letter after the tag, write down the bytes from the previous text block, and restart
             lua_mode = true;
-            has_processed_text_yet = true;
             i += NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG);
 
             if (!text_block.empty()) {
                 lua_output += std::format("echo([[{}]]);", text_block);
+                text_block.clear();
             }
             
             continue;
@@ -82,13 +81,12 @@ Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
         }
 
         (!lua_mode ? text_block : lua_output) += input.at(i);
-
-        if (!has_processed_text_yet) {
-            lua_output += std::format("echo([[{}]]);", text_block);
-        }
-
-        Out("Lhp", lua_output);
     }
+    if (!text_block.empty()) {
+        lua_output += std::format("echo([[{}]]);", text_block);
+    }
+    *output = lua_output;
+    Out("Lhp", lua_output);
     return RenderResponse::Success;
 }
 

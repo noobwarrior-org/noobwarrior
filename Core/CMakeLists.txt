@@ -35,12 +35,10 @@ CPMAddPackage(
 )
 
 add_library(sqlite3 STATIC ${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3/sqlite3.c)
-
 target_include_directories(sqlite3
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3>
 )
-
 # we need this enabled for full text search
 target_compile_definitions(sqlite3 PRIVATE SQLITE_ENABLE_FTS5=1)
 

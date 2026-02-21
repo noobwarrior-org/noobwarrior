@@ -21,7 +21,9 @@
 // File: LuaScript.cpp
 // Started by: Hattozo
 // Started on: 1/18/2026
-// Description:
+// Description: An object representing a Lua script.
+// This class primarily exists as a sort of "meta object" that contains their state.
+// Basically imagine the "Script" instance in Roblox Studio
 #include "NoobWarrior/FileSystem/VirtualFileSystem.h"
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Lua/LuaState.h>
@@ -29,10 +31,17 @@
 #include <sol/load_result.hpp>
 #include <sol/protected_function_result.hpp>
 #include <sol/types.hpp>
+#include <sol/variadic_args.hpp>
 
 using namespace NoobWarrior;
 
-LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(identifier), mFailReason(FailReason::Unknown) {
+// btw: you can pass sol::environment by copy and it will still reference the same Lua environment
+LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier) :
+    mLua(lua),
+    mUrl(identifier),
+    mFailReason(FailReason::Unknown),
+    mBaseEnv(std::move(env))
+{
     if (!lua->Opened()) {
         Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
@@ -76,21 +85,26 @@ LuaScript::LuaScript(LuaState* lua, const Url &identifier) : mLua(lua), mUrl(ide
     }
 }
 
-LuaScript::LuaScript(LuaState* lua, const std::string &src) : mLua(lua), mSource(src) {
+LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src) :
+    mLua(lua),
+    mSource(src),
+    mFailReason(FailReason::Unknown),
+    mBaseEnv(std::move(env))
+{
     if (!lua->Opened()) {
         Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
 
-    sol::protected_function_result res = mLua->safe_script(src);
-    if (!res.valid()) {
-        sol::error err = res;
+    mBytecode = mLua->load(src);
+    if (!mBytecode.valid()) {
+        sol::error err = mBytecode;
         Out("Lua", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
     }
-    switch (res.status()) {
-    case sol::call_status::ok: mFailReason = FailReason::None; break;
-    case sol::call_status::syntax: mFailReason = FailReason::SyntaxError; return;
+    switch (mBytecode.status()) {
+    case sol::load_status::ok: mFailReason = FailReason::None; break;
+    case sol::load_status::syntax: mFailReason = FailReason::SyntaxError; return;
     default: mFailReason = FailReason::Unknown; return;
     }
 }
@@ -104,7 +118,24 @@ LuaScript::FailReason LuaScript::GetFailReason() {
 }
 
 LuaScript::ExecResponse LuaScript::Execute() {
-    sol::protected_function_result res = mBytecode.get<sol::protected_function>().call();
+    if (Fail()) return ExecResponse::InitFailed;
+
+    sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
+    sandbox["script"] = this;
+    sandbox["print"] = [this](sol::variadic_args args) {
+        std::string msg;
+        for (auto arg : args) {
+            if (!msg.empty()) msg += " ";
+            sol::protected_function_result res = (*mLua)["tostring"].call(arg);
+            if (res.valid() && res.get_type() == sol::type::string)
+                msg += res.get<std::string>();
+        }
+        Out("Lua", "[{}] {}", mUrl.Resolve(), msg);
+    };
+
+    sol::protected_function func = mBytecode.get<sol::protected_function>();
+    sandbox.set_on(func);
+    sol::protected_function_result res = func();
     if (!res.valid()) {
         sol::error err = res;
         Out("Lua", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());

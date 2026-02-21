@@ -34,7 +34,8 @@ class LuaScript {
 public:
     enum class ExecResponse {
         Failed,
-        Ok
+        Ok,
+        InitFailed
     };
 
     enum class FailReason {
@@ -45,8 +46,8 @@ public:
         UrlFailed
     };
 
-    LuaScript(LuaState* lua, const Url &url);
-    LuaScript(LuaState* lua, const std::string &src);
+    LuaScript(LuaState* lua, sol::environment env, const Url &url);
+    LuaScript(LuaState* lua, sol::environment env, const std::string &src);
 
     bool Fail();
     FailReason GetFailReason();
@@ -61,5 +62,6 @@ private:
     std::string mSource;
     FailReason mFailReason;
     sol::load_result mBytecode;
+    sol::environment mBaseEnv;
 };
 }

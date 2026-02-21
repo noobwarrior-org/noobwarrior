@@ -78,6 +78,7 @@ public:
     std::vector<unsigned char> GetIconData();
     std::filesystem::path GetFilePath();
     std::string GetFileName();
+    std::string GetIdentifier();
 
     const Properties GetProperties();
 protected:

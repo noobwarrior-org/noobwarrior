@@ -104,6 +104,7 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     }
 
     mResponse = Response::Success;
+    OpenEnv();
 }
 
 Plugin::~Plugin() {
@@ -133,7 +134,7 @@ Plugin::Response Plugin::Execute() {
                 PLUGIN_OUT("Value in index {} in autorun is not string!", i)
                 continue;
             }
-            LuaScript script(mCore->GetLuaState(), (Url(val.as<std::string>(), {
+            LuaScript script(mCore->GetLuaState(), mEnv, (Url(val.as<std::string>(), {
                 .DefaultProtocolType = ProtocolType::Plugin,
                 .DefaultHostName = identifier
             })));
@@ -167,6 +168,10 @@ std::string Plugin::GetFileName() {
 	return last_slash != std::string::npos ? str.substr(last_slash + 1) : str;
 }
 
+std::string Plugin::GetIdentifier() {
+    return mManifestTbl.get_or<std::string>("identifier", "");
+}
+
 const Plugin::Properties Plugin::GetProperties() {
     if (Fail()) {
         Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
@@ -194,9 +199,5 @@ void Plugin::OpenEnv() {
     auto identifier = mManifestTbl.get<std::string>("identifier");
 
     mEnv = sol::environment(*mCore->GetLuaState(), sol::create, mCore->GetLuaState()->globals());
-    mEnv["plugin"] = sol::new_table();
-    
-    mEnv.set_function("print", [identifier](std::string msg) {
-        PLUGIN_OUT(msg);
-    });
+    mEnv.set("plugin", this);
 }
