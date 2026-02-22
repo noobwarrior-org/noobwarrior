@@ -29,6 +29,7 @@
 #include <nlohmann/json.hpp>
 #include <inja/inja.hpp>
 
+#include <vector>
 #include <fstream>
 
 using namespace NoobWarrior;
@@ -37,10 +38,22 @@ RootHandler::RootHandler(HttpServer *server) : mServer(server) {
     
 }
 
-void RootHandler::OnRequest(evhttp_request *req, void *userdata) {
-    mServer->GetOnRequestSignal().Emit(req);
-
+void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
+    evhttp_connection* conn = evhttp_request_get_connection(req);
+
+    const char* peer_address = "";
+    uint16_t peer_port {};
+    
+    if (conn != NULL)
+        evhttp_connection_get_peer(conn, &peer_address, &peer_port);
+
+    sol::table reqTbl = mServer->GetCore()->GetLuaState()->create_table();
+    reqTbl["Uri"] = uri;
+    reqTbl["PeerIp"] = peer_address;
+    reqTbl["PeerPort"] = peer_port;
+    mServer->GetOnRequestSignal()->Fire(reqTbl);
+    
     std::filesystem::path file_path = mServer->GetFilePath(uri);
     if (file_path.empty()) {
         std::string pageName;

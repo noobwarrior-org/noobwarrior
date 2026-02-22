@@ -34,6 +34,7 @@
 
 #include <lua.hpp>
 #include <sol/sol.hpp>
+#include <memory>
 
 #define ERR_LOG_TEMPLATE "Failed to load plugin \"{}\" because "
 #define PLUGIN_OUT(...) Out("Plugin", "[" + identifier + "] " + __VA_ARGS__);
@@ -134,12 +135,14 @@ Plugin::Response Plugin::Execute() {
                 PLUGIN_OUT("Value in index {} in autorun is not string!", i)
                 continue;
             }
-            LuaScript script(mCore->GetLuaState(), mEnv, (Url(val.as<std::string>(), {
+            auto script = std::make_unique<LuaScript>(mCore->GetLuaState(), mEnv, (Url(val.as<std::string>(), {
                 .DefaultProtocolType = ProtocolType::Plugin,
                 .DefaultHostName = identifier
             })));
-            if (!script.Fail())
-                script.Execute();
+            if (!script->Fail()) {
+                script->Execute();
+                mScripts.push_back(std::move(script));
+            }
         }
     }
 

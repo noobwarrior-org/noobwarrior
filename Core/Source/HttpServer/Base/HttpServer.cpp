@@ -53,8 +53,10 @@ HttpServer::~HttpServer() {
 }
 
 static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata) {
-    auto pair = static_cast<std::pair<Handler*, void*>*>(userdata);
-    pair->first->OnRequest(req, pair->second);
+    auto tuple = static_cast<std::tuple<Handler*, void*>*>(userdata);
+    Handler* handler = std::get<0>(*tuple);
+    void* data = std::get<1>(*tuple);
+    handler->OnRequest(req, data);
 }
 
 int HttpServer::Start(uint16_t port) {
@@ -93,7 +95,7 @@ int HttpServer::Stop() {
 void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
     // pass a std pair containing our handler object and user data so that it knows what the object is.
     // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
-    auto handler_userdata_pair = std::make_unique<std::pair<Handler*, void*>>(handler, userdata);
+    auto handler_userdata_pair = std::make_unique<std::tuple<Handler*, void*>>(handler, userdata);
     auto *raw = handler_userdata_pair.get();
     HandlerUserdata.push_back(std::move(handler_userdata_pair));
     if (uri != nullptr)
@@ -211,8 +213,8 @@ nlohmann::json HttpServer::GetBaseContextData(evhttp_request *req) {
     return data;
 }
 
-LuaSignal& HttpServer::GetOnRequestSignal() {
-    return mOnRequestSignal;
+LuaSignal* HttpServer::GetOnRequestSignal() {
+    return &mOnRequestSignal;
 }
 
 bool HttpServer::IsRunning() {

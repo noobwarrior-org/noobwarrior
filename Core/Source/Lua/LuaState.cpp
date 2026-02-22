@@ -46,13 +46,26 @@
 using namespace NoobWarrior;
 
 static int printBS(lua_State *L) {
-    int nargs = lua_gettop(L); 
-
+    int n = lua_gettop(L);  /* number of arguments */
+    int i;
     std::string msg;
-    for (int i = 1; i <= nargs; i++) {
-        const char *str = lua_tolstring(L, i, NULL);
-        msg += str;
-        lua_pop(L, 1);
+    lua_getglobal(L, "tostring");
+    for (i = 1; i <= n; i++) {
+        const char *s;
+        if (i > 1) {
+            msg += "\t";
+        }
+        lua_pushvalue(L, -1);  /* function to be called */
+        lua_pushvalue(L, i);   /* value to print */
+        lua_call(L, 1, 1);
+        s = lua_tostring(L, -1);  /* get result */
+        if (s == NULL) {
+            // This should not happen with tostring, but as a fallback
+            msg += lua_typename(L, lua_type(L, i));
+        } else {
+            msg += s;
+        }
+        lua_pop(L, 1);  /* pop result */
     }
     Out("Lua", msg);
     return 0;
@@ -104,19 +117,27 @@ int LuaState::Open() {
     LOADLIBRARY(json_lua, "json")
 #undef LOADLIBRARY
 
-    sol::usertype<LuaScript> scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
+    auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
     scriptType["GetUrl"] = &LuaScript::GetUrl;
 
-    sol::usertype<Plugin> pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
+    auto pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
     pluginType["GetIdentifier"] = &Plugin::GetIdentifier;
 
-    sol::usertype<LuaSignalListener> signalListenerType = new_usertype<LuaSignalListener>("SignalListener", sol::no_constructor);
+    auto signalListenerType = new_usertype<LuaSignalListener>("SignalListener", sol::no_constructor);
     signalListenerType["Disconnect"] = &LuaSignalListener::Disconnect;
 
-    sol::usertype<LuaSignal> signalType = new_usertype<LuaSignal>("Signal", sol::constructors<LuaSignal()>());
+    auto signalType = new_usertype<LuaSignal>("Signal", sol::constructors<LuaSignal()>());
     signalType["Connect"] = &LuaSignal::Connect;
+    signalType["Fire"] = &LuaSignal::LuaFire;
 
-    sol::usertype<HttpServer> srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
+    auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(std::string, std::string)>());
+    sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
+    sqlDbType["SetPragma"] = &SqlDb::SetPragma;
+    sqlDbType["Query"] = []() {
+
+    };
+
+    auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this]() {
         return std::make_unique<HttpServer>(mCore);
     };
@@ -126,8 +147,7 @@ int LuaState::Open() {
         return srv.GetOnRequestSignal();
     });
 
-    sol::usertype<ServerEmulator> emuType = new_usertype<ServerEmulator>("ServerEmulator");
-
+    auto emuType = new_usertype<ServerEmulator>("ServerEmulator");
     set("emu", mCore->GetServerEmulator());
 
     sol::table lhpLib = create_table();
@@ -140,11 +160,9 @@ int LuaState::Open() {
         }
         return output;
     });
-    lhpLib.set_function("RenderFile", [this](sol::this_state state, std::string fileLocation) -> std::string {
+    lhpLib.set_function("RenderFile", [this](sol::this_state state, sol::this_environment thisEnv, std::string fileLocation) -> std::string {
         lua_State* L = state;
-
-        sol::state_view lua(state);
-        sol::table env = lua.globals();
+        sol::environment& env = thisEnv;
         
         // In each LuaScript (yes we create objects for each script that autoruns) we include a "script" variable
         // in their personalized environment that contains a self-reference to the script that is currently being ran.
@@ -155,6 +173,7 @@ int LuaState::Open() {
         UrlContext ctx {};
         ctx.DefaultProtocolType = script.GetUrl().GetProtocol();
         ctx.DefaultHostName = script.GetUrl().GetHostName();
+        ctx.Cwd = script.GetUrl().GetCwd();
 
         Url url(fileLocation, ctx);
 
@@ -182,13 +201,6 @@ int LuaState::Open() {
         return output;
     });
     set("lhp", lhpLib);
-
-    // mLhpBridge.Open();
-    // mLuaSignalBridge.Open();
-    // mPluginBridge.Open();
-    // mVfsBridge.Open();
-    // mHttpServerBridge.Open();
-    // mServerEmulatorBridge.Open();
 
     Out("Lua", "Initialized Lua");
     return 1;

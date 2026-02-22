@@ -35,6 +35,7 @@
 #include <queue>
 #include <memory>
 #include <utility>
+#include <tuple>
 
 #include <evhttp.h>
 #include <nlohmann/json_fwd.hpp>
@@ -98,7 +99,7 @@ public:
      */
     virtual nlohmann::json GetBaseContextData(evhttp_request *req = nullptr);
 
-    LuaSignal& GetOnRequestSignal();
+    LuaSignal* GetOnRequestSignal();
 
     Core *GetCore();
 protected:
@@ -124,7 +125,7 @@ protected:
     std::unique_ptr<RootHandler> mRootHandler;
     std::unique_ptr<TestHandler> mTestHandler;
 
-    std::vector<std::unique_ptr<std::pair<Handler*, void*>>> HandlerUserdata;
+    std::vector<std::unique_ptr<std::tuple<Handler*, void*>>> HandlerUserdata;
 
     //////////////// Signals ////////////////
     LuaSignal mOnRequestSignal;

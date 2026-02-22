@@ -122,13 +122,18 @@ LuaScript::ExecResponse LuaScript::Execute() {
 
     sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
     sandbox["script"] = this;
-    sandbox["print"] = [this](sol::variadic_args args) {
+    
+    sandbox["print"] = [this](sol::this_state state, sol::variadic_args args) {
+        sol::state_view lua(state);
         std::string msg;
         for (auto arg : args) {
             if (!msg.empty()) msg += " ";
-            sol::protected_function_result res = (*mLua)["tostring"].call(arg);
-            if (res.valid() && res.get_type() == sol::type::string)
+            sol::protected_function_result res = lua["tostring"].call(arg);
+            if (res.valid() && res.get_type() == sol::type::string) {
                 msg += res.get<std::string>();
+            } else {
+                msg += "[unprintable]";
+            }
         }
         if (!mUrl.IsBlank())
             Out("LuaScript", "[{}] {}", mUrl.Resolve(), msg);

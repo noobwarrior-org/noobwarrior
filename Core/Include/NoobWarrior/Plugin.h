@@ -25,6 +25,7 @@
 #pragma once
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/Lua/LuaScript.h>
 
 #include <sol/sol.hpp>
 
@@ -91,6 +92,8 @@ private:
     VirtualFileSystem* mVfs;
     FSEntryHandle mVfsHandle;
     bool mIncludedInInstall;
+
+    std::vector<std::unique_ptr<LuaScript>> mScripts;
 
     sol::table mManifestTbl;
     sol::environment mEnv;

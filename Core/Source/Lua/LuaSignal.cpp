@@ -18,26 +18,42 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Signal.cpp
+// File: LuaSignal.cpp
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
 #include <NoobWarrior/Lua/LuaSignal.h>
+#include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
 
-LuaSignalListener::LuaSignalListener() {
+LuaSignalListener::LuaSignalListener(LuaSignal& parent) : Parent(parent) {
     
 }
 
-void LuaSignalListener::Disconnect() {
+LuaSignalListener::~LuaSignalListener() {
+    Disconnect();
+}
 
+void LuaSignalListener::Disconnect() {
+    // auto it = std::find(Parent.mListeners.begin(), Parent.mListeners.end(), *this);
+    // if (it != Parent.mListeners.end())
+    //     Parent.mListeners.erase(it);
 }
 
 LuaSignal::LuaSignal() {
 
 }
 
-LuaSignalListener LuaSignal::Connect() {
-    return LuaSignalListener();
+LuaSignalListener LuaSignal::Connect(sol::protected_function func) {
+    LuaSignalListener listener(*this);
+    listener.Function = func;
+    mListeners.push_back(std::move(listener));
+    return listener;
+}
+
+void LuaSignal::LuaFire(sol::variadic_args args) {
+    for (LuaSignalListener &listener : mListeners) {
+        listener.Function(args);
+    }
 }

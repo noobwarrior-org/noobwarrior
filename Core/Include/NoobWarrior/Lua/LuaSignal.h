@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Signal.h
+// File: LuaSignal.h
 // Started by: Hattozo
 // Started on: 2/19/2026
 // Description:
@@ -27,24 +27,40 @@
 #include <vector>
 
 #include <lua.hpp>
+#include <sol/sol.hpp>
+
+#include <NoobWarrior/Log.h>
 
 namespace NoobWarrior {
+class LuaSignal;
 class LuaSignalListener {
+    friend class LuaSignal;
 public:
-    LuaSignalListener();
+    LuaSignalListener(LuaSignal& parent);
+    ~LuaSignalListener();
 
     void Disconnect();
+protected:
+    LuaSignal& Parent;
+    sol::protected_function Function;
 };
 
 class LuaSignal {
+    friend class LuaSignalListener;
 public:
     LuaSignal();
 
     template<typename... Args>
-    void Emit(Args... args) {
+    void Fire(Args... args) {
+        for (LuaSignalListener &listener : mListeners) {
+            listener.Function(std::forward<Args>(args)...);
+        }
     }
 
-    LuaSignalListener Connect();
-private:
+    void LuaFire(sol::variadic_args args);
+
+    LuaSignalListener Connect(sol::protected_function func);
+protected:
+    std::vector<LuaSignalListener> mListeners;
 };
 }
