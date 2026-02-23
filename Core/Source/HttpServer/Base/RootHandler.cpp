@@ -50,13 +50,19 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     reqTbl["AddHeader"] = [req](sol::table self, std::string key, std::string val) {
         evhttp_add_header(evhttp_request_get_output_headers(req), key.c_str(), val.c_str());
     };
-    reqTbl["SendReply"] = [req, &sentReply](sol::table self, std::string data, int code, std::string reason) {
+    reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::string reason, std::string data) {
         if (sentReply)
             return;
         evbuffer *reply = evbuffer_new();
         evbuffer_add_printf(reply, "%s", data.c_str());
         evhttp_send_reply(req, code, reason.c_str(), reply);
         evbuffer_free(reply);
+        sentReply = true;
+    };
+    reqTbl["SendError"] = [req, &sentReply](sol::table self, int error, std::string reason) {
+        if (sentReply)
+            return;
+        evhttp_send_error(req, error, reason.c_str());
         sentReply = true;
     };
     mServer->GetOnRequestSignal()->Fire(reqTbl);

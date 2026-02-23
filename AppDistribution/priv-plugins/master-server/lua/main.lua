@@ -7,7 +7,6 @@
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
 master = HttpServer.new("MasterServer")
-master:Start(4040)
 
 master_db = SqlDb.new(":memory:", "MasterDb")
 
@@ -16,8 +15,15 @@ local success, msg = pcall(function()
 end)
 
 master.OnRequest:Connect(function(req)
-    print("Request from "..req.PeerIp.." made")
+    print("Request from "..req.PeerIp.." made to "..req.Uri)
     local res = lhp.RenderFile("/src/index.lhp")
-    req:AddHeader("Content-Type", "text/html")
-    req:SendReply("what's up gamers", 200, nil)
+    if req.Uri == "/" or req.Uri == "/home" then
+        req:AddHeader("Content-Type", "text/html")
+        req:SendReply(200, nil, "YOU ARE ON THE HOMEPAGE")
+    else
+        req:AddHeader("Content-Type", "text/html")
+        req:SendError(404, "This page was not found!")
+    end
 end)
+
+master:Start(4040)
