@@ -23,7 +23,6 @@
 // Started on: 12/15/2024
 // Description: Core of the library
 #pragma once
-
 #include "Macros.h"
 #include "Log.h"
 #include "Paths.h"
@@ -177,12 +176,12 @@ private:
     event_base*                     mEventBase;
 
     Init                            mInit;
-    LuaState                        mLuaState;
+    LuaState*                       mLuaState;
     Config*                         mConfig;
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 
-    ServerEmulator                  mServerEmulator;
+    ServerEmulator*                 mServerEmulator;
 
     MasterKeychain*                 mMasterKeychain;
     EmuKeychain*                    mEmuKeychain;

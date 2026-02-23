@@ -26,12 +26,6 @@
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 
-#include <nlohmann/json.hpp>
-#include <inja/inja.hpp>
-
-#include <vector>
-#include <fstream>
-
 using namespace NoobWarrior;
 
 RootHandler::RootHandler(HttpServer *server) : mServer(server) {
@@ -39,6 +33,7 @@ RootHandler::RootHandler(HttpServer *server) : mServer(server) {
 }
 
 void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
+    bool sentReply = false;
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
 
@@ -52,49 +47,19 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     reqTbl["Uri"] = uri;
     reqTbl["PeerIp"] = peer_address;
     reqTbl["PeerPort"] = peer_port;
-    mServer->GetOnRequestSignal()->Fire(reqTbl);
-    
-    std::filesystem::path file_path = mServer->GetFilePath(uri);
-    if (file_path.empty()) {
-        std::string pageName;
-        std::string pageOutput;
-
-        // Page should either be a 404 if the user intentionally tried to load in a non-empty URL that doesnt exist
-        // But if its just the root point and nothing more, follow standard convention and load the home page.
-        bool is_homepage = *uri == '/' && *(uri + 1) == '\0';
-        pageName = is_homepage ? "home.jinja" : "not_found.jinja";
-        RenderResponse res = mServer->RenderPage(pageName, mServer->GetBaseContextData(req), &pageOutput);
-
-        if (res != RenderResponse::Success) {
-            std::string failedMsg = "Failed to render page\n";
-            switch (res) {
-            default:
-                failedMsg =+ "The reason is unknown.";
-                break;
-            case RenderResponse::FailedOpeningTemplateFile:
-                failedMsg += "The template file failed to open.";
-                break;
-            }
-            evhttp_send_error(req, HTTP_INTERNAL, failedMsg.c_str());
-
+    reqTbl["AddHeader"] = [req](sol::table self, std::string key, std::string val) {
+        evhttp_add_header(evhttp_request_get_output_headers(req), key.c_str(), val.c_str());
+    };
+    reqTbl["SendReply"] = [req, &sentReply](sol::table self, std::string data, int code, std::string reason) {
+        if (sentReply)
             return;
-        }
-
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/html");
-
         evbuffer *reply = evbuffer_new();
-        evbuffer_add_printf(reply, "%s", pageOutput.c_str());
-        
-        evhttp_send_reply(req, is_homepage ? HTTP_OK : HTTP_NOTFOUND, NULL, reply);
-
+        evbuffer_add_printf(reply, "%s", data.c_str());
+        evhttp_send_reply(req, code, reason.c_str(), reply);
         evbuffer_free(reply);
-    }
-    /* TODO: add file support
-#if !defined(_WIN32)
-    mg_send_mime_file(req, file_path.c_str(), nullptr);
-#else
-    mg_send_mime_file(conn, WideCharToUTF8(const_cast<wchar_t*>(file_path.c_str())).c_str(), nullptr);
-#endif
-    */
-    evhttp_send_reply(req, HTTP_OK, NULL, NULL);
+        sentReply = true;
+    };
+    mServer->GetOnRequestSignal()->Fire(reqTbl);
+    if (!sentReply)
+        evhttp_send_reply(req, HTTP_OK, NULL, NULL);
 }

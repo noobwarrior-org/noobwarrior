@@ -46,26 +46,13 @@
 using namespace NoobWarrior;
 
 static int printBS(lua_State *L) {
-    int n = lua_gettop(L);  /* number of arguments */
-    int i;
+    int nargs = lua_gettop(L);
+
     std::string msg;
-    lua_getglobal(L, "tostring");
-    for (i = 1; i <= n; i++) {
-        const char *s;
-        if (i > 1) {
-            msg += "\t";
-        }
-        lua_pushvalue(L, -1);  /* function to be called */
-        lua_pushvalue(L, i);   /* value to print */
-        lua_call(L, 1, 1);
-        s = lua_tostring(L, -1);  /* get result */
-        if (s == NULL) {
-            // This should not happen with tostring, but as a fallback
-            msg += lua_typename(L, lua_type(L, i));
-        } else {
-            msg += s;
-        }
-        lua_pop(L, 1);  /* pop result */
+    for (int i = 1; i <= nargs; i++) {
+        const char *str = lua_tolstring(L, i, NULL);
+        msg += str;
+        lua_pop(L, 1);
     }
     Out("Lua", msg);
     return 0;

@@ -29,24 +29,14 @@
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
-#include <filesystem>
-#include <cassert>
-#include <sstream>
-
-#include <nlohmann/json.hpp>
-#include <inja/inja.hpp>
-
 using namespace NoobWarrior;
 
-HttpServer::HttpServer(Core *core, std::string logName, std::string name) :
+HttpServer::HttpServer(Core *core, std::string logName) :
     Running(false),
     LogName(std::move(logName)),
-    Name(std::move(name)),
     mCore(core),
     Server(nullptr)
-{
-    Directory = mCore->GetInstallationDir() / "httpserver";
-}
+{}
 
 HttpServer::~HttpServer() {
     Stop();
@@ -62,9 +52,6 @@ static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata)
 int HttpServer::Start(uint16_t port) {
     if (Running)
         return 0;
-
-    const std::filesystem::path &staticDir = Directory / "web" / "static";
-    const std::string &staticDirStr = staticDir.generic_string();
 
     Server = evhttp_new(mCore->GetEventBase());
     evhttp_bind_socket(Server, "0.0.0.0", port);
@@ -89,6 +76,7 @@ int HttpServer::Stop() {
 
     evhttp_free(Server);
     Server = nullptr;
+    HandlerUserdata.clear();
     return 1;
 }
 
@@ -102,115 +90,6 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
         evhttp_set_cb(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
     else
         evhttp_set_gencb(Server, CFuncToObjectFuncHandler, static_cast<void*>(raw));
-}
-
-static bool IsPathInvalidOrEscaping(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path)) return false;
-    return std::filesystem::weakly_canonical(path).string().compare(path.string()) != 0;
-}
-
-std::filesystem::path HttpServer::GetFilePath(std::string relativeFilePath, const std::string &secondDirName) {
-    // trim out all slashes at the start of the relative file path to prevent path traversal vulnerabilties
-    // this is also required because having a slash at the beginning of a path will fuck everything up when you append it to another path using the slash operator
-    // what does it do? it goes all the way back to the root directory
-    while (relativeFilePath.starts_with('/'))
-        relativeFilePath = relativeFilePath.substr(1);
-
-#if defined(_WIN32)
-    // replace all forward slashes with backwards ones since windows is a steaming pile of shit
-    for (auto it = relativeFilePath.begin(); it != relativeFilePath.end(); ++it) {
-        if (*it == '/')
-            *it = '\\';
-    }
-#endif
-
-    std::filesystem::path dir = (Directory / Name / secondDirName);
-    std::filesystem::path common_dir = (Directory / "common" / secondDirName);
-
-    std::filesystem::path file_path = dir / relativeFilePath;
-    std::filesystem::path file_path_common = common_dir / relativeFilePath;
-
-    if (IsPathInvalidOrEscaping(file_path) || IsPathInvalidOrEscaping(file_path_common))
-        return {}; // return nothing for safety reasons
-
-    if (!std::filesystem::exists(file_path) && std::filesystem::exists(file_path_common))
-        return file_path_common;
-    else if (std::filesystem::exists(file_path))
-        return file_path;
-    return {};
-}
-
-RenderResponse HttpServer::RenderPage(const std::string &pageLoc, nlohmann::json data, std::string *output) {
-    std::filesystem::path serverDir = Directory / Name;
-
-    std::filesystem::path mainFilePath = GetFilePath("main.jinja", "templates");
-    std::filesystem::path filePath = GetFilePath(pageLoc, "templates");
-
-    std::string mainFileString = mainFilePath.string();
-    std::string fileString = filePath.string();
-
-    std::ifstream mainFileInput;
-    std::ifstream fileInput;
-
-    mainFileInput.open(mainFilePath);
-    fileInput.open(filePath);
-
-    if (mainFileInput.fail() || fileInput.fail()) {
-        return RenderResponse::FailedOpeningTemplateFile;
-    }
-
-    std::stringstream bodyFileBuf;
-    bodyFileBuf << fileInput.rdbuf();
-
-    std::string generatedBodyTemplate;
-    try {
-        generatedBodyTemplate = inja::render(bodyFileBuf.str(), data);
-    } catch (const inja::InjaError &e) {
-        *output = e.message;
-        return RenderResponse::FailedRenderingBody;
-    }
-    
-    // now generate the main template, and send it to client
-    std::stringstream mainFileBuf;
-    mainFileBuf << mainFileInput.rdbuf();
-
-    data["body"] = generatedBodyTemplate;
-
-    std::string generatedMainTemplate;
-    try {
-        generatedMainTemplate = inja::render(mainFileBuf.str(), data);
-    } catch (const inja::InjaError &e) {
-        *output = e.message;
-        return RenderResponse::FailedRenderingMain;
-    }
-
-    *output = generatedMainTemplate;
-
-    // cleanup
-    mainFileInput.close();
-    fileInput.close();
-    return RenderResponse::Success;
-}
-
-nlohmann::json HttpServer::GetBaseContextData(evhttp_request *req) {
-    Config *config = mCore->GetConfig();
-
-    std::optional title = config->GetKeyValue<std::string>("httpserver.branding.title");
-    std::optional logo = config->GetKeyValue<std::string>("httpserver.branding.logo");
-    std::optional favicon = config->GetKeyValue<std::string>("httpserver.branding.favicon");
-
-    nlohmann::json data;
-    data["title"] = "RegularPage";
-    data["branding"]["title"] = title.has_value() ? title.value() : "noobWarrior";
-    data["branding"]["logo"] = logo.has_value() ? logo.value() : "/img/icon1024.png";
-    data["branding"]["favicon"] = favicon.has_value() ? favicon.value() : "/img/favicon.ico";
-
-    data["user"]["id"] = -1;
-    data["user"]["name"] = "Guest";
-    data["user"]["rank"] = "guest";
-    data["user"]["headshot_thumbnail"] = "";
-
-    return data;
 }
 
 LuaSignal* HttpServer::GetOnRequestSignal() {

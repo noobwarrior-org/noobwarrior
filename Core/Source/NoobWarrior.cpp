@@ -47,9 +47,9 @@ using namespace NoobWarrior;
 Core::Core(Init init) :
     mInitResponse(Response::Failed),
     mInit(std::move(init)),
-    mLuaState(this),
+    mLuaState(nullptr),
     mEmuDbManager(this),
-    mServerEmulator(this),
+    mServerEmulator(nullptr),
     mPluginManager(this),
     mIndexDirty(true)
 {
@@ -78,8 +78,11 @@ Core::Core(Init init) :
         CreateStandardUserDataDirectories();
 
     mEventBase = event_base_new();
-    mLuaState.Open();
-    mConfig = new Config(GetUserDataDir() / "config.lua", &mLuaState);
+
+    mLuaState = new LuaState(this);
+    mLuaState->Open();
+
+    mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
     mRbxKeychain = new RbxKeychain(mConfig);
     ConfigReturnCode = mConfig->Open();
     curl_global_init(CURL_GLOBAL_ALL);
@@ -94,21 +97,31 @@ Core::Core(Init init) :
     if (mInit.LoadPlugins)
         GetPluginManager()->MountPlugins();
 
+    mServerEmulator = new ServerEmulator(this);
+    StartServerEmulator(8080);
+
     mInitResponse = Response::Success;
 }
 
 Core::~Core() {
+    StopServerEmulator();
+    NOOBWARRIOR_FREE_PTR(mServerEmulator)
+
     GetPluginManager()->UnmountPlugins();
     
     if (mInit.EnableKeychain)
         GetRbxKeychain()->WriteToKeychain();
 
     GetEmuDbManager()->UnmountDatabases();
-    StopServerEmulator();
     sqlite3_shutdown();
     curl_global_cleanup();
+
     ConfigReturnCode = mConfig->Close();
     NOOBWARRIOR_FREE_PTR(mConfig)
+    
+    NOOBWARRIOR_FREE_PTR(mLuaState)
+
+    Out("Core", "Freeing event base");
     event_base_free(mEventBase);
 #if defined(_WIN32)
     WSACleanup();
@@ -128,7 +141,7 @@ event_base *Core::GetEventBase() {
 }
 
 LuaState *Core::GetLuaState() {
-    return &mLuaState;
+    return mLuaState;
 }
 
 Config *Core::GetConfig() {
@@ -144,7 +157,7 @@ PluginManager *Core::GetPluginManager() {
 }
 
 ServerEmulator *Core::GetServerEmulator() {
-    return &mServerEmulator;
+    return mServerEmulator;
 }
 
 MasterKeychain *Core::GetMasterKeychain() {
@@ -234,15 +247,15 @@ int Core::StartServerEmulator(uint16_t port) {
         return -2;
     }
 
-    return mServerEmulator.Start(port);
+    return mServerEmulator->Start(port);
 }
 
 int Core::StopServerEmulator() {
-    return mServerEmulator.Stop();
+    return mServerEmulator->Stop();
 }
 
 bool Core::IsServerEmulatorRunning() {
-    return mServerEmulator.IsRunning();
+    return mServerEmulator->IsRunning();
 }
 
 static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
