@@ -34,42 +34,42 @@ static Init sInit {};
 static NoobWarrior::Core* sCore;
 static EmuDb* sEmuDb;
 
-TEST(NoobWarrior, Init) {
+TEST(Core, Init) {
     sCore = new Core(sInit);
     EXPECT_EQ(sCore->Fail(), false) << "noobWarrior failed to initialize. You can assume the test is over now.";
 }
 
-TEST(NoobWarrior, UrlGetProtocol) {
+TEST(Url, GetProtocol) {
     Url url("https://youtube.com");
     EXPECT_EQ(ProtocolType::Https, url.GetProtocol())
         << "Url::GetProtocol() returned wrong value for URL \"https://youtube.com\", check the quality of this function.";
 }
 
-TEST(NoobWarrior, UrlGetProtocolString) {
+TEST(Url, GetProtocolString) {
     Url url("https://youtube.com");
     EXPECT_EQ("https", url.GetProtocolString())
         << "Url::GetProtocolString() returned wrong value for URL \"https://youtube.com\", check the quality of this function.";
 }
 
-TEST(NoobWarrior, UrlGetHostNameForWebsite) {
+TEST(Url, GetHostNameForWebsite) {
     Url url("https://youtube.com");
     EXPECT_EQ("youtube.com", url.GetHostName())
         << "Url::GetHostName() returned wrong value for URL \"https://youtube.com\", check the quality of this function.";
 }
 
-TEST(NoobWarrior, UrlGetHostNameForPlugin) {
+TEST(Url, GetHostNameForPlugin) {
     Url url("plugin://frontend-emu@noobwarrior.org/lua/main.lua");
     EXPECT_EQ("frontend-emu@noobwarrior.org", url.GetHostName())
         << "Url::GetHostName() returned wrong value for URL \"plugin://frontend-emu@noobwarrior.org/lua/main.lua\", check the quality of this function.";
 }
 
-TEST(NoobWarrior, UrlResolveAlreadyAbsolutePath) {
+TEST(Url, ResolveAlreadyAbsolutePath) {
     Url url("userdata://databases/master.nwdb");
     EXPECT_EQ("userdata://databases/master.nwdb", url.Resolve())
         << "userdata://databases/master.nwdb did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
-TEST(NoobWarrior, UrlResolveUsingContext) {
+TEST(Url, ResolveUsingContext) {
     Url url("lua/main.lua", {
         .DefaultProtocolType = ProtocolType::Plugin,
         .DefaultHostName = "frontend-emu@noobwarrior.org"
@@ -78,7 +78,7 @@ TEST(NoobWarrior, UrlResolveUsingContext) {
         << "lua/main.lua did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
-TEST(NoobWarrior, UrlResolveUsingContextForWebsiteWithoutHttpsSpecifier) {
+TEST(Url, ResolveUsingContextForWebsiteWithoutHttpsSpecifier) {
     Url url("youtube.com/watch?v=jNQXAC9IVRw", {
         .DefaultProtocolType = ProtocolType::Https
     });
@@ -86,7 +86,7 @@ TEST(NoobWarrior, UrlResolveUsingContextForWebsiteWithoutHttpsSpecifier) {
         << "youtube.com/watch?v=jNQXAC9IVRw did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
-TEST(NoobWarrior, UrlEnforceCorrectProtocol) {
+TEST(Url, EnforceCorrectProtocol) {
     Url url("https://youtube.com", {
         .DefaultProtocolType = ProtocolType::File,
         .EnforceProtocolType = true
@@ -95,7 +95,7 @@ TEST(NoobWarrior, UrlEnforceCorrectProtocol) {
         << "Url should fail with incorrect protocol, but it's not.";
 }
 
-TEST(NoobWarrior, UrlEnforceCorrectHostName) {
+TEST(Url, EnforceCorrectHostName) {
     Url url("https://youtube.com", {
         .DefaultHostName = "example.com",
         .EnforceHostName = true
@@ -104,7 +104,7 @@ TEST(NoobWarrior, UrlEnforceCorrectHostName) {
         << "Url should fail with incorrect host name, but it's not.";
 }
 
-TEST(NoobWarrior, UrlEnforceCorrectProtocolAndHostName) {
+TEST(Url, EnforceCorrectProtocolAndHostName) {
     Url url("https://youtube.com", {
         .DefaultProtocolType = ProtocolType::File,
         .DefaultHostName = "example.com",
@@ -115,46 +115,55 @@ TEST(NoobWarrior, UrlEnforceCorrectProtocolAndHostName) {
         << "Url should fail with incorrect protocol and host name, but it's not.";
 }
 
-TEST(NoobWarrior, LuaRunScript) {
-    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "print(\"Hello from UnitTest!\")");
-    EXPECT_EQ(false, lua.Fail())
-        << "Failed to load Lua script!";
-    LuaScript::ExecResponse res = lua.Execute();
-    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
+#define RUN_LUA(src) \
+    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), src); \
+    EXPECT_EQ(false, lua.Fail()) \
+        << "Failed to load Lua script!"; \
+    LuaScript::ExecResponse res = lua.Execute(); \
+    EXPECT_EQ(LuaScript::ExecResponse::Ok, res) \
         << "Failed to execute Lua script!";
+
+TEST(Lua, RunScript) {
+    RUN_LUA("print(\"Hello from UnitTest!\")")
+}
+
+TEST(Lua, PrintMultipleArgs) {
+    RUN_LUA("print(\"This is the first arg!\", \"This is the second arg!\")")
 }
 
 // BTW: This triggers a prompt from Windows Firewall as it starts a HTTP server.
-TEST(NoobWarrior, LuaCreateHttpServerFromScript) {
-    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "local server = HttpServer.new() server:Start(43000) print(\"Created HttpServer from script! Memory Address:\", server) server:Stop()");
-    EXPECT_EQ(false, lua.Fail())
-        << "Failed to load Lua script!";
-    LuaScript::ExecResponse res = lua.Execute();
-    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
-        << "Failed to execute Lua script!";
+TEST(Lua, CreateHttpServerFromScript) {
+    RUN_LUA("local server = HttpServer.new() server:Start(43000) print(\"Created HttpServer from script! Memory Address:\", server) server:Stop()")
 }
 
-TEST(NoobWarrior, LuaRenderLhpPage) {
-    LuaScript lua(sCore->GetLuaState(), sCore->GetLuaState()->globals(), "print(lhp.Render(\"Hello, this is plain text. <?lua echo('And this is from LHP!') ?>\"))");
-    EXPECT_EQ(false, lua.Fail())
-        << "Failed to load Lua script!";
-    LuaScript::ExecResponse res = lua.Execute();
-    EXPECT_EQ(LuaScript::ExecResponse::Ok, res)
-        << "Failed to execute Lua script!";
+TEST(Lua, RenderLhpPage) {
+    RUN_LUA("print(lhp.Render(\"Hello, this is plain text. <?lua echo('And this is from LHP!') ?>\"))")
 }
 
-TEST(NoobWarrior, OpenDatabase) {
+TEST(Lua, Signal) {
+    RUN_LUA("local signal = Signal.new() signal:Connect(function() print(\"Oh hello from a signal listener!\") end) signal:Fire()")
+}
+
+TEST(Lua, SignalMultiple) {
+    RUN_LUA("local signal = Signal.new() local s1 = signal:Connect(function() print(\"Hello from the first signal listener!\") end) local s2 = signal:Connect(function() print(\"Hello from the second signal listener!\") end) signal:Fire()")
+}
+
+TEST(Lua, SignalParameter) {
+    RUN_LUA("local signal = Signal.new() signal:Connect(function(msg) print('Msg sent from fired signal: \"'..msg..'\"') end) signal:Fire(\"Hello from fired signal!\")")
+}
+
+TEST(Database, Open) {
     sEmuDb = new EmuDb(":memory:");
     EXPECT_EQ(false, sEmuDb->Fail());
 }
 
-TEST(NoobWarrior, DatabaseAddBlob) {
+TEST(Database, AddBlob) {
     SqlDb::Response res = sEmuDb->AddBlob({'t', 'e', 's', 't', '\0'});
     EXPECT_EQ(SqlDb::Response::Success, res)
         << "Failed to insert a row in the BlobStorage table. Check the quality of the EmuDb::AddBlob() function.";
 }
 
-TEST(NoobWarrior, DatabaseAddAsset) {
+TEST(Database, AddAsset) {
     SqlDb::Response res = sEmuDb->AddItem(ItemType::Asset, {
         {"Id", 1},
         {"Name", "Test"},
@@ -165,7 +174,7 @@ TEST(NoobWarrior, DatabaseAddAsset) {
         << "Failed to insert a row in the Asset table with an ID of 1. Check the quality of the EmuDb::AddItem() function.";
 }
 
-TEST(NoobWarrior, DatabaseUpdateAsset) {
+TEST(Database, UpdateAsset) {
     SqlDb::Response res = sEmuDb->UpdateItem(ItemType::Asset, 1, {
         {"Name", "My New Test Name"},
         {"Description", "My New Test Description"},
@@ -175,25 +184,25 @@ TEST(NoobWarrior, DatabaseUpdateAsset) {
         << "Failed to update a few columns for asset ID 1. Check the quality of the EmuDb::UpdateItem() function.";
 }
 
-TEST(NoobWarrior, DatabaseAttachDataToAsset) {
+TEST(Database, AttachDataToAsset) {
     SqlDb::Response res = sEmuDb->AttachDataToAsset(1, 0, {'h', 'e', 'l', 'l', 'o', '\0'});
     EXPECT_EQ(SqlDb::Response::Success, res)
         << "Failed to add data for asset ID 1. Check the quality of the EmuDb::AttachDataToAsset() function.";
 }
 
-TEST(NoobWarrior, DatabaseUpdateAttachDataToAsset) {
+TEST(Database, UpdateAttachDataToAsset) {
     SqlDb::Response res = sEmuDb->AttachDataToAsset(1, 0, {'n', 'e', 'w', ' ', 'h', 'e', 'l', 'l', 'o', '\0'});
     EXPECT_EQ(SqlDb::Response::Success, res)
         << "Failed to update the data for asset ID 1. Check the quality of the EmuDb::AttachDataToAsset() function.";
 }
 
-TEST(NoobWarrior, DatabaseDeleteAsset) {
+TEST(Database, DeleteAsset) {
     SqlDb::Response res = sEmuDb->DeleteItem(ItemType::Asset, 1);
     EXPECT_EQ(SqlDb::Response::Success, res)
         << "Failed to delete the data for asset ID 1. Check the quality of the EmuDb::DeleteItem() function.";;
 }
 
-TEST(NoobWarrior, CloseDatabase) {
+TEST(Database, Close) {
     delete sEmuDb;
 }
 
