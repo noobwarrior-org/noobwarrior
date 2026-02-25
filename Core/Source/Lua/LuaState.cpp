@@ -105,6 +105,9 @@ int LuaState::Open() {
 #undef LOADLIBRARY
 
     auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
+    scriptType["new"] = [this](std::string src) {
+        return std::make_unique<LuaScript>(this, this->globals(), src);
+    };
     scriptType["GetUrl"] = &LuaScript::GetUrl;
 
     auto pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
@@ -125,8 +128,10 @@ int LuaState::Open() {
     };
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
-    srvType["new"] = [this]() {
-        return std::make_unique<HttpServer>(mCore);
+    srvType["new"] = [this](std::string logName) {
+        if (!logName.empty())
+            return std::make_unique<HttpServer>(mCore, logName);
+        else return std::make_unique<HttpServer>(mCore);
     };
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
