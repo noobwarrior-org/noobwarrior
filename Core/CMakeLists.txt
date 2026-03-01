@@ -43,30 +43,24 @@ target_include_directories(sqlite3
 target_compile_definitions(sqlite3 PRIVATE SQLITE_ENABLE_FTS5=1)
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-CPMAddPackage(
-    URI "gh:WohlSoft/LuaJIT#59d961b"
-    OPTIONS "LUAJIT_DISABLE_SSE2 ON"
-)
+    CPMAddPackage(
+        URI "gh:WohlSoft/LuaJIT#59d961b"
+        OPTIONS "LUAJIT_DISABLE_SSE2 ON"
+    )
 else()
-CPMAddPackage(
-    URI "gh:WohlSoft/LuaJIT#59d961b"
-)
+    CPMAddPackage(
+        URI "gh:WohlSoft/LuaJIT#59d961b"
+    )
 endif()
 
 CPMAddPackage(
     URI "gh:ThePhD/sol2#c1f95a7"
 )
-
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
     OPTIONS "EVENT__LIBRARY_TYPE STATIC"
 )
-CPMAddPackage(
-    URI "gh:pantor/inja#2d1f0d0"
-    OPTIONS "INJA_USE_EMBEDDED_JSON FALSE"
-)
-
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
     OPTIONS "BUILD_SHARED_LIBS OFF" "LIBZIP_DO_INSTALL OFF" "ENABLE_ZSTD OFF"
@@ -74,9 +68,16 @@ CPMAddPackage(
 CPMAddPackage(
     URI "gh:zeux/pugixml#61c9448"
 )
-CPMAddPackage(
-    URI "gh:rm5248/libcppgenerate#6bf89d9"
-)
+
+#CPMAddPackage(
+#    URI "gh:brechtsanders/pedeps#316d643"
+#)
+#if (pedeps_ADDED)
+#    add_library(pedeps STATIC ${pedeps_SOURCE_DIR}/lib/pedeps.c ${pedeps_SOURCE_DIR}/lib/pestructs.c)
+#    target_include_directories(pedeps PUBLIC ${pedeps_SOURCE_DIR}/lib)
+#else()
+#    message(FATAL_ERROR "Could not add pedeps")
+#endif()
 
 if (NOOBWARRIOR_LIBTYPE_STATIC)
     message(STATUS "Configured noobWarrior as a static library")
@@ -152,10 +153,9 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     nlohmann_json
     event_core
     event_extra
-    inja
     libzip::zip
     pugixml-static
-    cppgenerate_static
+    #pedeps
 )
 
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
