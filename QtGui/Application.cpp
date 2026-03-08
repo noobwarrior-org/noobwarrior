@@ -235,7 +235,13 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
     mCore->DownloadAndInstallEngine(client, transfers, install_callback);
 }
 
-void Application::LaunchEngine(const Engine &engine) {
+void Application::LaunchEngine(const Engine &changethisbacktoenginelaterok) {
+    Engine engine = {
+        .Type = EngineType::Roblox,
+        .Side = EngineSide::Client,
+        .Hash = "5a54208fe8e24e87",
+        .Version = "0.463.0.417004"
+    };
     std::function callback = [this, engine](bool success) {
         if (!success) return;
         
@@ -268,6 +274,8 @@ void Application::LaunchEngine(const Engine &engine) {
             dialog->close();
         }
     };
+    callback(true);
+    return;
 
     if (!mCore->IsEngineInstalled(engine)) {
         DownloadAndInstallEngine(engine, callback);

@@ -9,9 +9,9 @@ vcpkg_installed/
 .idea/
 .kdev4/
 .DS_Store
+CMakeSettings.json
 *.kdev4
 *.iml
-
 # android
 .gradle/
 AndroidApp/local.properties

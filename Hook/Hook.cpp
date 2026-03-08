@@ -195,26 +195,78 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
     }
 }
 
+void CALLBACK WindowEventProc(
+    HWINEVENTHOOK hWinEventHook,
+    DWORD event,
+    HWND hwnd,
+    LONG idObject,
+    LONG idChild,
+    DWORD dwEventThread,
+    DWORD dwmsEventTime
+) {
+    if (event == EVENT_OBJECT_CREATE && idObject == OBJID_WINDOW && idChild == CHILDID_SELF) {
+        SetWindowTextA(hwnd, "noobWarrior Game");
+
+        // https://stackoverflow.com/a/18315727
+        //SendMessage(hwnd, WM_SETICON, ICON_SMALL, hIcon);
+        //SendMessage(hwnd, WM_SETICON, ICON_BIG, hIcon);
+
+        ////This will ensure that the application icon gets changed too.
+        //SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_SMALL, hIcon);
+        //SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_BIG, hIcon);
+    }
+}
+
 DWORD WINAPI Thread(LPVOID param) {
-    // every other thread please fck off and let us do our job. thanks.
-    SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     HMODULE mod = GetModuleHandle(NULL);
     MODULEINFO modInfo { 0 };
     BOOL modInfoSuccess = GetModuleInformation(GetCurrentProcess(), mod, &modInfo, sizeof(MODULEINFO));
 
     LPVOID modBase = modInfo.lpBaseOfDll;
     DWORD modSize = modInfo.SizeOfImage;
+    
+    BYTE* mem = reinterpret_cast<BYTE*>(modBase);
 
-    BYTE* mem = new BYTE[modSize];
-    WINBOOL readSuccess = ReadProcessMemory(GetCurrentProcess(), modBase, mem, modSize, NULL);
+    SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
-    if (!readSuccess) {
-        delete[] mem;
-        MessageBoxA(NULL, "noobHook failed to read the memory of the process it was trying to inject to. Exiting!", "noobHook", MB_ICONERROR | MB_OK);
-        TerminateProcess(GetCurrentProcess(), 0xB16B00B5);
-        return 0xB16B00B5;
+    DWORD signature_address = FindPattern(mem, modSize, "\x0F\xB6\xC8\x85\xC9\x74\x2A", "xxxxxxx");
+    DWORD full_signature_address = reinterpret_cast<DWORD>(modBase) + signature_address;
+    DWORD address = full_signature_address + 6;
+
+    for (int i = 0; i < 8; i++) {
+        int poop = *(reinterpret_cast<int*>(full_signature_address + i));
+
+        TCHAR szBuffer1[4];
+        HRESULT hr1 = StringCchPrintf(szBuffer1, ARRAYSIZE(szBuffer1), TEXT("%i "), poop);
+
+        HANDLE stdOut1 = GetStdHandle(STD_OUTPUT_HANDLE);
+        WriteConsoleA(stdOut1, szBuffer1, ARRAYSIZE(szBuffer1), NULL, NULL);
     }
 
+    DWORD old_protection;
+    VirtualProtect(reinterpret_cast<LPVOID>(address), 1, PAGE_EXECUTE_READWRITE, &old_protection);
+    memset(reinterpret_cast<LPVOID>(address), 0xEB, 1);
+    VirtualProtect(reinterpret_cast<LPVOID>(address), 1, old_protection, NULL);
+
+    HWINEVENTHOOK hHook = SetWinEventHook(
+        EVENT_OBJECT_CREATE,
+        EVENT_OBJECT_CREATE,
+        NULL,
+        WindowEventProc,
+        GetCurrentProcessId(),
+        0,
+        WINEVENT_OUTOFCONTEXT
+    );
+
+    if (!hHook) {
+        MessageBoxA(NULL, "Failed to set hook!", "noobHook", MB_OK | MB_ICONSTOP);
+        TerminateProcess(GetCurrentProcess(), 0x0000000A);
+        return 0x0000000A;
+    }
+
+    MessageBoxA(NULL, "hi", "noobHook", MB_OK | MB_ICONINFORMATION);
+
+    /*
     RobloxVersion ver = GetRobloxVersion();
     if (ver == VER_UNKNOWN) {
         MessageBoxA(NULL, "noobHook does not support this version of Roblox. Exiting!", "noobHook", MB_ICONERROR | MB_OK);
@@ -255,8 +307,16 @@ DWORD WINAPI Thread(LPVOID param) {
     } else if (ver == VER_0_449_0_411458) {
         MessageBoxA(NULL, "I am running on version 0.449.0.411458", "noobHook", MB_ICONASTERISK | MB_OK);
     }
-    delete[] mem;
+    */
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    UnhookWinEvent(hHook);
     return 0;
 }
 

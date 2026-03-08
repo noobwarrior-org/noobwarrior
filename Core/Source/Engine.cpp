@@ -30,12 +30,11 @@
 
 #include <curl/curl.h>
 #include <curl/multi.h>
-#include <filesystem>
 #include <zip.h>
-
-#include <thread>
 #include <zipconf.h>
 
+#include <filesystem>
+#include <thread>
 #include <set>
 
 #if defined(_WIN32)
@@ -46,7 +45,21 @@
 using namespace NoobWarrior;
 
 std::vector<Engine> Core::GetInstalledEngines() {
-    return {};
+    std::vector<Engine> engines;
+    if (!std::filesystem::exists(GetUserDataDir() / NW_PATH_ENGINES))
+        return engines;
+
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(GetUserDataDir() / NW_PATH_ENGINES)) {
+        if (entry.path().extension().compare("exe")) {
+            engines.push_back({
+                .Source = EngineSource::Local,
+                .Platform = EnginePlatform::Windows,
+                .FilePath = entry.path()
+            });
+        }
+    }
+
+    return engines;
 }
 
 std::vector<Engine> Core::GetEnginesFromIndex() {

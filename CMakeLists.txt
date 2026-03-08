@@ -14,16 +14,19 @@ if (ANDROID)
 endif()
 
 option(NOOBWARRIOR_LIBTYPE_STATIC "Compile noobWarrior as a static library" ON)
+option(NOOBWARRIOR_TARGET_CORE "Add target noobWarrior Core" ON)
 option(NOOBWARRIOR_TARGET_UNITTEST "Add target noobWarrior UnitTest" ON)
 option(NOOBWARRIOR_TARGET_NOGUI "Add target noobWarrior NoGui" ON)
 option(NOOBWARRIOR_TARGET_QTGUI "Add target noobWarrior QtGui" ON)
 option(NOOBWARRIOR_TARGET_GAMELAUNCHER "Add target noobWarrior GameLauncher" OFF)
 
-# These targets must be compiled using a cross-compiler that can build a x86 32-bit Windows PE executable.
+# These targets must be compiled using a cross-compiler that can build a x86 32-bit Windows PE file.
 option(NOOBWARRIOR_TARGET_HOOK "Add target noobWarrior Hook" OFF)
 option(NOOBWARRIOR_TARGET_INJECTOR "Add target noobWarrior Injector" OFF)
 
-add_subdirectory(Core)
+if (NOOBWARRIOR_TARGET_CORE)
+    add_subdirectory(Core)
+endif()
 
 if (NOOBWARRIOR_TARGET_UNITTEST)
     add_subdirectory(UnitTest)

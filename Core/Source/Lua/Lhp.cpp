@@ -45,6 +45,14 @@ Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
     std::string text_block;
     std::string lua_output;
 
+    std::string::size_type startPos = 0;
+    while ((startPos = input.find(OPENING_TAG, startPos)) != std::string::npos) {
+        size_t closePos = input.find(CLOSING_TAG, startPos);
+        if (closePos == std::string::npos)
+            break;
+        
+    }
+
     for (int i = 0; i < input.size(); i++) {
         if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1) == OPENING_TAG) {
             // Switch to Lua mode, skip cursor to the first letter after the tag, write down the bytes from the previous text block, and restart

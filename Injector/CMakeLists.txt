@@ -6,3 +6,4 @@ set_target_properties(NoobWarrior.Injector PROPERTIES
 )
 target_compile_options(NoobWarrior.Injector PUBLIC -m32)
 target_link_libraries(NoobWarrior.Injector PRIVATE version -static-libgcc -static-libstdc++)
+target_compile_features(NoobWarrior.Injector PUBLIC cxx_std_17)

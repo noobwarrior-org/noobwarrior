@@ -69,16 +69,6 @@ CPMAddPackage(
     URI "gh:zeux/pugixml#61c9448"
 )
 
-#CPMAddPackage(
-#    URI "gh:brechtsanders/pedeps#316d643"
-#)
-#if (pedeps_ADDED)
-#    add_library(pedeps STATIC ${pedeps_SOURCE_DIR}/lib/pedeps.c ${pedeps_SOURCE_DIR}/lib/pestructs.c)
-#    target_include_directories(pedeps PUBLIC ${pedeps_SOURCE_DIR}/lib)
-#else()
-#    message(FATAL_ERROR "Could not add pedeps")
-#endif()
-
 if (NOOBWARRIOR_LIBTYPE_STATIC)
     message(STATUS "Configured noobWarrior as a static library")
     add_library(NoobWarrior.Core STATIC)
@@ -155,7 +145,6 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     event_extra
     libzip::zip
     pugixml-static
-    #pedeps
 )
 
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)

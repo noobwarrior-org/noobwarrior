@@ -215,8 +215,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 filePath = argv[i + 1];
         }
     }
-
-    std::wstring wargs = filePath + L" -console -verbose -placeid:1818 -port 53641";
+    
+    std::wstring wargs;
+    std::filesystem::path fileName = std::filesystem::path(filePath).filename();
+    if (fileName.compare("RCCService.exe") == 0) {
+        wargs = filePath + L" -console -verbose -placeid:1818 -port 53641";
+    }
+    else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
+        wargs = filePath + L" -a https://localhost/Login/Negotiate.ashx -j https://localhost/Game/PlaceLauncher.ashx?placeid=1818";
+    }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
 
