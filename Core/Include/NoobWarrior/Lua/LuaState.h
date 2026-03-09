@@ -30,7 +30,6 @@
 #include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Lua/Bridge/LuaSignalBridge.h>
 #include <NoobWarrior/Lua/Bridge/PluginBridge.h>
-#include <NoobWarrior/Lua/Bridge/LhpBridge.h>
 #include <NoobWarrior/Lua/Bridge/VfsBridge.h>
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Lua/Bridge/ServerEmulatorBridge.h>
@@ -56,7 +55,6 @@ private:
     Lhp mLhp;
     LuaSignalBridge mLuaSignalBridge;
     PluginBridge mPluginBridge;
-    LhpBridge mLhpBridge;
     VfsBridge mVfsBridge;
     HttpServerBridge mHttpServerBridge;
     ServerEmulatorBridge mServerEmulatorBridge;

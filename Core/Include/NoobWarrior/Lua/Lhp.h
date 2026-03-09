@@ -25,7 +25,7 @@
 // It's like PHP but for Lua
 #pragma once
 #include <NoobWarrior/Url.h>
-
+#include <sol/sol.hpp>
 #include <string>
 
 namespace NoobWarrior {
@@ -40,8 +40,8 @@ public:
     };
 
     Lhp(LuaState* lua);
-    RenderResponse Render(const std::string &input, std::string *output);
-    RenderResponse Render(const Url &url, std::string *output);
+    RenderResponse Render(sol::environment env, const std::string &input, std::string *output);
+    RenderResponse Render(sol::environment env, const Url &url, std::string *output);
 private:
     LuaState* mLua;
 };

@@ -63,7 +63,6 @@ LuaState::LuaState(Core* core) :
     mLhp(this),
     mLuaSignalBridge(this),
     mPluginBridge(this),
-    mLhpBridge(this),
     mVfsBridge(this),
     mHttpServerBridge(this),
     mServerEmulatorBridge(this)
@@ -143,10 +142,12 @@ int LuaState::Open() {
     set("emu", mCore->GetServerEmulator());
 
     sol::table lhpLib = create_table();
-    lhpLib.set_function("Render", [this](sol::this_state state, std::string input) -> std::string {
+    lhpLib.set_function("Render", [this](sol::this_state state, sol::this_environment thisEnv, std::string input) -> std::string {
         lua_State* L = state;
+        sol::environment& env = thisEnv;
+
         std::string output;
-        Lhp::RenderResponse res = mLhp.Render(input, &output);
+        Lhp::RenderResponse res = mLhp.Render(env, input, &output);
         if (res != Lhp::RenderResponse::Success) {
             luaL_error(L, "failed to render page using lhp");
         }
@@ -169,24 +170,8 @@ int LuaState::Open() {
 
         Url url(fileLocation, ctx);
 
-        VirtualFileSystem* vfs;
-        FSEntryHandle fileHandle;
-        VirtualFileSystem::Response vfsRes = url.OpenHandle(mCore, &vfs, &fileHandle);
-        if (vfsRes != VirtualFileSystem::Response::Success) {
-            luaL_error(L, "failed to open file");
-            /* Sol's way of handling C++ exceptions seems to be broken under LuaJIT apparently? */
-            // throw sol::error("failed to open file");
-        }
-
-        std::string src, line;
-        while (vfs->ReadHandleLine(fileHandle, &line)) {
-            src += line + "\n";
-        }
-
-        vfs->CloseHandle(fileHandle);
-
         std::string output;
-        Lhp::RenderResponse res = mLhp.Render(src, &output);
+        Lhp::RenderResponse res = mLhp.Render(env, url, &output);
         if (res != Lhp::RenderResponse::Success) {
             luaL_error(L, "failed to render page using lhp");
         }

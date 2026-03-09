@@ -40,65 +40,53 @@ Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 }
 
-Lhp::RenderResponse Lhp::Render(const std::string &input, std::string *output) {
-    bool lua_mode = false;
-    std::string text_block;
-    std::string lua_output;
-
-    std::string::size_type startPos = 0;
-    while ((startPos = input.find(OPENING_TAG, startPos)) != std::string::npos) {
-        size_t closePos = input.find(CLOSING_TAG, startPos);
-        if (closePos == std::string::npos)
-            break;
-        
-    }
-
+Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output) {
+    bool luaMode = false;
+    std::string textBuffer;
+    std::string luaBuffer;
+    
     for (int i = 0; i < input.size(); i++) {
-        if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1) == OPENING_TAG) {
+        if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1).compare(OPENING_TAG) == 0) {
             // Switch to Lua mode, skip cursor to the first letter after the tag, write down the bytes from the previous text block, and restart
-            lua_mode = true;
-            i += NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG);
+            Out("Lhp", "Switching to Lua mode");
+            luaMode = true;
+            i += NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1;
 
-            if (!text_block.empty()) {
-                lua_output += std::format("echo([[{}]]);", text_block);
-                text_block.clear();
+            if (!textBuffer.empty()) {
+                luaBuffer += std::format("echo([[{}]]);", textBuffer);
+                textBuffer.clear();
             }
             
             continue;
         }
 
-        if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1) == CLOSING_TAG) {
-            if (!lua_mode)
+        if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1).compare(CLOSING_TAG) == 0) {
+            if (!luaMode)
                 return RenderResponse::SyntaxError;
 
             // end of block indicated by closing tag, turn off lua mode and execute code in block
-            lua_mode = false;
-            i += NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG);
-
-            /*
-            if (!lua_block.empty()) {
-                lua_State *L = mLua->Get();
-                int res = luaL_dostring(L, lua_block.c_str());
-                if (res != LUA_OK) {
-                    *output += lua_tostring(L, -1);
-                    lua_pop(L, 1);
-                }
-            }
-            */
-            continue;
+            Out("Lhp", "Exiting Lua mode");
+            luaMode = false;
+            i += NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1;
         }
 
-        (!lua_mode ? text_block : lua_output) += input.at(i);
+        (!luaMode ? textBuffer : luaBuffer) += input.at(i);
     }
-    if (!text_block.empty()) {
-        lua_output += std::format("echo([[{}]]);", text_block);
+    if (!textBuffer.empty()) {
+        luaBuffer += std::format("echo([[{}]]);", textBuffer);
     }
-    *output = lua_output;
-    Out("Lhp", lua_output);
+
+    sol::environment lhpEnv(env);
+    lhpEnv["echo"] = [output](std::string msg) -> void {
+        *output += msg;
+    };
+
+    sol::protected_function_result res = mLua->safe_script(luaBuffer, lhpEnv);
+
     return RenderResponse::Success;
 }
 
-Lhp::RenderResponse Lhp::Render(const Url &url, std::string *output) {
+Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::string *output) {
     Core* core = mLua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;
@@ -116,5 +104,5 @@ Lhp::RenderResponse Lhp::Render(const Url &url, std::string *output) {
 
     vfs->CloseHandle(sourceHandle);
 
-    return Render(src, output);
+    return Render(env, src, output);
 }

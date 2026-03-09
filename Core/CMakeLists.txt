@@ -100,7 +100,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Lua/LuaScript.cpp
     Source/Lua/LuaSignal.cpp
     Source/Lua/Lhp.cpp
-    Source/Lua/Bridge/LhpBridge.cpp
     Source/Lua/Bridge/LuaObjectBridge.cpp
     Source/Lua/Bridge/LuaScriptBridge.cpp
     Source/Lua/Bridge/LuaSignalBridge.cpp
