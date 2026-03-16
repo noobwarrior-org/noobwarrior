@@ -25,6 +25,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
+#include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
@@ -35,11 +36,13 @@ HttpServer::HttpServer(Core *core, std::string logName) :
     Running(false),
     LogName(std::move(logName)),
     mCore(core),
-    Server(nullptr)
+    Server(nullptr),
+    mVfs(new OverlayFileSystem())
 {}
 
 HttpServer::~HttpServer() {
     Stop();
+    NOOBWARRIOR_FREE_PTR(mVfs)
 }
 
 static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata) {
@@ -90,6 +93,16 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
         evhttp_set_cb(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
     else
         evhttp_set_gencb(Server, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+}
+
+VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &realPath) {
+    VirtualFileSystem* vfs = realPath.GetVfs(mCore);
+    VirtualFileSystem::Response res = mVfs->Mount(root, vfs);
+    return res;
+}
+
+VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &realPath) {
+    return VirtualFileSystem::Response::Failed;
 }
 
 LuaSignal* HttpServer::GetOnRequestSignal() {

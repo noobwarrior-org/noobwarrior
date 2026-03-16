@@ -18,31 +18,20 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: OverlayFileSystem.cpp
+// File: NetFileSystem.h
 // Started by: Hattozo
-// Started on: 12/5/2025
-// Description: An psuedo file system that overlays each file system over one another.
-#include <NoobWarrior/FileSystem/OverlayFileSystem.h>
-#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+// Started on: 3/10/2026
+// Description: VirtualFileSystem that relies on a remote location
+// Note: As the name suggests, this only works for URLs that rely on remote locations.
+// Since local URLs already depend on a VFS, they do not require a wrapper class like this one.
+// If you want to retrieve a VFS for those kinds of URLs, use Url::GetVfs() instead.
+#pragma once
+#include "VirtualFileSystem.h"
+#include <NoobWarrior/Url.h>
 
-using namespace NoobWarrior;
-
-OverlayFileSystem::OverlayFileSystem() {
-
-}
-
-OverlayFileSystem::~OverlayFileSystem() {
-
-}
-
-VirtualFileSystem::Response OverlayFileSystem::Mount(const std::string &vol, VirtualFileSystem* vfs) {
-    return VirtualFileSystem::Response::Failed;
-}
-
-VirtualFileSystem::Response OverlayFileSystem::Unmount(VirtualFileSystem* vfs) {
-    return VirtualFileSystem::Response::Failed;
-}
-
-VirtualFileSystem::Response OverlayFileSystem::Unmount(const std::string &vol) {
-    return VirtualFileSystem::Response::Failed;
+namespace NoobWarrior {
+class NetFileSystem : public VirtualFileSystem {
+public:
+    NetFileSystem(Url& rootUrl);
+};
 }

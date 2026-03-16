@@ -1,5 +1,10 @@
 <?lua
 print("Rendering index...")
+
+if not visitorCount then
+    visitorCount = 0
+end
+visitorCount = visitorCount + 1
 ?>
 <!DOCTYPE html>
 <html>
@@ -8,6 +13,7 @@ print("Rendering index...")
     </head>
     <body>
         <h1><?lua echo("Welcome to master server") ?></h1>
+        <h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
     </body>
 </html>
 <?lua

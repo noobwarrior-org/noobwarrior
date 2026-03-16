@@ -70,6 +70,16 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             i += NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1;
         }
 
+        if (
+            input.size() > i + 1
+            &&
+            ((input.at(i) == '[' && input.at(i + 1) == '[')
+            || (input.at(i) == ']' && input.at(i + 1) == ']'))
+        )
+        {
+            continue; // prevent string escaping
+        }
+
         (!luaMode ? textBuffer : luaBuffer) += input.at(i);
     }
     if (!textBuffer.empty()) {

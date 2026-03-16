@@ -21,5 +21,6 @@ master.OnRequest:Connect(function(req)
         req:SendError(404, "This page was not found!")
     end
 end)
-
+master:MountVolume("/", "plugin://frontend@noobwarrior.org/static")
+-- master:UnmountVolume("/", "plugin://frontend@noobwarrior.org/static")
 master:Start(4040)

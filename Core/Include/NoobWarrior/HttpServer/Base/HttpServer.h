@@ -28,13 +28,12 @@
 #include "TestHandler.h"
 
 #include <NoobWarrior/Lua/LuaSignal.h>
+#include <NoobWarrior/Url.h>
+#include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 
 #include <cstdint>
-#include <filesystem>
 #include <vector>
-#include <queue>
 #include <memory>
-#include <utility>
 #include <tuple>
 
 #include <evhttp.h>
@@ -45,20 +44,15 @@
 
 namespace NoobWarrior { class Core; }
 namespace NoobWarrior {
-enum class RenderResponse {
-    Failed,
-    Success,
-    FailedRenderingBody,
-    FailedRenderingMain,
-    FailedOpeningTemplateFile
-};
-
 class HttpServer {
-// TODO: The comments in this class are really shit and explains the properties really poorly.
-// Someone needs to word it better than I can
     friend class RootHandler;
     friend class WebHandler;
 public:
+    enum class Response {
+        Failed,
+        Success
+    };
+
     HttpServer(Core *core, std::string logName = "HttpServer");
     virtual ~HttpServer();
     
@@ -67,6 +61,9 @@ public:
 
     bool        IsRunning();
     void        SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
+
+    VirtualFileSystem::Response MountVolume(const std::string &root, const Url &realPath);
+    VirtualFileSystem::Response UnmountVolume(const std::string &root, const Url &realPath);
 
     LuaSignal* GetOnRequestSignal();
 
@@ -78,8 +75,8 @@ protected:
     std::string LogName;
     
     Core *mCore;
-    
     evhttp* Server;
+    OverlayFileSystem* mVfs;
 
     //////////////// Handlers ////////////////
     std::unique_ptr<RootHandler> mRootHandler;

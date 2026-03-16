@@ -22,6 +22,8 @@
 // Started by: Hattozo
 // Started on: 12/5/2025
 // Description: An psuedo file system that overlays each file system over one another.
+// OverlayFS requires ownership of each file system that is mounted in order to prevent
+// use-after-free's and memory access violations.
 #pragma once
 #include "VirtualFileSystem.h"
 
@@ -29,15 +31,17 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <map>
 
 namespace NoobWarrior {
 class OverlayFileSystem : public VirtualFileSystem {
 public:
-    Response Mount(const std::string &vol, const VirtualFileSystem &fs);
-    Response Unmount(const VirtualFileSystem &fs);
-    Response Unmount(const std::string &vol);
-
+    OverlayFileSystem();
     ~OverlayFileSystem() override;
+    
+    Response Mount(const std::string &vol, std::unique_ptr<VirtualFileSystem> vfs);
+    Response Unmount(std::unique_ptr<VirtualFileSystem> vfs);
+    Response Unmount(const std::string &vol);
 
     FSEntryInfo GetEntryFromPath(const std::string &path) override;
     std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) override;
@@ -55,5 +59,6 @@ protected:
     std::filesystem::path ConstructRealPath(std::string submittedPath);
     std::filesystem::path mRoot;
     std::unordered_map<int, std::shared_ptr<std::fstream>> mHandles;
+    std::map<std::string, std::vector<std::unique_ptr<VirtualFileSystem>>> mMountedVolumes;
 };
 }

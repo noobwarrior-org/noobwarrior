@@ -134,6 +134,20 @@ int LuaState::Open() {
     };
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
+    srvType["MountVolume"] = [](sol::this_state state, HttpServer& self, std::string root, std::string realPath) -> void {
+        lua_State* L = state;
+        VirtualFileSystem::Response res = self.MountVolume(root, Url(realPath));
+        if (res != VirtualFileSystem::Response::Success) {
+            luaL_error(L, "failed to mount volume");
+        }
+    };
+    srvType["UnmountVolume"] = [](sol::this_state state, HttpServer& self, std::string root, std::string realPath) -> void {
+        lua_State* L = state;
+        VirtualFileSystem::Response res = self.UnmountVolume(root, Url(realPath));
+        if (res != VirtualFileSystem::Response::Success) {
+            luaL_error(L, "failed to unmount volume");
+        }
+    };
     srvType["OnRequest"] = sol::property([](HttpServer &srv) {
         return srv.GetOnRequestSignal();
     });
