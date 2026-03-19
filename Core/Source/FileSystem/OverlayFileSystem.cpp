@@ -21,7 +21,7 @@
 // File: OverlayFileSystem.cpp
 // Started by: Hattozo
 // Started on: 12/5/2025
-// Description: An psuedo file system that overlays each file system over one another.
+// Description: An pseudo file system that overlays each file system over one another.
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 
@@ -35,7 +35,12 @@ OverlayFileSystem::~OverlayFileSystem() {
 
 }
 
-VirtualFileSystem::Response OverlayFileSystem::Mount(const std::string &vol, VirtualFileSystem* vfs) {
+VirtualFileSystem::Response OverlayFileSystem::Mount(const std::string &vol, std::unique_ptr<VirtualFileSystem> vfs) {
+
+    return VirtualFileSystem::Response::Failed;
+}
+
+VirtualFileSystem::Response OverlayFileSystem::Mount(const std::string &vol, const std::filesystem::path &realPath) {
     return VirtualFileSystem::Response::Failed;
 }
 
@@ -45,4 +50,44 @@ VirtualFileSystem::Response OverlayFileSystem::Unmount(VirtualFileSystem* vfs) {
 
 VirtualFileSystem::Response OverlayFileSystem::Unmount(const std::string &vol) {
     return VirtualFileSystem::Response::Failed;
+}
+
+FSEntryInfo OverlayFileSystem::GetEntryFromPath(const std::string &path) {
+    return {};
+}
+
+std::vector<FSEntryInfo> OverlayFileSystem::GetEntriesInDirectory(const std::string &path) {
+    return {};
+}
+
+FSEntryHandle OverlayFileSystem::OpenHandle(const std::string &path) {
+    return {};
+}
+
+VirtualFileSystem::Response OverlayFileSystem::CloseHandle(FSEntryHandle handle) {
+    return VirtualFileSystem::Response::Failed;
+}
+
+bool OverlayFileSystem::IsHandleEOF(FSEntryHandle handle) {
+    return false;
+}
+
+bool OverlayFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) {
+    return false;
+}
+
+bool OverlayFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
+    return false;
+}
+
+bool OverlayFileSystem::EntryExists(const std::string &path) {
+    return false;
+}
+
+VirtualFileSystem::Response OverlayFileSystem::DeleteEntry(const std::string &path) {
+    return VirtualFileSystem::Response::Failed;
+}
+
+std::filesystem::path OverlayFileSystem::ConstructRealPath(std::string submittedPath) {
+    return {};
 }

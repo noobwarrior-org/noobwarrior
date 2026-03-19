@@ -62,8 +62,8 @@ public:
     bool        IsRunning();
     void        SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
 
-    VirtualFileSystem::Response MountVolume(const std::string &root, const Url &realPath);
-    VirtualFileSystem::Response UnmountVolume(const std::string &root, const Url &realPath);
+    VirtualFileSystem::Response MountVolume(const std::string &root, const Url &urlPath);
+    VirtualFileSystem::Response UnmountVolume(const std::string &root, const Url &urlPath);
 
     LuaSignal* GetOnRequestSignal();
 

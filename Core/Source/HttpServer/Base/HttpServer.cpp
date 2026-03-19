@@ -21,11 +21,12 @@
 // File: HttpServer.cpp
 // Started by: Hattozo
 // Started on: 3/10/2025
-// Description: A HTTP server that is responsible for mimicking the Roblox API and serving files from noobWarrior archives
+// Description: A HTTP server.
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
+#include <NoobWarrior/FileSystem/StdFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
@@ -95,13 +96,14 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
         evhttp_set_gencb(Server, CFuncToObjectFuncHandler, static_cast<void*>(raw));
 }
 
-VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &realPath) {
-    VirtualFileSystem* vfs = realPath.GetVfs(mCore);
-    VirtualFileSystem::Response res = mVfs->Mount(root, vfs);
-    return res;
+VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {
+    // std::unique_ptr<VirtualFileSystem> vfs = std::make_unique<StdFileSystem>(urlPath);
+    // VirtualFileSystem::Response res = mVfs->Mount(root, vfs);
+    // return res;
+    return VirtualFileSystem::Response::Failed;
 }
 
-VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &realPath) {
+VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &urlPath) {
     return VirtualFileSystem::Response::Failed;
 }
 

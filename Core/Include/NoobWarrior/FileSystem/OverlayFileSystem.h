@@ -21,7 +21,7 @@
 // File: OverlayFileSystem.h
 // Started by: Hattozo
 // Started on: 12/5/2025
-// Description: An psuedo file system that overlays each file system over one another.
+// Description: An pseudo file system that overlays each file system over one another.
 // OverlayFS requires ownership of each file system that is mounted in order to prevent
 // use-after-free's and memory access violations.
 #pragma once
@@ -38,9 +38,10 @@ class OverlayFileSystem : public VirtualFileSystem {
 public:
     OverlayFileSystem();
     ~OverlayFileSystem() override;
-    
+
     Response Mount(const std::string &vol, std::unique_ptr<VirtualFileSystem> vfs);
-    Response Unmount(std::unique_ptr<VirtualFileSystem> vfs);
+    Response Mount(const std::string &vol, const std::filesystem::path &realPath);
+    Response Unmount(VirtualFileSystem* vfs);
     Response Unmount(const std::string &vol);
 
     FSEntryInfo GetEntryFromPath(const std::string &path) override;
