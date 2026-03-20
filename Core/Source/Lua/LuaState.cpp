@@ -31,13 +31,16 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/FileSystem/OverlayFileSystem.h>
+#include <NoobWarrior/FileSystem/StdFileSystem.h>
+#include <NoobWarrior/FileSystem/ZipFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <lua.hpp>
 #include <sol/raii.hpp>
 #include <sol/sol.hpp>
 
-#include "NoobWarrior/FileSystem/VirtualFileSystem.h"
 #include "files/global_env_metatable.lua.inc.cpp"
 #include "files/rawget_path.lua.inc.cpp"
 #include "files/serpent.lua.inc.cpp"
@@ -124,13 +127,39 @@ int LuaState::Open() {
         lua_State* L = state;
         luaL_error(L, "WIP");
     };
+    vfsType["GetEntriesInDirectory"] = [this](VirtualFileSystem &vfs, const std::string &dir) -> sol::table {
+        sol::table tbl = this->create_table();
+        for (FSEntryInfo &entryInfo : vfs.GetEntriesInDirectory(dir)) {
+            sol::table entryTbl = this->create_table();
+            entryTbl["Failed"] = entryInfo.Failed;
+            entryTbl["Exists"] = entryInfo.Exists;
+            entryTbl["Type"] = entryInfo.Type == FSEntryInfo::Type::File ? "File" : "Directory";
+            entryTbl["Size"] = entryInfo.Size;
+            entryTbl["Name"] = entryInfo.Name;
+            entryTbl["Path"] = entryInfo.Path;
+            tbl.add(entryTbl);
+        }
+        return tbl;
+    };
     vfsType["OpenHandle"] = &VirtualFileSystem::OpenHandle;
     vfsType["CloseHandle"] = &VirtualFileSystem::CloseHandle;
     vfsType["IsHandleEOF"] = &VirtualFileSystem::IsHandleEOF;
-    vfsType["ReadHandleChunk"] = &VirtualFileSystem::ReadHandleChunk;
-    vfsType["ReadHandleLine"] = &VirtualFileSystem::ReadHandleLine;
+    vfsType["ReadHandleChunk"] = [](VirtualFileSystem &vfs, FSEntryHandle handle, int size) -> std::tuple<bool, std::string> {
+        std::vector<unsigned char> buf;
+        bool isReading = vfs.ReadHandleChunk(handle, &buf, size);
+        return {isReading, std::string(buf.begin(), buf.end())};
+    };
+    vfsType["ReadHandleLine"] = [](VirtualFileSystem &vfs, FSEntryHandle handle) -> std::tuple<bool, std::string> {
+        std::string buf;
+        bool isReading = vfs.ReadHandleLine(handle, &buf);
+        return {isReading, buf};
+    };
     vfsType["EntryExists"] = &VirtualFileSystem::EntryExists;
     vfsType["DeleteEntry"] = &VirtualFileSystem::DeleteEntry;
+
+    auto overlayFsType = new_usertype<OverlayFileSystem>("OverlayFileSystem", sol::constructors<OverlayFileSystem()>(), sol::base_classes, sol::bases<VirtualFileSystem>());
+    auto stdFsType = new_usertype<StdFileSystem>("StdFileSystem", sol::constructors<StdFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
+    auto zipFsType = new_usertype<ZipFileSystem>("ZipFileSystem", sol::constructors<ZipFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
 
     auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(std::string, std::string)>());
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;

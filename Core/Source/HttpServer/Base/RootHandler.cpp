@@ -67,5 +67,5 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     };
     mServer->GetOnRequestSignal()->Fire(reqTbl);
     if (!sentReply)
-        evhttp_send_reply(req, HTTP_OK, NULL, NULL);
+        evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);
 }

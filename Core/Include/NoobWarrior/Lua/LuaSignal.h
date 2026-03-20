@@ -30,6 +30,7 @@
 #include <sol/sol.hpp>
 
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/Lua/LuaScript.h>
 
 namespace NoobWarrior {
 class LuaSignal;
@@ -41,6 +42,7 @@ public:
 
     void Disconnect();
 protected:
+    LuaScript* OwnerScript { nullptr };
     LuaSignal& Parent;
     sol::protected_function Function;
 };
@@ -53,13 +55,18 @@ public:
     template<typename... Args>
     void Fire(Args... args) {
         for (LuaSignalListener &listener : mListeners) {
-            listener.Function(std::forward<Args>(args)...);
+            sol::protected_function_result res = listener.Function(std::forward<Args>(args)...);
+            if (!res.valid()) {
+                sol::error err = res;
+                Out("LuaScript", "[{}] (Execution Failure in Signal Listener) {}",
+                    listener.OwnerScript != nullptr ? listener.OwnerScript->GetUrl().Resolve() : "unknown", err.what());
+            }
         }
     }
 
     void LuaFire(sol::variadic_args args);
 
-    LuaSignalListener Connect(sol::protected_function func);
+    LuaSignalListener Connect(sol::this_environment tenv, sol::protected_function func);
 protected:
     std::vector<LuaSignalListener> mListeners;
 };

@@ -101,10 +101,13 @@ public:
     std::string Resolve() const;
 
     /* Returns an absolute path to the resource without a protocol */
-    std::string ResolveAsProtocolRelative() const;
+    std::string ResolveWithoutProtocol() const;
 
-    /* Returns an absolute path to the resource without its origin */
+    /* Returns an absolute path to the resource without its host name */
     std::string ResolveAsPathName() const;
+
+    /* Returns the real path of this URL on the computer's filesystem */
+    std::filesystem::path ResolveAsLocalPath(Core* core) const;
 
     /* This works for only URLs that use completely offline protocols that rely on virtual file systems like plugin://, file://, or db://
        Anything else will fail. Use NetClient for that. */

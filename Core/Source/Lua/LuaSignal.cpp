@@ -45,9 +45,13 @@ LuaSignal::LuaSignal() {
 
 }
 
-LuaSignalListener LuaSignal::Connect(sol::protected_function func) {
+LuaSignalListener LuaSignal::Connect(sol::this_environment tenv, sol::protected_function func) {
+    sol::environment env(tenv);
+
     LuaSignalListener listener(*this);
     listener.Function = func;
+    listener.OwnerScript = env["script"].get_or<LuaScript*>(nullptr);
+
     mListeners.push_back(std::move(listener));
     return listener;
 }

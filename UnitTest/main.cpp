@@ -68,6 +68,18 @@ TEST(Url, ResolveAlreadyAbsolutePath) {
         << "userdata://databases/master.nwdb did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
+TEST(Url, ResolveWithoutProtocol) {
+    Url url("https://youtube.com/watch?v=jNQXAC9IVRw");
+    EXPECT_EQ("youtube.com/watch?v=jNQXAC9IVRw", url.ResolveWithoutProtocol())
+        << "Url::ResolveWithoutProtocol() returned wrong value for URL \"https://youtube.com/watch?v=jNQXAC9IVRw\", check the quality of this function.";
+}
+
+TEST(Url, ResolveAsPathName) {
+    Url url("https://youtube.com/watch?v=jNQXAC9IVRw");
+    EXPECT_EQ("/watch?v=jNQXAC9IVRw", url.ResolveAsPathName())
+        << "Url::ResolveAsPathName() returned wrong value for URL \"https://youtube.com/watch?v=jNQXAC9IVRw\", check the quality of this function.";
+}
+
 TEST(Url, ResolveUsingContext) {
     Url url("lua/main.lua", {
         .DefaultProtocolType = ProtocolType::Plugin,
@@ -75,6 +87,15 @@ TEST(Url, ResolveUsingContext) {
     });
     EXPECT_EQ("plugin://frontend-emu@noobwarrior.org/lua/main.lua", url.Resolve())
         << "lua/main.lua did not resolve to the correct URL. Check the quality of Url::Resolve().";
+}
+
+TEST(Url, ResolveAsPathNameUsingContext) {
+    Url url("lua/main.lua", {
+        .DefaultProtocolType = ProtocolType::Plugin,
+        .DefaultHostName = "frontend-emu@noobwarrior.org"
+    });
+    EXPECT_EQ("/lua/main.lua", url.ResolveAsPathName())
+        << "plugin://frontend-emu@noobwarrior.org/lua/main.lua did not resolve to /lua/main.lua using url.ResolveAsPathName(). Check the quality of Url::ResolveAsPathName() and Url::Resolve().";
 }
 
 TEST(Url, ResolveUsingContextForWebsiteWithoutHttpsSpecifier) {

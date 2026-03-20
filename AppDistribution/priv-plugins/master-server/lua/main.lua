@@ -19,17 +19,40 @@ master.OnRequest:Connect(function(req)
         req:SendReply(200, nil, output)
     else
         local vfs = master:GetVfs()
-        print(vfs)
+        local entries = vfs:GetEntriesInDirectory("/")
+        for index, entry in ipairs(entries) do
+            print(string.format("Entry %s: %s", index, entry.Name))
+
+        end
         if vfs:EntryExists(req.Uri) then
             local handle = vfs:OpenHandle(req.Uri)
             print("Vfs:", vfs)
             print("Handle:", handle)
-            if handle ~= 0 then
+            if handle == 0 then
                 error("Failed to open handle!")
             end
+
+            print("Opened handle! Reading...")
+            local fullData = ""
+            local isReading, chunkData = vfs:ReadHandleChunk(handle, 1024)
+            if not isReading then
+                error("Failed to read chunk from handle!")
+            end
+            while isReading do
+                print(isReading, chunkData)
+                if isReading then
+                    fullData = fullData..chunkData
+                end
+                isReading, chunkData = vfs:ReadHandleChunk(handle, 1024)
+            end
+
             vfs:CloseHandle(handle)
+
+            req:AddHeader("Content-Type", "application/octet-stream")
+            req:AddHeader("Content-Disposition", "inline")
+            req:SendReply(200, nil, fullData)
         else
-            print("Entry doesn't exist!")
+            print("File", req.Uri, "doesn't exist!")
             req:AddHeader("Content-Type", "text/html")
             req:SendError(404, "This page was not found!")
         end

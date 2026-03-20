@@ -27,6 +27,7 @@
 #include <NoobWarrior/HttpServer/Base/TestHandler.h>
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
+#include <NoobWarrior/FileSystem/ZipFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
@@ -97,8 +98,13 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
 }
 
 VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {
-    VirtualFileSystem* vfs = urlPath.GetVfs(mCore);
-    return mVfs->Mount(root, vfs);
+    Out("HttpServer", "Mounting {} to volume {}", urlPath.Resolve(), root);
+    std::unique_ptr<VirtualFileSystem> vfs;
+    std::filesystem::path path = urlPath.ResolveAsLocalPath(mCore);
+    if (path.extension().compare(".zip") == 0) {
+        vfs = std::make_unique<ZipFileSystem>(path);
+    } else vfs = std::make_unique<StdFileSystem>(path);
+    return mVfs->Mount(root, std::move(vfs));
 }
 
 VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &urlPath) {

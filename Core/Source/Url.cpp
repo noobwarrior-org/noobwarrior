@@ -130,14 +130,7 @@ std::string Url::GetHostName() const {
     if (GetProtocol() == ProtocolType::File)
         return ""; // Local files SHOULD NOT have a host name!
 
-    std::string fullUrl = Resolve();
-    std::string hostName;
-    std::string::size_type protocolPos = fullUrl.find("://");
-    
-    if (protocolPos != std::string::npos) {
-        hostName = fullUrl.substr(protocolPos + 3); // Skip "://"
-    }
-
+    std::string hostName = ResolveWithoutProtocol();
     std::string::size_type rootPos = hostName.find("/");
     if (rootPos != std::string::npos) {
         hostName = hostName.substr(0, rootPos);
@@ -180,21 +173,50 @@ std::string Url::Resolve() const {
     return fullUrl;
 }
 
-std::string Url::ResolveAsProtocolRelative() const {
-    std::string hostName = GetHostName();
-    std::string cwd = GetCwd();
+std::string Url::ResolveWithoutProtocol() const {
+    std::string fullUrl = Resolve();
+    std::string url;
+    std::string::size_type protocolPos = fullUrl.find("://");
 
-    if (mStr.starts_with("/"))
-        return hostName + mStr;
+    if (protocolPos != std::string::npos) {
+        url = fullUrl.substr(protocolPos + 3); // Skip "://"
+    }
 
-    return hostName + "/" + cwd + "/" + mStr;
+    return url;
 }
 
 std::string Url::ResolveAsPathName() const {
-    std::string cwd = GetCwd();
-    if (mStr.starts_with("/"))
-        return mStr;
-    return cwd + "/" + mStr;
+    std::string pathName = ResolveWithoutProtocol();
+
+    std::string::size_type rootPos = pathName.find("/");
+    if (rootPos != std::string::npos) {
+        pathName = pathName.substr(rootPos);
+    }
+
+    return pathName;
+}
+
+std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
+    ProtocolType protocol = GetProtocol();
+    if (protocol == ProtocolType::Plugin) {
+        std::string hostName = GetHostName();
+        PluginManager* plgMgr = core->GetPluginManager();
+        Plugin* plugin = plgMgr->GetPluginFromIdentifier(hostName);
+        if (plugin != nullptr) {
+            std::filesystem::path pluginPath = plugin->GetFilePath();
+            std::string pluginPathStr = pluginPath.generic_string();
+            return std::filesystem::path(pluginPathStr + ResolveAsPathName());
+        }
+    } else if (protocol == ProtocolType::File) {
+        return ResolveWithoutProtocol();
+    } else if (protocol == ProtocolType::Database) {
+
+    } else if (protocol == ProtocolType::InstallData) {
+
+    } else if (protocol == ProtocolType::UserData) {
+
+    }
+    return "";
 }
 
 VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsPtr, FSEntryHandle *handlePtr) const {
