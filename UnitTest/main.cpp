@@ -116,7 +116,11 @@ TEST(Url, EnforceCorrectProtocolAndHostName) {
 
 TEST(Vfs, Initialize) {
     VirtualFileSystem* vfs;
-    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "");
+#ifdef _WIN32
+    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "C:\\Windows");
+#else
+    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "/usr");
+#endif
     EXPECT_EQ(VirtualFileSystem::Response::Success, res)
         << "VFS failed to initialize!";
 }
