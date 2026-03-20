@@ -121,8 +121,41 @@ TEST(Vfs, Initialize) {
 #else
     VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "/usr");
 #endif
+    VirtualFileSystem::Free(vfs);
     EXPECT_EQ(VirtualFileSystem::Response::Success, res)
         << "VFS failed to initialize!";
+}
+
+TEST(Vfs, GetEntriesInDirectory) {
+    VirtualFileSystem* vfs;
+#ifdef _WIN32
+    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "C:\\Windows");
+#else
+    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "/usr");
+#endif
+    std::vector<FSEntryInfo> entries = vfs->GetEntriesInDirectory("/");
+    EXPECT_EQ(false, entries.empty())
+        << "Entries for directory mounted using OverlayFS should not be empty, but it is.";
+    VirtualFileSystem::Free(vfs);
+}
+
+TEST(Vfs, OverlayFs) {
+    auto *vfs = new OverlayFileSystem();
+#ifdef _WIN32
+    VirtualFileSystem::Response res = vfs->Mount("/", "C:\\Windows");
+#else
+    VirtualFileSystem::Response res = vfs->Mount("/", "/usr");
+#endif
+    EXPECT_EQ(VirtualFileSystem::Response::Success, res)
+        << "OverlayFS failed to mount!";
+
+    std::vector<FSEntryInfo> entries = vfs->GetEntriesInDirectory("/");
+    for (FSEntryInfo &entry : entries) {
+        Out("OverlayFileSystem", "{}", entry.Name);
+    }
+    EXPECT_EQ(false, entries.empty())
+        << "Entries for directory mounted using OverlayFS should not be empty, but it is.";
+    delete vfs;
 }
 
 #define RUN_LUA(src) \

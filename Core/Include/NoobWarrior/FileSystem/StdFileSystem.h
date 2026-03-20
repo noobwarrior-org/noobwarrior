@@ -52,6 +52,7 @@ public:
     Response DeleteEntry(const std::string &path) override;
 protected:
     std::filesystem::path ConstructRealPath(std::string submittedPath);
+    std::string GetRelativePath(const std::filesystem::path &fullPath) const;
     std::filesystem::path mRoot;
     std::unordered_map<int, std::shared_ptr<std::fstream>> mHandles;
 };

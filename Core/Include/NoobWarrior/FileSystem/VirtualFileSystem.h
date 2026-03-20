@@ -38,6 +38,7 @@ struct FSEntryInfo {
     };
 
     VirtualFileSystem*      Owner       { nullptr };
+    bool                    Failed      { false };
     bool                    Exists      {};
     FSEntryInfo::Type       Type        {};
     uint64_t                Size        {};

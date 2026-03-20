@@ -25,11 +25,28 @@ StdFileSystem::~StdFileSystem() {
 std::filesystem::path StdFileSystem::ConstructRealPath(std::string submittedPath) {
     while (submittedPath.starts_with('/'))
         submittedPath = submittedPath.substr(1);
+    /*
     if (mRoot.string().rfind(submittedPath, 0) == 0) {
         // path has escaped
         return {};
     }
+    */
     return mRoot / submittedPath;
+}
+
+std::string StdFileSystem::GetRelativePath(const std::filesystem::path &fullPath) const {
+    std::string fullPathStr = fullPath.generic_string();
+    std::string rootPath = mRoot.generic_string();
+
+    if (!rootPath.empty() && rootPath.back() != '/')
+        rootPath += '/';
+
+    std::string relativePath;
+    if (fullPathStr.starts_with(rootPath))
+        relativePath = fullPathStr.substr(rootPath.size());
+    else
+        relativePath = fullPathStr;
+    return relativePath;
 }
 
 std::unique_ptr<VirtualFileSystem> StdFileSystem::MakeUnique() const {
@@ -38,16 +55,23 @@ std::unique_ptr<VirtualFileSystem> StdFileSystem::MakeUnique() const {
 
 FSEntryInfo StdFileSystem::GetEntryFromPath(const std::string &path) {
     std::filesystem::path real_path = ConstructRealPath(path);
+    std::filesystem::perms permissions;
     FSEntryInfo entry {};
     entry.Owner = this;
-    entry.Exists = std::filesystem::exists(real_path);
-    if ((!entry.Exists) || (Fail()))
-        goto finish;
-    entry.Type = std::filesystem::is_directory(real_path) ? FSEntryInfo::Type::Directory : FSEntryInfo::Type::File;
-    entry.Size = std::filesystem::is_directory(real_path) ? std::filesystem::file_size(real_path) : 0;
-    entry.Name = std::filesystem::path(real_path).filename().string();
-    entry.Path = path;
-    entry.RealPath = std::filesystem::absolute(real_path);
+    try {
+        entry.Exists = std::filesystem::exists(real_path);
+        if ((!entry.Exists) || (Fail()))
+            goto finish;
+        entry.Type = std::filesystem::is_directory(real_path) ? FSEntryInfo::Type::Directory : FSEntryInfo::Type::File;
+        entry.Size = !std::filesystem::is_directory(real_path) ? std::filesystem::file_size(real_path) : 0;
+        entry.Name = std::filesystem::path(real_path).filename().string();
+        entry.Path = path;
+        entry.RealPath = std::filesystem::absolute(real_path);
+    } catch (std::filesystem::filesystem_error &e) {
+        entry.Failed = true;
+        entry.Exists = true;
+        Out("StdFileSystem", "Warning: Failed to get attributes for entry \"{}\"\nFull Error: \"{}\"", path, e.what());
+    }
 finish:
     return entry;
 }
@@ -58,10 +82,13 @@ std::vector<FSEntryInfo> StdFileSystem::GetEntriesInDirectory(const std::string 
 
     std::vector<FSEntryInfo> entries;
     std::filesystem::path real_path = ConstructRealPath(path);
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator { real_path }) {
-        FSEntryInfo entryInfo = GetEntryFromPath(std::filesystem::relative(entry.path(), mRoot).generic_string());
-        entries.push_back(entryInfo);
-    } 
+    if (std::filesystem::exists(real_path)) {
+        for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator { real_path }) {
+            FSEntryInfo entryInfo = GetEntryFromPath(GetRelativePath(entry.path()));
+            if (!entryInfo.Failed)
+                entries.push_back(entryInfo);
+        }
+    }
     return entries;
 }
 
