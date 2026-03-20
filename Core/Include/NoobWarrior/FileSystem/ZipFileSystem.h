@@ -36,6 +36,8 @@ public:
     ZipFileSystem(const std::filesystem::path &zipPath);
     ~ZipFileSystem() override;
 
+    std::unique_ptr<VirtualFileSystem> MakeUnique() const override;
+
     FSEntryInfo GetEntryFromPath(const std::string &path) override;
     std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) override;
 

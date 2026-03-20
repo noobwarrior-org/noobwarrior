@@ -27,14 +27,17 @@
 #include <vector>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 
 namespace NoobWarrior {
+class VirtualFileSystem;
 struct FSEntryInfo {
     enum class Type {
         File,
         Directory
     };
 
+    VirtualFileSystem*      Owner       { nullptr };
     bool                    Exists      {};
     FSEntryInfo::Type       Type        {};
     uint64_t                Size        {};
@@ -54,7 +57,9 @@ public:
         FileReadFailed,
         InvalidFile,
         InvalidHandle,
-        InvalidFileSystem
+        InvalidFileSystem,
+        CannotCopyFileSystem,
+        NotFound
     };
 
     enum class Format {
@@ -76,6 +81,17 @@ public:
 
     virtual ~VirtualFileSystem() = 0;
     inline virtual bool Fail() { return mFailCode != 0; }; // Should return true if the file system failed to initialize
+
+    /*
+     * This clones the data of the VFS and stores it inside a smart pointer.
+     * Why? Because we assume a VirtualFileSystem is volatile and could get freed at any time, so it is
+     * necessary to make sure you can make and manage copies that won't just die.
+     *
+     * Why not just use std::make_unique? because a VFS is generic and can be one of many derived types, and you are not
+     * really supposed to know what derived type it is.
+     * std::make_unique requires you to know the exact derived type. that's not very generic, is it?
+     */
+    virtual std::unique_ptr<VirtualFileSystem> MakeUnique() const = 0;
 
     virtual FSEntryInfo GetEntryFromPath(const std::string &path) = 0;
     virtual std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) = 0;

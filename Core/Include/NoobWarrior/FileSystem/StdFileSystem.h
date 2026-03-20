@@ -35,6 +35,8 @@ class StdFileSystem : public VirtualFileSystem {
 public:
     StdFileSystem(const std::filesystem::path &root);
     ~StdFileSystem() override;
+
+    std::unique_ptr<VirtualFileSystem> MakeUnique() const override;
     
     FSEntryInfo GetEntryFromPath(const std::string &path) override;
     std::vector<FSEntryInfo> GetEntriesInDirectory(const std::string &path) override;

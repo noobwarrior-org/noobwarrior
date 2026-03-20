@@ -22,7 +22,6 @@
 // Started by: Hattozo
 // Started on: 2/16/2026
 // Description: Main file for unit testing
-#include "NoobWarrior/Url.h"
 #include <gtest/gtest.h>
 #include <NoobWarrior.hpp>
 
@@ -113,6 +112,13 @@ TEST(Url, EnforceCorrectProtocolAndHostName) {
     });
     EXPECT_EQ(true, url.Fail())
         << "Url should fail with incorrect protocol and host name, but it's not.";
+}
+
+TEST(Vfs, Initialize) {
+    VirtualFileSystem* vfs;
+    VirtualFileSystem::Response res = VirtualFileSystem::New(&vfs, "");
+    EXPECT_EQ(VirtualFileSystem::Response::Success, res)
+        << "VFS failed to initialize!";
 }
 
 #define RUN_LUA(src) \

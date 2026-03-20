@@ -48,7 +48,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     for (int i = 0; i < input.size(); i++) {
         if (input.substr(i, NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1).compare(OPENING_TAG) == 0) {
             // Switch to Lua mode, skip cursor to the first letter after the tag, write down the bytes from the previous text block, and restart
-            Out("Lhp", "Switching to Lua mode");
             luaMode = true;
             i += NOOBWARRIOR_ARRAY_SIZE(OPENING_TAG) - 1;
 
@@ -65,7 +64,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
                 return RenderResponse::SyntaxError;
 
             // end of block indicated by closing tag, turn off lua mode and execute code in block
-            Out("Lhp", "Exiting Lua mode");
             luaMode = false;
             i += NOOBWARRIOR_ARRAY_SIZE(CLOSING_TAG) - 1;
         }

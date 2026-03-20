@@ -97,10 +97,8 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
 }
 
 VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {
-    // std::unique_ptr<VirtualFileSystem> vfs = std::make_unique<StdFileSystem>(urlPath);
-    // VirtualFileSystem::Response res = mVfs->Mount(root, vfs);
-    // return res;
-    return VirtualFileSystem::Response::Failed;
+    VirtualFileSystem* vfs = urlPath.GetVfs(mCore);
+    return mVfs->Mount(root, vfs);
 }
 
 VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &urlPath) {
@@ -117,4 +115,8 @@ bool HttpServer::IsRunning() {
 
 NoobWarrior::Core *HttpServer::GetCore() {
     return mCore;
+}
+
+OverlayFileSystem* HttpServer::GetVfs() {
+    return mVfs;
 }

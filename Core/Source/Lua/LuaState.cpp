@@ -119,6 +119,19 @@ int LuaState::Open() {
     signalType["Connect"] = &LuaSignal::Connect;
     signalType["Fire"] = &LuaSignal::LuaFire;
 
+    auto vfsType = new_usertype<VirtualFileSystem>("VirtualFileSystem");
+    vfsType["new"] = [this](sol::this_state state, std::string path) {
+        lua_State* L = state;
+        luaL_error(L, "WIP");
+    };
+    vfsType["OpenHandle"] = &VirtualFileSystem::OpenHandle;
+    vfsType["CloseHandle"] = &VirtualFileSystem::CloseHandle;
+    vfsType["IsHandleEOF"] = &VirtualFileSystem::IsHandleEOF;
+    vfsType["ReadHandleChunk"] = &VirtualFileSystem::ReadHandleChunk;
+    vfsType["ReadHandleLine"] = &VirtualFileSystem::ReadHandleLine;
+    vfsType["EntryExists"] = &VirtualFileSystem::EntryExists;
+    vfsType["DeleteEntry"] = &VirtualFileSystem::DeleteEntry;
+
     auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(std::string, std::string)>());
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
@@ -134,6 +147,7 @@ int LuaState::Open() {
     };
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
+    srvType["GetVfs"] = &HttpServer::GetVfs;
     srvType["MountVolume"] = [](sol::this_state state, HttpServer& self, std::string root, std::string realPath) -> void {
         lua_State* L = state;
         VirtualFileSystem::Response res = self.MountVolume(root, Url(realPath));

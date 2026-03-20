@@ -51,6 +51,10 @@ ZipFileSystem::~ZipFileSystem() {
     zip_close(mArchive);
 }
 
+std::unique_ptr<VirtualFileSystem> ZipFileSystem::MakeUnique() const {
+    return std::make_unique<ZipFileSystem>(*this);
+}
+
 FSEntryInfo ZipFileSystem::GetEntryFromPath(const std::string &path) {
     std::string zip_path = path;
 
@@ -60,6 +64,7 @@ FSEntryInfo ZipFileSystem::GetEntryFromPath(const std::string &path) {
         zip_path = zip_path.substr(1);
 
     FSEntryInfo entry {};
+    entry.Owner = this;
     int statErr;
     zip_stat_t stat;
     zip_int64_t index = zip_name_locate(mArchive, zip_path.c_str(), 0);
@@ -117,6 +122,7 @@ FSEntryHandle ZipFileSystem::OpenHandle(const std::string &path) {
         return 0;
     }
 
+    // TODO: make this not dogshit
     int id = 1;
     while (mHandles.contains(id))
         id++;

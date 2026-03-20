@@ -32,9 +32,14 @@ std::filesystem::path StdFileSystem::ConstructRealPath(std::string submittedPath
     return mRoot / submittedPath;
 }
 
+std::unique_ptr<VirtualFileSystem> StdFileSystem::MakeUnique() const {
+    return std::make_unique<StdFileSystem>(*this);
+}
+
 FSEntryInfo StdFileSystem::GetEntryFromPath(const std::string &path) {
     std::filesystem::path real_path = ConstructRealPath(path);
     FSEntryInfo entry {};
+    entry.Owner = this;
     entry.Exists = std::filesystem::exists(real_path);
     if ((!entry.Exists) || (Fail()))
         goto finish;

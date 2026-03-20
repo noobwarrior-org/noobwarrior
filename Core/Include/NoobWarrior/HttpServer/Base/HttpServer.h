@@ -68,6 +68,7 @@ public:
     LuaSignal* GetOnRequestSignal();
 
     Core *GetCore();
+    OverlayFileSystem* GetVfs();
 protected:
     bool Running;
 

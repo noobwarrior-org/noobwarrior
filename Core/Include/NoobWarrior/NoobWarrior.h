@@ -43,6 +43,7 @@
 #include "Keychain/EmuKeychain.h"
 #include "Keychain/RbxKeychain.h"
 #include "Url.h"
+#include "FileSystem/VirtualFileSystem.h"
 
 #include <event.h>
 #include <lua.hpp>
