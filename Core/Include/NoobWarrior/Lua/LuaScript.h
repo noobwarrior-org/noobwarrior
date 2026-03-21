@@ -51,7 +51,8 @@ public:
 
     bool Fail();
     FailReason GetFailReason();
-    ExecResponse Execute();
+    sol::protected_function_result Execute();
+    sol::object GetLastResult();
 
     Url& GetUrl();
     std::string GetSource();
@@ -62,6 +63,7 @@ private:
     std::string mSource;
     FailReason mFailReason;
     sol::load_result mBytecode;
+    std::optional<sol::object> mResult;
     sol::environment mBaseEnv;
 };
 }

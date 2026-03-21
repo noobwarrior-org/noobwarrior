@@ -6,12 +6,14 @@
 -- Started by: Hattozo
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
-master = HttpServer.new("MasterServer")
+-- master = HttpServer.new("MasterServer")
 master_db = SqlDb.new(":memory:", "MasterDb")
 
+local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")
+
 local sitemap = {
-    ["/"] = "index.lhp",
-    ["/home"] = "index.lhp"
+    ["/"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
+    ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp"
 }
 
 local file_extension_map = {
@@ -30,6 +32,13 @@ local file_extension_map = {
     ["webm"] = "video/webm"
 }
 
+master = http_shared.CreateServer({
+    Name = "MasterServer",
+    Sitemap = sitemap
+})
+master:Start(4040)
+
+--[[
 local function getFileExtension(filePath)
     local pos = string.reverse(filePath):find("%.")
     return string.sub(filePath, 1 - pos)
@@ -43,7 +52,6 @@ master.OnRequest:Connect(function(req)
         req:SendReply(200, nil, output)
     else
         local vfs = master:GetVfs()
-        local entries = vfs:GetEntriesInDirectory("/")
         if vfs:EntryExists(req.Uri) then
             local handle = vfs:OpenHandle(req.Uri)
             if handle == 0 then
@@ -71,6 +79,7 @@ master.OnRequest:Connect(function(req)
         end
     end
 end)
-master:MountVolume("/", "plugin://frontend@noobwarrior.org/static")
--- master:UnmountVolume("/", "plugin://frontend@noobwarrior.org/static")
+master:MountVolume("/", "plugin://http-shared@noobwarrior.org/static")
+-- master:UnmountVolume("/", "plugin://http-shared@noobwarrior.org/static")
 master:Start(4040)
+]]

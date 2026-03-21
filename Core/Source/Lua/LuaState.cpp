@@ -177,9 +177,22 @@ int LuaState::Open() {
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
     srvType["GetVfs"] = &HttpServer::GetVfs;
-    srvType["MountVolume"] = [](sol::this_state state, HttpServer& self, std::string root, std::string realPath) -> void {
+    srvType["MountVolume"] = [](sol::this_state state, sol::this_environment tenv, HttpServer& self, std::string root, std::string realPath) -> void {
         lua_State* L = state;
-        VirtualFileSystem::Response res = self.MountVolume(root, Url(realPath));
+        sol::environment env = tenv;
+
+        UrlContext ctx {};
+        LuaScript* callingScript = env["script"].get_or<LuaScript*>(nullptr);
+        if (callingScript != nullptr) {
+            Url callingScriptUrl = callingScript->GetUrl();
+            ctx = {
+                .Cwd = callingScriptUrl.GetDirectory(),
+                .DefaultProtocolType = callingScriptUrl.GetProtocol(),
+                .DefaultHostName = callingScriptUrl.GetHostName(),
+            };
+        }
+
+        VirtualFileSystem::Response res = self.MountVolume(root, Url(realPath, ctx));
         if (res != VirtualFileSystem::Response::Success) {
             luaL_error(L, "failed to mount volume");
         }
@@ -255,3 +268,28 @@ Lhp *LuaState::GetLhp() {
 Core *LuaState::GetCore() {
     return mCore;
 }
+
+bool LuaState::IsScriptLoading(const std::string &resolvedUrl) {
+    return mLoadingScripts.contains(resolvedUrl);
+}
+
+void LuaState::MarkScriptLoading(const std::string &resolvedUrl) {
+    mLoadingScripts.insert(resolvedUrl);
+}
+
+void LuaState::UnmarkScriptLoading(const std::string &resolvedUrl) {
+    mLoadingScripts.erase(resolvedUrl);
+}
+
+void LuaState::CacheModule(const std::string& resolvedUrl, std::unique_ptr<LuaScript> module) {
+    mCachedModules[resolvedUrl] = std::move(module);
+}
+
+LuaScript* LuaState::RetrieveCachedModuleFromResolvedUrl(const std::string &resolvedUrl) const {
+    if (!mCachedModules.contains(resolvedUrl))
+        return nullptr;
+    return mCachedModules.at(resolvedUrl).get();
+}
+
+
+

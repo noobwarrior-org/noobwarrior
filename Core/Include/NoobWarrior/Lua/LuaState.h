@@ -34,6 +34,10 @@
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Lua/Bridge/ServerEmulatorBridge.h>
 
+#include <vector>
+#include <unordered_set>
+#include <unordered_map>
+
 namespace NoobWarrior {
 class Core;
 enum class LuaContext {
@@ -50,6 +54,12 @@ public:
     lua_State* Get();
     Lhp *GetLhp();
     Core *GetCore();
+
+    bool IsScriptLoading(const std::string& resolvedUrl);
+    void MarkScriptLoading(const std::string& resolvedUrl);
+    void UnmarkScriptLoading(const std::string& resolvedUrl);
+    void CacheModule(const std::string& resolvedUrl, std::unique_ptr<LuaScript> module);
+    LuaScript* RetrieveCachedModuleFromResolvedUrl(const std::string& resolvedUrl) const;
 private:
     Core* mCore;
     Lhp mLhp;
@@ -58,5 +68,8 @@ private:
     VfsBridge mVfsBridge;
     HttpServerBridge mHttpServerBridge;
     ServerEmulatorBridge mServerEmulatorBridge;
+
+    std::unordered_set<std::string> mLoadingScripts;
+    std::unordered_map<std::string, std::unique_ptr<LuaScript>> mCachedModules;
 };
 }

@@ -117,8 +117,8 @@ LuaScript::FailReason LuaScript::GetFailReason() {
     return mFailReason;
 }
 
-LuaScript::ExecResponse LuaScript::Execute() {
-    if (Fail()) return ExecResponse::InitFailed;
+sol::protected_function_result LuaScript::Execute() {
+    if (Fail()) return {}; // no idea what the legality of this is
 
     sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
     sandbox["script"] = this;
@@ -141,17 +141,48 @@ LuaScript::ExecResponse LuaScript::Execute() {
             Out("LuaScript", msg);
     };
 
+    sandbox["require"] = [this](sol::this_state state, std::string urlStr) -> sol::object {
+        lua_State* L = state;
+        Url url = Url(urlStr);
+        std::string resolvedUrl = url.Resolve();
+
+        LuaScript* cachedModule = mLua->RetrieveCachedModuleFromResolvedUrl(resolvedUrl);
+        if (cachedModule != nullptr) {
+            return cachedModule->GetLastResult();
+        }
+
+        if (mLua->IsScriptLoading(resolvedUrl)) {
+            luaL_error(L, "require(): circular dependency detected: %s", resolvedUrl.c_str());
+        }
+
+        mLua->MarkScriptLoading(resolvedUrl);
+        auto moduleScript = std::make_unique<LuaScript>(mLua, mLua->globals(), url);
+        sol::protected_function_result res2 = moduleScript->Execute();
+        mLua->CacheModule(resolvedUrl, std::move(moduleScript));
+        mLua->UnmarkScriptLoading(resolvedUrl);
+
+        if (!res2.valid()) {
+            luaL_error(L, "require(): failed to run script");
+        }
+        return res2;
+    };
+
     sol::protected_function func = mBytecode.get<sol::protected_function>();
     sandbox.set_on(func);
     sol::protected_function_result res = func();
     if (!res.valid()) {
         sol::error err = res;
         Out("LuaScript", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
+    } else {
+        mResult = res.get<sol::object>();
     }
-    switch (res.status()) {
-    case sol::call_status::ok: return ExecResponse::Ok;
-    default: return ExecResponse::Failed;
-    }
+    return res;
+}
+
+sol::object LuaScript::GetLastResult() {
+    if (mResult.has_value())
+        return mResult.value();
+    return sol::lua_nil;
 }
 
 Url& LuaScript::GetUrl() {

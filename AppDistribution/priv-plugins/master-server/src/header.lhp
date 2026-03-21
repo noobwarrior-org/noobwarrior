@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <?lua include("plugin://frontend@noobwarrior.org/src/shared.lhp") ?>
+        <?lua include("plugin://http-shared@noobwarrior.org/src/shared.lhp") ?>
         <title>noobWarrior</title>
     </head>
     <body>

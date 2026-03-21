@@ -9,7 +9,8 @@ _G.visitorCount = _G.visitorCount + 1
 
 <?lua include("header.lhp") ?>
 
-<h1><?lua echo("Welcome to master server") ?></h1>
+<?lua include("new_user.lhp") ?>
+
 <h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
 
 <?lua include("footer.lhp") ?>
