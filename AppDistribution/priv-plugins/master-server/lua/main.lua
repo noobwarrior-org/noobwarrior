@@ -44,9 +44,6 @@ master.OnRequest:Connect(function(req)
     else
         local vfs = master:GetVfs()
         local entries = vfs:GetEntriesInDirectory("/")
-        for index, entry in ipairs(entries) do
-            print(string.format("Entry %s: %s", index, entry.Name))
-        end
         if vfs:EntryExists(req.Uri) then
             local handle = vfs:OpenHandle(req.Uri)
             if handle == 0 then

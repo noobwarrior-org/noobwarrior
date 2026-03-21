@@ -130,8 +130,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
 }
 
 Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::string *output) {
-    Out("Lhp", "Url: {}", url.Resolve());
-
     Core* core = mLua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;
