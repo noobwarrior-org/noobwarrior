@@ -103,6 +103,10 @@ Url::FailReason Url::GetFailReason() const {
     return mFailReason;
 }
 
+UrlContext Url::GetContext() const {
+    return mCtx;
+}
+
 ProtocolType Url::GetProtocol() const {
     std::string protocolStr = GetProtocolString();
     if (sProtocolMap.contains(protocolStr))

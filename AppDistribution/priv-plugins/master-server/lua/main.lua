@@ -15,12 +15,19 @@ local sitemap = {
 }
 
 local file_extension_map = {
+    ["txt"] = "text/plain",
+    ["css"] = "text/css",
+    ["csv"] = "text/csv",
+    ["html"] = "text/html",
+    ["xml"] = "text/xml",
     ["png"] = "image/png",
     ["jpg"] = "image/jpeg",
     ["jpeg"] = "image/jpeg",
     ["tiff"] = "image/tiff",
     ["ico"] = "image/vnd.microsoft.icon",
-    ["svg"] = "image/svg+xml"
+    ["svg"] = "image/svg+xml",
+    ["mp4"] = "video/mp4",
+    ["webm"] = "video/webm"
 }
 
 local function getFileExtension(filePath)

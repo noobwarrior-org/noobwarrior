@@ -36,11 +36,12 @@ public:
         Failed,
         Success,
         SyntaxError,
-        UrlFailed
+        UrlFailed,
+        LuaError
     };
 
     Lhp(LuaState* lua);
-    RenderResponse Render(sol::environment env, const std::string &input, std::string *output);
+    RenderResponse Render(sol::environment env, const std::string &input, std::string *output, UrlContext ctx = {});
     RenderResponse Render(sol::environment env, const Url &url, std::string *output);
 private:
     LuaState* mLua;

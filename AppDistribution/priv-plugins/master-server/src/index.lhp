@@ -1,19 +1,22 @@
 <?lua
 print("Rendering index...")
 
-if not visitorCount then
-    visitorCount = 0
+if not _G.visitorCount then
+    _G.visitorCount = 0
 end
-visitorCount = visitorCount + 1
+_G.visitorCount = _G.visitorCount + 1
 ?>
 <!DOCTYPE html>
 <html>
     <head>
-        <title><?lua echo("Your cool server") ?></title>
+        <?lua include("plugin://frontend@noobwarrior.org/src/main.lhp") ?>
+        <title>noobWarrior Master Server</title>
     </head>
     <body>
+        <?lua include("plugin://frontend@noobwarrior.org/src/header.lhp") ?>
         <h1><?lua echo("Welcome to master server") ?></h1>
         <h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
+        <?lua include("plugin://frontend@noobwarrior.org/src/footer.lhp") ?>
     </body>
 </html>
 <?lua

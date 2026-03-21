@@ -91,6 +91,7 @@ public:
     bool IsStringRelative() const;
 
     FailReason GetFailReason() const;
+    UrlContext GetContext() const;
 
     ProtocolType GetProtocol() const;
     std::string GetProtocolString() const;
