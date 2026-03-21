@@ -41,7 +41,7 @@ public:
     };
 
     Lhp(LuaState* lua);
-    RenderResponse Render(sol::environment env, const std::string &input, std::string *output, UrlContext ctx = {});
+    RenderResponse Render(sol::environment env, const std::string &input, std::string *output, Url path = {});
     RenderResponse Render(sol::environment env, const Url &url, std::string *output);
 private:
     LuaState* mLua;

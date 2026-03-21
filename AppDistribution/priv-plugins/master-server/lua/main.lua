@@ -39,8 +39,6 @@ master.OnRequest:Connect(function(req)
     print("Request from "..req.PeerIp.." made to "..req.Uri)
     if sitemap[req.Uri] then
         local output = lhp.RenderFile("/src/"..sitemap[req.Uri])
-        print(output)
-
         req:AddHeader("Content-Type", "text/html")
         req:SendReply(200, nil, output)
     else

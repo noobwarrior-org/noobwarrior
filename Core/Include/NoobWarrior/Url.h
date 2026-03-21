@@ -97,6 +97,7 @@ public:
     std::string GetProtocolString() const;
     std::string GetHostName() const;
     std::string GetCwd() const;
+    std::string GetDirectory() const;
 
     /* Returns an absolute path to the resource */
     std::string Resolve() const;
@@ -105,7 +106,7 @@ public:
     std::string ResolveWithoutProtocol() const;
 
     /* Returns an absolute path to the resource without its host name */
-    std::string ResolveAsPathName() const;
+    std::string ResolveAsPath() const;
 
     /* Returns the real path of this URL on the computer's filesystem */
     std::filesystem::path ResolveAsLocalPath(Core* core) const;

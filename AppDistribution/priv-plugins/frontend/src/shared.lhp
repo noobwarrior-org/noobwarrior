@@ -1,2 +1,2 @@
-<?lua print("Loading main...") ?>
+<?lua print("Loading shared content...") ?>
 <link rel="stylesheet" href="/css/main.css">

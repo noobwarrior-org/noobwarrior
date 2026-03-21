@@ -147,6 +147,12 @@ std::string Url::GetCwd() const {
     return mCtx.Cwd;
 }
 
+std::string Url::GetDirectory() const {
+    std::string urlPath = ResolveAsPath();
+    std::string::size_type lastSlashPos = urlPath.find_last_of('/');
+    return urlPath.substr(0, lastSlashPos);
+}
+
 /* constructs a full absolute URL using the information from the UrlContext object */
 std::string Url::Resolve() const {
     std::string fullUrl;
@@ -168,6 +174,8 @@ std::string Url::Resolve() const {
         // current working directory
         if (!mStr.starts_with("/"))
             fullUrl += mCtx.Cwd;
+        if (mCtx.Cwd.length() > 1)
+            fullUrl += "/";
 
         fullUrl += mStr;
     } else {
@@ -189,7 +197,7 @@ std::string Url::ResolveWithoutProtocol() const {
     return url;
 }
 
-std::string Url::ResolveAsPathName() const {
+std::string Url::ResolveAsPath() const {
     std::string pathName = ResolveWithoutProtocol();
 
     std::string::size_type rootPos = pathName.find("/");
@@ -209,7 +217,7 @@ std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
         if (plugin != nullptr) {
             std::filesystem::path pluginPath = plugin->GetFilePath();
             std::string pluginPathStr = pluginPath.generic_string();
-            return std::filesystem::path(pluginPathStr + ResolveAsPathName());
+            return std::filesystem::path(pluginPathStr + ResolveAsPath());
         }
     } else if (protocol == ProtocolType::File) {
         return ResolveWithoutProtocol();
@@ -266,7 +274,7 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
     VirtualFileSystem* vfs = GetVfs(core);
     FSEntryHandle handle;
     if (vfs != nullptr)
-        handle = vfs->OpenHandle(ResolveAsPathName());
+        handle = vfs->OpenHandle(ResolveAsPath());
     
     *vfsPtr = vfs;
     *handlePtr = handle;

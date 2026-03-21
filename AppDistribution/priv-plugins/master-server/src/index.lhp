@@ -6,19 +6,14 @@ if not _G.visitorCount then
 end
 _G.visitorCount = _G.visitorCount + 1
 ?>
-<!DOCTYPE html>
-<html>
-    <head>
-        <?lua include("plugin://frontend@noobwarrior.org/src/main.lhp") ?>
-        <title>noobWarrior Master Server</title>
-    </head>
-    <body>
-        <?lua include("plugin://frontend@noobwarrior.org/src/header.lhp") ?>
-        <h1><?lua echo("Welcome to master server") ?></h1>
-        <h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
-        <?lua include("plugin://frontend@noobwarrior.org/src/footer.lhp") ?>
-    </body>
-</html>
+
+<?lua include("header.lhp") ?>
+
+<h1><?lua echo("Welcome to master server") ?></h1>
+<h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
+
+<?lua include("footer.lhp") ?>
+
 <?lua
 print("Rendered index!")
 ?>

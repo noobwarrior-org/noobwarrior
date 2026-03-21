@@ -40,7 +40,7 @@ Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 }
 
-Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output, UrlContext ctx) {
+Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output, Url path) {
     bool luaMode = false;
     std::string textBuffer;
     std::string luaBuffer;
@@ -54,7 +54,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
 
             if (!textBuffer.empty()) {
                 luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
-                Out("Lhp", "ADDING TEXT BLOCK: {}", textBuffer);
                 textBlocks.push_back(textBuffer);
                 textBuffer.clear();
             }
@@ -80,7 +79,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     sol::table tb = mLua->create_table();
     for (int i = 0; i < static_cast<int>(textBlocks.size()); i++) {
         std::string block = textBlocks[i];
-        Out("Lhp", "THE BLOCK: {}", block);
         tb[i] = [output, block]() {
             *output += block;
         };
@@ -94,20 +92,24 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         *output += msg;
     };
 
-    lhpEnv["include"] = [this, env, output, ctx](sol::this_state state, std::string fileLocation) -> void {
+    lhpEnv["include"] = [this, env, output, path](sol::this_state state, std::string fileLocation) -> void {
+        UrlContext ctx = {
+            .Cwd = path.GetDirectory(),
+            .DefaultProtocolType = path.GetProtocol(),
+            .DefaultHostName = path.GetHostName()
+        };
+
         lua_State* L = state;
-        Url url(fileLocation, ctx);
+        Url includeUrl(fileLocation, ctx);
 
         std::string includeOutput;
-        RenderResponse res = Render(env, url, &includeOutput);
+        RenderResponse res = Render(env, includeUrl, &includeOutput);
         if (res != RenderResponse::Success) {
             luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
             return;
         }
         *output += includeOutput;
     };
-
-    Out("Lhp", "Lua Buffer: {}", luaBuffer);
 
     sol::load_result bytecode = mLua->load(luaBuffer);
     if (!bytecode.valid()) {
@@ -124,12 +126,12 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         Out("Lhp", "(Render Failure) {}", err.what());
         return RenderResponse::LuaError;
     }
-
-    Out("Lhp", "Final Output: {}", *output);
     return RenderResponse::Success;
 }
 
 Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::string *output) {
+    Out("Lhp", "Url: {}", url.Resolve());
+
     Core* core = mLua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;
@@ -147,5 +149,5 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::strin
 
     vfs->CloseHandle(sourceHandle);
 
-    return Render(env, src, output, url.GetContext());
+    return Render(env, src, output, url);
 }

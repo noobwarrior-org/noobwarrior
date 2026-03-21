@@ -1,2 +1,10 @@
-<?lua print("Loading header...") ?>
-<p>THIS IS MY HEADER</p>
+<!DOCTYPE html>
+<html>
+    <head>
+        <?lua include("plugin://frontend@noobwarrior.org/src/shared.lhp") ?>
+        <title>noobWarrior</title>
+    </head>
+    <body>
+        <div class="navbar">
+            <h1>noobwarrior header</h1>
+        </div>
