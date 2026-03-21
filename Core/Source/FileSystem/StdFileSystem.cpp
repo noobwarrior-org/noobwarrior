@@ -99,7 +99,7 @@ FSEntryHandle StdFileSystem::OpenHandle(const std::string &path) {
     }
 
     std::filesystem::path real_path = ConstructRealPath(path);
-    auto stream = std::make_shared<std::fstream>(real_path);
+    auto stream = std::make_shared<std::fstream>(real_path, std::ios::in | std::ios::binary);
     if (stream->fail()) {
         Out("StdFileSystem", "Failed to open handle for file \"{}\"", path);
         return NULL;
@@ -139,12 +139,18 @@ bool StdFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned c
         return false;
 
     std::shared_ptr<std::fstream> stream = mHandles.at(handle);
-    
-    char buf_c[size];
-    stream->read(buf_c, size);
-    buf->clear();
-    buf->insert(buf->begin(), buf_c, buf_c + size);
-    return !(stream->eof() || stream->fail());
+
+    std::vector<char> buf_c(size);
+    stream->read(buf_c.data(), size);
+
+    std::streamsize bytesRead = stream->gcount();
+    if (bytesRead == 0) {
+        Out("StdFileSystem", "Failed to read chunk for handle ID {}", handle);
+        return false;
+    }
+
+    buf->assign(buf_c.begin(), buf_c.begin() + bytesRead);
+    return !stream->eof();
 }
 
 bool StdFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {

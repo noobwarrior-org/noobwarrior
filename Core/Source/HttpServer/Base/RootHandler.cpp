@@ -54,7 +54,7 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         if (sentReply)
             return;
         evbuffer *reply = evbuffer_new();
-        evbuffer_add_printf(reply, "%s", data.c_str());
+        evbuffer_add(reply, data.data(), data.size());
         evhttp_send_reply(req, code, reason.c_str(), reply);
         evbuffer_free(reply);
         sentReply = true;

@@ -27,6 +27,7 @@
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
+#include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
 
@@ -144,7 +145,7 @@ FSEntryHandle OverlayFileSystem::OpenHandle(const std::string &path) {
             int id = 1;
             while (mHandles.contains(id))
                 id++;
-            mHandles[id] = { vfs, handle };
+            mHandles[id] = { vfs, realHandle };
             handle = id;
         }
     }
@@ -154,9 +155,10 @@ FSEntryHandle OverlayFileSystem::OpenHandle(const std::string &path) {
 VirtualFileSystem::Response OverlayFileSystem::CloseHandle(FSEntryHandle handle) {
     auto [vfs, realHandle] = GetRealHandle(handle);
     if (vfs != nullptr) {
-        vfs->CloseHandle(realHandle);
-        mHandles.erase(handle);
-        return Response::Success;
+        Response res = vfs->CloseHandle(realHandle);
+        if (res == Response::Success)
+            mHandles.erase(handle);
+        return res;
     }
     return Response::InvalidHandle;
 }

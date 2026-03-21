@@ -123,7 +123,7 @@ int LuaState::Open() {
     signalType["Fire"] = &LuaSignal::LuaFire;
 
     auto vfsType = new_usertype<VirtualFileSystem>("VirtualFileSystem");
-    vfsType["new"] = [this](sol::this_state state, std::string path) {
+    vfsType["new"] = [](sol::this_state state, std::string path) {
         lua_State* L = state;
         luaL_error(L, "WIP");
     };
