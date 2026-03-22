@@ -153,6 +153,12 @@ std::string Url::GetDirectory() const {
     return urlPath.substr(0, lastSlashPos);
 }
 
+std::string Url::GetFileName() const {
+    std::string urlPath = Resolve();
+    std::string::size_type lastSlashPos = urlPath.find_last_of('/');
+    return urlPath.substr(lastSlashPos + 1);
+}
+
 /* constructs a full absolute URL using the information from the UrlContext object */
 std::string Url::Resolve() const {
     std::string fullUrl;

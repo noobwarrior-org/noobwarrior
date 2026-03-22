@@ -57,9 +57,14 @@ function http_shared.CreateServer(params)
     local srv = HttpServer.new(params.Name)
     srv.OnRequest:Connect(function(req)
         if params.Sitemap[req.Uri] then
-            local output = lhp.RenderFile(params.Sitemap[req.Uri])
             req:AddHeader("Content-Type", "text/html")
-            req:SendReply(200, nil, output)
+            local success, err = pcall(function()
+                local output = lhp.RenderFile(params.Sitemap[req.Uri])
+                req:SendReply(200, nil, output)
+            end)
+            if not success then
+                req:SendError(500, "LHP Error: Failed to render page \""..req.Uri.."\"")
+            end
         else
             local vfs = srv:GetVfs()
             if vfs:EntryExists(req.Uri) then

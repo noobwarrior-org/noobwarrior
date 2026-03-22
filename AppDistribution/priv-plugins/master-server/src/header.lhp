@@ -1,3 +1,7 @@
+<?lua
+test = "hello"
+print("Hello? Test: ", test)
+?>
 <!DOCTYPE html>
 <html>
     <head>

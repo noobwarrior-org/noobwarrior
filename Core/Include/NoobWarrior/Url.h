@@ -98,6 +98,7 @@ public:
     std::string GetHostName() const;
     std::string GetCwd() const;
     std::string GetDirectory() const;
+    std::string GetFileName() const;
 
     /* Returns an absolute path to the resource */
     std::string Resolve() const;

@@ -40,7 +40,7 @@ Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 }
 
-Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output, Url path) {
+Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output, Url path, bool isRecursive) {
     bool luaMode = false;
     std::string textBuffer;
     std::string luaBuffer;
@@ -53,7 +53,8 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             i += std::size(OPENING_TAG) - 2;
 
             if (!textBuffer.empty()) {
-                luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
+                // luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
+                luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
                 textBlocks.push_back(textBuffer);
                 textBuffer.clear();
             }
@@ -69,10 +70,21 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             continue;
         }
 
+        // Genuinely dogshit code that prevents string escaping. Never allow me to write again
+        if (
+            input.substr(i, 7).compare("[=====[") == 0 ||
+            input.substr(i, 7).compare("]=====]") == 0
+        )
+        {
+            Out("Lhp", "Continued");
+            continue;
+        }
+
         (!luaMode ? textBuffer : luaBuffer) += input.at(i);
     }
     if (!textBuffer.empty()) {
-        luaBuffer += std::format("__tb[{}]();", textBlocks.size());
+        // luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
+        luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
         textBlocks.push_back(textBuffer);
     }
 
@@ -84,32 +96,36 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         };
     }
 
-    sol::environment lhpEnv(*mLua, sol::create, env);
+    sol::environment lhpEnv = isRecursive
+        ? sol::environment(*mLua, sol::create, env) // creates an entirely new isolated environment
+        : env; // or, reuse the passed environment directly. needed if we are calling this recursively or else all prior variables are lost
 
-    lhpEnv["__tb"] = tb;
+    if (isRecursive) {
+        lhpEnv["__tb"] = tb;
 
-    lhpEnv["echo"] = [output](std::string msg) -> void {
-        *output += msg;
-    };
-
-    lhpEnv["include"] = [this, env, output, path](sol::this_state state, std::string fileLocation) -> void {
-        UrlContext ctx = {
-            .Cwd = path.GetDirectory(),
-            .DefaultProtocolType = path.GetProtocol(),
-            .DefaultHostName = path.GetHostName()
+        lhpEnv["echo"] = [output](std::string msg) -> void {
+            *output += msg;
         };
 
-        lua_State* L = state;
-        Url includeUrl(fileLocation, ctx);
+        lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) -> void {
+            UrlContext ctx = {
+                .Cwd = path.GetDirectory(),
+                .DefaultProtocolType = path.GetProtocol(),
+                .DefaultHostName = path.GetHostName()
+            };
 
-        std::string includeOutput;
-        RenderResponse res = Render(env, includeUrl, &includeOutput);
-        if (res != RenderResponse::Success) {
-            luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
-            return;
-        }
-        *output += includeOutput;
-    };
+            lua_State* L = state;
+            Url includeUrl(fileLocation, ctx);
+
+            std::string includeOutput;
+            RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, false);
+            if (res != RenderResponse::Success) {
+                luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
+                return;
+            }
+            *output += includeOutput;
+        };
+    }
 
     sol::load_result bytecode = mLua->load(luaBuffer);
     if (!bytecode.valid()) {
@@ -129,7 +145,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     return RenderResponse::Success;
 }
 
-Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::string *output) {
+Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::string *output, bool isRecursive) {
     Core* core = mLua->GetCore();
 
     VirtualFileSystem* vfs = nullptr;
@@ -146,6 +162,5 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const Url &url, std::strin
     }
 
     vfs->CloseHandle(sourceHandle);
-
-    return Render(env, src, output, url);
+    return Render(env, src, output, url, isRecursive);
 }
