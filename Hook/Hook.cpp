@@ -25,8 +25,10 @@
 // Please do not use any standard libraries in this other than the Windows API. Thank you.
 #include "Hook.h"
 
-#include <MinHook.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
+#include <MinHook.h>
 #include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -320,11 +322,26 @@ DWORD WINAPI Thread(LPVOID param) {
     return 0;
 }
 
+static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
+static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
+    //MessageBoxA(NULL, "connect called!", "noobHook", MB_OK | MB_ICONINFORMATION);
+    if (name->sa_family == AF_INET) {
+        sockaddr_in addrCopy = *(sockaddr_in*)name;
+        addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+        addrCopy.sin_port = htons(8080);
+        return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
+    }
+    return pOrigConnect(s, name, namelen);
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     HANDLE hThread = NULL;
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         MH_Initialize();
+        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+        MH_EnableHook(MH_ALL_HOOKS);
+        /*
         DisableThreadLibraryCalls(hModule);
 
         hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
@@ -332,6 +349,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
 
         ResumeThread(hThread);
         CloseHandle(hThread);
+        */
         break;
     case DLL_PROCESS_DETACH:
         MH_Uninitialize();

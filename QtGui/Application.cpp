@@ -259,7 +259,7 @@ void Application::LaunchEngine(const Engine &changethisbacktoenginelaterok) {
             default: errMsg = "An error occurred while trying to launch Roblox."; break;
             case EngineLaunchResponse::NotInstalled: errMsg = "The engine that you are trying to launch is not installed on your computer. Please install it and try again."; break;
             case EngineLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
-            case EngineLaunchResponse::FailedToCreateProcess: errMsg = "Could not create a valid process for Roblox."; break;
+            case EngineLaunchResponse::FailedToCreateProcess: errMsg = "Could not create an injector process. Check if noobhook_x86_injector.exe is inside of the noobWarrior installation folder."; break;
             case EngineLaunchResponse::InjectFailed: errMsg = "Failed to inject into the Roblox process."; break;
             case EngineLaunchResponse::InjectDllMissing: errMsg = "Failed to locate DLL file. Please make sure it's in the right place."; break;
             case EngineLaunchResponse::InjectCannotAccessProcess: errMsg = "Could not access the Roblox process in order to perform DLL injection. Do you have a kernel-level anti-cheat running?"; break;

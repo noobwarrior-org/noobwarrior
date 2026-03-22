@@ -43,6 +43,8 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
 
+    Out("RootHandler", "{}:{} requested URI {}", peer_address, peer_port, uri);
+
     sol::table reqTbl = mServer->GetCore()->GetLuaState()->create_table();
     reqTbl["Uri"] = uri;
     reqTbl["PeerIp"] = peer_address;

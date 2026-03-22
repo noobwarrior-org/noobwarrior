@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Hattozo
+* Copyright (C) 2026 Hattozo
  *
  * This file is part of noobWarrior.
  *
@@ -18,36 +18,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: StudioEditHandler.h
 // Started by: Hattozo
-// Started on: 9/2/2025
+// Started on: 3/22/2025
 // Description:
 #pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "StudioEditHandler.h"
-#include "AssetHandler.h"
-
-#include <cstdint>
-#include <filesystem>
-#include <vector>
-#include <queue>
-#include <utility>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
+class StudioEditHandler : public Handler {
 public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
-
-    int Start(uint16_t port) override;
-    int Stop() override;
-private:
-    //////////////// Handlers ////////////////
-    std::unique_ptr<AssetHandler> mAssetHandler;
-    std::unique_ptr<ClientSettingsHandler> mClientSettingsHandler;
-    std::unique_ptr<StudioEditHandler> mStudioEditHandler;
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
+    StudioEditHandler();
+    void OnRequest(evhttp_request *req, void *userdata) override;
 };
 }

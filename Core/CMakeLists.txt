@@ -125,6 +125,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/ServerEmulator.cpp
     Source/HttpServer/Emulator/AssetHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsHandler.cpp
+    Source/HttpServer/Emulator/StudioEditHandler.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp

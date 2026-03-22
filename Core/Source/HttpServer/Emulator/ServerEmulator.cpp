@@ -40,11 +40,16 @@ int ServerEmulator::Start(uint16_t port) {
     if (!res) goto finish;
 
     mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetEmuDbManager());
+    mClientSettingsHandler = std::make_unique<ClientSettingsHandler>(this);
+    mStudioEditHandler = std::make_unique<StudioEditHandler>();
 
+    SetRequestHandler("/Asset", mAssetHandler.get());
     SetRequestHandler("/asset", mAssetHandler.get());
     SetRequestHandler("/v1/asset", mAssetHandler.get());
-    
+
     SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
+
+    SetRequestHandler("/game/edit.ashx", mStudioEditHandler.get());
 finish:
     return res;
 }

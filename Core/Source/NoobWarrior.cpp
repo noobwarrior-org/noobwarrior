@@ -243,10 +243,6 @@ void Core::CreateStandardUserDataDirectories() {
 }
 
 int Core::StartServerEmulator(uint16_t port) {
-    if (!StopServerEmulator()) {
-        return -2;
-    }
-
     return mServerEmulator->Start(port);
 }
 
