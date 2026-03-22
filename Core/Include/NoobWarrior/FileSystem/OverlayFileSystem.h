@@ -62,6 +62,7 @@ public:
     bool EntryExists(const std::string &path) override;
     Response DeleteEntry(const std::string &path) override;
 protected:
+    std::vector<std::pair<VirtualFileSystem*, std::string>> GetVfsCandidates(const std::string &submittedPath);
     std::pair<VirtualFileSystem*, std::string> GetVfsPath(const std::string &submittedPath);
     std::pair<VirtualFileSystem*, int> GetRealHandle(FSEntryHandle handle);
     std::filesystem::path mRoot;

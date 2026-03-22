@@ -36,6 +36,7 @@ master = http_shared.CreateServer({
     Name = "MasterServer",
     Sitemap = sitemap
 })
+master:MountVolume("/", "/static") -- also mount our own static directory alongside the shared http server's
 master:Start(4040)
 
 --[[

@@ -34,13 +34,26 @@ using namespace NoobWarrior;
 OverlayFileSystem::OverlayFileSystem() = default;
 OverlayFileSystem::~OverlayFileSystem() = default;
 
-std::pair<VirtualFileSystem*, std::string> OverlayFileSystem::GetVfsPath(const std::string &submittedPath) {
+// returns all VFS candidates whose volume prefix matches the submitted path, in mount priority order (most recently mounted first)
+// This allows multiple file systems mounted at the same volume (ex: "/") to all be considered,
+// with callers falling through to the next candidate if one doesn't have the entry.
+std::vector<std::pair<VirtualFileSystem*, std::string>> OverlayFileSystem::GetVfsCandidates(const std::string &submittedPath) {
+    std::vector<std::pair<VirtualFileSystem*, std::string>> candidates;
     for (auto &[vol, vfs] : mMountedVolumes) {
         if (submittedPath.starts_with(vol)) {
             std::string relativePath = submittedPath.substr(vol.length());
-            return { vfs.get(), relativePath };
+            candidates.emplace_back(vfs.get(), relativePath);
         }
     }
+    return candidates;
+}
+
+// convenience wrapper: returns the first matching VFS and its relative path.
+// suitable for callers that only need a single result (ex: DeleteEntry)
+std::pair<VirtualFileSystem*, std::string> OverlayFileSystem::GetVfsPath(const std::string &submittedPath) {
+    auto candidates = GetVfsCandidates(submittedPath);
+    if (!candidates.empty())
+        return candidates.front();
     return { nullptr, "" };
 }
 
@@ -112,8 +125,11 @@ std::unique_ptr<VirtualFileSystem> OverlayFileSystem::MakeUnique() const {
 }
 
 FSEntryInfo OverlayFileSystem::GetEntryFromPath(const std::string &path) {
-    auto [vfs, relativePath] = GetVfsPath(path);
-    if (vfs) return vfs->GetEntryFromPath(relativePath);
+    for (auto &[vfs, relativePath] : GetVfsCandidates(path)) {
+        FSEntryInfo info = vfs->GetEntryFromPath(relativePath);
+        if (!info.Name.empty())
+            return info;
+    }
     return {};
 }
 
@@ -137,19 +153,17 @@ std::vector<FSEntryInfo> OverlayFileSystem::GetEntriesInDirectory(const std::str
 }
 
 FSEntryHandle OverlayFileSystem::OpenHandle(const std::string &path) {
-    FSEntryHandle handle = 0;
-    auto [vfs, relativePath] = GetVfsPath(path);
-    if (vfs) {
+    for (auto &[vfs, relativePath] : GetVfsCandidates(path)) {
         FSEntryHandle realHandle = vfs->OpenHandle(relativePath);
         if (realHandle != 0) {
             int id = 1;
             while (mHandles.contains(id))
                 id++;
             mHandles[id] = { vfs, realHandle };
-            handle = id;
+            return id;
         }
     }
-    return handle;
+    return 0;
 }
 
 VirtualFileSystem::Response OverlayFileSystem::CloseHandle(FSEntryHandle handle) {
@@ -188,9 +202,9 @@ bool OverlayFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
 }
 
 bool OverlayFileSystem::EntryExists(const std::string &path) {
-    auto [vfs, relativePath] = GetVfsPath(path);
-    if (vfs) {
-        return vfs->EntryExists(relativePath);
+    for (auto &[vfs, relativePath] : GetVfsCandidates(path)) {
+        if (vfs->EntryExists(relativePath))
+            return true;
     }
     return false;
 }

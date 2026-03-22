@@ -1,10 +1,17 @@
 <?lua
+local pageTitle = "noobWarrior - Homepage"
 print("Rendering index...")
 
 if not _G.visitorCount then
     _G.visitorCount = 0
 end
 _G.visitorCount = _G.visitorCount + 1
+
+--[[
+for key, value in pairs(_SERVER) do
+    print(key, value)
+end
+]]
 ?>
 
 <?lua include("header.lhp") ?>
