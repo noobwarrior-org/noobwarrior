@@ -25,8 +25,7 @@
 #include <NoobWarrior/HttpServer/Emulator/StudioEditHandler.h>
 #include <NoobWarrior/Log.h>
 
-static constexpr const char* lol = R"(
---rbxsig%DPs1HxWCagA8POZ7k2EDIlc1u8OjTRR+jAoomcPSQ7LxuX+lOXeqcWa5FiJnSJt5+L9jyuNdKcH7PFWUgCxQZKhYfHFQ5s+o2Q9KxCTsgZyIRgfSyPGMlo14P7j9uCvY1SmUJ8LWZKFYBaBaT82cTnm3wPLuuZPP9fnqYLgtfj0=%
+static constexpr const char* lol = R"(--rbxsig%DPs1HxWCagA8POZ7k2EDIlc1u8OjTRR+jAoomcPSQ7LxuX+lOXeqcWa5FiJnSJt5+L9jyuNdKcH7PFWUgCxQZKhYfHFQ5s+o2Q9KxCTsgZyIRgfSyPGMlo14P7j9uCvY1SmUJ8LWZKFYBaBaT82cTnm3wPLuuZPP9fnqYLgtfj0=%
 -- Prepended to Edit.lua and Visit.lua and Studio.lua--
 
 pcall(function() game:SetPlaceID(1818) end)
@@ -71,8 +70,7 @@ game:Load("http://www.roblox.com/Asset/?id=1818")
 
 message.Parent = nil
 
-game:GetService("ChangeHistoryService"):SetEnabled(true)
-)";
+game:GetService("ChangeHistoryService"):SetEnabled(true))";
 
 using namespace NoobWarrior;
 
