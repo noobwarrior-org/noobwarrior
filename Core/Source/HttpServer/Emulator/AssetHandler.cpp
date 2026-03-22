@@ -33,6 +33,15 @@ AssetHandler::AssetHandler(HttpServer *srv, EmuDbManager *dbm) :
 {}
 
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
+    const char* uri = evhttp_request_get_uri(req);
+    evhttp_connection* conn = evhttp_request_get_connection(req);
+
+    const char* peer_address = "";
+    uint16_t peer_port {};
+
+    if (conn != NULL)
+        evhttp_connection_get_peer(conn, &peer_address, &peer_port);
+    Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
     evhttp_send_error(req, HTTP_NOTIMPLEMENTED, "WIP");
     /*
     const mg_request_info *request_info = mg_get_request_info(conn);

@@ -28,6 +28,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+#define SECURITY_WIN32
+#include <sspi.h>
+
 #include <MinHook.h>
 #include <windows.h>
 #include <psapi.h>
@@ -325,11 +328,19 @@ DWORD WINAPI Thread(LPVOID param) {
 static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
 static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
     //MessageBoxA(NULL, "connect called!", "noobHook", MB_OK | MB_ICONINFORMATION);
-    if (name->sa_family == AF_INET) {
+    int sockType = 0;
+    int optLen = sizeof(sockType);
+    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
+
+    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
         sockaddr_in addrCopy = *(sockaddr_in*)name;
-        addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-        addrCopy.sin_port = htons(8080);
-        return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
+        int port = ntohs(addrCopy.sin_port);
+        if (port == 80 || port == 443) { // check if its HTTP/HTTPS
+            // if it is then redirect to our server emulator
+            addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+            addrCopy.sin_port = htons(8080);
+            return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
+        }
     }
     return pOrigConnect(s, name, namelen);
 }
@@ -339,7 +350,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         MH_Initialize();
-        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect); // for non-SSL connections. needed for older clients.
         MH_EnableHook(MH_ALL_HOOKS);
         /*
         DisableThreadLibraryCalls(hModule);

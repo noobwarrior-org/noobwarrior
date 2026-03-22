@@ -45,7 +45,9 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/Asset", mAssetHandler.get());
     SetRequestHandler("/asset", mAssetHandler.get());
+    SetRequestHandler("/asset/", mAssetHandler.get());
     SetRequestHandler("/v1/asset", mAssetHandler.get());
+    SetRequestHandler("/v1/asset/", mAssetHandler.get());
 
     SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
 
