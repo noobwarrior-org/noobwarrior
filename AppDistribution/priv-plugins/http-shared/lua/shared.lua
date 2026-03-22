@@ -63,7 +63,7 @@ function http_shared.CreateServer(params)
                 req:SendReply(200, nil, output)
             end)
             if not success then
-                req:SendError(500, "LHP Error: Failed to render page \""..req.Uri.."\"")
+                req:SendError(500, "LHP Error: Failed to render page \""..params.Sitemap[req.Uri].."\"")
             end
         else
             local vfs = srv:GetVfs()

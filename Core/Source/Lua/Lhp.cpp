@@ -44,7 +44,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     bool luaMode = false;
     std::string textBuffer;
     std::string luaBuffer;
-    std::vector<std::string> textBlocks;
 
     // very ugly code
     for (int i = 0; i < static_cast<int>(input.size()); i++) {
@@ -53,9 +52,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             i += std::size(OPENING_TAG) - 2;
 
             if (!textBuffer.empty()) {
-                // luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
                 luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
-                textBlocks.push_back(textBuffer);
                 textBuffer.clear();
             }
             continue;
@@ -83,17 +80,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         (!luaMode ? textBuffer : luaBuffer) += input.at(i);
     }
     if (!textBuffer.empty()) {
-        // luaBuffer += std::format("__tb[{}]();\n", textBlocks.size());
         luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
-        textBlocks.push_back(textBuffer);
-    }
-
-    sol::table tb = mLua->create_table();
-    for (int i = 0; i < static_cast<int>(textBlocks.size()); i++) {
-        std::string block = textBlocks[i];
-        tb[i] = [output, block]() {
-            *output += block;
-        };
     }
 
     sol::environment lhpEnv = isRecursive
@@ -101,8 +88,6 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         : env; // or, reuse the passed environment directly. needed if we are calling this recursively or else all prior variables are lost
 
     if (isRecursive) {
-        lhpEnv["__tb"] = tb;
-
         lhpEnv["echo"] = [output](std::string msg) -> void {
             *output += msg;
         };

@@ -1,6 +1,5 @@
 <?lua
 pageTitle = "noobWarrior - Homepage"
-print("Rendering index...")
 
 if not _G.visitorCount then
     _G.visitorCount = 0
@@ -16,14 +15,8 @@ end
 
 <?lua include("header.lhp") ?>
 
-<?lua print("Hello? Test: ", test) ?>
-
 <?lua include("new_user.lhp") ?>
 
 <h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
 
 <?lua include("footer.lhp") ?>
-
-<?lua
-print("Rendered index!")
-?>
