@@ -154,6 +154,8 @@ std::vector<FSEntryInfo> OverlayFileSystem::GetEntriesInDirectory(const std::str
 
 FSEntryHandle OverlayFileSystem::OpenHandle(const std::string &path) {
     for (auto &[vfs, relativePath] : GetVfsCandidates(path)) {
+        if (!vfs->EntryExists(relativePath))
+            continue;
         FSEntryHandle realHandle = vfs->OpenHandle(relativePath);
         if (realHandle != 0) {
             int id = 1;
