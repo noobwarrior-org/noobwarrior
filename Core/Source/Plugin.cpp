@@ -111,6 +111,7 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
 Plugin::~Plugin() {
     if (Fail())
         return;
+    mScripts.clear();
     if (mVfs != nullptr) {
         mVfs->CloseHandle(mVfsHandle);
         VirtualFileSystem::Free(mVfs);

@@ -48,6 +48,7 @@ public:
 
     LuaScript(LuaState* lua, sol::environment env, const Url &url);
     LuaScript(LuaState* lua, sol::environment env, const std::string &src);
+    ~LuaScript();
 
     bool Fail();
     FailReason GetFailReason();
@@ -62,7 +63,6 @@ private:
     Url mUrl;
     std::string mSource;
     FailReason mFailReason;
-    sol::load_result mBytecode;
     std::optional<sol::object> mResult;
     sol::environment mBaseEnv;
 };

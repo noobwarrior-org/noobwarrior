@@ -51,8 +51,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
 
     VirtualFileSystem* vfs = nullptr;
     FSEntryHandle scriptHandle;
-
-    VirtualFileSystem::Response fileRes = mUrl.OpenHandle(core, &vfs, &scriptHandle);
+    mUrl.OpenHandle(core, &vfs, &scriptHandle);
     if (vfs == nullptr) {
         Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
         mFailReason = FailReason::UrlFailed;
@@ -72,17 +71,6 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
     vfs->CloseHandle(scriptHandle);
 
     mSource = src;
-
-    mBytecode = mLua->load(src);
-    if (!mBytecode.valid()) {
-        sol::error err = mBytecode;
-        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
-    }
-    switch (mBytecode.status()) {
-    case sol::load_status::ok: mFailReason = FailReason::None; break;
-    case sol::load_status::syntax: mFailReason = FailReason::SyntaxError; return;
-    default: mFailReason = FailReason::Unknown; return;
-    }
 }
 
 LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src) :
@@ -96,17 +84,11 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
+}
 
-    mBytecode = mLua->load(src);
-    if (!mBytecode.valid()) {
-        sol::error err = mBytecode;
-        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
-    }
-    switch (mBytecode.status()) {
-    case sol::load_status::ok: mFailReason = FailReason::None; break;
-    case sol::load_status::syntax: mFailReason = FailReason::SyntaxError; return;
-    default: mFailReason = FailReason::Unknown; return;
-    }
+LuaScript::~LuaScript() {
+    mResult.reset();
+    mBaseEnv.abandon();
 }
 
 bool LuaScript::Fail() {
@@ -145,7 +127,7 @@ sol::protected_function_result LuaScript::Execute() {
             Out("LuaScript", msg);
     };
 
-    sandbox["require"] = [this](sol::this_state state, std::string urlStr) -> sol::object {
+    sandbox["require"] = [this](sol::this_state state, const std::string& urlStr) -> sol::object {
         lua_State* L = state;
         Url url = Url(urlStr);
         std::string resolvedUrl = url.Resolve();
@@ -195,7 +177,14 @@ sol::protected_function_result LuaScript::Execute() {
         return res2;
     };
 
-    sol::protected_function func = mBytecode.get<sol::protected_function>();
+    sol::load_result bytecode = mLua->load(mSource);
+    if (!bytecode.valid()) {
+        sol::error err = bytecode;
+        sol::protected_function_result res = mLua->safe_script("return nil");
+        return res;
+    }
+
+    auto func = bytecode.get<sol::protected_function>();
     sandbox.set_on(func);
     sol::protected_function_result res = func();
     if (!res.valid()) {
