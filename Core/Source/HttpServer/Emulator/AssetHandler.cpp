@@ -42,7 +42,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
-    evhttp_send_error(req, HTTP_NOTIMPLEMENTED, "WIP");
+    evhttp_send_error(req, HTTP_BADMETHOD, "WIP");
     /*
     const mg_request_info *request_info = mg_get_request_info(conn);
     const char *query_string = request_info->query_string;

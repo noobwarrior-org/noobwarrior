@@ -18,37 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: FixSettingsKeyMustBeDefined.cpp
 // Started by: Hattozo
-// Started on: 9/2/2025
+// Started on: 3/22/2026
 // Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "StudioEditHandler.h"
-#include "AssetHandler.h"
+#include "Patches.h"
+#include <windows.h>
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
-#include <queue>
-#include <utility>
-
-namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
-public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
-
-    int Start(uint16_t port) override;
-    int Stop() override;
-private:
-    //////////////// Handlers ////////////////
-    AssetHandler mAssetHandler;
-    ClientSettingsHandler mClientSettingsHandler;
-    StudioEditHandler mStudioEditHandler;
-
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
-};
+void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
+    auto pattern = hook::pattern("0F B6 C8 85 C9 74 2A");
+    if (!pattern.count_hint(1).empty()) {
+		MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
+        auto address = pattern.get(0).get<uintptr_t>(6);
+        MessageBoxA(0, (LPCSTR)address, (LPCSTR)address, 0);
+		NoobHook::WriteMemory(*address, reinterpret_cast<void*>('\xEB'), 1);
+    }
 }

@@ -18,37 +18,20 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: RemoveTLSVerification.cpp
 // Started by: Hattozo
-// Started on: 9/2/2025
-// Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "StudioEditHandler.h"
-#include "AssetHandler.h"
+// Started on: 3/22/2026
+// Description: Thanks to VisualPlugin for making this guide
+// https://github.com/Windows81/Roblox-Freedom-Distribution-Guides/blob/main/PatchTLSVerification/README.md
+#include "Patches.h"
+#include <windows.h>
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
-#include <queue>
-#include <utility>
-
-namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
-public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
-
-    int Start(uint16_t port) override;
-    int Stop() override;
-private:
-    //////////////// Handlers ////////////////
-    AssetHandler mAssetHandler;
-    ClientSettingsHandler mClientSettingsHandler;
-    StudioEditHandler mStudioEditHandler;
-
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
-};
+void NoobHook::Patches::RemoveTLSVerification() {
+    auto pattern = hook::pattern("6A 01 6A 40 FF B7 48 01 00 00");
+    if (!pattern.count_hint(1).empty()) {
+        MessageBoxA(0, "Found CURL SSL pattern!", "noobHook", 0);
+        auto address = pattern.get(0).get<uintptr_t>(1);
+        MessageBoxA(0, (LPCSTR)address, (LPCSTR)address, 0);
+        NoobHook::WriteMemory(*address, reinterpret_cast<void*>('\x00'), 1);
+    }
 }

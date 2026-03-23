@@ -406,7 +406,6 @@ void Core::DownloadAndInstallEngine(const Engine &engine, std::shared_ptr<std::v
                 }).detach();
             };
 
-            // TODO: make this not shit and make sure my future employers wont see this
             if (engineInfo["Files"].contains("Win32"))
                 for (nlohmann::json &fileInfo : engineInfo["Files"]["Win32"]) { addFile(fileInfo); }
             if (engineInfo["Files"].contains("Win64"))
@@ -464,6 +463,30 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::p
     // where wine comes in
     return EngineLaunchResponse::Failed;
 #endif
+}
+
+EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::path &filePath) {
+    std::string fileName = filePath.filename().string();
+    std::wstring wargs = filePath.wstring();
+    if (fileName.compare("RCCService.exe") == 0) {
+        wargs += L" -console -verbose -placeid:1818 -port 53641";
+    }
+    else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
+        wargs += L" -a \"http://localhost:8080/Login/Negotiate.ashx\" -j \"http://localhost:8080/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
+    }
+    std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
+    wargs_vec.push_back(L'\0');
+#if defined(_WIN32)
+    PROCESS_INFORMATION pi {};
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+        DWORD err = GetLastError();
+        Out("Core", "Failed to create process: {} ({})", err, LastErrorStr(err));
+        return EngineLaunchResponse::FailedToCreateProcess;
+    }
+#endif
+    return EngineLaunchResponse::Success;
 }
 
 EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {

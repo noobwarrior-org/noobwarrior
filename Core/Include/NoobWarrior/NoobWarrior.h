@@ -171,6 +171,7 @@ public:
     EngineLaunchResponse LaunchEngine(const Engine &client);
 private:
     EngineLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
+    EngineLaunchResponse LaunchProcessWithoutInjector(const std::filesystem::path &filePath);
 
     Response                        mInitResponse;
 

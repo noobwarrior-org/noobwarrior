@@ -23,8 +23,9 @@
 // Started on: 3/16/2025
 // Description:
 #pragma once
+#include <cstdint>
 
-namespace NoobWarrior::Hook {
-
+namespace NoobHook {
+	void WriteMemory(uintptr_t address, const void* data, size_t size);
     int HookProcess(int handle);
 }

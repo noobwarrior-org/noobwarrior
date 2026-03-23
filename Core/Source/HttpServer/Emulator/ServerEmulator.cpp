@@ -29,7 +29,11 @@
 using namespace NoobWarrior;
 using json = nlohmann::json;
 
-ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator") {
+ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
+    mAssetHandler(this, mCore->GetEmuDbManager()),
+    mClientSettingsHandler(this),
+    mStudioEditHandler()
+{
 
 }
 
@@ -39,19 +43,25 @@ int ServerEmulator::Start(uint16_t port) {
     int res = HttpServer::Start(port);
     if (!res) goto finish;
 
-    mAssetHandler = std::make_unique<AssetHandler>(this, mCore->GetEmuDbManager());
-    mClientSettingsHandler = std::make_unique<ClientSettingsHandler>(this);
-    mStudioEditHandler = std::make_unique<StudioEditHandler>();
+    SetRequestHandler("/Asset", &mAssetHandler);
+    SetRequestHandler("/asset", &mAssetHandler);
+    SetRequestHandler("/asset/", &mAssetHandler);
+    SetRequestHandler("/v1/asset", &mAssetHandler);
+    SetRequestHandler("/v1/asset/", &mAssetHandler);
 
-    SetRequestHandler("/Asset", mAssetHandler.get());
-    SetRequestHandler("/asset", mAssetHandler.get());
-    SetRequestHandler("/asset/", mAssetHandler.get());
-    SetRequestHandler("/v1/asset", mAssetHandler.get());
-    SetRequestHandler("/v1/asset/", mAssetHandler.get());
+    SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
 
-    SetRequestHandler("/v1/settings/application", mClientSettingsHandler.get());
+    SetRequestHandler("/Login/Negotiate.ashx", &mAssetHandler);
+    SetRequestHandler("/login/negotiate.ashx", &mAssetHandler);
 
-    SetRequestHandler("/game/edit.ashx", mStudioEditHandler.get());
+    SetRequestHandler("/Game/PlaceLauncher.ashx", &mAssetHandler);
+    SetRequestHandler("/game/placelauncher.ashx", &mAssetHandler);
+
+    SetRequestHandler("/Game/Join.ashx", &mAssetHandler);
+    SetRequestHandler("/game/join.ashx", &mAssetHandler);
+
+    SetRequestHandler("/Game/Edit.ashx", &mStudioEditHandler);
+    SetRequestHandler("/game/edit.ashx", &mStudioEditHandler);
 finish:
     return res;
 }

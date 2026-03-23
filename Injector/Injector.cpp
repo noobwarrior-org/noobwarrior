@@ -222,7 +222,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         wargs = filePath + L" -console -verbose -placeid:1818 -port 53641";
     }
     else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs = filePath + L" -a https://localhost/Login/Negotiate.ashx -j https://localhost/Game/PlaceLauncher.ashx?placeid=1818";
+        wargs = filePath + L" -a \"http://localhost:8080/Login/Negotiate.ashx\" -j \"http://localhost:8080/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');

@@ -22,8 +22,8 @@
 // Started by: Hattozo
 // Started on: 3/16/2025
 // Description: Contains main entrypoint for noobWarrior Roblox hook
-// Please do not use any standard libraries in this other than the Windows API. Thank you.
 #include "Hook.h"
+#include "Patch/Patches.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -37,6 +37,8 @@
 #include <tlhelp32.h>
 #include <strsafe.h>
 
+using namespace NoobHook;
+
 enum RobloxVersion {
     VER_UNKNOWN,
     VER_0_449_0_411458,
@@ -47,30 +49,19 @@ enum CURLoption {
     CURLOPT_URL = 10000 + 2
 };
 
+void NoobHook::WriteMemory(uintptr_t address, const void* data, size_t size) {
+    DWORD old_protection;
+	VirtualProtect(reinterpret_cast<LPVOID>(address), size, PAGE_EXECUTE_READWRITE, &old_protection);
+	memcpy(reinterpret_cast<void*>(address), data, size);
+	VirtualProtect(reinterpret_cast<LPVOID>(address), size, old_protection, NULL);
+}
+
 DWORD StrLength(PCHAR str) {
     DWORD length = 0;
     while (str[length] != '\0') {
         length++;
     }
     return length;
-}
-
-DWORD FindPattern(BYTE* mem, DWORD mem_size, LPCSTR pattern, LPCSTR mask) {
-    DWORD pattern_size = StrLength(const_cast<PCHAR>(pattern));
-    for (DWORD mem_index = 0; mem_index < mem_size; mem_index++) {
-        BOOL matches = true;
-        for (DWORD pattern_index = 0; pattern_index < pattern_size; pattern_index++) {
-            const CHAR byte_pattern = pattern[pattern_index];
-            const CHAR byte_mem = mem[mem_index + pattern_index];
-
-            if (byte_pattern != byte_mem) {
-                matches = false;
-                break;
-            }
-        }
-        if (matches) return mem_index;
-    }
-    return 0x0;
 }
 
 char *GetProductVersion() {
@@ -200,128 +191,13 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
     }
 }
 
-void CALLBACK WindowEventProc(
-    HWINEVENTHOOK hWinEventHook,
-    DWORD event,
-    HWND hwnd,
-    LONG idObject,
-    LONG idChild,
-    DWORD dwEventThread,
-    DWORD dwmsEventTime
-) {
-    if (event == EVENT_OBJECT_CREATE && idObject == OBJID_WINDOW && idChild == CHILDID_SELF) {
-        SetWindowTextA(hwnd, "noobWarrior Game");
-
-        // https://stackoverflow.com/a/18315727
-        //SendMessage(hwnd, WM_SETICON, ICON_SMALL, hIcon);
-        //SendMessage(hwnd, WM_SETICON, ICON_BIG, hIcon);
-
-        ////This will ensure that the application icon gets changed too.
-        //SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_SMALL, hIcon);
-        //SendMessage(GetWindow(hwnd, GW_OWNER), WM_SETICON, ICON_BIG, hIcon);
-    }
-}
-
 DWORD WINAPI Thread(LPVOID param) {
-    HMODULE mod = GetModuleHandle(NULL);
-    MODULEINFO modInfo { 0 };
-    BOOL modInfoSuccess = GetModuleInformation(GetCurrentProcess(), mod, &modInfo, sizeof(MODULEINFO));
-
-    LPVOID modBase = modInfo.lpBaseOfDll;
-    DWORD modSize = modInfo.SizeOfImage;
-    
-    BYTE* mem = reinterpret_cast<BYTE*>(modBase);
-
     SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
-    DWORD signature_address = FindPattern(mem, modSize, "\x0F\xB6\xC8\x85\xC9\x74\x2A", "xxxxxxx");
-    DWORD full_signature_address = reinterpret_cast<DWORD>(modBase) + signature_address;
-    DWORD address = full_signature_address + 6;
+    Patches::FixSettingsKeyMustBeDefined();
+    Patches::RemoveTLSVerification();
 
-    for (int i = 0; i < 8; i++) {
-        int poop = *(reinterpret_cast<int*>(full_signature_address + i));
-
-        TCHAR szBuffer1[4];
-        HRESULT hr1 = StringCchPrintf(szBuffer1, ARRAYSIZE(szBuffer1), TEXT("%i "), poop);
-
-        HANDLE stdOut1 = GetStdHandle(STD_OUTPUT_HANDLE);
-        WriteConsoleA(stdOut1, szBuffer1, ARRAYSIZE(szBuffer1), NULL, NULL);
-    }
-
-    DWORD old_protection;
-    VirtualProtect(reinterpret_cast<LPVOID>(address), 1, PAGE_EXECUTE_READWRITE, &old_protection);
-    memset(reinterpret_cast<LPVOID>(address), 0xEB, 1);
-    VirtualProtect(reinterpret_cast<LPVOID>(address), 1, old_protection, NULL);
-
-    HWINEVENTHOOK hHook = SetWinEventHook(
-        EVENT_OBJECT_CREATE,
-        EVENT_OBJECT_CREATE,
-        NULL,
-        WindowEventProc,
-        GetCurrentProcessId(),
-        0,
-        WINEVENT_OUTOFCONTEXT
-    );
-
-    if (!hHook) {
-        MessageBoxA(NULL, "Failed to set hook!", "noobHook", MB_OK | MB_ICONSTOP);
-        TerminateProcess(GetCurrentProcess(), 0x0000000A);
-        return 0x0000000A;
-    }
-
-    MessageBoxA(NULL, "hi", "noobHook", MB_OK | MB_ICONINFORMATION);
-
-    /*
-    RobloxVersion ver = GetRobloxVersion();
-    if (ver == VER_UNKNOWN) {
-        MessageBoxA(NULL, "noobHook does not support this version of Roblox. Exiting!", "noobHook", MB_ICONERROR | MB_OK);
-        TerminateProcess(GetCurrentProcess(), 0xDEADBEEF);
-        return 0xDEADBEEF;
-    } else if (ver == VER_0_463_0_417004) {
-        // Bypasses "Settings key must be defined" error for RCCService. I have no idea why it does this.
-        DWORD signature_address = FindPattern(mem, modSize, "\x0F\xB6\xC8\x85\xC9\x74\x2A", "xxxxxxx");
-        DWORD full_signature_address = reinterpret_cast<DWORD>(modBase) + signature_address;
-        DWORD address = full_signature_address + 6;
-
-        for (int i = 0; i < 8; i++) {
-            int poop = *(reinterpret_cast<int*>(full_signature_address + i));
-
-            TCHAR szBuffer1[4];
-            HRESULT hr1 = StringCchPrintf(szBuffer1, ARRAYSIZE(szBuffer1), TEXT("%i "), poop);
-
-            HANDLE stdOut1 = GetStdHandle(STD_OUTPUT_HANDLE);
-            WriteConsoleA(stdOut1, szBuffer1, ARRAYSIZE(szBuffer1), NULL, NULL);
-        }
-
-        DWORD old_protection;
-        VirtualProtect(reinterpret_cast<LPVOID>(address), 1, PAGE_EXECUTE_READWRITE, &old_protection);
-        memset(reinterpret_cast<LPVOID>(address), 0xEB, 1);
-        VirtualProtect(reinterpret_cast<LPVOID>(address), 1, old_protection, NULL);
-
-        TCHAR szBuffer[20];
-        HRESULT hr = StringCchPrintf(szBuffer, ARRAYSIZE(szBuffer), TEXT("Base Address 0x%08x"), signature_address);
-
-        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        WriteConsoleA(stdOut, szBuffer, ARRAYSIZE(szBuffer), NULL, NULL);
-
-        MessageBoxA(NULL, signature_address != NULL ? "Found base address!" : "Could not find base address. :(", "noobHook", MB_ICONASTERISK | MB_OK);
-
-        // MH_CreateHook();
-        
-        MessageBoxA(NULL, "I am running on version 0.463.0.417004", "noobHook", MB_ICONASTERISK | MB_OK);
-    } else if (ver == VER_0_449_0_411458) {
-        MessageBoxA(NULL, "I am running on version 0.449.0.411458", "noobHook", MB_ICONASTERISK | MB_OK);
-    }
-    */
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
-
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-
-    UnhookWinEvent(hHook);
     return 0;
 }
 
@@ -352,7 +228,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
         MH_Initialize();
         MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect); // for non-SSL connections. needed for older clients.
         MH_EnableHook(MH_ALL_HOOKS);
-        /*
+
         DisableThreadLibraryCalls(hModule);
 
         hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
@@ -360,7 +236,6 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
 
         ResumeThread(hThread);
         CloseHandle(hThread);
-        */
         break;
     case DLL_PROCESS_DETACH:
         MH_Uninitialize();

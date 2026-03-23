@@ -18,37 +18,12 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulator.h
+// File: Patch.cpp
 // Started by: Hattozo
-// Started on: 9/2/2025
+// Started on: 3/22/2026
 // Description:
-#pragma once
-#include <NoobWarrior/HttpServer/Base/HttpServer.h>
-#include "ClientSettingsHandler.h"
-#include "StudioEditHandler.h"
-#include "AssetHandler.h"
+#include "Patch.h"
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
-#include <queue>
-#include <utility>
+using namespace NoobHook;
 
-namespace NoobWarrior {
-class Core;
-class ServerEmulator : public HttpServer {
-public:
-    ServerEmulator(Core *core);
-    ~ServerEmulator();
-
-    int Start(uint16_t port) override;
-    int Stop() override;
-private:
-    //////////////// Handlers ////////////////
-    AssetHandler mAssetHandler;
-    ClientSettingsHandler mClientSettingsHandler;
-    StudioEditHandler mStudioEditHandler;
-
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
-};
-}
+Patch::Patch() {}
