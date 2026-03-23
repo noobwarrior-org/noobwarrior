@@ -61,10 +61,15 @@ void EmuDbManager::UnmountDatabases() {
     }
 }
 
-SqlDb::Response EmuDbManager::CreateMasterDatabaseIfDoesntExist() {
+SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {
     if (GetMasterDatabase() == nullptr) {
-        Out("EmuDbManager", "Creating master database because it doesn't exist...");
+        Out("EmuDbManager", "No master database found. This is because the list of selected databases in the registry is empty. Automatically mounting one for you...");
         std::filesystem::path absolutePath = mCore->GetUserDataDir() / "databases" / "master.nwdb";
+        if (!std::filesystem::exists(absolutePath))
+            Out("EmuDbManager", "Creating master database named \"master.nwdb\"...");
+        else
+            Out("EmuDbManager", "File named \"master.nwdb\" already exists, using that as the master database instead...");
+
         auto *db = new EmuDb(absolutePath.string(), true);
         if (db->Fail()) {
             Out("EmuDbManager", "Failed to create master database");
@@ -73,7 +78,7 @@ SqlDb::Response EmuDbManager::CreateMasterDatabaseIfDoesntExist() {
         db->SetTitle("Master Database");
         db->SetDescription("This is the default database created by noobWarrior.\nThis will only be the primary database if it is the highest on the list.");
         bool res = Mount(db, 0);
-        return SqlDb::Response::Success;
+        return res ? SqlDb::Response::Success : SqlDb::Response::Failed;
     }
     return SqlDb::Response::DidNothing;
 }

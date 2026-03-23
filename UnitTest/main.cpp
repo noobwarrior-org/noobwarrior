@@ -57,9 +57,9 @@ TEST(Url, GetHostNameForWebsite) {
 }
 
 TEST(Url, GetHostNameForPlugin) {
-    Url url("plugin://frontend-emu@noobwarrior.org/lua/main.lua");
-    EXPECT_EQ("frontend-emu@noobwarrior.org", url.GetHostName())
-        << "Url::GetHostName() returned wrong value for URL \"plugin://frontend-emu@noobwarrior.org/lua/main.lua\", check the quality of this function.";
+    Url url("plugin://emu-frontend@noobwarrior.org/lua/main.lua");
+    EXPECT_EQ("emu-frontend@noobwarrior.org", url.GetHostName())
+        << "Url::GetHostName() returned wrong value for URL \"plugin://emu-frontend@noobwarrior.org/lua/main.lua\", check the quality of this function.";
 }
 
 TEST(Url, ResolveAlreadyAbsolutePath) {
@@ -83,19 +83,19 @@ TEST(Url, ResolveAsPathName) {
 TEST(Url, ResolveUsingContext) {
     Url url("lua/main.lua", {
         .DefaultProtocolType = ProtocolType::Plugin,
-        .DefaultHostName = "frontend-emu@noobwarrior.org"
+        .DefaultHostName = "emu-frontend@noobwarrior.org"
     });
-    EXPECT_EQ("plugin://frontend-emu@noobwarrior.org/lua/main.lua", url.Resolve())
+    EXPECT_EQ("plugin://emu-frontend@noobwarrior.org/lua/main.lua", url.Resolve())
         << "lua/main.lua did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
 TEST(Url, ResolveAsPathNameUsingContext) {
     Url url("lua/main.lua", {
         .DefaultProtocolType = ProtocolType::Plugin,
-        .DefaultHostName = "frontend-emu@noobwarrior.org"
+        .DefaultHostName = "emu-frontend@noobwarrior.org"
     });
     EXPECT_EQ("/lua/main.lua", url.ResolveAsPath())
-        << "plugin://frontend-emu@noobwarrior.org/lua/main.lua did not resolve to /lua/main.lua using url.ResolveAsPathName(). Check the quality of Url::ResolveAsPathName() and Url::Resolve().";
+        << "plugin://emu-frontend@noobwarrior.org/lua/main.lua did not resolve to /lua/main.lua using url.ResolveAsPathName(). Check the quality of Url::ResolveAsPathName() and Url::Resolve().";
 }
 
 TEST(Url, ResolveUsingContextForWebsiteWithoutHttpsSpecifier) {

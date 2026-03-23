@@ -60,6 +60,7 @@ public:
     std::vector<Plugin::Properties> GetAllPluginProperties();
 protected:
     std::vector<Plugin::Properties> GetPrivilegedPluginProperties();
+    void MountPrivilegedPlugins();
 private:
     Core* mCore;
     std::vector<Plugin*> mMountedPlugins;

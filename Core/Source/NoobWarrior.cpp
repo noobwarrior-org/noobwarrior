@@ -89,7 +89,7 @@ Core::Core(Init init) :
     sqlite3_initialize();
 
     GetEmuDbManager()->MountDatabases();
-    GetEmuDbManager()->CreateMasterDatabaseIfDoesntExist();
+    GetEmuDbManager()->MountMasterDbIfNotAlreadyMounted();
 
     if (mInit.EnableKeychain)
         GetRbxKeychain()->ReadFromKeychain();

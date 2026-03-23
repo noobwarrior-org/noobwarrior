@@ -41,7 +41,7 @@ public:
     void UnmountDatabases();
 
     // CALL MOUNTDATABASES() BEFORE WASTING YOUR TIME ON THIS FUNCTION!!!
-    SqlDb::Response CreateMasterDatabaseIfDoesntExist();
+    SqlDb::Response MountMasterDbIfNotAlreadyMounted();
 
     SqlDb::FailReason Mount(const std::string &fileName, unsigned int priority);
     bool Mount(EmuDb* database, unsigned int priority);

@@ -61,6 +61,11 @@ static int printBS(lua_State *L) {
     return 0;
 }
 
+int exception_handler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
+    Out("Lua", "Exception occurred: {}", description);
+    return sol::stack::push(L, description);
+}
+
 LuaState::LuaState(Core* core) :
     mCore(core),
     mLhp(this),
@@ -70,6 +75,8 @@ LuaState::LuaState(Core* core) :
     mHttpServerBridge(this),
     mServerEmulatorBridge(this)
 {
+    set_exception_handler(&exception_handler);
+
     open_libraries(
         sol::lib::base,
         sol::lib::package,

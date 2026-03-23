@@ -150,6 +150,19 @@ sol::protected_function_result LuaScript::Execute() {
         Url url = Url(urlStr);
         std::string resolvedUrl = url.Resolve();
 
+        VirtualFileSystem* moduleVfs = url.GetVfs(mLua->GetCore());
+        if (moduleVfs == nullptr) {
+            // TODO: figure out a way to make this error less cryptic
+            luaL_error(L, "require(): cannot require \"%s\" as vfs for url \"%s\" doesn't exist",
+                resolvedUrl.c_str(), std::string(url.GetProtocolString() + "://" + url.GetHostName()).c_str());
+            return sol::lua_nil;
+        }
+
+        if (moduleVfs->EntryExists(url.ResolveAsPath())) {
+            luaL_error(L, "require(): url \"%s\" doesn't exist on disk", resolvedUrl.c_str());
+            return sol::lua_nil;
+        }
+
         LuaScript* cachedModule = mLua->RetrieveCachedModuleFromResolvedUrl(resolvedUrl);
         if (cachedModule != nullptr) {
             return cachedModule->GetLastResult();
@@ -164,17 +177,20 @@ sol::protected_function_result LuaScript::Execute() {
         if (moduleScript->Fail()) {
             mLua->UnmarkScriptLoading(resolvedUrl);
             luaL_error(L, "require(): failed to load script: %s", resolvedUrl.c_str());
+            return sol::lua_nil;
         }
         sol::protected_function_result res2 = moduleScript->Execute();
         if (!res2.valid()) {
             mLua->UnmarkScriptLoading(resolvedUrl);
             luaL_error(L, "require(): failed to execute script: %s", resolvedUrl.c_str());
+            return sol::lua_nil;
         }
         mLua->CacheModule(resolvedUrl, std::move(moduleScript));
         mLua->UnmarkScriptLoading(resolvedUrl);
 
         if (!res2.valid()) {
             luaL_error(L, "require(): failed to run script");
+            return sol::lua_nil;
         }
         return res2;
     };

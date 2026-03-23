@@ -56,6 +56,7 @@ endif()
 CPMAddPackage(
     URI "gh:ThePhD/sol2#c1f95a7"
 )
+
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
@@ -146,8 +147,10 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     libzip::zip
     pugixml-static
 )
-
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
+target_compile_definitions(NoobWarrior.Core PRIVATE
+    SOL_ALL_SAFETIES_ON
+)
 
 # some code here borrowed from https://github.com/hrantzsch/keychain/blob/master/CMakeLists.txt
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")

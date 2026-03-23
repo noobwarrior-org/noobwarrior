@@ -73,10 +73,14 @@ void PluginManager::Unmount(Plugin* plugin) {
 
 void PluginManager::MountPlugins() {
     int loaded = 0;
+
+    MountPrivilegedPlugins();
+    /*
     for (const std::filesystem::path &path : GetPrivilegedPluginPaths()) {
         if (Mount(path, 0) == Plugin::Response::Success)
             loaded++;
     }
+    */
 
     auto selected = mCore->GetConfig()->GetKeyValue<nlohmann::json>("plugins.selected");
     if (!selected.has_value())
@@ -131,6 +135,8 @@ static std::vector<std::filesystem::path> GetEntriesInDir(const std::filesystem:
     for (const auto &entry : std::filesystem::directory_iterator { path }) {
         std::string file_name = entry.path().filename().string();
         if (file_name.compare(".DS_Store") == 0)
+            continue;
+        if (file_name.compare("loadlist.lua") == 0)
             continue;
         paths.push_back(entry.path());
     }
@@ -189,4 +195,48 @@ std::vector<Plugin::Properties> PluginManager::GetPrivilegedPluginProperties() {
     }
 
     return allCriticalProps;
+}
+
+void PluginManager::MountPrivilegedPlugins() {
+    int loaded = 0;
+
+    std::filesystem::path privPluginsPath = mCore->GetInstallationDir() / NW_PATH_PRIVILEGED_PLUGINS;
+    std::filesystem::path loadListPath = privPluginsPath / "loadlist.lua";
+    if (!std::filesystem::exists(loadListPath)) {
+        return;
+    }
+
+    sol::load_result loadListBytecodeRes = mCore->GetLuaState()->load_file(loadListPath.string());
+    if (!loadListBytecodeRes.valid()) {
+        sol::error err = loadListBytecodeRes;
+        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to compile: {}", err.what());
+        return;
+    }
+
+    auto loadListFunc = loadListBytecodeRes.get<sol::protected_function>();
+    sol::protected_function_result loadListExecRes = loadListFunc();
+    if (!loadListExecRes.valid()) {
+        sol::error err = loadListExecRes;
+        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to execute: {}", err.what());
+        return;
+    }
+
+    auto loadListObj = loadListExecRes.get<sol::object>();
+    if (!loadListObj.is<sol::table>()) {
+        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua does not return a table!");
+        return;
+    }
+
+    sol::table loadListTbl = loadListObj.as<sol::table>();
+    for (int i = 1; i <= loadListTbl.size(); i++) {
+        auto privPluginObj = loadListTbl.get<sol::object>(i);
+        if (!privPluginObj.is<std::string>()) {
+            Out("PluginManager", "Value in index {} in loadlist.lua is not string!", i);
+            continue;
+        }
+        auto privPluginName = privPluginObj.as<std::string>();
+        Out("PluginManager", "Mounting privileged plugin \"{}\"", privPluginName);
+        if (Mount(privPluginsPath / privPluginName) == Plugin::Response::Success)
+            loaded++;
+    }
 }
