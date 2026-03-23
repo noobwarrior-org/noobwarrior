@@ -278,7 +278,7 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
     */
 
     VirtualFileSystem* vfs = GetVfs(core);
-    FSEntryHandle handle;
+    FSEntryHandle handle = 0;
     if (vfs != nullptr)
         handle = vfs->OpenHandle(ResolveAsPath());
     

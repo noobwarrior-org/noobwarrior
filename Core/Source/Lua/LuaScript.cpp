@@ -118,7 +118,11 @@ LuaScript::FailReason LuaScript::GetFailReason() {
 }
 
 sol::protected_function_result LuaScript::Execute() {
-    if (Fail()) return {}; // no idea what the legality of this is
+    if (Fail()) {
+        Out("LuaScript", "[{}] (Execution Failure) The script failed to compile so it cannot execute.", mUrl.Resolve());
+        sol::protected_function_result res = mLua->safe_script("return nil");
+        return res;
+    }
 
     sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
     sandbox["script"] = this;
@@ -157,7 +161,15 @@ sol::protected_function_result LuaScript::Execute() {
 
         mLua->MarkScriptLoading(resolvedUrl);
         auto moduleScript = std::make_unique<LuaScript>(mLua, mLua->globals(), url);
+        if (moduleScript->Fail()) {
+            mLua->UnmarkScriptLoading(resolvedUrl);
+            luaL_error(L, "require(): failed to load script: %s", resolvedUrl.c_str());
+        }
         sol::protected_function_result res2 = moduleScript->Execute();
+        if (!res2.valid()) {
+            mLua->UnmarkScriptLoading(resolvedUrl);
+            luaL_error(L, "require(): failed to execute script: %s", resolvedUrl.c_str());
+        }
         mLua->CacheModule(resolvedUrl, std::move(moduleScript));
         mLua->UnmarkScriptLoading(resolvedUrl);
 
