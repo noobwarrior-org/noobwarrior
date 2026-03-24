@@ -71,6 +71,8 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
     vfs->CloseHandle(scriptHandle);
 
     mSource = src;
+    mFailReason = FailReason::None;
+    mResult = sol::lua_nil;
 }
 
 LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src) :
@@ -99,11 +101,10 @@ LuaScript::FailReason LuaScript::GetFailReason() {
     return mFailReason;
 }
 
-sol::protected_function_result LuaScript::Execute() {
+LuaScript::ExecResponse LuaScript::Execute() {
     if (Fail()) {
         Out("LuaScript", "[{}] (Execution Failure) The script failed to compile so it cannot execute.", mUrl.Resolve());
-        sol::protected_function_result res = mLua->safe_script("return nil");
-        return res;
+        return ExecResponse::InitFailed;
     }
 
     sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
@@ -134,13 +135,12 @@ sol::protected_function_result LuaScript::Execute() {
 
         VirtualFileSystem* moduleVfs = url.GetVfs(mLua->GetCore());
         if (moduleVfs == nullptr) {
-            // TODO: figure out a way to make this error less cryptic
             luaL_error(L, "require(): cannot require \"%s\" as vfs for url \"%s\" doesn't exist",
                 resolvedUrl.c_str(), std::string(url.GetProtocolString() + "://" + url.GetHostName()).c_str());
             return sol::lua_nil;
         }
 
-        if (moduleVfs->EntryExists(url.ResolveAsPath())) {
+        if (!moduleVfs->EntryExists(url.ResolveAsPath())) {
             luaL_error(L, "require(): url \"%s\" doesn't exist on disk", resolvedUrl.c_str());
             return sol::lua_nil;
         }
@@ -161,27 +161,24 @@ sol::protected_function_result LuaScript::Execute() {
             luaL_error(L, "require(): failed to load script: %s", resolvedUrl.c_str());
             return sol::lua_nil;
         }
-        sol::protected_function_result res2 = moduleScript->Execute();
-        if (!res2.valid()) {
+        ExecResponse res2 = moduleScript->Execute();
+        if (res2 != ExecResponse::Ok) {
             mLua->UnmarkScriptLoading(resolvedUrl);
             luaL_error(L, "require(): failed to execute script: %s", resolvedUrl.c_str());
             return sol::lua_nil;
         }
+        sol::object result = moduleScript->GetLastResult();
         mLua->CacheModule(resolvedUrl, std::move(moduleScript));
         mLua->UnmarkScriptLoading(resolvedUrl);
-
-        if (!res2.valid()) {
-            luaL_error(L, "require(): failed to run script");
-            return sol::lua_nil;
-        }
-        return res2;
+        return result;
     };
 
     sol::load_result bytecode = mLua->load(mSource);
     if (!bytecode.valid()) {
         sol::error err = bytecode;
-        sol::protected_function_result res = mLua->safe_script("return nil");
-        return res;
+        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
+        mResult = sol::lua_nil;
+        return ExecResponse::Failed;
     }
 
     auto func = bytecode.get<sol::protected_function>();
@@ -190,10 +187,12 @@ sol::protected_function_result LuaScript::Execute() {
     if (!res.valid()) {
         sol::error err = res;
         Out("LuaScript", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
-    } else {
-        mResult = res.get<sol::object>();
+        mResult = sol::lua_nil;
+        return ExecResponse::Failed;
     }
-    return res;
+
+    mResult = res.get<sol::object>();
+    return ExecResponse::Ok;
 }
 
 sol::object LuaScript::GetLastResult() {

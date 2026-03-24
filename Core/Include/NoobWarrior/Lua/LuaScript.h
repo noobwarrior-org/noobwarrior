@@ -52,7 +52,7 @@ public:
 
     bool Fail();
     FailReason GetFailReason();
-    sol::protected_function_result Execute();
+    ExecResponse Execute();
     sol::object GetLastResult();
 
     Url& GetUrl();
