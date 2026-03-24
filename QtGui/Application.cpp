@@ -63,7 +63,7 @@ int Application::Run() {
     int ret = 1;
 
     mCore = new Core(mInit);
-    mCore->StartServerEmulator(8080);
+    mCore->StartServerEmulator(80);
 
     QTimer* evTimer = new QTimer(this);
     evTimer->setTimerType(Qt::CoarseTimer);

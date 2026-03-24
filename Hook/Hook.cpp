@@ -53,7 +53,7 @@ void NoobHook::WriteMemory(uintptr_t address, const void* data, size_t size) {
     DWORD old_protection;
 	VirtualProtect(reinterpret_cast<LPVOID>(address), size, PAGE_EXECUTE_READWRITE, &old_protection);
 	memcpy(reinterpret_cast<void*>(address), data, size);
-	VirtualProtect(reinterpret_cast<LPVOID>(address), size, old_protection, NULL);
+	VirtualProtect(reinterpret_cast<LPVOID>(address), size, old_protection, &old_protection);
 }
 
 DWORD StrLength(PCHAR str) {
@@ -194,8 +194,9 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
 DWORD WINAPI Thread(LPVOID param) {
     SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
-    Patches::FixSettingsKeyMustBeDefined();
+	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. However it's not because I'm trying to debug something.
     Patches::RemoveTLSVerification();
+    Patches::FixSettingsKeyMustBeDefined();
 
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
@@ -214,7 +215,7 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
             // if it is then redirect to our server emulator
             addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(8080);
+            addrCopy.sin_port = htons(80);
             return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
         }
     }
@@ -226,7 +227,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         MH_Initialize();
-        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect); // for non-SSL connections. needed for older clients.
+        //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect); // for non-SSL connections. needed for older clients.
         MH_EnableHook(MH_ALL_HOOKS);
 
         DisableThreadLibraryCalls(hModule);

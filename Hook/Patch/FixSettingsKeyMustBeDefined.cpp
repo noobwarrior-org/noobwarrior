@@ -28,9 +28,9 @@
 void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
     auto pattern = hook::pattern("0F B6 C8 85 C9 74 2A");
     if (!pattern.count_hint(1).empty()) {
-		MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
-        auto address = pattern.get(0).get<uintptr_t>(6);
-        MessageBoxA(0, (LPCSTR)address, (LPCSTR)address, 0);
-		NoobHook::WriteMemory(*address, reinterpret_cast<void*>('\xEB'), 1);
+		//MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
+        uintptr_t* address = pattern.get(0).get<uintptr_t>(6);
+        const uint8_t bytes[] = { 0xEB };
+		NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
     }
 }

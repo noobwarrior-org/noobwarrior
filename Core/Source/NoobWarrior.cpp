@@ -98,7 +98,6 @@ Core::Core(Init init) :
         GetPluginManager()->MountPlugins();
 
     mServerEmulator = new ServerEmulator(this);
-    StartServerEmulator(8080);
 
     mInitResponse = Response::Success;
 }

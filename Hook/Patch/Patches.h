@@ -27,6 +27,7 @@
 #include <Hooking.Patterns.h>
 
 namespace NoobHook::Patches {
-void FixSettingsKeyMustBeDefined();
+void RemoveTrustCheck();
 void RemoveTLSVerification();
+void FixSettingsKeyMustBeDefined();
 }
