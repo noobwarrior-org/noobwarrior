@@ -86,6 +86,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
+    mFailReason = FailReason::None;
 }
 
 LuaScript::~LuaScript() {
