@@ -64,6 +64,17 @@ void HostServerDialog::InitWidgets() {
     mStartServer = new QPushButton("Start Server");
     mButtonBox->addButton(mStartServer, QDialogButtonBox::AcceptRole);
 
+    auto* mStartClient = new QPushButton("Start Client");
+    mMainLayout->addWidget(mStartClient);
+    connect(mStartClient, &QPushButton::clicked, []() {
+        gApp->LaunchEngine({
+            .Type = EngineType::Roblox,
+            .Side = EngineSide::Client,
+            .Hash = "5a54208fe8e24e87",
+            .Version = "0.463.0.417004"
+        });
+    });
+
     mCloseButton = new QPushButton("Close");
     mButtonBox->addButton(mCloseButton, QDialogButtonBox::RejectRole);
 

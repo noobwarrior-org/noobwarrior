@@ -233,7 +233,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         MH_Initialize();
-        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+        //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
         MH_EnableHook(MH_ALL_HOOKS);
 
         DisableThreadLibraryCalls(hModule);

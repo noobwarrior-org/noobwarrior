@@ -35,6 +35,7 @@ void NoobHook::Patches::RemoveTLSVerification() {
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
     }
 
+    // This pattern does not exist on RCCService for some reason
     auto disableVerifyHost = hook::pattern("6A 02 6A 51 FF B7 48 01 00 00");
     if (!disableVerifyHost.count_hint(1).empty()) {
         //MessageBoxA(0, "Found CURL SSL verify host pattern!", "noobHook", 0);
