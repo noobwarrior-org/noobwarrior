@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Hattozo
+* Copyright (C) 2026 Hattozo
  *
  * This file is part of noobWarrior.
  *
@@ -18,24 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ClientSettingsHandler.cpp
+// File: NegotiateHandler.cpp
 // Started by: Hattozo
-// Started on: 11/16/2025
-// Description: Returns a JSON object containing application settings (FFlags & DFFlags)
-#include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
+// Started on: 3/22/2026
+// Description:
+#include <NoobWarrior/HttpServer/Emulator/NegotiateHandler.h>
 #include <NoobWarrior/Log.h>
-
-#include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
 using namespace NoobWarrior;
 
-ClientSettingsHandler::ClientSettingsHandler(ServerEmulator *server) {}
+NegotiateHandler::NegotiateHandler() {
 
-void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("ClientSettingsHandler", "Hello");
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+}
+
+void NegotiateHandler::OnRequest(evhttp_request *req, void *userdata) {
+    Out("NegotiateHandler", "Authenticating...");
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, PCDesktopClient_json);
+    evbuffer_add_printf(reply, "true");
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

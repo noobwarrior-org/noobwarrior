@@ -29,7 +29,6 @@
 #include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>
-#include <curl/multi.h>
 #include <zip.h>
 #include <zipconf.h>
 
@@ -468,10 +467,13 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::p
 EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::path &filePath) {
     std::string fileName = filePath.filename().string();
     std::wstring wargs = filePath.wstring();
+    Out("Core", "Launching {}", fileName);
     if (fileName.compare("RCCService.exe") == 0) {
         wargs += L" -console -verbose -placeid:1818 -port 53641";
-    }
-    else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
+    } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
+        wargs += L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
+    } else if (fileName.compare("RobloxPlayerBetaCopy.exe") == 0) {
+        // wargs += L" -a \"http://localhost/2021/login/negotiate.ashx\" -j \"http://localhost/2021/game/placelauncher.ashx?placeid=1818&ip=localhost&user=greg&port=53640&id=7601610&app=http://localhost/charscript/Custom.php?hat=0;password=7601610|Pastel brown;Cyan;Pastel brown;Pastel brown;Cyan;Cyan\" -t \"1\"";
         wargs += L" -a \"http://localhost:8080/Login/Negotiate.ashx\" -j \"http://localhost:8080/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
@@ -489,6 +491,8 @@ EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::p
     return EngineLaunchResponse::Success;
 }
 
+// Notes about getting Roblox working
+// FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
 EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
     bool installed = IsEngineInstalled(engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;

@@ -17,29 +17,19 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
-// === noobWarrior ===
-// File: RemoveTrustCheck.cpp
-// Started by: Hattozo
-// Started on: 3/22/2026
-// Description: Thanks to Worships for making this guide
-// https://github.com/Windows81/Roblox-Freedom-Distribution-Guides/tree/main/Worships2021EGuide
+ // === noobWarrior ===
+ // File: DoSomething2.cpp
+ // Started by: Hattozo
+ // Started on: 3/24/2026
+ // Description:
 #include "Patches.h"
 #include <windows.h>
 
-// This patch shouldn't be used unless if you know what you're doing
-void NoobHook::Patches::RemoveTrustCheck() {
-    auto pattern = hook::pattern("0F 85 AE 00 00 00 83 7D D0 10");
+void NoobHook::Patches::DoSomething2() {
+    auto pattern = hook::pattern("74 0F 6A 09 68");
     if (!pattern.count_hint(1).empty()) {
-        MessageBoxA(0, "FOUND TRUST CHECK", "noobHook", 0);
+        MessageBoxA(0, "Found do something 2 pattern!", "noobHook", 0);
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xE9, 0xAF, 0x00, 0x00, 0x00, 0x90 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
-    }
-
-    auto anotherPattern = hook::pattern("75 58 83 7E 14 10 72 02");
-    if (!anotherPattern.count_hint(1).empty()) {
-        MessageBoxA(0, "FOUND TRUST CHECK 2", "noobHook", 0);
-        uintptr_t* address = anotherPattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xEB };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
     }

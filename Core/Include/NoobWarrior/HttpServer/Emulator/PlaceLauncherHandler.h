@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Hattozo
+* Copyright (C) 2026 Hattozo
  *
  * This file is part of noobWarrior.
  *
@@ -18,21 +18,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Patches.h
+// File: PlaceLauncherHandler.h
 // Started by: Hattozo
-// Started on: 3/22/2026
+// Started on: 3/24/2026
 // Description:
 #pragma once
-#include "../Hook.h"
-#include <Hooking.Patterns.h>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
-namespace NoobHook::Patches {
-void RemoveTrustCheck();
-void RemoveSignatureCheck();
-void RemoveTLSVerification();
-void DoSomething1();
-void DoSomething2();
-void BypassVersionOutOfDate();
-void BypassPlaceIdVerification();
-void FixSettingsKeyMustBeDefined();
+namespace NoobWarrior {
+class PlaceLauncherHandler : public Handler {
+public:
+    PlaceLauncherHandler();
+    void OnRequest(evhttp_request *req, void *userdata) override;
+};
 }

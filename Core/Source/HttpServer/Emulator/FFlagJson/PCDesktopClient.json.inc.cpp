@@ -1,7 +1,8 @@
 /* Thanks to MaximumADHD for his Roblox FFlag tracker
 https://github.com/MaximumADHD/Roblox-FFlag-Tracker/blob/800b252dfaaf17d2e62a487a364bb9ff4d34c232/PCDesktopClient.json */
-static const char *PCDesktopClient_json = R"***(
-{
+static const char *PCDesktopClient_json = R"***({
+"applicationSettings": {
+    "FFlagDebugLocalRccServerConnection": true,
 	"AllowVideoPreRoll": true,
 	"AndroidSwipeGestureUseStartingPosition": true,
 	"AxisAdornmentGrabSize": 12,
@@ -3254,4 +3255,4 @@ static const char *PCDesktopClient_json = R"***(
 	"TreatAndroidInputSourceAsBitmask": true,
 	"VideoPreRollWaitTimeSeconds": 45
 }
-)***";
+})***";

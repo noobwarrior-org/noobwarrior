@@ -187,15 +187,21 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
                 te.dwSize = sizeof(te);
             } while (Thread32Next(h, &te));
         }
-        CloseHandle(h);    
+        CloseHandle(h);
     }
 }
 
 DWORD WINAPI Thread(LPVOID param) {
     SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
-	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. However it's not because I'm trying to debug something.
+	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+    Patches::RemoveSignatureCheck();
     Patches::RemoveTLSVerification();
+    //Patches::DoSomething1();
+    //Patches::DoSomething2();
+    
+    //Patches::BypassVersionOutOfDate();
+    //Patches::BypassPlaceIdVerification();
     Patches::FixSettingsKeyMustBeDefined();
 
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
@@ -215,7 +221,7 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
             // if it is then redirect to our server emulator
             addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(80);
+            addrCopy.sin_port = htons(port == 80 ? 80 : 443);
             return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
         }
     }
@@ -227,7 +233,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         MH_Initialize();
-        //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect); // for non-SSL connections. needed for older clients.
+        MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
         MH_EnableHook(MH_ALL_HOOKS);
 
         DisableThreadLibraryCalls(hModule);

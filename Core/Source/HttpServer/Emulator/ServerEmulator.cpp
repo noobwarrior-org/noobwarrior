@@ -32,6 +32,9 @@ using json = nlohmann::json;
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
+    mNegotiateHandler(),
+    mPlaceLauncherHandler(),
+    mJoinScriptJsonHandler(),
     mStudioEditHandler()
 {
 
@@ -51,14 +54,14 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
 
-    SetRequestHandler("/Login/Negotiate.ashx", &mAssetHandler);
-    SetRequestHandler("/login/negotiate.ashx", &mAssetHandler);
+    SetRequestHandler("/Login/Negotiate.ashx", &mNegotiateHandler);
+    SetRequestHandler("/login/negotiate.ashx", &mNegotiateHandler);
 
-    SetRequestHandler("/Game/PlaceLauncher.ashx", &mAssetHandler);
-    SetRequestHandler("/game/placelauncher.ashx", &mAssetHandler);
+    SetRequestHandler("/Game/PlaceLauncher.ashx", &mPlaceLauncherHandler);
+    SetRequestHandler("/game/placelauncher.ashx", &mPlaceLauncherHandler);
 
-    SetRequestHandler("/Game/Join.ashx", &mAssetHandler);
-    SetRequestHandler("/game/join.ashx", &mAssetHandler);
+    SetRequestHandler("/Game/Join.ashx", &mJoinScriptJsonHandler);
+    SetRequestHandler("/game/join.ashx", &mJoinScriptJsonHandler);
 
     SetRequestHandler("/Game/Edit.ashx", &mStudioEditHandler);
     SetRequestHandler("/game/edit.ashx", &mStudioEditHandler);

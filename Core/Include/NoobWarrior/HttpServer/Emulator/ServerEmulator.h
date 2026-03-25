@@ -25,6 +25,9 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include "ClientSettingsHandler.h"
+#include "NegotiateHandler.h"
+#include "PlaceLauncherHandler.h"
+#include "JoinScriptJsonHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
 
@@ -47,6 +50,9 @@ private:
     //////////////// Handlers ////////////////
     AssetHandler mAssetHandler;
     ClientSettingsHandler mClientSettingsHandler;
+    NegotiateHandler mNegotiateHandler;
+    PlaceLauncherHandler mPlaceLauncherHandler;
+    JoinScriptJsonHandler mJoinScriptJsonHandler;
     StudioEditHandler mStudioEditHandler;
 
     std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;

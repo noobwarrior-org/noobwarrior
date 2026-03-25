@@ -18,29 +18,27 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: RemoveTrustCheck.cpp
+// File: BypassPlaceIdVerification.cpp
 // Started by: Hattozo
-// Started on: 3/22/2026
-// Description: Thanks to Worships for making this guide
-// https://github.com/Windows81/Roblox-Freedom-Distribution-Guides/tree/main/Worships2021EGuide
+// Started on: 3/24/2026
+// Description:
 #include "Patches.h"
 #include <windows.h>
 
-// This patch shouldn't be used unless if you know what you're doing
-void NoobHook::Patches::RemoveTrustCheck() {
-    auto pattern = hook::pattern("0F 85 AE 00 00 00 83 7D D0 10");
+void NoobHook::Patches::BypassPlaceIdVerification() {
+    auto pattern = hook::pattern("74 5A 68 38 41 68 02");
     if (!pattern.count_hint(1).empty()) {
-        MessageBoxA(0, "FOUND TRUST CHECK", "noobHook", 0);
+        MessageBoxA(0, "Found bypass place id pattern!", "noobHook", 0);
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xE9, 0xAF, 0x00, 0x00, 0x00, 0x90 };
+        const uint8_t bytes[] = { 0xEB };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
     }
 
-    auto anotherPattern = hook::pattern("75 58 83 7E 14 10 72 02");
-    if (!anotherPattern.count_hint(1).empty()) {
-        MessageBoxA(0, "FOUND TRUST CHECK 2", "noobHook", 0);
-        uintptr_t* address = anotherPattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
+    auto pattern2 = hook::pattern("0F 84 24 01 00 00 8D 45 E4 50");
+    if (!pattern2.count_hint(1).empty()) {
+        MessageBoxA(0, "Found bypass place id 2 pattern!", "noobHook", 0);
+        uintptr_t* address = pattern2.get(0).get<uintptr_t>(0);
+        const uint8_t bytes[] = { 0xE9, 0x23, 0x01, 0x00, 0x00, 0x90 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
     }
 }

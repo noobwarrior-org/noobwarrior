@@ -22,3 +22,22 @@
 // Started by: Hattozo
 // Started on: 3/22/2026
 // Description:
+#include <NoobWarrior/HttpServer/Emulator/PlaceLauncherHandler.h>
+#include <NoobWarrior/Log.h>
+
+static constexpr const char* JSON = R"({"jobId":"Test","status":2,"joinScriptUrl":"http://localhost/Game/Join.ashx?placeid=1818&ip=localhost&port=53640&user=greg&id=1&membership=","authenticationUrl":"http://localhost/2021/Login/Negotiate.ashx","authenticationTicket":"1","message":null})";
+
+using namespace NoobWarrior;
+
+PlaceLauncherHandler::PlaceLauncherHandler() {
+
+}
+
+void PlaceLauncherHandler::OnRequest(evhttp_request *req, void *userdata) {
+    Out("PlaceLauncherHandler", "Sending...");
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    evbuffer* reply = evbuffer_new();
+    evbuffer_add_printf(reply, JSON);
+    evhttp_send_reply(req, 200, nullptr, reply);
+    evbuffer_free(reply);
+}

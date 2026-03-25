@@ -22,7 +22,7 @@ endif()
 set(SOURCES
     Hook.cpp
     Hook.h
- "Patch/RemoveTrustCheck.cpp" "Patch/FixSettingsKeyMustBeDefined.cpp" "Patch/RemoveTLSVerification.cpp" "Patch/Patch.cpp" "Patch/Patches.h")
+ "Patch/RemoveTrustCheck.cpp" "Patch/DoSomething1.cpp" "Patch/FixSettingsKeyMustBeDefined.cpp" "Patch/RemoveTLSVerification.cpp" "Patch/Patch.cpp" "Patch/Patches.h" "Patch/BypassPlaceIdVerification.cpp" "Patch/RemoveSignatureCheck.cpp" "Patch/BypassVersionOutOfDate.cpp" "Patch/DoSomething2.cpp")
 
 add_library(NoobWarrior.Hook SHARED ${SOURCES})
 set_target_properties(NoobWarrior.Hook PROPERTIES

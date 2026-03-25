@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2026 Hattozo
+ * Copyright (C) 2026 Hattozo
  *
  * This file is part of noobWarrior.
  *
@@ -18,7 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AuthHandler.cpp
+// File: DoSomething1.cpp
 // Started by: Hattozo
-// Started on: 3/22/2026
+// Started on: 3/24/2026
 // Description:
+#include "Patches.h"
+#include <windows.h>
+
+void NoobHook::Patches::DoSomething1() {
+    auto pattern = hook::pattern("74 18 6A 06 68 EC");
+    if (!pattern.count_hint(1).empty()) {
+        MessageBoxA(0, "Found do something 1 pattern!", "noobHook", 0);
+        uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
+        const uint8_t bytes[] = { 0xEB };
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+    }
+}
