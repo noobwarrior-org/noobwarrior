@@ -41,8 +41,8 @@ public:
     };
 
     Lhp(LuaState* lua);
-    RenderResponse Render(sol::environment env, const std::string &input, std::string *output, Url path = {}, bool isRecursive = true);
-    RenderResponse Render(sol::environment env, const Url &url, std::string *output, bool isRecursive = true);
+    RenderResponse Render(sol::environment env, const std::string &input, std::string *output, Url path = {}, bool isRecursive = false);
+    RenderResponse Render(sol::environment env, const Url &url, std::string *output, bool isRecursive = false);
 private:
     LuaState* mLua;
 };

@@ -83,11 +83,11 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
     }
 
-    sol::environment lhpEnv = isRecursive
+    sol::environment lhpEnv = !isRecursive
         ? sol::environment(*mLua, sol::create, env) // creates an entirely new isolated environment
         : env; // or, reuse the passed environment directly. needed if we are calling this recursively or else all prior variables are lost
 
-    if (isRecursive) {
+    if (!isRecursive) {
         lhpEnv["echo"] = [output](std::string msg) -> void {
             *output += msg;
         };
@@ -103,7 +103,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             Url includeUrl(fileLocation, ctx);
 
             std::string includeOutput;
-            RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, false);
+            RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, true);
             if (res != RenderResponse::Success) {
                 luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
                 return;
