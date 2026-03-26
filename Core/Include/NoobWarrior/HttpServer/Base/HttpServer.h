@@ -65,6 +65,10 @@ public:
     VirtualFileSystem::Response MountVolume(const std::string &root, const Url &urlPath);
     VirtualFileSystem::Response UnmountVolume(const std::string &root, const Url &urlPath);
 
+    LuaSignal* GetPreStartSignal();
+    LuaSignal* GetPreStopSignal();
+    LuaSignal* GetPostStartSignal();
+    LuaSignal* GetPostStopSignal();
     LuaSignal* GetOnRequestSignal();
 
     Core *GetCore();
@@ -85,7 +89,11 @@ protected:
 
     std::vector<std::unique_ptr<std::tuple<Handler*, void*>>> HandlerUserdata;
 
-    //////////////// Signals ////////////////
+    ////////////// Signals ////////////////
+    LuaSignal mPreStartSignal;
+    LuaSignal mPreStopSignal;
+    LuaSignal mPostStartSignal;
+    LuaSignal mPostStopSignal;
     LuaSignal mOnRequestSignal;
 };
 }

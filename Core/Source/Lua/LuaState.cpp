@@ -219,6 +219,18 @@ int LuaState::Open() {
             luaL_error(L, "failed to unmount volume");
         }
     };
+    srvType["PreStart"] = sol::property([](HttpServer &srv) {
+        return srv.GetPreStartSignal();
+    });
+    srvType["PreStop"] = sol::property([](HttpServer &srv) {
+        return srv.GetPreStopSignal();
+    });
+    srvType["PostStart"] = sol::property([](HttpServer &srv) {
+        return srv.GetPostStartSignal();
+    });
+    srvType["PostStop"] = sol::property([](HttpServer &srv) {
+        return srv.GetPostStopSignal();
+    });
     srvType["OnRequest"] = sol::property([](HttpServer &srv) {
         return srv.GetOnRequestSignal();
     });

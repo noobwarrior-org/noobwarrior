@@ -58,6 +58,7 @@ int HttpServer::Start(uint16_t port) {
     if (Running)
         return 0;
 
+    mPreStartSignal.Fire();
     Server = evhttp_new(mCore->GetEventBase());
     evhttp_bind_socket(Server, "0.0.0.0", port);
 
@@ -69,6 +70,7 @@ int HttpServer::Start(uint16_t port) {
 
     Out(LogName, "Started server on port {}", port);
     Running = true;
+    mPostStartSignal.Fire();
     return 1;
 }
 
@@ -76,12 +78,14 @@ int HttpServer::Stop() {
     if (!Running)
         return 0;
 
+    mPreStopSignal.Fire();
     Running = false;
     Out(LogName, "Stopping server...");
 
     evhttp_free(Server);
     Server = nullptr;
     HandlerUserdata.clear();
+    mPostStopSignal.Fire();
     return 1;
 }
 
@@ -109,6 +113,22 @@ VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, con
 
 VirtualFileSystem::Response HttpServer::UnmountVolume(const std::string &root, const Url &urlPath) {
     return VirtualFileSystem::Response::Failed;
+}
+
+LuaSignal* HttpServer::GetPreStartSignal() {
+    return &mPreStartSignal;
+}
+
+LuaSignal* HttpServer::GetPreStopSignal() {
+    return &mPreStopSignal;
+}
+
+LuaSignal* HttpServer::GetPostStartSignal() {
+    return &mPostStartSignal;
+}
+
+LuaSignal* HttpServer::GetPostStopSignal() {
+    return &mPostStopSignal;
 }
 
 LuaSignal* HttpServer::GetOnRequestSignal() {
