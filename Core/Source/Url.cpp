@@ -178,10 +178,11 @@ std::string Url::Resolve() const {
         fullUrl += mCtx.DefaultHostName;
         
         // current working directory
-        if (!mStr.starts_with("/"))
+        if (!mStr.starts_with("/")) {
             fullUrl += mCtx.Cwd;
-        if (mCtx.Cwd.length() > 1)
-            fullUrl += "/";
+            if (!mCtx.Cwd.empty() && mCtx.Cwd.back() != '/')
+                fullUrl += "/";
+        }
 
         fullUrl += mStr;
     } else {
