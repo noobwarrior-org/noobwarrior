@@ -29,6 +29,27 @@
 #include <filesystem>
 #include <cstdio>
 
+// make sure this matches EngineLaunchResponse in NoobWarrior/Engine.h
+enum class EngineLaunchResponse {
+    Success,
+    Failed,
+    NotInstalled,
+    NoValidExecutable,
+    FailedToCreateProcess,
+    InjectFailed,
+    InjectDllMissing,
+    InjectCannotAccessProcess,
+    InjectWrongArchitecture,
+    InjectCannotWriteToProcessMemory,
+    InjectFailedToGetModuleHandle,
+    InjectFailedToGetFunctionAddress,
+    InjectCannotCreateThreadInProcess,
+    InjectThreadTimedOut,
+    InjectCouldNotGetReturnValueOfLoadLibrary,
+    InjectFailedToLoadLibrary,
+    InjectFailedToResumeProcess
+};
+
 static std::string LastErrorStr(DWORD err = GetLastError()) {
     char buf[512] = {0};
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -96,12 +117,12 @@ static int GetDllBitness(const wchar_t* dllPath) {
 #endif
 }
 
-static int Inject(unsigned long pid, const wchar_t *dllPath) {
-    int res = 5;
+static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
+    EngineLaunchResponse res = EngineLaunchResponse::InjectFailed;
 
     if (!std::filesystem::exists(dllPath)) {
         printf("DLL does not exist: %ls\n", std::filesystem::path(dllPath).c_str());
-        return 6;
+        return EngineLaunchResponse::InjectDllMissing;
     }
 
     printf("Starting injection - PID: %lu, DLL: %ls\n", pid, std::filesystem::path(dllPath).c_str());
@@ -109,7 +130,7 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     if (handle == NULL) {
         DWORD err = GetLastError();
         printf("OpenProcess failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
-        return 7;
+        return EngineLaunchResponse::InjectCannotAccessProcess;
     }
 
     BOOL isWow64;
@@ -121,7 +142,7 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     if (isWow64 && dllBitness != 32) {
         printf("Error, architecture mismatch\n");
         CloseHandle(handle);
-        return 8;
+        return EngineLaunchResponse::InjectWrongArchitecture;
     }
 
     SIZE_T size_bytes = (wcslen(dllPath) + 1) * sizeof(wchar_t);
@@ -130,13 +151,13 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
         DWORD err = GetLastError();
         printf("VirtualAllocEx failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         CloseHandle(handle);
-        return 9;
+		return EngineLaunchResponse::InjectCannotWriteToProcessMemory;
     }
 
     if (!WriteProcessMemory(handle, mem, dllPath, size_bytes, NULL)) {
         DWORD err = GetLastError();
         printf("WriteProcessMemory failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
-        res = 9;
+        res = EngineLaunchResponse::InjectCannotWriteToProcessMemory;
         goto cleanup;
     }
 
@@ -144,7 +165,7 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     hKernel32 = GetModuleHandleW(L"kernel32.dll");
     if (!hKernel32) {
         printf("Failed to get kernel32 handle\n");
-        res = 10;
+        res = EngineLaunchResponse::InjectFailedToGetModuleHandle;
         goto cleanup;
     }
 
@@ -152,7 +173,7 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     pLoadLibraryW = GetProcAddress(hKernel32, "LoadLibraryW");
     if (!pLoadLibraryW) {
         printf("Failed to get LoadLibraryW address\n");
-        res = 11;
+        res = EngineLaunchResponse::InjectFailedToGetFunctionAddress;
         goto cleanup;
     }
 
@@ -161,16 +182,16 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     if (thread == nullptr) {
         DWORD err = GetLastError();
         printf("CreateRemoteThread failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
-        res = 12;
+        res = EngineLaunchResponse::InjectCannotCreateThreadInProcess;
         goto cleanup;
     }
     if (WaitForSingleObject(thread, 5000) != WAIT_OBJECT_0) {
         printf("Thread wait failed or timed out \n");
-        res = 13;
+        res = EngineLaunchResponse::InjectThreadTimedOut;
         goto cleanup;
     }
 
-    res = 1;
+    res = EngineLaunchResponse::Success;
 cleanup:
     if (mem) VirtualFreeEx(handle, mem, 0, MEM_RELEASE);
     if (thread) CloseHandle(thread);
@@ -179,7 +200,7 @@ cleanup:
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int showCmd) {
-    freopen("noobhook_injector.log", "w", stdout);
+    FILE* file = freopen("noobhook_injector.log", "w", stdout);
 
     int argc;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -232,23 +253,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
     }
-    int inject = Inject(GetProcessId(pi.hProcess), L"./noobhook_x86.dll");
-    if (!inject) {
+    EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), L"./noobhook_x86.dll");
+    if (inject != EngineLaunchResponse::Success) {
         printf("Failed to inject to target process: error %d\n", inject);
         TerminateProcess(pi.hProcess, 0xEEEEEEEE);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        return inject;
+        return static_cast<int>(inject);
     }
     if (ResumeThread(pi.hThread) == -1) {
         printf("Can't resume thread of target process\n");
         TerminateProcess(pi.hProcess, 0xFFFFFFFF);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        return 16;
+        return static_cast<int>(EngineLaunchResponse::InjectFailedToResumeProcess);
     }
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    return 1;
+    fclose(file);
+    return 0;
 }

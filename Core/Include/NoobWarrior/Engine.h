@@ -83,8 +83,8 @@ enum class EngineInstallState {
 };
 
 enum class EngineLaunchResponse {
-    Failed,
     Success,
+    Failed,
     NotInstalled,
     NoValidExecutable,
     FailedToCreateProcess,
