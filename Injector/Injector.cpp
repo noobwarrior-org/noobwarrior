@@ -28,6 +28,8 @@
 #include <vector>
 #include <filesystem>
 
+#include <io.h>
+
 static std::string LastErrorStr(DWORD err = GetLastError()) {
     char buf[512] = {0};
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -207,42 +209,80 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
     }
 
-    std::wstring filePath;
-
+    std::wstring filePathStr;
     for (int i = 0; i < argc; i++) {
-        if (wcsncmp(argv[i], L"--file", sizeof("--file")) == 0) {
-            if (i + 1 <= argc)
-                filePath = argv[i + 1];
+        if (wcscmp(argv[i], L"--file") == 0) {
+            if (i + 1 < argc)
+                filePathStr = argv[i + 1];
         }
     }
-    
+
+    // https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/dup-dup2?view=msvc-170#example
+    FILE* DataFile;
+    if (fopen_s(&DataFile, "noobhook_injector.log", "w") != 0)
+    {
+        printf("Can't open file \"noobhook_injector.log\"\n");
+    }
+
+    if (_dup2(_fileno(DataFile), 1) == -1)
+    {
+        printf("Can't _dup2 stdout\n");
+    }
+
+    printf("test\n");
+
     std::wstring wargs;
-    std::filesystem::path fileName = std::filesystem::path(filePath).filename();
+
+    std::filesystem::path filePath = std::filesystem::path(filePathStr);
+    if (filePathStr.empty()) {
+        printf("No --file argument provided\n");
+        return 1;
+    }
+
+    std::filesystem::path fileName = filePath.filename();
+    std::filesystem::path fileDir = filePath.parent_path();
+	std::wstring fileDirStr = fileDir.wstring();
+    wargs += filePathStr;
     if (fileName.compare("RCCService.exe") == 0) {
-        wargs = filePath + L" -console -verbose -placeid:1818 -port 53641";
+        wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs = filePath + L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
+        wargs += L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
 
+    std::vector<wchar_t> filedir_vec(fileDirStr.begin(), fileDirStr.end());
+    filedir_vec.push_back(L'\0');
+
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
-    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, nullptr, &si, &pi)) {
+    // TODO: Passing in a working directory to CreateProcessW causes Roblox player to not load into the server????
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, filedir_vec.data(), &si, &pi)) {
         DWORD err = GetLastError();
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
     }
     int inject = Inject(GetProcessId(pi.hProcess), L"./noobhook_x86.dll");
     if (!inject) {
+        printf("Failed to inject to target process: error %d\n", inject);
         TerminateProcess(pi.hProcess, 0xEEEEEEEE);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
         return inject;
     }
-    if (ResumeThread(pi.hThread) == -1) {   
+    if (ResumeThread(pi.hThread) == -1) {
+        printf("Can't resume thread of target process\n");
         TerminateProcess(pi.hProcess, 0xFFFFFFFF);
+        CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
         return 16;
     }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    fflush(stdout);
+    fclose(DataFile);
     return 1;
 }

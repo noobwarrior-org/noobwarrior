@@ -469,7 +469,7 @@ EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::p
     std::wstring wargs = filePath.wstring();
     Out("Core", "Launching {}", fileName);
     if (fileName.compare("RCCService.exe") == 0) {
-        wargs += L" -console -verbose -placeid:1818 -port 53641";
+        wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
         wargs += L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
     } else if (fileName.compare("RobloxPlayerBetaCopy.exe") == 0) {
