@@ -194,6 +194,13 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
 DWORD WINAPI Thread(LPVOID param) {
     SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
+    FILE* file = freopen("noobhook.log", "w", stdout);
+    printf("Initializing noobHook");
+
+    MH_Initialize();
+    //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+    MH_EnableHook(MH_ALL_HOOKS);
+
 	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
     Patches::RemoveSignatureCheck();
     Patches::RemoveTLSVerification();
@@ -203,6 +210,8 @@ DWORD WINAPI Thread(LPVOID param) {
     //Patches::BypassVersionOutOfDate();
     //Patches::BypassPlaceIdVerification();
     Patches::FixSettingsKeyMustBeDefined();
+
+    fclose(file);
 
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
@@ -232,10 +241,6 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     HANDLE hThread = NULL;
     switch (reason) {
     case DLL_PROCESS_ATTACH:
-        MH_Initialize();
-        //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
-        MH_EnableHook(MH_ALL_HOOKS);
-
         DisableThreadLibraryCalls(hModule);
 
         hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
