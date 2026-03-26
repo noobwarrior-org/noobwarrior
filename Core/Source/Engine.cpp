@@ -493,6 +493,7 @@ EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::p
 
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
+// Roblox gets stuck on the loading screen (the logo doesn't even spin) if a working directory is passed through CreateProcess.
 EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
     bool installed = IsEngineInstalled(engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;

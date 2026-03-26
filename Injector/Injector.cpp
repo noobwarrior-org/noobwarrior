@@ -232,6 +232,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::filesystem::path fileName = filePath.filename();
     std::filesystem::path fileDir = filePath.parent_path();
 	std::wstring fileDirStr = fileDir.wstring();
+	printf("Launching file %ls in working directory %ls\n", filePathStr.c_str(), fileDirStr.c_str());
+
     wargs += filePathStr;
     if (fileName.compare("RCCService.exe") == 0) {
         wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
@@ -247,8 +249,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
-    // TODO: Passing in a working directory to CreateProcessW causes Roblox player to not load into the server????
-    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, filedir_vec.data(), &si, &pi)) {
+	/* HACK TODO FIXME: Really Weird Fucking Error where Roblox Player just doesn't load into the server if I pass in a working directory to CreateProcessW
+       Getting around this by not passing one altogether if it's RobloxPlayerBeta.exe */
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, fileName.compare("RobloxPlayerBeta.exe") == 0 ? nullptr : filedir_vec.data(), &si, &pi)) {
         DWORD err = GetLastError();
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
