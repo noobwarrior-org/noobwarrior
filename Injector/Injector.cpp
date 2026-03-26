@@ -27,8 +27,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-
-#include <io.h>
+#include <cstdio>
 
 static std::string LastErrorStr(DWORD err = GetLastError()) {
     char buf[512] = {0};
@@ -106,9 +105,8 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
     }
 
     printf("Starting injection - PID: %lu, DLL: %ls\n", pid, std::filesystem::path(dllPath).c_str());
-#if defined(_WIN32)
     HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-    if (handle == INVALID_HANDLE_VALUE) {
+    if (handle == NULL) {
         DWORD err = GetLastError();
         printf("OpenProcess failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
@@ -172,32 +170,17 @@ static int Inject(unsigned long pid, const wchar_t *dllPath) {
         goto cleanup;
     }
 
-    DWORD dwExitCode;
-    if (!GetExitCodeThread(thread, &dwExitCode)) {
-        DWORD err = GetLastError();
-        printf("GetExitCodeThread failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
-        res = 14;
-        goto cleanup;
-    }
-
-    if (dwExitCode == 0) {
-        printf("LoadLibraryW returned NULL - injection failed\n");
-        res = 15;
-        goto cleanup;
-    }
-
     res = 1;
 cleanup:
     if (mem) VirtualFreeEx(handle, mem, 0, MEM_RELEASE);
     if (thread) CloseHandle(thread);
     CloseHandle(handle);
     return res;
-#else
-    return res;
-#endif
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int showCmd) {
+    freopen("noobhook_injector.log", "w", stdout);
+
     int argc;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
@@ -216,20 +199,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 filePathStr = argv[i + 1];
         }
     }
-
-    // https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/dup-dup2?view=msvc-170#example
-    FILE* DataFile;
-    if (fopen_s(&DataFile, "noobhook_injector.log", "w") != 0)
-    {
-        printf("Can't open file \"noobhook_injector.log\"\n");
-    }
-
-    if (_dup2(_fileno(DataFile), 1) == -1)
-    {
-        printf("Can't _dup2 stdout\n");
-    }
-
-    printf("test\n");
 
     std::wstring wargs;
 
@@ -281,8 +250,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-
-    fflush(stdout);
-    fclose(DataFile);
     return 1;
 }
