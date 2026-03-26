@@ -1,5 +1,6 @@
 <?lua
 print("Hello from LHP!")
+print("Type of _SERVER:", type(_SERVER))
 include("header.lhp")
 ?>
 

@@ -238,20 +238,32 @@ int LuaState::Open() {
     auto srvEmuType = new_usertype<ServerEmulator>("ServerEmulator", sol::no_constructor, sol::base_classes, sol::bases<HttpServer>());
 
     sol::table lhpLib = create_table();
-    lhpLib.set_function("Render", [this](sol::this_state state, sol::this_environment thisEnv, std::string input) -> std::string {
+    lhpLib.set_function("Render", [this](sol::this_state state, sol::this_environment thisEnv, std::string input, const std::optional<sol::table> &globalsList) -> std::string {
         lua_State* L = state;
         sol::environment& env = thisEnv;
+        sol::environment globalsEnv = sol::environment(*this, sol::create, env);
+        if (globalsList.has_value()) {
+            for (const auto &kv : globalsList.value()) {
+                globalsEnv[kv.first] = kv.second;
+            }
+        }
 
         std::string output;
-        Lhp::RenderResponse res = mLhp.Render(env, input, &output);
+        Lhp::RenderResponse res = mLhp.Render(globalsEnv, input, &output);
         if (res != Lhp::RenderResponse::Success) {
             luaL_error(L, "failed to render page using lhp");
         }
         return output;
     });
-    lhpLib.set_function("RenderFile", [this](sol::this_state state, sol::this_environment thisEnv, std::string fileLocation) -> std::string {
+    lhpLib.set_function("RenderFile", [this](sol::this_state state, sol::this_environment thisEnv, std::string fileLocation, const std::optional<sol::table> &globalsList) -> std::string {
         lua_State* L = state;
         sol::environment& env = thisEnv;
+        sol::environment globalsEnv = sol::environment(*this, sol::create, env);
+        if (globalsList.has_value()) {
+            for (const auto &kv : globalsList.value()) {
+                globalsEnv[kv.first] = kv.second;
+            }
+        }
         
         // In each LuaScript (yes we create objects for each script that autoruns) we include a "script" variable
         // in their personalized environment that contains a self-reference to the script that is currently being ran.
@@ -267,7 +279,7 @@ int LuaState::Open() {
         Url url(fileLocation, ctx);
 
         std::string output;
-        Lhp::RenderResponse res = mLhp.Render(env, url, &output);
+        Lhp::RenderResponse res = mLhp.Render(globalsEnv, url, &output);
         if (res != Lhp::RenderResponse::Success) {
             luaL_error(L, "failed to render page using lhp");
         }

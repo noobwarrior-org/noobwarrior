@@ -58,7 +58,16 @@ function http_shared.AttachToServer(srv, params)
         if params.Sitemap[req.Uri] then
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
-                local output = lhp.RenderFile(params.Sitemap[req.Uri])
+                local output = lhp.RenderFile(params.Sitemap[req.Uri], {
+                    ["_SERVER"] = {},
+                    ["_GET"] = {},
+                    ["_POST"] = {},
+                    ["_FILES"] = {},
+                    ["_COOKIE"] = {},
+                    ["_SESSION"] = {},
+                    ["_REQUEST"] = {},
+                    ["_ENV"] = {}
+                })
                 req:SendReply(200, nil, output)
             end)
             if not success then
