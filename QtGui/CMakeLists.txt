@@ -38,6 +38,7 @@ set(SOURCES
     Sdk/Item/ItemOpenSaveDialog.cpp
     Sdk/Item/ItemListWidget.cpp
     Sdk/Item/ItemDialog.cpp
+    Sdk/Item/ItemDialog_Impl_Asset.cpp
     Sdk/Backup/BackupDialog.cpp
     Sdk/Backup/BackupTask.cpp
     Sdk/Backup/BackupTreeView.cpp

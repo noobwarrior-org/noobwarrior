@@ -52,9 +52,9 @@ protected:
     void RegenWidgets();
     void OnSave();
 
-    void AddAssetWidgets();
-    void AddAssetTypeWidgets();    
-    void OnSaveAsset();
+    void Asset_AddFields();
+    void Asset_AddAssetTypeWidgets();
+    void Asset_OnSave();
 
     EmuDb* GetDatabase();
 
@@ -75,7 +75,7 @@ protected:
     QDateTimeEdit* mCreatedInput;
     QDateTimeEdit* mUpdatedInput;
 
-    QComboBox* mAssetTypeInput;
+    QComboBox* mAsset_AssetTypeInput;
 
     QDialogButtonBox* mButtonBox;
 };
