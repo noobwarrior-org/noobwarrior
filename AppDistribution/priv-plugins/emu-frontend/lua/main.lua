@@ -6,14 +6,17 @@
 -- Started by: Hattozo
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
-local httpTest = HttpServer.new()
-print("Http test: "..tostring(httpTest))
-print("Http on request: "..tostring(httpTest.OnRequest))
+if emu == nil then
+    error("Server emulator global \"emu\" is nil! This should not happen!")
+end
+emu:MountVolume("/", "/static")
 
-emu.OnRequest:Connect(function(request)
+local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")
 
-end)
+local sitemap = {
+    ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp"
+}
 
-emu.Request:Connect(function(request)
-    plugin.GetDirectory()
-end)
+http_shared.AttachToServer(emu, {
+    Sitemap = sitemap
+})

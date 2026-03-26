@@ -168,12 +168,20 @@ int LuaState::Open() {
     auto stdFsType = new_usertype<StdFileSystem>("StdFileSystem", sol::constructors<StdFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
     auto zipFsType = new_usertype<ZipFileSystem>("ZipFileSystem", sol::constructors<ZipFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
 
-    auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(std::string, std::string)>());
+    auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(const std::string&, const std::string&)>());
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
-    sqlDbType["Query"] = []() {
+    sqlDbType["Query"] = [](const std::string &queryStr) {
 
     };
+    sqlDbType["QueryTyped"] = [](const std::string &queryStr, sol::variadic_args va) {
+
+        for (auto v : va) {
+
+        }
+    };
+
+    auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::constructors<EmuDb(), EmuDb(const std::string&, bool)>(), sol::base_classes, sol::bases<SqlDb>());
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this](std::string logName) {
@@ -215,8 +223,7 @@ int LuaState::Open() {
         return srv.GetOnRequestSignal();
     });
 
-    auto emuType = new_usertype<ServerEmulator>("ServerEmulator");
-    set("emu", mCore->GetServerEmulator());
+    auto srvEmuType = new_usertype<ServerEmulator>("ServerEmulator", sol::no_constructor, sol::base_classes, sol::bases<HttpServer>());
 
     sol::table lhpLib = create_table();
     lhpLib.set_function("Render", [this](sol::this_state state, sol::this_environment thisEnv, std::string input) -> std::string {

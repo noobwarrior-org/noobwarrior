@@ -91,13 +91,14 @@ Core::Core(Init init) :
     GetEmuDbManager()->MountDatabases();
     GetEmuDbManager()->MountMasterDbIfNotAlreadyMounted();
 
+    mServerEmulator = new ServerEmulator(this);
+    mLuaState->set("emu", mServerEmulator);
+
     if (mInit.EnableKeychain)
         GetRbxKeychain()->ReadFromKeychain();
 
     if (mInit.LoadPlugins)
         GetPluginManager()->MountPlugins();
-
-    mServerEmulator = new ServerEmulator(this);
 
     mInitResponse = Response::Success;
 }

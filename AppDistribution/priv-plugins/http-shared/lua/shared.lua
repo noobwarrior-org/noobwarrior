@@ -53,8 +53,7 @@ function http_shared.ReadFileBinary(vfs, localUrl)
     return fullData
 end
 
-function http_shared.CreateServer(params)
-    local srv = HttpServer.new(params.Name)
+function http_shared.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
         if params.Sitemap[req.Uri] then
             req:AddHeader("Content-Type", "text/html")
@@ -83,6 +82,11 @@ function http_shared.CreateServer(params)
         end
     end)
     srv:MountVolume("/", "/static")
+end
+
+function http_shared.CreateServer(params)
+    local srv = HttpServer.new(params.Name)
+    http_shared.AttachToServer(srv, params)
     return srv
 end
 

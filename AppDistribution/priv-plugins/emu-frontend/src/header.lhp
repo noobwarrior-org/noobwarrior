@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <?lua include("plugin://http-shared@noobwarrior.org/src/shared.lhp") ?>
+        <link rel="stylesheet" href="/css/emu-main.css">
+        <title><?lua echo(pageTitle or "Untitled Page") ?></title>
+    </head>
+    <body>
+        <br>
+        <div class="main">
+            <div class="header">
+                <span style="float: left;"><img src="/img/icon1024.png" alt="Server emulator logo" width="64" height="64">Server Emulator</span>
+                <span style="float: right;"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64">noobWarrior</span>
+            </div>
+            <ul class="navbar">
+                <li id="navhome"><a href="./index.html">home</a></li>
+                <li id="navgit"><a href="https://github.com/noobwarrior-org">git</a></li>
+                <li id="navcontact"><a href="./contact.html">contact</a></li>
+            </ul>
+            <div class="content">

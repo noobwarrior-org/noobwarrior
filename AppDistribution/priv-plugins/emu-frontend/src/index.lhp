@@ -1,15 +1,8 @@
 <?lua
-include("plugin://org.noobwarrior.frontend/src/footer.lhp")
-
 print("Hello from LHP!")
-
+include("header.lhp")
 ?>
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Hello</title>
-    </head>
-    <body>
-        <p>Hi guys</p>
-    </body>
-</html>
+
+<p>hi</p>
+
+<?lua include("footer.lhp") ?>
