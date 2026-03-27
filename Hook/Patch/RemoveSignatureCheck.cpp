@@ -26,9 +26,9 @@
 #include <windows.h>
 
 void NoobHook::Patches::RemoveSignatureCheck() {
-    auto pattern = hook::pattern("CC CC CC CC CC CC CC CC CC CC CC CC CC CC 55 8B EC 6A FF 68 50 D6 11 02 64 A1 00 00 00 00 50 64 89 25 00 00 00 00 83 EC 34 8B 4D 08 53 56 57 89 65 F0 E8 77 5A 1B 00 8B F0 83 7E 14 10 72 02 8B 36 6A 0A 68 8C 24 55 02");
+    auto pattern = hook::pattern("CC CC CC CC CC CC CC CC CC CC CC CC CC CC 55 8B EC 6A FF 68 50 D6 F1 01");
     if (!pattern.count_hint(1).empty()) {
-        //MessageBoxA(0, "Found rbxsig pattern!", "noobHook", 0);
+		printf("Found rbxsig pattern\n");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(14);
         const uint8_t bytes[] = { 0xC3 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));

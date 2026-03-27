@@ -191,14 +191,33 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
     }
 }
 
+static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
+static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
+    int sockType = 0;
+    int optLen = sizeof(sockType);
+    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
+
+    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
+        sockaddr_in addrCopy = *(sockaddr_in*)name;
+        int port = ntohs(addrCopy.sin_port);
+        if (port == 80 || port == 443) { // check if its HTTP/HTTPS
+            // if it is then redirect to our server emulator
+            addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+            addrCopy.sin_port = htons(port == 80 ? 80 : 443);
+            return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
+        }
+    }
+    return pOrigConnect(s, name, namelen);
+}
+
 DWORD WINAPI Thread(LPVOID param) {
     SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
     FILE* file = freopen("noobhook.log", "w", stdout);
-    printf("Initializing noobHook");
+    printf("Initializing noobHook\n");
 
     MH_Initialize();
-    //MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+    MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
     MH_EnableHook(MH_ALL_HOOKS);
 
 	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
@@ -215,26 +234,6 @@ DWORD WINAPI Thread(LPVOID param) {
 
     ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
-}
-
-static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
-static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
-    //MessageBoxA(NULL, "connect called!", "noobHook", MB_OK | MB_ICONINFORMATION);
-    int sockType = 0;
-    int optLen = sizeof(sockType);
-    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
-
-    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
-        sockaddr_in addrCopy = *(sockaddr_in*)name;
-        int port = ntohs(addrCopy.sin_port);
-        if (port == 80 || port == 443) { // check if its HTTP/HTTPS
-            // if it is then redirect to our server emulator
-            addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(port == 80 ? 80 : 443);
-            return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
-        }
-    }
-    return pOrigConnect(s, name, namelen);
 }
 
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {

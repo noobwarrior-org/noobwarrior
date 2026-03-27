@@ -31,6 +31,7 @@ void NoobHook::Patches::RemoveTrustCheck() {
     auto pattern = hook::pattern("0F 85 AE 00 00 00 83 7D D0 10");
     if (!pattern.count_hint(1).empty()) {
         //MessageBoxA(0, "FOUND TRUST CHECK", "noobHook", 0);
+        printf("Found pattern for trust check 1\n");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xE9, 0xAF, 0x00, 0x00, 0x00, 0x90 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
@@ -39,6 +40,7 @@ void NoobHook::Patches::RemoveTrustCheck() {
     auto anotherPattern = hook::pattern("75 58 83 7E 14 10 72 02");
     if (!anotherPattern.count_hint(1).empty()) {
         //MessageBoxA(0, "FOUND TRUST CHECK 2", "noobHook", 0);
+        printf("Found pattern for trust check 2\n");
         uintptr_t* address = anotherPattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xEB };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
@@ -48,6 +50,7 @@ void NoobHook::Patches::RemoveTrustCheck() {
     auto rccServicePattern = hook::pattern("75 4F 6A 49 68 70 40 90 01");
     if (!rccServicePattern.count_hint(1).empty()) {
         //MessageBoxA(0, "FOUND RCCSERVICE TRUST CHECK", "noobHook", 0);
+        printf("Found pattern for trust check 3\n");
         uintptr_t* address = rccServicePattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xEB };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));

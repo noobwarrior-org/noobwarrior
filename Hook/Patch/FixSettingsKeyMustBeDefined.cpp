@@ -28,6 +28,7 @@
 void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
     auto pattern = hook::pattern("74 2A 0F B6 95 E4 FE FF FF");
     if (!pattern.count_hint(1).empty()) {
+        printf("Found pattern for \"settings key must be defined\" message\n");
 		//MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xEB };
