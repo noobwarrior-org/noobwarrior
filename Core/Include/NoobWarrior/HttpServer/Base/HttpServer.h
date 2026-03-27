@@ -37,6 +37,7 @@
 #include <tuple>
 
 #include <evhttp.h>
+#include <openssl/ssl.h>
 #include <nlohmann/json_fwd.hpp>
 
 #define NOOBWARRIOR_SET_URI(uri, handler)
@@ -59,6 +60,9 @@ public:
     virtual int Start(uint16_t port);
     virtual int Stop();
 
+    virtual int StartSecure(uint16_t port);
+    virtual int StopSecure();
+
     bool        IsRunning();
     void        SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
 
@@ -74,14 +78,18 @@ public:
     Core *GetCore();
     OverlayFileSystem* GetVfs();
 protected:
-    bool Running;
+    bool mRunning;
 
     // This is used in logging.
-    std::string LogName;
+    std::string mLogName;
     
     Core *mCore;
-    evhttp* Server;
+    evhttp* mServer;
     OverlayFileSystem* mVfs;
+
+    SSL_CTX* mSslCtx;
+    evhttp* mServerSecure;
+    bool mRunningSecure;
 
     //////////////// Handlers ////////////////
     std::unique_ptr<RootHandler> mRootHandler;

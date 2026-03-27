@@ -32,14 +32,57 @@
 #include <NoobWarrior/Macros.h>
 #include <NoobWarrior/Log.h>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#include <event2/http.h>
+#include <event2/buffer.h>
+#include <event2/bufferevent_ssl.h>
+
 using namespace NoobWarrior;
 
+static void request_handler(struct evhttp_request *req, void *arg) {
+    struct evbuffer *buf = evbuffer_new();
+    if (!buf) return;
+
+    evbuffer_add_printf(buf, "<html><body><h1>Hello from libevent HTTPS!</h1></body></html>");
+
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+                      "Content-Type", "text/html");
+    evhttp_send_reply(req, HTTP_OK, "OK", buf);
+    evbuffer_free(buf);
+}
+
+static bufferevent* bevcb(struct event_base *base, void *arg) {
+    bufferevent* r;
+    if (arg == nullptr) {
+        r = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+    } else {
+        SSL_CTX* ssl_ctx = static_cast<SSL_CTX*>(arg);
+        // glad this is built-in
+        r = bufferevent_openssl_socket_new(base, -1, SSL_new(ssl_ctx), BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+    }
+    return r;
+}
+
+// Example taken from https://linux.die.net/man/3/ssl_ctx_set_default_passwd_cb
+static int pem_passwd_cb(char *buf, int size, int rwflag, void *password)
+{
+    strncpy(buf, (char *)(password), size);
+    buf[size - 1] = '\0';
+    return(strlen(buf));
+}
+
 HttpServer::HttpServer(Core *core, std::string logName) :
-    Running(false),
-    LogName(std::move(logName)),
+    mRunning(false),
+    mLogName(std::move(logName)),
     mCore(core),
-    Server(nullptr),
-    mVfs(new OverlayFileSystem())
+    mServer(nullptr),
+    mVfs(new OverlayFileSystem()),
+
+    mSslCtx(nullptr),
+    mServerSecure(nullptr),
+    mRunningSecure(false)
 {}
 
 HttpServer::~HttpServer() {
@@ -55,12 +98,12 @@ static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata)
 }
 
 int HttpServer::Start(uint16_t port) {
-    if (Running)
+    if (mRunning)
         return 0;
 
     mPreStartSignal.Fire();
-    Server = evhttp_new(mCore->GetEventBase());
-    evhttp_bind_socket(Server, "0.0.0.0", port);
+    mServer = evhttp_new(mCore->GetEventBase());
+    evhttp_bind_socket(mServer, "0.0.0.0", port);
 
     mRootHandler = std::make_unique<RootHandler>(this);
     mTestHandler = std::make_unique<TestHandler>();
@@ -68,22 +111,88 @@ int HttpServer::Start(uint16_t port) {
     SetRequestHandler(nullptr, mRootHandler.get());
     SetRequestHandler("/test", mTestHandler.get());
 
-    Out(LogName, "Started server on port {}", port);
-    Running = true;
+    Out(mLogName, "Started HTTP server on port {}", port);
+    mRunning = true;
     mPostStartSignal.Fire();
     return 1;
 }
 
 int HttpServer::Stop() {
-    if (!Running)
+    if (!mRunning)
         return 0;
 
-    mPreStopSignal.Fire();
-    Running = false;
-    Out(LogName, "Stopping server...");
+    mPreStopSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
+    mRunning = false;
+    Out(mLogName, "Stopping HTTP server...");
 
-    evhttp_free(Server);
-    Server = nullptr;
+    evhttp_free(mServer);
+    mServer = nullptr;
+    HandlerUserdata.clear();
+    mPostStopSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
+    return 1;
+}
+
+int HttpServer::StartSecure(uint16_t port) {
+    if (mRunningSecure)
+        return 0;
+
+    mPreStartSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
+
+    if (mSslCtx == nullptr) {
+        mSslCtx = SSL_CTX_new(TLS_server_method());
+        if (!mSslCtx) {
+            Out(mLogName, "Failed to initialize OpenSSL context");
+            return -1;
+        }
+
+        Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
+        SSL_CTX_set_default_passwd_cb(mSslCtx, pem_passwd_cb);
+        SSL_CTX_set_default_passwd_cb_userdata(mSslCtx, (void*)"farted");
+
+        if (!SSL_CTX_use_certificate_file(mSslCtx, "cert.pem", SSL_FILETYPE_PEM)) {
+            Out(mLogName, "OpenSSL: Failed to use public key certificate \"cert.pem\"!");
+            SSL_CTX_free(mSslCtx);
+            mSslCtx = nullptr;
+            return -2;
+        }
+        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, "key.pem", SSL_FILETYPE_PEM)) {
+            Out(mLogName, "OpenSSL: Failed to use private key \"key.pem\"! Maybe the passphrase is incorrect?");
+            SSL_CTX_free(mSslCtx);
+            mSslCtx = nullptr;
+            return -3;
+        }
+    }
+
+    mServerSecure = evhttp_new(mCore->GetEventBase());
+    evhttp_bind_socket(mServerSecure, "0.0.0.0", port);
+    evhttp_set_bevcb(mServerSecure, bevcb, mSslCtx);
+
+    Out(mLogName, "Started HTTPS server on port {}", port);
+    mRunningSecure = true;
+    mPostStartSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
+    return 1;
+}
+
+int HttpServer::StopSecure() {
+    if (!mRunningSecure)
+        return 0;
+
+    if (mSslCtx != nullptr) {
+        SSL_CTX_free(mSslCtx);
+        mSslCtx = nullptr;
+    }
+
+    /*if (mEcKeyPair != nullptr) {
+        EVP_PKEY_free(mEcKeyPair);
+        mEcKeyPair = nullptr;
+    }*/
+
+    mPreStopSignal.Fire();
+    mRunningSecure = false;
+    Out(mLogName, "Stopping HTTPS server...");
+
+    evhttp_free(mServerSecure);
+    mServerSecure = nullptr;
     HandlerUserdata.clear();
     mPostStopSignal.Fire();
     return 1;
@@ -95,14 +204,21 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
     auto handler_userdata_pair = std::make_unique<std::tuple<Handler*, void*>>(handler, userdata);
     auto *raw = handler_userdata_pair.get();
     HandlerUserdata.push_back(std::move(handler_userdata_pair));
-    if (uri != nullptr)
-        evhttp_set_cb(Server, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
-    else
-        evhttp_set_gencb(Server, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+    if (uri != nullptr) {
+        if (mServer != nullptr)
+            evhttp_set_cb(mServer, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+        if (mServerSecure != nullptr)
+            evhttp_set_cb(mServerSecure, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+    } else {
+        if (mServer != nullptr)
+            evhttp_set_gencb(mServer, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+        if (mServerSecure != nullptr)
+            evhttp_set_gencb(mServerSecure, CFuncToObjectFuncHandler, static_cast<void*>(raw));
+    }
 }
 
 VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {
-    Out("HttpServer", "Mounting {} to volume {}", urlPath.Resolve(), root);
+    Out(mLogName, "Mounting {} to volume {}", urlPath.Resolve(), root);
     std::unique_ptr<VirtualFileSystem> vfs;
     std::filesystem::path path = urlPath.ResolveAsLocalPath(mCore);
     if (path.extension().compare(".zip") == 0) {
@@ -136,10 +252,10 @@ LuaSignal* HttpServer::GetOnRequestSignal() {
 }
 
 bool HttpServer::IsRunning() {
-    return Running;
+    return mRunning;
 }
 
-NoobWarrior::Core *HttpServer::GetCore() {
+Core *HttpServer::GetCore() {
     return mCore;
 }
 

@@ -60,7 +60,7 @@ CPMAddPackage(
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
-    OPTIONS "EVENT__LIBRARY_TYPE STATIC"
+    OPTIONS "EVENT__LIBRARY_TYPE STATIC" "EVENT__DISABLE_OPENSSL OFF"
 )
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
@@ -139,6 +139,7 @@ target_sources(NoobWarrior.Core PRIVATE
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC
+    OpenSSL::SSL
     OpenSSL::Crypto
     libcurl
     sqlite3
@@ -147,6 +148,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     nlohmann_json
     event_core
     event_extra
+    event_openssl
     libzip::zip
     pugixml-static
 )

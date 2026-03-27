@@ -33,6 +33,9 @@
 #include <event.h>
 #include <sqlite3.h>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #if defined(_WIN32)
 #include <windows.h>
 #include <winsock2.h>
@@ -71,6 +74,11 @@ Core::Core(Init init) :
         WSACleanup();
     }
 #endif
+
+    SSL_library_init();
+    ERR_load_crypto_strings();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
 
     Out("Core", std::format("noobWarrior is{}in portable mode", mInit.Portable ? " " : " not "));
 
@@ -243,10 +251,12 @@ void Core::CreateStandardUserDataDirectories() {
 }
 
 int Core::StartServerEmulator(uint16_t port) {
+    mServerEmulator->StartSecure(8081);
     return mServerEmulator->Start(port);
 }
 
 int Core::StopServerEmulator() {
+    mServerEmulator->StopSecure();
     return mServerEmulator->Stop();
 }
 
