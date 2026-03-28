@@ -14,7 +14,7 @@
 
 body {
     background-image: linear-gradient(to right, rgb(63, 62, 63), rgb(43, 42, 43), rgb(33, 32, 33), rgb(33, 32, 33), rgb(43, 42, 43), rgb(63, 62, 63));
-    color: #aeadac;
+    color: white;
     font-family: "Source Sans Pro", "Helvetica", "Arial", "Noto Sans", serif;
 }
 
@@ -45,6 +45,13 @@ body {
     padding: 0;
 }
 
+.account-box {
+    background-color: #6c757d;
+    border: #2b2f32;
+    float: right;
+    padding: 16px;
+}
+
 .navbar {
     background-color: rgb(16, 16, 16);
     width: 100%;
@@ -52,7 +59,7 @@ body {
     margin: 0;
     padding: 0;
     overflow: auto;
-    display: flex;
+    justify-content: space-between;
 }
 
 .navbar a, .navbar p {
@@ -69,7 +76,7 @@ body {
 }
 
 .navbar a {
-    padding: 16px 0px 16px 16px;
+    padding: 8px;
     font-size: 16px;
     display: inline-block;
     color: white;
@@ -77,6 +84,18 @@ body {
 
 .navbar a:hover {
     color: #aeadac;
+}
+
+.navbar-left {
+    display: flex;
+    float: left;
+    text-align: left;
+}
+
+.navbar-right {
+    display: flex;
+    float: right;
+    text-align: right;
 }
 
 .content {

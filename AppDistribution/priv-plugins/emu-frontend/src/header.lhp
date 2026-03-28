@@ -19,11 +19,26 @@ end
                 <span id="brand-logo"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64"><p>noobWarrior</p></span>
             </div>
             <ul class="navbar">
+                <div class="navbar-left">
                 <?lua
                     AddNavbarButton("/", "Home")
-                    AddNavbarButton("/", "Servers")
-                    AddNavbarButton("/", "Library")
-                    AddNavbarButton("/login", "Login")
+                    AddNavbarButton("/servers", "Servers")
+                    AddNavbarButton("/games", "Games")
+                    AddNavbarButton("/catalog", "Catalog")
+                    AddNavbarButton("/users", "Users")
+                    AddNavbarButton("/develop", "Develop")
+                    AddNavbarButton("/forums", "Forums")
+                    AddNavbarButton("/groups", "Groups")
+                    AddNavbarButton("/help", "Help")
                 ?>
+                </div>
+                <div class="navbar-right">
+                <?lua
+                    AddNavbarButton("/groups", "Control Panel")
+                    AddNavbarButton("/groups", "Messages")
+                    AddNavbarButton("/groups", "Settings")
+                    AddNavbarButton("/groups", "Hattozo")
+                ?>
+                </div>
             </ul>
             <div class="content">
