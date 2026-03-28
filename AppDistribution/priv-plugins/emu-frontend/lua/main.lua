@@ -11,12 +11,12 @@ if emu == nil then
 end
 emu:MountVolume("/", "/static")
 
-emu.PreStart:Connect(function()
-    print("Starting server emulator frontend!")
+emu.PreStart:Connect(function(secure)
+    print("Starting "..(secure and "HTTPS" or "HTTP").." server emulator frontend!")
 end)
 
-emu.PreStop:Connect(function()
-    print("Stopping server emulator frontend!")
+emu.PreStop:Connect(function(secure)
+    print("Stopping "..(secure and "HTTPS" or "HTTP").." server emulator frontend!")
 end)
 
 local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")

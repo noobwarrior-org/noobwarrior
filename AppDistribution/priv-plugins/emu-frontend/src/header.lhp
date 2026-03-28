@@ -1,3 +1,9 @@
+<?lua
+startRenderTime = os.clock()
+local function AddNavbarButton(url, name)
+   echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
+end
+?>
 <!DOCTYPE html>
 <html>
     <head>
@@ -9,12 +15,15 @@
         <br>
         <div class="main">
             <div class="header">
-                <span style="float: left;"><img src="/img/icon1024.png" alt="Server emulator logo" width="64" height="64">Server Emulator</span>
-                <span style="float: right;"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64">noobWarrior</span>
+                <span id="emu-logo"><img src="/img/icon1024.png" alt="Server emulator logo" width="64" height="64"><p>Server Emulator</p></span>
+                <span id="brand-logo"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64"><p>noobWarrior</p></span>
             </div>
             <ul class="navbar">
-                <li id="navhome"><a href="./index.html">home</a></li>
-                <li id="navgit"><a href="https://github.com/noobwarrior-org">git</a></li>
-                <li id="navcontact"><a href="./contact.html">contact</a></li>
+                <?lua
+                    AddNavbarButton("/", "Home")
+                    AddNavbarButton("/", "Servers")
+                    AddNavbarButton("/", "Library")
+                    AddNavbarButton("/login", "Login")
+                ?>
             </ul>
             <div class="content">

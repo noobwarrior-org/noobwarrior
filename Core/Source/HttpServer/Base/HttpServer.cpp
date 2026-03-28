@@ -41,18 +41,6 @@
 
 using namespace NoobWarrior;
 
-static void request_handler(struct evhttp_request *req, void *arg) {
-    struct evbuffer *buf = evbuffer_new();
-    if (!buf) return;
-
-    evbuffer_add_printf(buf, "<html><body><h1>Hello from libevent HTTPS!</h1></body></html>");
-
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Content-Type", "text/html");
-    evhttp_send_reply(req, HTTP_OK, "OK", buf);
-    evbuffer_free(buf);
-}
-
 static bufferevent* bevcb(struct event_base *base, void *arg) {
     bufferevent* r;
     if (arg == nullptr) {
@@ -101,7 +89,7 @@ int HttpServer::Start(uint16_t port) {
     if (mRunning)
         return 0;
 
-    mPreStartSignal.Fire();
+    mPreStartSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     mServer = evhttp_new(mCore->GetEventBase());
     evhttp_bind_socket(mServer, "0.0.0.0", port);
 
@@ -113,7 +101,7 @@ int HttpServer::Start(uint16_t port) {
 
     Out(mLogName, "Started HTTP server on port {}", port);
     mRunning = true;
-    mPostStartSignal.Fire();
+    mPostStartSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     return 1;
 }
 
@@ -187,14 +175,14 @@ int HttpServer::StopSecure() {
         mEcKeyPair = nullptr;
     }*/
 
-    mPreStopSignal.Fire();
+    mPreStopSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
     mRunningSecure = false;
     Out(mLogName, "Stopping HTTPS server...");
 
     evhttp_free(mServerSecure);
     mServerSecure = nullptr;
     HandlerUserdata.clear();
-    mPostStopSignal.Fire();
+    mPostStopSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
     return 1;
 }
 

@@ -13,8 +13,6 @@
                 <span style="float: right;"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64">noobWarrior</span>
             </div>
             <ul class="navbar">
-                <li id="navhome"><a href="./index.html">home</a></li>
-                <li id="navgit"><a href="https://github.com/noobwarrior-org">git</a></li>
-                <li id="navcontact"><a href="./contact.html">contact</a></li>
+                <li><a href="/">Home</a></li>
             </ul>
             <div class="content">
