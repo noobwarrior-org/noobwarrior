@@ -105,7 +105,7 @@ int LuaState::Open() {
 
 #define LOADLIBRARY(strVar, name) \
     sol::protected_function_result strVar##_res = do_string(strVar); \
-    if (strVar##_res.valid() &&strVar##_res.get_type() == sol::type::table) { \
+    if (strVar##_res.valid() && strVar##_res.get_type() == sol::type::table) { \
         set(name, strVar##_res.get<sol::table>()); \
     }
     

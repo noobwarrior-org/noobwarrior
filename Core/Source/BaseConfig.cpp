@@ -200,16 +200,3 @@ std::string NoobWarrior::BaseConfig::GetLuaError() {
 void NoobWarrior::BaseConfig::SetKeyComment(const char *key, const char *comment) {
 
 }
-
-std::string NoobWarrior::BaseConfig::ConvertJsonStrToLuaStr(const std::string &jsonStr) {
-    lua_State* L = mLua->Get();
-    std::string str;
-    std::string stmt = std::format("local jsonToTbl = json.parse('{}')\nlocal tblString = serpent.block(jsonToTbl)\nreturn tblString", jsonStr);
-    int err = luaL_dostring(L, stmt.c_str());
-    if (err)
-        Out("Config", "Failed to convert JSON string to Lua table string: {}", lua_tostring(L, -1));
-    else
-        str = lua_tostring(L, -1);
-    lua_pop(L, 1);
-    return str;
-}
