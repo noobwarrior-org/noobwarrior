@@ -38,7 +38,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("JoinScriptJsonHandler", "Sent!");
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, JSON);
+    evbuffer_add_printf(reply, "%s", JSON);
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

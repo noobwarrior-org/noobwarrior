@@ -35,7 +35,7 @@ void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("ClientSettingsHandler", "Hello");
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, PCDesktopClient_json);
+    evbuffer_add_printf(reply, "%s", PCDesktopClient_json);
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }
