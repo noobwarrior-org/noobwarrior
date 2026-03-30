@@ -26,7 +26,7 @@
 
 using namespace NoobWarrior;
 
-MasterKeychain::MasterKeychain(Config *config) : Keychain(config) {}
+MasterKeychain::MasterKeychain(Registry *registry) : Keychain(registry) {}
 
 std::string MasterKeychain::GetName() {
     return "master";

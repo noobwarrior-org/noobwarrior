@@ -42,7 +42,7 @@ void GeneralPage::InitWidgets() {
     auto uiLayout = new QFormLayout(uiBox);
     uiBox->setLayout(uiLayout);
 
-    gApp->GetCore()->GetConfig()->GetKeyValue<std::string>("language");
+    gApp->GetCore()->GetRegistry()->GetKeyValue<std::string>("language");
 
     uiLayout->addRow(new QLabel("Language"), new QComboBox());
     uiLayout->addRow(new QLabel("Theme"), new QComboBox());

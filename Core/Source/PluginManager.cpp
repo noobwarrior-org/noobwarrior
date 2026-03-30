@@ -82,7 +82,7 @@ void PluginManager::MountPlugins() {
     }
     */
 
-    auto selected = mCore->GetConfig()->GetKeyValue<nlohmann::json>("plugins.selected");
+    auto selected = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("plugins.selected");
     if (!selected.has_value())
         return;
     

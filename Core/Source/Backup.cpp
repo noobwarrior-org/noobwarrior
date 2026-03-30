@@ -23,7 +23,7 @@
 // Started on: 3/5/2025
 // Description: All functions that concern backing up data from Roblox servers to your computer belong here
 #include <NoobWarrior/Backup.h>
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
@@ -127,7 +127,7 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
         char* fileName = (char*)malloc(idDigits + 1);
         snprintf(fileName, idDigits + 1, "%i", (int)id);
 
-        std::optional<std::string> download_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
+        std::optional<std::string> download_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_download");
         if (!download_url.has_value())
             return -2;
 
@@ -171,7 +171,7 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
 
 int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     int ret = 0;
-    std::optional<std::string> details_url = GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_details");
+    std::optional<std::string> details_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details");
     if (!details_url.has_value())
         return -2;
 
@@ -295,7 +295,7 @@ void Backup::DestroyProcess(Process* proc) {
 }
 
 Backup::Response Backup::StartProcess(Process* proc) {
-    std::optional<std::string> asset_download_url = proc->Core->GetConfig()->GetKeyValue<std::string>("internet.roblox.asset_download");
+    std::optional<std::string> asset_download_url = proc->Core->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_download");
 
     if (!asset_download_url.has_value())
         return Backup::Response::UrlNotSet;

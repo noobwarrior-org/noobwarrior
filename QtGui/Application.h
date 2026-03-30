@@ -34,7 +34,7 @@ public:
     Application(int &argc, char **argv);
     int Run();
     Core *GetCore();
-    bool CheckConfigResponse(ConfigResponse res, const QString &errStr);
+    bool CheckConfigResponse(RegistryResponse res, const QString &errStr);
 
     // GUI versions for downloading engines
     void DownloadAndInstallWine(std::function<void(bool)> callback);

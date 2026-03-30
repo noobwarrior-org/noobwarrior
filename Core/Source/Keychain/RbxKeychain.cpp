@@ -34,7 +34,7 @@ static size_t CurlWriteToBuf(void *contents, size_t size, size_t nmemb, std::str
     return totalSize;
 }
 
-RbxKeychain::RbxKeychain(Config *config) : Keychain(config) {}
+RbxKeychain::RbxKeychain(Registry *registry) : Keychain(registry) {}
 
 std::string RbxKeychain::GetName() {
     return "rbx";

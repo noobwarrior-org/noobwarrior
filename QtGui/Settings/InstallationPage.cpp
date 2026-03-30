@@ -110,7 +110,7 @@ void InstallationPage::Refresh() {
     nlohmann::json index;
     int res = gApp->GetCore()->RetrieveIndex(index);
     if (res != CURLE_OK) {
-        auto url = gApp->GetCore()->GetConfig()->GetKeyValue<std::string>("internet.index");
+        auto url = gApp->GetCore()->GetRegistry()->GetKeyValue<std::string>("internet.index");
         QString errMsg;
         switch (res) {
             default: errMsg = QString("Could not connect to server for file \"\"").arg(QString::fromStdString(url.value())); break;

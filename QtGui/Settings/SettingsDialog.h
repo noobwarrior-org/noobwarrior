@@ -25,7 +25,7 @@
 #pragma once
 #include "SettingsPage.h"
 
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <QDialog>
 #include <QFrame>
 #include <QListWidget>

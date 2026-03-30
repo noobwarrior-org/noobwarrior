@@ -45,9 +45,9 @@ Account Keychain::AccJsonToStruct(nlohmann::json &json) {
     return acc;
 }
 
-Keychain::Keychain(Config* config)  :
+Keychain::Keychain(Registry* registry)  :
     ActiveAccount(nullptr),
-    mConfig(config)
+    mRegistry(registry)
 {}
 
 bool Keychain::HasAccountExpired(Account &acc) {
@@ -73,7 +73,7 @@ AuthResponse Keychain::ReadFromKeychain() {
             Account acc = AccJsonToStruct(accJson);
             Accounts.push_back(acc);
 
-            std::optional<std::string> active_account_thing = mConfig->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
+            std::optional<std::string> active_account_thing = mRegistry->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
             if (active_account_thing.has_value() && active_account_thing.value().compare(acc.Name) == 0)
                 ActiveAccount = &Accounts.back();
         }
@@ -85,7 +85,7 @@ AuthResponse Keychain::ReadFromKeychain() {
 
 AuthResponse Keychain::WriteToKeychain() {
     if (ActiveAccount != nullptr)
-        mConfig->SetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()), ActiveAccount->Name);
+        mRegistry->SetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()), ActiveAccount->Name);
 
     nlohmann::json accountsJson {};
     for (auto &acc : Accounts) {

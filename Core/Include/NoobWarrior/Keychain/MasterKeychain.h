@@ -24,13 +24,13 @@
 // Description: Keychain for master servers.
 // Don't get the name mixed up. It is not the keychains of keychains.
 #pragma once
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Keychain/Keychain.h>
 
 namespace NoobWarrior {
 class MasterKeychain : public Keychain {
 public:
-    MasterKeychain(Config *config);
+    MasterKeychain(Registry *registry);
     std::string GetName() override;
 };
 }

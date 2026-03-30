@@ -46,7 +46,7 @@ void MasterServerSidebar::InitWidgets() {
     mModel->invisibleRootItem()->appendRow(favoritesRow);
     mModel->invisibleRootItem()->appendRow(recentsRow);
     
-    std::optional<nlohmann::json> servers = gApp->GetCore()->GetConfig()->GetKeyValue<nlohmann::json>("gui.master_servers");
+    std::optional<nlohmann::json> servers = gApp->GetCore()->GetRegistry()->GetKeyValue<nlohmann::json>("gui.master_servers");
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
             NetClient client;

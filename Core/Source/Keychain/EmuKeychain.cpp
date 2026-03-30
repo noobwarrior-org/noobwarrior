@@ -28,7 +28,7 @@
 
 using namespace NoobWarrior;
 
-EmuKeychain::EmuKeychain(Config *config) : RbxKeychain(config) {}
+EmuKeychain::EmuKeychain(Registry *registry) : RbxKeychain(registry) {}
 
 std::string EmuKeychain::GetName() {
     return "emu";

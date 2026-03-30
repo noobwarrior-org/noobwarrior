@@ -108,8 +108,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Lua/Bridge/HttpServerBridge.cpp
     Source/Lua/Bridge/ServerEmulatorBridge.cpp
     Source/Lua/Bridge/VfsBridge.cpp
-    Source/BaseConfig.cpp
-    Source/Config.cpp
+    Source/BaseRegistry.cpp
+    Source/Registry.cpp
     Source/Plugin.cpp
     Source/PluginManager.cpp
     Source/Log.cpp
@@ -153,9 +153,6 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     pugixml-static
 )
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
-target_compile_definitions(NoobWarrior.Core PRIVATE
-    SOL_ALL_SAFETIES_ON
-)
 
 # some code here borrowed from https://github.com/hrantzsch/keychain/blob/master/CMakeLists.txt
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")

@@ -18,18 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Config.h
+// File: Registry.h
 // Started by: Hattozo
 // Started on: 3/8/2025
 // Description:
 #pragma once
-#include <NoobWarrior/BaseConfig.h>
+#include <NoobWarrior/BaseRegistry.h>
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-#define NOOBWARRIOR_CONFIG_VERSION 1
+#define NOOBWARRIOR_REGISTRY_VERSION 1
 #define NOOBWARRIOR_USERDATA_DIRNAME "noobWarrior"
 
 namespace NoobWarrior {
@@ -39,9 +39,9 @@ enum class Theme {
     Default = 0,
 };
 
-class Config : public BaseConfig {
+class Registry : public BaseRegistry {
 public:
-    Config(const std::filesystem::path &filePath, LuaState* lua);
-    ConfigResponse Open() override;
+    Registry(const std::filesystem::path &filePath, LuaState* lua);
+    RegistryResponse Open() override;
 };
 }

@@ -24,7 +24,7 @@
 // Description: A list of accounts that can authenticate with a specific service
 // These keys are securely stored using the appropriate API's for your operating system
 #pragma once
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Keychain/OsKeychain.h>
 
 #include <string>
@@ -60,7 +60,7 @@ public:
     static nlohmann::json AccStructToJson(Account &acc);
     static Account AccJsonToStruct(nlohmann::json &json);
 
-    Keychain(Config* config);
+    Keychain(Registry* registry);
 
     bool HasAccountExpired(Account &acc);
 
@@ -89,6 +89,6 @@ protected:
 
     std::vector<Account>    Accounts;
     Account*                ActiveAccount;
-    Config*                 mConfig;
+    Registry*                 mRegistry;
 };
 }

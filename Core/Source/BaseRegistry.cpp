@@ -18,16 +18,16 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: BaseConfig.cpp
+// File: BaseRegistry.cpp
 // Started by: Hattozo
 // Started on: 6/23/2025
 // Description:
-#include <NoobWarrior/BaseConfig.h>
+#include <NoobWarrior/BaseRegistry.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <utility>
 
-#include "Lua/files/config_metatable.lua.inc.cpp"
+#include "Lua/files/registry_metatable.lua.inc.cpp"
 #include "Lua/files/serpent.lua.inc.cpp"
 
 static int custom_serializer_func(lua_State *L) {
@@ -41,14 +41,14 @@ static int custom_serializer_func(lua_State *L) {
     return 1;
 }
 
-NoobWarrior::BaseConfig::BaseConfig(std::string globalName, std::filesystem::path filePath, LuaState* lua) :
+NoobWarrior::BaseRegistry::BaseRegistry(std::string globalName, std::filesystem::path filePath, LuaState* lua) :
     mGlobalName(std::move(globalName)),
     mFilePath(std::move(filePath)),
     mFileOutput(nullptr),
     mLua(lua)
 {}
 
-NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
+NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
     lua_State* L = mLua->Get();
     mLastError = "";
 
@@ -61,10 +61,10 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
         if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
         switch (res) {
             case LUA_OK: break;
-            case LUA_ERRSYNTAX: return ConfigResponse::SyntaxError;
-            case LUA_ERRMEM: return ConfigResponse::MemoryError;
-            case LUA_ERRFILE: return ConfigResponse::CantReadFile;
-            default: return ConfigResponse::Failed;
+            case LUA_ERRSYNTAX: return RegistryResponse::SyntaxError;
+            case LUA_ERRMEM: return RegistryResponse::MemoryError;
+            case LUA_ERRFILE: return RegistryResponse::CantReadFile;
+            default: return RegistryResponse::Failed;
         }
 
         res = lua_pcall(L, 0, 1, 0);
@@ -72,7 +72,7 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
         if (res != LUA_OK) {
             mLastError = lua_tostring(L, -1);
             lua_pop(L, 1);
-            return ConfigResponse::ErrorDuringExecution;
+            return RegistryResponse::ErrorDuringExecution;
         }
 
         if (!lua_istable(L, -1)) {
@@ -81,36 +81,36 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Open() {
             res = lua_pcall(L, 1, 0, 0);
             mLastError = lua_tostring(L, -1);
             lua_pop(L, 2);
-            return ConfigResponse::ReturningWrongType;
+            return RegistryResponse::ReturningWrongType;
         }
     }
 
-    lua_setglobal(L, mGlobalName.c_str()); // set our global as what our config file returned, a table. also pops it off the stack
+    lua_setglobal(L, mGlobalName.c_str()); // set our global as what our registry file returned, a table. also pops it off the stack
 
-    // Attach a metatable to our config table that will make it so that if you index anything in it, it will make it a table if its nil.
-    // This is really good for doing assignments that require access to a lot of tables like "config.gui.database_editor.content_browser.size.x = 200"
+    // Attach a metatable to our registry table that will make it so that if you index anything in it, it will make it a table if its nil.
+    // This is really good for doing assignments that require access to a lot of tables like "registry.gui.database_editor.content_browser.size.x = 200"
     // because it will auto-create each table in the process without having to manually do it yourself.
     //
     // Of course this can get messy, so when we serialize the table we remove any empty tables beforehand so that it
     // doesn't look godawful when you open it in your text editor
     char buf[2048];
-    snprintf(buf, 2048, config_metatable_lua, mGlobalName.c_str());
+    snprintf(buf, 2048, registry_metatable_lua, mGlobalName.c_str());
     luaL_dostring(L, buf);
 
     if (lua_isstring(L, -1)) {
         // uh oh, error message was pushed onto the stack
         mLastError = lua_tostring(L, -1);
         lua_pop(L, 1);
-        return ConfigResponse::ErrorDuringExecution;
+        return RegistryResponse::ErrorDuringExecution;
     }
 
-    Out("Config", "Opened config");
-    return ConfigResponse::Success;
+    Out("Registry", "Opened registry");
+    return RegistryResponse::Success;
 }
 
-NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
+NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
     lua_State* L = mLua->Get();
-    // First lets remove all empty tables in our config table.
+    // First lets remove all empty tables in our registry table.
     // Since our metatable will automatically set any indexed nil value to a table, it creates a lot of clutter and junk
     std::string pruneSrc = std::format(R"(
         local function prune(tbl)
@@ -129,7 +129,7 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     if (int err = luaL_dostring(L, pruneSrc.c_str()); err != LUA_OK) {
         mLastError = lua_tostring(L, -1);
         lua_pop(L, 1);
-        return ConfigResponse::ErrorDuringExecution;
+        return RegistryResponse::ErrorDuringExecution;
     }
 
     // Load in serpent.lua through our header file that embeds it into the program.
@@ -138,10 +138,10 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
     switch (res) {
         case LUA_OK: break;
-        case LUA_ERRSYNTAX: return ConfigResponse::SyntaxError;
-        case LUA_ERRMEM: return ConfigResponse::MemoryError;
-        case LUA_ERRFILE: return ConfigResponse::CantReadFile;
-        default: return ConfigResponse::Failed;
+        case LUA_ERRSYNTAX: return RegistryResponse::SyntaxError;
+        case LUA_ERRMEM: return RegistryResponse::MemoryError;
+        case LUA_ERRFILE: return RegistryResponse::CantReadFile;
+        default: return RegistryResponse::Failed;
     }
 
     res = lua_pcall(L, 0, 1, 0);
@@ -149,14 +149,14 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     if (res != LUA_OK) {
         mLastError = lua_tostring(L, -1);
         lua_pop(L, 1);
-        return ConfigResponse::ErrorDuringExecution;
+        return RegistryResponse::ErrorDuringExecution;
     }
 
-    // now that we have serpent.lua on our stack, access one of the functions it has (block) and add our config global
+    // now that we have serpent.lua on our stack, access one of the functions it has (block) and add our registry global
     // as the arguments. and then call it.
     lua_getfield(L, -1, "block");
 
-    lua_getglobal(L, mGlobalName.c_str()); // arg 1: our global config table
+    lua_getglobal(L, mGlobalName.c_str()); // arg 1: our global registry table
 
     lua_newtable(L); // arg 2: options table
         lua_pushstring(L, "    ");
@@ -173,30 +173,30 @@ NoobWarrior::ConfigResponse NoobWarrior::BaseConfig::Close() {
     if (res != LUA_OK) {
         mLastError = lua_tostring(L, -1);
         lua_pop(L, 2); // you still have this error message and the serpent.lua table on the stack so pop those 2
-        return ConfigResponse::ErrorDuringExecution;
+        return RegistryResponse::ErrorDuringExecution;
     }
 
-    const char *serializedConfigTable = lua_tostring(L, -1); // now we have our serialized table
+    const char *serializedRegistryTable = lua_tostring(L, -1); // now we have our serialized table
 
     // open file and write to it
     if (mFileOutput != nullptr) { NOOBWARRIOR_FREE_PTR(mFileOutput) }
     mFileOutput = new std::ofstream(mFilePath);
     if (mFileOutput->fail())
-        return ConfigResponse::CantReadFile;
-    *mFileOutput << "return " << serializedConfigTable;
+        return RegistryResponse::CantReadFile;
+    *mFileOutput << "return " << serializedRegistryTable;
     NOOBWARRIOR_FREE_PTR(mFileOutput)
 
     lua_pop(L, 2); // pop the string and table
 
-    Out("Config", "Closed config");
+    Out("Registry", "Closed registry");
 
-    return ConfigResponse::Success;
+    return RegistryResponse::Success;
 }
 
-std::string NoobWarrior::BaseConfig::GetLuaError() {
+std::string NoobWarrior::BaseRegistry::GetLuaError() {
     return mLastError;
 }
 
-void NoobWarrior::BaseConfig::SetKeyComment(const char *key, const char *comment) {
+void NoobWarrior::BaseRegistry::SetKeyComment(const char *key, const char *comment) {
 
 }

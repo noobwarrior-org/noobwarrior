@@ -24,13 +24,13 @@
 // Description: Manages authentication of Roblox accounts for use with the noobWarrior library
 // Should also work with server emulators since the API endpoints are the same
 #pragma once
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Keychain/Keychain.h>
 
 namespace NoobWarrior {
 class RbxKeychain : public Keychain {
 public:
-    RbxKeychain(Config *config);
+    RbxKeychain(Registry *registry);
     std::string GetName() override;
 protected:
     nlohmann::json GetJsonFromToken(const std::string &token) override;

@@ -29,7 +29,7 @@
 #include "NoobWarrior/EmuDb/ContentImages.h"
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <vector>
@@ -42,7 +42,7 @@ EmuDbManager::EmuDbManager(Core *core) :
 
 void EmuDbManager::MountDatabases() {
     int filePriority = 0;
-    auto mounted = mCore->GetConfig()->GetKeyValue<nlohmann::json>("databases.mounted");
+    auto mounted = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("databases.mounted");
     if (!mounted.has_value())
         return;
 

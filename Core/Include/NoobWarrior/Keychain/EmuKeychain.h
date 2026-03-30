@@ -24,13 +24,13 @@
 // Description: Manages authentication of server emulator accounts for use with the noobWarrior library
 // This is based off the Roblox keychain since the API endpoints are the same
 #pragma once
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Keychain/RbxKeychain.h>
 
 namespace NoobWarrior {
 class EmuKeychain : public RbxKeychain {
 public:
-    EmuKeychain(Config *config);
+    EmuKeychain(Registry *registry);
     std::string GetName() override;
 };
 }

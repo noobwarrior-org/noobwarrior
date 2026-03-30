@@ -28,7 +28,7 @@
 #include "Paths.h"
 #include "Lua/LuaState.h"
 #include "EmuDb/EmuDb.h"
-#include "Config.h"
+#include "Registry.h"
 #include "NoobWarrior/Keychain/RbxKeychain.h"
 #include "PluginManager.h"
 #include "EmuDb/EmuDb.h"
@@ -116,11 +116,11 @@ public:
      */
     int ProcessEvents(bool block = false);
 
-    ConfigResponse ConfigReturnCode;
+    RegistryResponse RegistryReturnCode;
 
     event_base *GetEventBase();
     LuaState *GetLuaState();
-    Config *GetConfig();
+    Registry *GetRegistry();
     EmuDbManager *GetEmuDbManager();
     PluginManager *GetPluginManager();
 
@@ -179,7 +179,7 @@ private:
 
     Init                            mInit;
     LuaState*                       mLuaState;
-    Config*                         mConfig;
+    Registry*                         mRegistry;
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 

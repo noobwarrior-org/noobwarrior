@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Config.cpp
+// File: Registry.cpp
 // Started by: Hattozo
 // Started on: 3/8/2025
 // Description: Tweaks various parameters of noobWarrior functionality
-#include <NoobWarrior/Config.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 #include <fstream>
@@ -31,12 +31,12 @@
 
 using namespace NoobWarrior;
 
-Config::Config(const std::filesystem::path &filePath, LuaState* lua) : BaseConfig("config", filePath, lua)
+Registry::Registry(const std::filesystem::path &filePath, LuaState* lua) : BaseRegistry("registry", filePath, lua)
 {}
 
-ConfigResponse Config::Open() {
-    if (const ConfigResponse res = BaseConfig::Open(); res != ConfigResponse::Success) return res;
-    SetKeyValue("meta.version", NOOBWARRIOR_CONFIG_VERSION);
+RegistryResponse Registry::Open() {
+    if (const RegistryResponse res = BaseRegistry::Open(); res != RegistryResponse::Success) return res;
+    SetKeyValue("meta.version", NOOBWARRIOR_REGISTRY_VERSION);
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "default");
 
@@ -229,5 +229,5 @@ ConfigResponse Config::Open() {
 
     SetKeyValueIfNotSet("wine.exe", "wine");
     SetKeyValueIfNotSet("wine.prefix", "");
-    return ConfigResponse::Success;
+    return RegistryResponse::Success;
 }

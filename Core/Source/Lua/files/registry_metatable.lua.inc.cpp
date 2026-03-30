@@ -17,7 +17,7 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
-static const char *config_metatable_lua = R"***(
+static const char *registry_metatable_lua = R"***(
 local metatable
 metatable = {
     __index = function(table, index)

@@ -90,9 +90,9 @@ Core::Core(Init init) :
     mLuaState = new LuaState(this);
     mLuaState->Open();
 
-    mConfig = new Config(GetUserDataDir() / "config.lua", mLuaState);
-    mRbxKeychain = new RbxKeychain(mConfig);
-    ConfigReturnCode = mConfig->Open();
+    mRegistry = new Registry(GetUserDataDir() / "registry.lua", mLuaState);
+    mRbxKeychain = new RbxKeychain(mRegistry);
+    RegistryReturnCode = mRegistry->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
 
@@ -124,8 +124,8 @@ Core::~Core() {
     sqlite3_shutdown();
     curl_global_cleanup();
 
-    ConfigReturnCode = mConfig->Close();
-    NOOBWARRIOR_FREE_PTR(mConfig)
+    RegistryReturnCode = mRegistry->Close();
+    NOOBWARRIOR_FREE_PTR(mRegistry)
     
     NOOBWARRIOR_FREE_PTR(mLuaState)
 
@@ -152,8 +152,8 @@ LuaState *Core::GetLuaState() {
     return mLuaState;
 }
 
-Config *Core::GetConfig() {
-    return mConfig;
+Registry *Core::GetRegistry() {
+    return mRegistry;
 }
 
 EmuDbManager *Core::GetEmuDbManager() {
@@ -233,7 +233,6 @@ void Core::CreateStandardUserDataDirectories() {
 #define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path);
     NW_CREATE(NW_PATH_DATABASES)
     NW_CREATE(NW_PATH_PLUGINS)
-    NW_CREATE(NW_PATH_REGISTRY)
     NW_CREATE(NW_PATH_ENGINES)
     NW_CREATE(NW_PATH_ENGINES_ROBLOX)
     NW_CREATE(NW_PATH_ENGINES_ROBLOX_CLIENT)
@@ -275,7 +274,7 @@ int Core::RetrieveIndex(nlohmann::json &index, bool forceRefresh) {
         return CURLE_OK;
     }
 
-    auto url = mConfig->GetKeyValue<const char*>("internet.index");
+    auto url = mRegistry->GetKeyValue<const char*>("internet.index");
     if (!url.has_value())
         return -1;
 
