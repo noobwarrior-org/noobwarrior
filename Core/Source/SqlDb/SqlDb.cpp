@@ -113,9 +113,11 @@ SqlRows SqlDb::GetPragma(const std::string &key) {
     return Query("PRAGMA " + key + ";");
 }
 
-SqlRows SqlDb::Query(const std::string &stmtStr) {
+SqlRows SqlDb::Query(const std::string &stmtStr, bool* failed) {
     SqlRows rows;
     Statement stmt = PrepareStatement(stmtStr);
+    if (failed != nullptr)
+        *failed = stmt.Fail();
     if (stmt.Fail())
         return {};
     while (stmt.Step() == SQLITE_ROW) {

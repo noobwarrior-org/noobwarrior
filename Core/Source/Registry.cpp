@@ -54,7 +54,6 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.branding.title", "noobWarrior");
     SetKeyValueIfNotSet("emu.branding.logo", "/img/icon1024.png");
-    SetKeyValueIfNotSet("emu.branding.favicon", "/img/favicon.ico");
     SetKeyValueIfNotSet("emu.branding.tagline", "My noobWarrior server");
     SetKeyComment("emu.branding", "The branding that people will see when they connect to your website.");
 

@@ -28,7 +28,7 @@
 
 using namespace NoobWarrior;
 
-Statement::Statement(SqlDb *db, const std::string &str): mDatabase(db), mFailed(false) {
+Statement::Statement(SqlDb *db, const std::string &str): mDatabase(db), mStmt(nullptr), mFailed(false) {
     if (sqlite3_prepare_v2(db->mDb, str.c_str(), -1, &mStmt, nullptr) != SQLITE_OK) {
         mFailed = true;
     }
@@ -38,23 +38,23 @@ Statement::~Statement() {
     sqlite3_finalize(mStmt);
 }
 
-int Statement::Step() {
+int Statement::Step() const {
     return sqlite3_step(mStmt);
 }
 
-int Statement::Reset() {
+int Statement::Reset() const {
     return sqlite3_reset(mStmt);
 }
 
-int Statement::ClearBindings() {
+int Statement::ClearBindings() const {
     return sqlite3_clear_bindings(mStmt);
 }
 
-bool Statement::Fail() {
+bool Statement::Fail() const {
     return mFailed;
 }
 
-SqlValue Statement::GetValueFromColumnIndex(int columnIndex) {
+SqlValue Statement::GetValueFromColumnIndex(int columnIndex) const {
     std::vector<unsigned char> data;
     unsigned char* buf;
 
@@ -71,16 +71,16 @@ SqlValue Statement::GetValueFromColumnIndex(int columnIndex) {
     }
 }
 
-SqlRow Statement::GetColumns() {
+SqlRow Statement::GetColumns() const {
     SqlRow row;
     for (int i = 0; i < sqlite3_column_count(mStmt); i++) {
-        SqlColumn column = {sqlite3_column_name(mStmt, i), GetValueFromColumnIndex(i)};
+        SqlColumn column = { sqlite3_column_name(mStmt, i), GetValueFromColumnIndex(i) };
         row.push_back(column);
     }
     return row;
 }
 
-std::map<std::string, SqlValue> Statement::GetColumnMap() {
+std::map<std::string, SqlValue> Statement::GetColumnMap() const {
     std::map<std::string, SqlValue> columnMap;
     for (int i = 0; i < sqlite3_column_count(mStmt); i++) {
         std::string name = { sqlite3_column_name(mStmt, i) };

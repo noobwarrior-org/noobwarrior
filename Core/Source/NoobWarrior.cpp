@@ -101,6 +101,7 @@ Core::Core(Init init) :
 
     mServerEmulator = new ServerEmulator(this);
     mLuaState->set("emu", mServerEmulator);
+    mLuaState->set("emu_db_mgr", mEmuDbManager);
 
     if (mInit.EnableKeychain)
         GetRbxKeychain()->ReadFromKeychain();

@@ -90,7 +90,7 @@ public:
     Statement PrepareStatement(const std::string &stmtStr);
 
     SqlRows GetPragma(const std::string &key);
-    SqlRows Query(const std::string &stmtStr);
+    SqlRows Query(const std::string &stmtStr, bool* failed = nullptr);
 
     /* Supports binding. Note that this only supports a single SQL statement since the bindings do not reset after the first statement.
        If you don't need binding and need to execute multiple statements in a single function call, use Query() instead */

@@ -45,16 +45,16 @@ public:
         // to understand the magic numbers: refer to the positions of the allowed values in the SqlValue alias in SqlDb/Common.h
         case 0: return Bind(pos);
         case 1: return Bind(pos, std::get<int>(val));
-        case 2: return Bind(pos, std::get<bool>(val));
-        case 3: return Bind(pos, std::get<sqlite3_int64>(val));
-        case 4: return Bind(pos, std::get<double>(val));
-        case 5: return Bind(pos, std::get<std::string>(val));
-        case 6: return Bind(pos, std::get<std::vector<unsigned char>>(val));
+        case 2: return Bind(pos, std::get<std::string>(val));
+        case 3: return Bind(pos, std::get<std::vector<unsigned char>>(val));
+        case 4: return Bind(pos, std::get<sqlite_int64>(val));
+        case 5: return Bind(pos, std::get<double>(val));
+        case 6: return Bind(pos, std::get<bool>(val));
         }
     }
-    inline int Bind(int pos, const std::string &val) { return sqlite3_bind_text(mStmt, pos, val.c_str(), -1, nullptr); }
-    inline int Bind(int pos, const char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, nullptr); }
-    inline int Bind(int pos, char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, nullptr); }
+    inline int Bind(int pos, const std::string &val) { return sqlite3_bind_text(mStmt, pos, val.c_str(), static_cast<int>(val.size()), SQLITE_TRANSIENT); }
+    inline int Bind(int pos, const char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, SQLITE_TRANSIENT); }
+    inline int Bind(int pos, char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, SQLITE_TRANSIENT); }
     inline int Bind(int pos, int val) { return sqlite3_bind_int(mStmt, pos, val); }
     inline int Bind(int pos, bool val) { return sqlite3_bind_int(mStmt, pos, val); }
     inline int Bind(int pos, int64_t val) { return sqlite3_bind_int64(mStmt, pos, val); }
@@ -62,13 +62,13 @@ public:
     inline int Bind(int pos, double val) { return sqlite3_bind_double(mStmt, pos, val); }
     inline int Bind(int pos) { return sqlite3_bind_null(mStmt, pos); }
 
-    int Step();
-    int Reset();
-    int ClearBindings();
+    int Step() const;
+    int Reset() const;
+    int ClearBindings() const;
 
-    bool Fail();
+    bool Fail() const;
     bool IsColumnIndexNull(int columnIndex);
-    SqlValue GetValueFromColumnIndex(int columnIndex);
+    SqlValue GetValueFromColumnIndex(int columnIndex) const;
 
     inline int GetIntFromColumnIndex(int columnIndex) {
         return sqlite3_column_int(mStmt, columnIndex);
@@ -89,8 +89,8 @@ public:
         return data;
     }
 
-    SqlRow GetColumns();
-    SqlColumnMap GetColumnMap();
+    SqlRow GetColumns() const;
+    SqlColumnMap GetColumnMap() const;
 protected:
     SqlDb *mDatabase;
     sqlite3_stmt *mStmt;

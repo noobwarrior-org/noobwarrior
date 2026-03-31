@@ -29,6 +29,7 @@
 #include <NoobWarrior/Lua/Bridge/VfsBridge.h>
 #include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
@@ -38,7 +39,6 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <lua.hpp>
-#include <sol/raii.hpp>
 #include <sol/sol.hpp>
 
 #include "files/global_env_metatable.lua.inc.cpp"
@@ -129,6 +129,12 @@ int LuaState::Open() {
     signalType["Connect"] = &LuaSignal::Connect;
     signalType["Fire"] = &LuaSignal::LuaFire;
 
+    // commented out because we can already access the registry since it is a global
+    /*auto regType = new_usertype<Registry>("Registry");
+    regType["SetKeyValue"] = [](Registry &reg) {
+        reg->
+    };*/
+
     auto vfsType = new_usertype<VirtualFileSystem>("VirtualFileSystem");
     vfsType["new"] = [](sol::this_state state, std::string path) {
         lua_State* L = state;
@@ -171,17 +177,58 @@ int LuaState::Open() {
     auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(const std::string&, const std::string&)>());
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
-    sqlDbType["Query"] = [](const std::string &queryStr) {
 
-    };
-    sqlDbType["QueryTyped"] = [](const std::string &queryStr, sol::variadic_args va) {
-
-        for (auto v : va) {
-
+    // This method works similarly to https://wiki.facepunch.com/gmod/sql.Query
+    sqlDbType["Query"] = [this](SqlDb &db, const std::string &stmtStr) -> sol::object {
+        bool failed = false;
+        SqlRows rows = db.Query(stmtStr, &failed);
+        if (failed)
+            return sol::make_object(*this, false);
+        if (rows.empty())
+            return sol::lua_nil;
+        sol::table rowsTbl = create_table();
+        for (SqlRow& row : rows) {
+            sol::table rowTbl = create_table();
+            for (SqlColumn& col : row) {
+                rowTbl.set(col.first, col.second);
+            }
+            rowsTbl.add(rowTbl);
         }
+        return rowsTbl;
+    };
+
+    // This method also works similarly to https://wiki.facepunch.com/gmod/sql.QueryTyped
+    sqlDbType["QueryTyped"] = [this](SqlDb &db, const std::string &stmtStr, sol::variadic_args va) -> sol::object {
+        SqlRows rows;
+        Statement stmt = db.PrepareStatement(stmtStr);
+        if (stmt.Fail())
+            return sol::make_object(*this, false);
+
+        int idx = 0;
+        for (auto v : va) {
+            idx++;
+            stmt.Bind(idx, v.as<SqlValue>());
+        }
+        while (stmt.Step() == SQLITE_ROW) {
+            rows.push_back(stmt.GetColumns());
+        }
+        if (rows.empty())
+            return sol::lua_nil;
+
+        sol::table rowsTbl = create_table();
+        for (SqlRow& row : rows) {
+            sol::table rowTbl = create_table();
+            for (SqlColumn& col : row) {
+                rowTbl.set(col.first, col.second);
+            }
+            rowsTbl.add(rowTbl);
+        }
+        return rowsTbl;
     };
 
     auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::constructors<EmuDb(), EmuDb(const std::string&, bool)>(), sol::base_classes, sol::bases<SqlDb>());
+
+    auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this](std::string logName) {
@@ -328,6 +375,3 @@ LuaScript* LuaState::RetrieveCachedModuleFromResolvedUrl(const std::string &reso
         return nullptr;
     return mCachedModules.at(resolvedUrl).get();
 }
-
-
-
