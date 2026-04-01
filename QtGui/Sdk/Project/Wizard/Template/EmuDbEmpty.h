@@ -20,7 +20,7 @@
 // === noobWarrior ===
 // File: EmuDbEmpty.h
 // Started by: Hattozo
-// Started on: 2/2/2024
+// Started on: 2/2/2026
 // Description: Wizard page for creating a new empty database
 #pragma once
 #include "TemplatePage.h"

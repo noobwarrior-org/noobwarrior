@@ -20,7 +20,7 @@
 // === noobWarrior ===
 // File: EmptyEmuDbGameBackup.h
 // Started by: Hattozo
-// Started on: 2/2/2024
+// Started on: 2/2/2026
 // Description:
 #pragma once
 #include "TemplatePage.h"

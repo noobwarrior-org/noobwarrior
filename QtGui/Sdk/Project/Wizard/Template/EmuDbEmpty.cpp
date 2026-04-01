@@ -20,7 +20,7 @@
 // === noobWarrior ===
 // File: EmuDbEmpty.cpp
 // Started by: Hattozo
-// Started on: 2/2/2024
+// Started on: 2/2/2026
 // Description:
 #include "EmuDbEmpty.h"
 #include "TemplatePage.h"
