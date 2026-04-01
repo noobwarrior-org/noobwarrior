@@ -229,6 +229,8 @@ int LuaState::Open() {
     auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::constructors<EmuDb(), EmuDb(const std::string&, bool)>(), sol::base_classes, sol::bases<SqlDb>());
 
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
+    emuDbMgrType["GetMasterDatabase"] = &EmuDbManager::GetMasterDatabase;
+    emuDbMgrType["GetMountedDatabases"] = &EmuDbManager::GetMountedDatabases;
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this](std::string logName) {

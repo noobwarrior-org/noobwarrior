@@ -22,7 +22,9 @@ end)
 local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")
 
 local sitemap = {
-    ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp"
+    ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp",
+    ["/login"] = "plugin://emu-frontend@noobwarrior.org/src/login.lhp",
+    ["/register"] = "plugin://emu-frontend@noobwarrior.org/src/register.lhp"
 }
 
 http_shared.AttachToServer(emu, {
