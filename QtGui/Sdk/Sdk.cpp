@@ -272,8 +272,7 @@ void Sdk::Refresh() {
         QWidget* widget = mTabWidget->widget(mTabWidget->currentIndex());
         QVariant qvariant = widget->property("Project");
         Project* project = !qvariant.isNull() ? qvariant.value<Project*>() : nullptr;
-
-        mFocusedProject = !qvariant.isNull() ? qvariant.value<Project*>() : nullptr;
+        mFocusedProject = project;
         repaint();
     }
 

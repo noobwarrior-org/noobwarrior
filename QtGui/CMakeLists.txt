@@ -33,7 +33,7 @@ set(SOURCES
     Sdk/EmuDbListWidget.cpp
     Sdk/PluginListWidget.cpp
     Sdk/Item/Browser/ItemBrowserWidget.cpp
-    Sdk/Item/Browser/AssetPage.cpp
+    Sdk/Item/Browser/ItemBrowserPage.cpp
     Sdk/Item/Browser/BrowserItem.cpp
     Sdk/Item/ItemOpenSaveDialog.cpp
     Sdk/Item/ItemListWidget.cpp

@@ -26,7 +26,7 @@
 #include <string>
 
 namespace NoobWarrior {
-constexpr int ItemTypeCount = 9;
+constexpr int ItemTypeCount = 10;
 enum class ItemType {
     Asset,
     Badge,

@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPage.cpp
+// File: ItemBrowserPage.cpp
 // Started by: Hattozo
 // Started on: 11/30/2025
 // Description:
-#include "AssetPage.h"
+#include "ItemBrowserPage.h"
 #include "Sdk/Item/ItemListWidget.h"
 #include "BrowserItem.h"
 #include "ItemBrowserWidget.h"
@@ -30,26 +30,20 @@
 
 using namespace NoobWarrior;
 
-AssetPage::AssetPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
+ItemBrowserPage::ItemBrowserPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
 
-void AssetPage::Refresh() {
+void ItemBrowserPage::Refresh() {
     SearchOptions opt {};
     opt.Offset = 0;
     opt.Limit = 100;
-    opt.AssetType = mType;
+    opt.AssetType = mAssetType;
 
     EmuDb* db = mBrowser->GetDatabase();
 
-    Statement stmt = db->PrepareStatement("SELECT Id FROM Asset");
-    while (stmt.Step() == SQLITE_ROW) {
-        int id = stmt.GetIntFromColumnIndex(0);
-        new BrowserItem(db, ItemType::Asset, id, this);
-    }
-
     Populate({
         .Database = db,
-        .ItemType = ItemType::Asset,
-        .AssetType = mType,
+        .ItemType = mType,
+        .AssetType = mAssetType,
         .Offset = 0,
         .Limit = 100,
         .EnforceLimit = true,
@@ -64,6 +58,10 @@ void AssetPage::Refresh() {
     */
 }
 
-void AssetPage::SetType(Roblox::AssetType type) {
+void ItemBrowserPage::SetType(ItemType type) {
     mType = type;
+}
+
+void ItemBrowserPage::SetAssetType(Roblox::AssetType type) {
+    mAssetType = type;
 }

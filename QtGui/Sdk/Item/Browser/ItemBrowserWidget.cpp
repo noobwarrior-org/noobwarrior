@@ -35,11 +35,9 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-#define ADD_ITEMTYPE(type, pageType) mPages.push_back(new pageType(this)); \
-    ItemListWidget* type##_page = mPages.back(); \
-    MainLayout->addWidget(type##_page); \
+#define ADD_ITEMTYPE(type) \
     QString type##_Str = QString::fromStdString(#type); \
-    ItemTypeDropdown->addItem(QIcon(), type##_Str, QVariant::fromValue(type##_page));
+    ItemTypeDropdown->addItem(QIcon(), type##_Str);
 
 using namespace NoobWarrior;
 
@@ -55,7 +53,7 @@ ItemBrowserWidget::ItemBrowserWidget(QWidget *parent) : QDockWidget(parent),
     SearchBox(nullptr),
     NoDatabaseFoundLabel(nullptr)
 {
-    assert(dynamic_cast<Sdk*>(this->parent()) != nullptr && "ItemBrowserWidget should not be parented to anything other than DatabaseEditor");
+    assert(dynamic_cast<Sdk*>(this->parent()) != nullptr && "ItemBrowserWidget should not be parented to anything other than Sdk");
     setWindowTitle("Item Browser");
     InitWidgets();
 }
@@ -95,7 +93,28 @@ void ItemBrowserWidget::RefreshAssetCategory() {
 }
 
 void ItemBrowserWidget::Refresh() {
-    RefreshEx(mCurrentPageIndex);
+    RefreshEx(mCurrentItemType);
+}
+
+void ItemBrowserWidget::RefreshEx(ItemType type) {
+    auto editor = dynamic_cast<Sdk*>(parent());
+    Project* proj = editor->GetFocusedProject();
+
+    bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
+
+    mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
+    mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
+
+    mPage->SetType(type);
+    AssetCategoryDropdown->setVisible(type == ItemType::Asset);
+    AssetTypeDropdown->setVisible(type == ItemType::Asset);
+
+    NoDatabaseFoundLabel->setVisible(!isProjectDatabase);
+    mPage->setVisible(isProjectDatabase);
+    if (isProjectDatabase) {
+        mPage->clear();
+        mPage->Refresh();
+    }
 }
 
 void ItemBrowserWidget::InitWidgets() {
@@ -108,6 +127,12 @@ void ItemBrowserWidget::InitWidgets() {
 
     ItemTypeDropdown = new QComboBox();
 
+    for (int i = 0; i < ItemTypeCount; i++) {
+        auto itemType = static_cast<ItemType>(i);
+        QString itemTypeStr = QString::fromStdString(GetTableNameFromItemType(itemType)); // TODO: make a translatable version
+        ItemTypeDropdown->addItem(itemTypeStr, i);
+    }
+
     AssetFilterDropdownLayout = new QHBoxLayout(MainWidget);
 
     AssetCategoryDropdown = new QComboBox();
@@ -115,7 +140,7 @@ void ItemBrowserWidget::InitWidgets() {
 
     AssetTypeDropdown = new QComboBox();
 
-    for (int i = 0; i <= AssetCategoryCount; i++) {
+    for (int i = 0; i < AssetCategoryCount; i++) {
         auto assetTypeCategory = static_cast<AssetCategory>(i);
         QString assetTypeCategoryStr = AssetCategoryAsTranslatableString(assetTypeCategory);
         AssetCategoryDropdown->addItem(assetTypeCategoryStr, i);
@@ -135,11 +160,14 @@ void ItemBrowserWidget::InitWidgets() {
     MainLayout->addWidget(SearchBox);
     MainLayout->addWidget(NoDatabaseFoundLabel);
 
-    ADD_ITEMTYPE(Asset, AssetPage)
+    mPage = new ItemBrowserPage(this);
+    MainLayout->addWidget(mPage);
+
+    ADD_ITEMTYPE(Asset)
+    ADD_ITEMTYPE(Badge)
 
     connect(ItemTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
-        mCurrentPageIndex = index;
-        RefreshEx(index);
+        RefreshEx(static_cast<ItemType>(index));
     });
     connect(AssetCategoryDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
         RefreshAssetCategory();

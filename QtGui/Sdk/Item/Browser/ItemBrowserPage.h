@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPage.h
+// File: ItemBrowserPage.h
 // Started by: Hattozo
 // Started on: 11/30/2025
 // Description:
@@ -28,13 +28,15 @@
 
 namespace NoobWarrior {
 class ItemBrowserWidget;
-class AssetPage : public ItemListWidget {
+class ItemBrowserPage : public ItemListWidget {
 public:
-    AssetPage(ItemBrowserWidget *browser);
+    ItemBrowserPage(ItemBrowserWidget *browser);
     void Refresh() override;
-    void SetType(Roblox::AssetType);
+    void SetType(ItemType);
+    void SetAssetType(Roblox::AssetType);
 private:
     ItemBrowserWidget *mBrowser;
-    Roblox::AssetType mType { Roblox::AssetType::None };
+    ItemType mType { ItemType::Asset };
+    Roblox::AssetType mAssetType { Roblox::AssetType::None };
 };
 }

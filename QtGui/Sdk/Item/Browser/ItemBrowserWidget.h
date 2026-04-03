@@ -29,7 +29,7 @@
 
 #include "Sdk/Sdk.h"
 #include "BrowserItem.h"
-#include "AssetPage.h"
+#include "ItemBrowserPage.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 
 #include <QDockWidget>
@@ -50,39 +50,7 @@ public:
     void Refresh();
 protected:
     void RefreshAssetCategory();
-
-    void RefreshEx(int index) {
-        auto editor = dynamic_cast<Sdk*>(parent());
-        Project* proj = editor->GetFocusedProject();
-
-        bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
-
-        ItemListWidget *page = mPages.at(index);
-        bool isAssetPage = dynamic_cast<AssetPage*>(page) != nullptr;
-
-        for (ItemListWidget* page : mPages) {
-            page->setVisible(false);
-        }
-
-        mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
-        mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
-
-        ItemTypeDropdown->setCurrentIndex(index);
-        AssetCategoryDropdown->setVisible(isAssetPage);
-        AssetTypeDropdown->setVisible(isAssetPage);
-
-        NoDatabaseFoundLabel->setVisible(!isProjectDatabase);
-        if (isProjectDatabase) {
-            page->setVisible(true);
-            page->clear();
-            page->Refresh();
-        }
-    }
-
-    void RefreshEx(ItemListWidget *page) {
-        auto pageIndex = std::find(mPages.begin(), mPages.end(), page);
-        RefreshEx(std::distance(mPages.begin(), pageIndex));
-    }
+    void RefreshEx(ItemType type);
 private:
     void InitWidgets();
     void InitPageCounter();
@@ -93,8 +61,8 @@ private:
     Roblox::AssetType   mAssetType;
 
     //////////// QWidget stuff ////////////
-    std::vector<ItemListWidget*> mPages;
-    int mCurrentPageIndex { 0 };
+    ItemBrowserPage* mPage;
+    ItemType mCurrentItemType { ItemType::Asset };
 
     QWidget*        MainWidget;
     QVBoxLayout*    MainLayout;

@@ -61,7 +61,7 @@ struct Asset : StatisticalItem {
     static constexpr std::string TypeName = "Asset";
 };
 
-constexpr int AssetCategoryCount = 1;
+constexpr int AssetCategoryCount = 2;
 enum class AssetCategory {
     DevelopmentItem,
     AvatarItem

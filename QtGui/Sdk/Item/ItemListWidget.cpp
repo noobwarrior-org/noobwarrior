@@ -30,8 +30,7 @@
 
 using namespace NoobWarrior;
 
-ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent)
-{
+ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent) {
     InitWidgets();
 
     setContextMenuPolicy(Qt::CustomContextMenu);
@@ -49,7 +48,7 @@ void ItemListWidget::Populate(const PopulateOptions options) {
     Statement stmt = options.Database->PrepareStatement("SELECT Id, Name FROM " + tableName + ";");
 
     while (stmt.Step() == SQLITE_ROW) {
-        
+        auto *item = new BrowserItem(options.Database, options.ItemType, stmt.GetIntFromColumnIndex(0), this);
     }
 }
 

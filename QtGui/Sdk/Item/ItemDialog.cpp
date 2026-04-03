@@ -40,6 +40,8 @@ ItemDialog::ItemDialog(EmuDb* db, ItemType type, std::optional<int> id, QWidget 
 {
     setWindowTitle("Item Editor");
     RegenWidgets();
+
+    assert(dynamic_cast<Sdk*>(parent) != nullptr && "ItemDialog must be parented to Sdk");
 }
 
 void ItemDialog::RegenWidgets() {
@@ -196,6 +198,11 @@ void ItemDialog::OnSave() {
     
     db->MarkDirty();
     close();
+
+    Sdk* sdk = dynamic_cast<Sdk*>(this->parent());
+    if (sdk != nullptr) {
+        sdk->Refresh();
+    }
 }
 
 EmuDb* ItemDialog::GetDatabase() {
