@@ -84,13 +84,13 @@ void ItemDialog::RegenWidgets() {
     image.loadFromData(data);
     mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    if (!(tableName.compare("Asset") == 0 || tableName.compare("User") == 0)) {
-        auto *changeImage = new QPushButton("Change Image");
-        mSidebarLayout->addWidget(changeImage);
-        connect(changeImage, &QPushButton::clicked, [this]() {
-            // TODO: Add ItemOpenSaveDialog here
-            int id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
-            /*
+    if (!(mType == ItemType::Asset || mType == ItemType::User)) {
+        auto *uploadImage = new QPushButton("Upload Image");
+        auto *useExistingImage = new QPushButton("Use Existing Image");
+        mSidebarLayout->addWidget(uploadImage);
+        mSidebarLayout->addWidget(useExistingImage);
+
+        connect(uploadImage, &QPushButton::clicked, [this]() {
             QString filePath = QFileDialog::getOpenFileName(
                 this,
                 "Change Icon",
@@ -109,7 +109,11 @@ void ItemDialog::RegenWidgets() {
                 QPixmap newPixmap = QPixmap::fromImage(newImage);
                 mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             }
-            */
+        });
+
+        connect(useExistingImage, &QPushButton::clicked, [this]() {
+            // TODO: Add ItemOpenSaveDialog here
+            int id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
         });
     }
 
@@ -126,17 +130,86 @@ void ItemDialog::RegenWidgets() {
     mNameInput->setPlaceholderText("Cool Name");
     mContentLayout->addRow("Name", mNameInput);
 
+    switch (mType) {
+    default:
+        QMessageBox::warning(
+            this,
+            "Warning",
+            "The item type you are trying to configure does not have a custom implementation for this screen. Your changes will not be saved."
+        );
+        break;
+    case ItemType::Asset:
+        Asset_AddFields();
+        break;
+    case ItemType::User:
+        User_AddFields();
+        break;
+    }
+
+    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
+    mContentLayout->addWidget(mButtonBox);
+
+    connect(mButtonBox, &QDialogButtonBox::accepted, this, &ItemDialog::OnSave);
+
+    connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
+        close();
+    });
+}
+
+void ItemDialog::OnSave() {
+    auto *db = GetDatabase();
+
+    if (mNameInput->text().isEmpty()) {
+        QMessageBox::critical(
+            this,
+            "Cannot Save Changes",
+            "Please enter a name that is not empty."
+        );
+        return;
+    }
+
+    switch (mType) {
+    default:
+        QMessageBox::warning(
+            this,
+            "Cannot Save Changes",
+            "No save implementation has been made for this item type. Your changes have not been saved."
+        );
+        return;
+    case ItemType::Asset:
+        if (!Asset_OnSave()) return;
+        break;
+    case ItemType::User:
+        if (!User_OnSave()) return;
+        break;
+    }
+    
+    db->MarkDirty();
+    close();
+
+    Sdk* sdk = dynamic_cast<Sdk*>(this->parent());
+    if (sdk != nullptr) {
+        sdk->Refresh();
+    }
+}
+
+void ItemDialog::AddOwnedItemFields() {
+    auto *db = GetDatabase();
+
     mDescriptionInput = new QLineEdit();
     mDescriptionInput->setPlaceholderText("Describe your item here");
     mContentLayout->addRow("Description", mDescriptionInput);
 
     mCreatedInput = new QDateTimeEdit();
-    mCreatedInput->setDate(QDate::currentDate());
+    mCreatedInput->setDateTime(QDateTime::currentDateTime());
     mContentLayout->addRow("Created", mCreatedInput);
 
     mUpdatedInput = new QDateTimeEdit();
-    mUpdatedInput->setDate(QDate::currentDate());
+    mUpdatedInput->setDateTime(QDateTime::currentDateTime());
     mContentLayout->addRow("Updated", mUpdatedInput);
+
+    mCreatorInfoWidget = new CreatorInfoWidget();
+    mContentLayout->addRow("Creator", mCreatorInfoWidget);
 
     if (mId.has_value()) {
         // deserialization
@@ -155,53 +228,6 @@ void ItemDialog::RegenWidgets() {
         } else {
             QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         }
-    }
-
-    switch (mType) {
-    default:
-        QMessageBox::warning(
-            this,
-            "Warning",
-            "The item type you are trying to configure does not have a custom implementation for this screen. Things will probably not work."
-        );
-        break;
-    case ItemType::Asset:
-        Asset_AddFields();
-        break;
-    }
-
-    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
-    mContentLayout->addWidget(mButtonBox);
-
-    connect(mButtonBox, &QDialogButtonBox::accepted, this, &ItemDialog::OnSave);
-
-    connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
-        close();
-    });
-}
-
-void ItemDialog::OnSave() {
-    auto *db = GetDatabase();
-
-    switch (mType) {
-    default:
-        QMessageBox::warning(
-            this,
-            "Cannot Save Changes",
-            "No save implementation has been made for this item type. Your changes will not be saved."
-        );
-        return;
-    case ItemType::Asset:
-        Asset_OnSave();
-        break;
-    }
-    
-    db->MarkDirty();
-    close();
-
-    Sdk* sdk = dynamic_cast<Sdk*>(this->parent());
-    if (sdk != nullptr) {
-        sdk->Refresh();
     }
 }
 

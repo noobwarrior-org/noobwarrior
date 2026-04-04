@@ -43,6 +43,7 @@
 
 #include "Sdk/Sdk.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
+#include "Sdk/CreatorInfoWidget.h"
 
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
@@ -52,9 +53,14 @@ protected:
     void RegenWidgets();
     void OnSave();
 
+    void AddOwnedItemFields();
+
     void Asset_AddFields();
     void Asset_AddAssetTypeWidgets();
-    void Asset_OnSave();
+    bool Asset_OnSave();
+
+    void User_AddFields();
+    bool User_OnSave();
 
     EmuDb* GetDatabase();
 
@@ -74,8 +80,15 @@ protected:
     QLineEdit* mDescriptionInput;
     QDateTimeEdit* mCreatedInput;
     QDateTimeEdit* mUpdatedInput;
+    CreatorInfoWidget* mCreatorInfoWidget;
 
     QComboBox* mAsset_AssetTypeInput;
+
+    QLineEdit* mUser_DisplayNameInput;
+    QLineEdit* mUser_StatusInput;
+    QLineEdit* mUser_BioInput;
+    QDateTimeEdit* mUser_JoinDateInput;
+    QDateTimeEdit* mUser_LastOnlineInput;
 
     QDialogButtonBox* mButtonBox;
 };

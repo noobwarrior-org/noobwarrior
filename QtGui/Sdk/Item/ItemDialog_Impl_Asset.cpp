@@ -28,9 +28,7 @@
 using namespace NoobWarrior;
 
 void ItemDialog::Asset_AddFields() {
-    CreatorInfoWidget* info = new CreatorInfoWidget();
-    mContentLayout->addRow("Creator", info);
-
+    AddOwnedItemFields();
     Asset_AddAssetTypeWidgets();
 
     auto *dataFrame = new QFrame();
@@ -114,7 +112,7 @@ void ItemDialog::Asset_AddAssetTypeWidgets() {
     }
 }
 
-void ItemDialog::Asset_OnSave() {
+bool ItemDialog::Asset_OnSave() {
     auto *db = GetDatabase();
 
     int64_t id = mIdInput->text().toInt();
@@ -134,6 +132,7 @@ void ItemDialog::Asset_OnSave() {
 
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
-        return;
+        return false;
     }
+    return true;
 }

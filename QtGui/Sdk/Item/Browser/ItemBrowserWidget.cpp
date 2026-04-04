@@ -102,6 +102,7 @@ void ItemBrowserWidget::RefreshEx(ItemType type) {
 
     bool isProjectDatabase = dynamic_cast<EmuDbProject*>(proj) != nullptr;
 
+    mCurrentItemType = type;
     mAssetCategory = static_cast<AssetCategory>(AssetCategoryDropdown->currentData().toInt());
     mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
