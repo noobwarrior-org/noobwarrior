@@ -37,6 +37,7 @@
 #include "NoobWarrior/EmuDb/ContentImages.h"
 #include "NoobWarrior/EmuDb/ItemType.h"
 #include "NoobWarrior/Roblox/Api/Asset.h"
+
 #include "migrations/migration_table.sql.inc.cpp"
 #include "migrations/v1.sql.inc.cpp"
 #include "migrations/v2.sql.inc.cpp"
@@ -45,6 +46,7 @@
 #include "migrations/v5.sql.inc.cpp"
 #include "migrations/v6.sql.inc.cpp"
 #include "migrations/v7.sql.inc.cpp"
+#include "migrations/v8.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -225,9 +227,9 @@ bool EmuDb::MigrateToLatestVersion() {
 			Statement addToListStmt = PrepareStatement("INSERT INTO Migration (Version) VALUES (?)"); \
 			addToListStmt.Bind(1, #migration); \
 			if (addToListStmt.Step() == SQLITE_DONE) { Out("Migrated to " #migration); MarkDirty(); } \
-			else { Out("Failed to insert row into migraton table. What the fuck?"); return false; } \
+			else { Out("Failed to insert row into migraton table. Message: \"{}\"", GetLastErrorMsg()); return false; } \
 		} else { \
-			mMigrationFailMsg = std::format("Migration to " #migration " failed: \"{}\"",GetLastErrorMsg()); \
+			mMigrationFailMsg = std::format("Migration to " #migration " failed: \"{}\"", GetLastErrorMsg()); \
 			Out(mMigrationFailMsg); \
 			return false; \
 		} \
@@ -248,6 +250,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v6)
 	/* V7: merged AssetMisc table with Asset. Also added new character appearance system for users */
 	MIGRATE(v7)
+    /* V8: added tables for forums */
+    MIGRATE(v8)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.

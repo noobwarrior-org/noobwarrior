@@ -28,13 +28,13 @@ CREATE TRIGGER AssetSearchIndexInsertTrigger AFTER INSERT ON Asset
     INSERT INTO AssetSearchIndex (id, name) VALUES (new.Id, new.Name);
   END;
   
-CREATE TRIGGER AssetSearchIndexUpdateTrigger UPDATE OF Name ON Asset
+CREATE TRIGGER AssetSearchIndexUpdateTrigger AFTER UPDATE OF Name ON Asset
   BEGIN
-    UPDATE AssetSearchIndex SET Name = new.Name WHERE Id = old.Id AND Name = old.Name;
+    UPDATE AssetSearchIndex SET name = new.Name WHERE Id = old.Id;
   END;
 
 CREATE TRIGGER AssetSearchIndexDeleteTrigger BEFORE DELETE ON Asset
   BEGIN
-    DELETE FROM AssetSearchIndex WHERE Id = old.Id;
+    DELETE FROM AssetSearchIndex WHERE id = old.Id;
   END;
 )***";
