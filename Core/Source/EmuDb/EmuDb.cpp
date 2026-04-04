@@ -638,7 +638,7 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
 
 	if (tableName.compare("Asset") == 0) {
 		// if we are an image asset, we need to get the data from ourselves directly
-		int type;
+		int type = 0;
 
         Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ?;", tableName));
         if (typeStmt.Fail()) {
