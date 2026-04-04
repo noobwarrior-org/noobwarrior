@@ -49,22 +49,4 @@ CREATE TABLE "OutfitBodyColor" (
     PRIMARY KEY (Id, BodyPart),
     FOREIGN KEY (Id) REFERENCES Outfit(Id)
 );
-
-CREATE VIRTUAL TABLE OutfitSearchIndex USING fts5 (Id, Name);
-INSERT INTO OutfitSearchIndex (Id, Name) SELECT Id, Name FROM Outfit;
-
-CREATE TRIGGER OutfitSearchIndexInsertTrigger AFTER INSERT ON Outfit
-  BEGIN
-    INSERT INTO OutfitSearchIndex (Id, Name) VALUES (new.Id, new.Name);
-  END;
-  
-CREATE TRIGGER OutfitSearchIndexUpdateTrigger AFTER UPDATE OF Name ON Outfit
-  BEGIN
-    UPDATE OutfitSearchIndex SET Name = new.Name WHERE Id = old.Id;
-  END;
-
-CREATE TRIGGER OutfitSearchIndexDeleteTrigger BEFORE DELETE ON Outfit
-  BEGIN
-    DELETE FROM OutfitSearchIndex WHERE Id = old.Id;
-  END;
 )***";

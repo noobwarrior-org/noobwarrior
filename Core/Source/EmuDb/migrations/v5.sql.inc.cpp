@@ -19,22 +19,4 @@
  */
 static const char *migration_v5 = R"***(
 PRAGMA foreign_keys = OFF;
-
-CREATE VIRTUAL TABLE AssetSearchIndex USING fts5 (id, name);
-INSERT INTO AssetSearchIndex (id, name) SELECT Id, Name FROM Asset;
-
-CREATE TRIGGER AssetSearchIndexInsertTrigger AFTER INSERT ON Asset
-  BEGIN
-    INSERT INTO AssetSearchIndex (id, name) VALUES (new.Id, new.Name);
-  END;
-  
-CREATE TRIGGER AssetSearchIndexUpdateTrigger AFTER UPDATE OF Name ON Asset
-  BEGIN
-    UPDATE AssetSearchIndex SET name = new.Name WHERE Id = old.Id;
-  END;
-
-CREATE TRIGGER AssetSearchIndexDeleteTrigger BEFORE DELETE ON Asset
-  BEGIN
-    DELETE FROM AssetSearchIndex WHERE id = old.Id;
-  END;
 )***";
