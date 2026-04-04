@@ -196,20 +196,20 @@ void ItemDialog::OnSave() {
 void ItemDialog::AddOwnedItemFields() {
     auto *db = GetDatabase();
 
-    mDescriptionInput = new QLineEdit();
-    mDescriptionInput->setPlaceholderText("Describe your item here");
-    mContentLayout->addRow("Description", mDescriptionInput);
+    mOwned_DescriptionInput = new QLineEdit();
+    mOwned_DescriptionInput->setPlaceholderText("Describe your item here");
+    mContentLayout->addRow("Description", mOwned_DescriptionInput);
 
-    mCreatedInput = new QDateTimeEdit();
-    mCreatedInput->setDateTime(QDateTime::currentDateTime());
-    mContentLayout->addRow("Created", mCreatedInput);
+    mOwned_CreatedInput = new QDateTimeEdit();
+    mOwned_CreatedInput->setDateTime(QDateTime::currentDateTime());
+    mContentLayout->addRow("Created", mOwned_CreatedInput);
 
-    mUpdatedInput = new QDateTimeEdit();
-    mUpdatedInput->setDateTime(QDateTime::currentDateTime());
-    mContentLayout->addRow("Updated", mUpdatedInput);
+    mOwned_UpdatedInput = new QDateTimeEdit();
+    mOwned_UpdatedInput->setDateTime(QDateTime::currentDateTime());
+    mContentLayout->addRow("Updated", mOwned_UpdatedInput);
 
-    mCreatorInfoWidget = new CreatorInfoWidget();
-    mContentLayout->addRow("Creator", mCreatorInfoWidget);
+    mOwned_CreatorInfoWidget = new CreatorInfoWidget();
+    mContentLayout->addRow("Creator", mOwned_CreatorInfoWidget);
 
     if (mId.has_value()) {
         // deserialization
@@ -222,9 +222,9 @@ void ItemDialog::AddOwnedItemFields() {
 
             mIdInput->setText(QString::number(id));
             mNameInput->setText(QString::fromStdString(name));
-            mDescriptionInput->setText(QString::fromStdString(desc));
-            mCreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(3)));
-            mUpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(4)));
+            mOwned_DescriptionInput->setText(QString::fromStdString(desc));
+            mOwned_CreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(3)));
+            mOwned_UpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(4)));
         } else {
             QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         }

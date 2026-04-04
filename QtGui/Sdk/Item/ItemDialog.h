@@ -77,10 +77,11 @@ protected:
 
     QLineEdit* mIdInput;
     QLineEdit* mNameInput;
-    QLineEdit* mDescriptionInput;
-    QDateTimeEdit* mCreatedInput;
-    QDateTimeEdit* mUpdatedInput;
-    CreatorInfoWidget* mCreatorInfoWidget;
+
+    QLineEdit* mOwned_DescriptionInput;
+    QDateTimeEdit* mOwned_CreatedInput;
+    QDateTimeEdit* mOwned_UpdatedInput;
+    CreatorInfoWidget* mOwned_CreatorInfoWidget;
 
     QComboBox* mAsset_AssetTypeInput;
 

@@ -117,7 +117,7 @@ bool ItemDialog::Asset_OnSave() {
 
     int64_t id = mIdInput->text().toInt();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mDescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->text().toStdString();
 
     Statement stmt = db->PrepareStatement(R"(
         INSERT INTO Asset (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
@@ -126,8 +126,8 @@ bool ItemDialog::Asset_OnSave() {
     stmt.Bind(1, id);
     stmt.Bind(2, name);
     stmt.Bind(3, description);
-    stmt.Bind(4, static_cast<int64_t>(mCreatedInput->dateTime().toSecsSinceEpoch()));
-    stmt.Bind(5, static_cast<int64_t>(mUpdatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(4, static_cast<int64_t>(mOwned_CreatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(5, static_cast<int64_t>(mOwned_UpdatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(6, static_cast<int>(mAsset_AssetTypeInput->currentIndex()));
 
     if (stmt.Step() != SQLITE_DONE) {

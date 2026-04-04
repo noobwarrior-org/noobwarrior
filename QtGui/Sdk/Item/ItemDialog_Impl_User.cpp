@@ -45,7 +45,7 @@ void ItemDialog::User_AddFields() {
         }
     }
 
-    mUser_DisplayNameInput = new QLineEdit(QString::fromStdString(displayName)); // fuck whoever made this qstring garbage
+    mUser_DisplayNameInput = new QLineEdit(QString::fromStdString(displayName));
     mUser_DisplayNameInput->setPlaceholderText("Cool Name");
     mContentLayout->addRow("Display Name", mUser_DisplayNameInput);
 
