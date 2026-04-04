@@ -54,5 +54,5 @@ inline std::string GetTableNameFromItemType(ItemType type) {
     case ItemType::User: return "User";
     default: return "Unknown";
     }
-};
+}
 }

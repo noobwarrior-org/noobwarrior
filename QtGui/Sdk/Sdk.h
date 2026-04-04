@@ -101,8 +101,6 @@ private:
     QAction* mItemBrowserViewAction;
     QAction* mFileManagerViewAction;
 
-    std::vector<QAction*> mInsertItemTypeActions;
-
     QAction* mAboutQtButton;
     QAction* mAboutButton;
 

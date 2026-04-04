@@ -70,6 +70,22 @@
 
 using namespace NoobWarrior;
 
+static QString GetIconFileFromItemType(ItemType type) {
+    switch (type) {
+    case ItemType::Asset: return ":/images/silk/brick_add.png";
+    case ItemType::Badge: return ":/images/silk/medal_gold_add.png";
+    case ItemType::Bundle: return ":/images/silk/package_add.png";
+    case ItemType::DevProduct: return ":/images/silk/key_add.png";
+    case ItemType::Group: return ":/images/silk/group.png";
+    case ItemType::Outfit: return ":/images/silk/user_female.png";
+    case ItemType::Pass: return ":/images/silk/vcard_add.png";
+    case ItemType::Set: return ":/images/silk/bricks.png";
+    case ItemType::Universe: return ":/images/silk/world_add.png";
+    case ItemType::User: return ":/images/silk/user_add.png";
+    default: return ":/images/silk/page_white.png";
+    }
+};
+
 Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
     mFocusedProject(nullptr),
     mTabWidget(nullptr),
@@ -347,16 +363,6 @@ void Sdk::InitMenus() {
     mProjectMenu = menuBar()->addMenu(tr("&Project"));
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
-    ADD_ITEMTYPE(Asset, ":/images/silk/brick_add.png", ItemType::Asset)
-    ADD_ITEMTYPE(Badge, ":/images/silk/medal_gold_add.png", ItemType::Badge)
-    ADD_ITEMTYPE(Bundle, ":/images/silk/package_add.png", ItemType::Bundle)
-    ADD_ITEMTYPE(DevProduct, ":/images/silk/key_add.png", ItemType::DevProduct)
-    ADD_ITEMTYPE(Group, ":/images/silk/group.png", ItemType::Group)
-    ADD_ITEMTYPE(Outfit, ":/images/silk/user_female.png", ItemType::Outfit)
-    ADD_ITEMTYPE(Pass, ":/images/silk/vcard_add.png", ItemType::Pass)
-    ADD_ITEMTYPE(Set, ":/images/silk/bricks.png", ItemType::Set)
-    ADD_ITEMTYPE(Universe, ":/images/silk/world_add.png", ItemType::Universe)
-    ADD_ITEMTYPE(User, ":/images/silk/user_add.png", ItemType::User)   
 
     mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 
@@ -461,12 +467,21 @@ void Sdk::InitWidgets() {
     mViewToolBar->addAction(mFileManagerViewAction);
 
     mInsertToolBar = new QToolBar("Insert", this);
-    for (QAction* itemTypeAction : mInsertItemTypeActions) {
-        mInsertToolBar->addAction(itemTypeAction);
+    for (int i = 0; i < ItemTypeCount; i++) {
+        ItemType itemType = static_cast<ItemType>(i);
+        QString itemTypeName = QString::fromStdString(GetTableNameFromItemType(itemType));
+        auto itemTypeInsertAction = new QAction(QIcon(GetIconFileFromItemType(itemType)), itemTypeName, mInsertMenu);
+        itemTypeInsertAction->setObjectName("RequireProjectButton");
+        mInsertMenu->addAction(itemTypeInsertAction);
+        connect(itemTypeInsertAction, &QAction::triggered, [this, itemType]() {
+            auto *dbProj = dynamic_cast<EmuDbProject*>(mFocusedProject);
+            if (dbProj != nullptr) {
+                ItemDialog dialog(dbProj->GetDb(), itemType, std::nullopt, this);
+                dialog.exec();
+            } else QMessageBox::critical(this, "Cannot Insert Item", "The current project is not a valid database.", QMessageBox::Ok);
+        });
+        mInsertToolBar->addAction(itemTypeInsertAction);
     }
-    // ADD_ID_TYPE(Asset, ":/images/silk/page_add.png")
-    // ADD_ID_TYPE(Badge, ":/images/silk/medal_gold_add.png")
-    // ADD_ID_TYPE(User, ":/images/silk/user_add.png")
 
     DisableRequiredProjectButtons(true);
 
