@@ -32,6 +32,8 @@
 #include <QDateTimeEdit>
 #include <QMessageBox>
 #include <QComboBox>
+#include <QTreeView>
+#include <QStandardItemModel>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -84,6 +86,10 @@ protected:
     CreatorInfoWidget* mOwned_CreatorInfoWidget;
 
     QComboBox* mAsset_AssetTypeInput;
+    QTreeView* mAsset_DataView;
+    QStandardItemModel* mAsset_DataModel;
+    QList<QString> mAsset_DataPendingFiles;
+    QList<int> mAsset_DataPendingDeleteVersions;
 
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;

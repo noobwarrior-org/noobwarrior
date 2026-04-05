@@ -174,6 +174,9 @@ public:
     SqlDb::Response AttachDataToAsset(int id, int version, const std::vector<unsigned char> &data);
     SqlDb::Response DetachDataFromAsset(int id, int version);
 
+    SqlDb::Response AttachBlobHashToAsset(int id, int version, const std::string &hash);
+    SqlDb::Response DetachBlobHashFromAsset(int id, int version, const std::string &hash);
+
     SqlDb::Response AttachHistoricalDataToAsset(int id, SqlRow row);
     SqlDb::Response DetachHistoricalDataFromAsset(int id, SqlRow row);
 

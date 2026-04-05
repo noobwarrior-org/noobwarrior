@@ -53,8 +53,7 @@ void ItemDialog::RegenWidgets() {
     }
 
     std::string tableName = GetTableNameFromItemType(mType);
-
-    setWindowTitle(tr("Configure %1").arg(QString::fromStdString(Item::TypeName)));
+    setWindowTitle(tr("Configure %1").arg(QString::fromStdString(tableName)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
     mLayout = new QHBoxLayout(this);

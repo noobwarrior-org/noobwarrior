@@ -622,7 +622,51 @@ SqlDb::Response EmuDb::AttachDataToAsset(int id, int version, const std::vector<
 }
 
 SqlDb::Response EmuDb::DetachDataFromAsset(int id, int version) {
+}
 
+SqlDb::Response EmuDb::AttachBlobHashToAsset(int id, int version, const std::string &hash) {
+}
+
+SqlDb::Response EmuDb::DetachBlobHashFromAsset(int id, int version, const std::string &hash) {
+}
+
+SqlDb::Response EmuDb::AttachHistoricalDataToAsset(int id, SqlRow row) {
+}
+
+SqlDb::Response EmuDb::DetachHistoricalDataFromAsset(int id, SqlRow row) {
+}
+
+SqlDb::Response EmuDb::AttachMicrotransactionDataToAsset(int id, SqlRow row) {
+}
+
+SqlDb::Response EmuDb::DetachMicrotransactionDataFromAsset(int id, SqlRow row) {
+}
+
+SqlDb::Response EmuDb::AddThumbnailToPlace(int id, int imageId) {
+}
+
+SqlDb::Response EmuDb::RemoveThumbnailFromPlace(int id, int imageId) {
+}
+
+SqlDb::Response EmuDb::RenderThumbnailForAsset(int id, int version) {
+}
+
+SqlDb::Response EmuDb::AddAssetToBundle(int bundleId, int assetId) {
+}
+
+SqlDb::Response EmuDb::RemoveAssetFromBundle(int bundleId, int assetId) {
+}
+
+SqlDb::Response EmuDb::AddAssetToOutfit(int outfitId, int assetId) {
+}
+
+SqlDb::Response EmuDb::RemoveAssetFromOutfit(int outfitId, int assetId) {
+}
+
+SqlDb::Response EmuDb::AddAssetToUserCharacter(int userId, int assetId) {
+}
+
+SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int userId, int assetId) {
 }
 
 AssetRepository* EmuDb::GetAssetRepository() {
