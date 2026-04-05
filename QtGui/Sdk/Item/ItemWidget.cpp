@@ -69,6 +69,11 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidge
 }
 
 void ItemWidget::Configure() {
-    ItemDialog dialog(mDb, mType, mId, this->listWidget());
+    QWidget* sdk = this->listWidget();
+    while (sdk && !dynamic_cast<Sdk*>(sdk)) {
+        sdk = sdk->parentWidget();
+    }
+
+    ItemDialog dialog(mDb, mType, mId, sdk);
     dialog.exec();
 }

@@ -79,8 +79,10 @@ void ItemListWidget::InitWidgets() {
     setWordWrap(true);
 
     connect(this, &QListWidget::itemDoubleClicked, this, [](QListWidgetItem *item) {
-        // auto *contentItem = dynamic_cast<ItemWidget*>(item);
-        // contentItem->Configure(editor);
+        auto *contentItem = dynamic_cast<ItemWidget*>(item);
+        if (contentItem) {
+            contentItem->Configure();
+        }
     });
 }
 
@@ -97,7 +99,9 @@ void ItemListWidget::ShowContextMenu(QPoint point) {
     connect(config, &QAction::triggered, [this]() {
         QListWidgetItem *item = currentItem();
         auto *contentItem = dynamic_cast<ItemWidget*>(item);
-        contentItem->Configure();
+        if (contentItem) {
+            contentItem->Configure();
+        }
     });
 
     connect(del, &QAction::triggered, [this]() {
