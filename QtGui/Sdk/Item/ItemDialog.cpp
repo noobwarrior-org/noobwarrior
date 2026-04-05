@@ -173,6 +173,7 @@ void ItemDialog::RegenWidgets() {
 
 void ItemDialog::OnSave() {
     auto *db = GetDatabase();
+    std::string tableName = GetTableNameFromItemType(mType);
 
     if (mNameInput->text().isEmpty()) {
         QMessageBox::critical(
@@ -181,6 +182,35 @@ void ItemDialog::OnSave() {
             "Please enter a name that is not empty."
         );
         return;
+    }
+
+    bool ok;
+    int64_t newId = mIdInput->text().toLongLong(&ok);
+    if (!ok) {
+        QMessageBox::critical(this, "Cannot Save", "ID is not a valid number.");
+        return;
+    }
+    int64_t oldId = mId.has_value() ? mId.value() : newId;
+    bool idChanged = mId.has_value() && newId != oldId;
+
+    if (idChanged) {
+        Statement checkStmt = db->PrepareStatement(std::format("SELECT COUNT(*) FROM {} WHERE Id = ?;", tableName));
+        checkStmt.Bind(1, newId);
+        if (checkStmt.Step() == SQLITE_ROW && checkStmt.GetIntFromColumnIndex(0) > 0) {
+            QMessageBox::critical(this, "Cannot Save",
+                QString("An item with ID %1 already exists.").arg(newId));
+            return;
+        }
+
+        Statement renameStmt = db->PrepareStatement(std::format("UPDATE {} SET Id = ? WHERE Id = ?;", tableName));
+        renameStmt.Bind(1, newId);
+        renameStmt.Bind(2, oldId);
+        if (renameStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Cannot Save",
+                QString("Failed to change ID.\nLast error: %1")
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+            return;
+        }
     }
 
     switch (mType) {
