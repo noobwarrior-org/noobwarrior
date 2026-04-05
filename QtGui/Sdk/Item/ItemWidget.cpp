@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: BrowserItem.cpp
+// File: ItemWidget.cpp
 // Started by: Hattozo
 // Started on: 2/14/2026
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
-#include "BrowserItem.h"
+#include "ItemWidget.h"
 #include "NoobWarrior/EmuDb/ItemType.h"
 #include "Sdk/Sdk.h"
 #include "Sdk/Item/ItemDialog.h"
@@ -35,19 +35,19 @@
 
 using namespace NoobWarrior;
 
-BrowserItem::BrowserItem(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview) :
+ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview) :
     QListWidgetItem(listview),
     mDb(db),
     mType(type),
     mId(id)
 {
-    assert(db != nullptr && "BrowserItem: Passed database is null");
+    assert(db != nullptr && "ItemWidget: Passed database is null");
     std::string tableName = GetTableNameFromItemType(mType);
     std::string name;
 
     Statement stmt = db->PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", tableName));
     if (stmt.Fail()) {
-        Out("BrowserItem", "Failed to retrieve name for ID {}", id);
+        Out("ItemWidget", "Failed to retrieve name for ID {}", id);
         return;
     }
     stmt.Bind(1, id);
@@ -68,7 +68,7 @@ BrowserItem::BrowserItem(EmuDb *db, NoobWarrior::ItemType type, int id, QListWid
     }
 }
 
-void BrowserItem::Configure() {
+void ItemWidget::Configure() {
     ItemDialog dialog(mDb, mType, mId, this->listWidget());
     dialog.exec();
 }

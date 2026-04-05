@@ -34,8 +34,8 @@ set(SOURCES
     Sdk/PluginListWidget.cpp
     Sdk/Item/Browser/ItemBrowserWidget.cpp
     Sdk/Item/Browser/ItemBrowserPage.cpp
-    Sdk/Item/Browser/BrowserItem.cpp
     Sdk/Item/ItemOpenSaveDialog.cpp
+    Sdk/Item/ItemWidget.cpp
     Sdk/Item/ItemListWidget.cpp
     Sdk/Item/ItemDialog.cpp
     Sdk/Item/ItemDialog_Impl_Asset.cpp

@@ -23,7 +23,7 @@
 // Started on: 11/30/2025
 // Description:
 #include "ItemListWidget.h"
-#include "Browser/BrowserItem.h"
+#include "ItemWidget.h"
 
 #include <QMenu>
 #include <QMessageBox>
@@ -64,7 +64,7 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
 
     while (stmt.Step() == SQLITE_ROW) {
-        auto *item = new BrowserItem(options.Database, options.ItemType, stmt.GetIntFromColumnIndex(0), this);
+        auto *item = new ItemWidget(options.Database, options.ItemType, stmt.GetIntFromColumnIndex(0), this);
     }
 }
 
@@ -79,7 +79,7 @@ void ItemListWidget::InitWidgets() {
     setWordWrap(true);
 
     connect(this, &QListWidget::itemDoubleClicked, this, [](QListWidgetItem *item) {
-        // auto *contentItem = dynamic_cast<BrowserItem*>(item);
+        // auto *contentItem = dynamic_cast<ItemWidget*>(item);
         // contentItem->Configure(editor);
     });
 }
@@ -96,7 +96,7 @@ void ItemListWidget::ShowContextMenu(QPoint point) {
 
     connect(config, &QAction::triggered, [this]() {
         QListWidgetItem *item = currentItem();
-        auto *contentItem = dynamic_cast<BrowserItem*>(item);
+        auto *contentItem = dynamic_cast<ItemWidget*>(item);
         contentItem->Configure();
     });
 

@@ -24,7 +24,7 @@
 // Description:
 #include "ItemBrowserPage.h"
 #include "Sdk/Item/ItemListWidget.h"
-#include "BrowserItem.h"
+#include "../ItemWidget.h"
 #include "ItemBrowserWidget.h"
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
@@ -53,7 +53,7 @@ void ItemBrowserPage::Refresh() {
     /*
     std::vector<Asset> list = db->GetAssetRepository()->List();
     for (auto &item : list) {
-        new BrowserItem<Asset>(item, db, this);
+        new ItemWidget<Asset>(item, db, this);
     }
     */
 }

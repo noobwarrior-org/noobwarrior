@@ -28,7 +28,7 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
 #include "Sdk/Sdk.h"
-#include "BrowserItem.h"
+#include "../ItemWidget.h"
 #include "ItemBrowserPage.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 

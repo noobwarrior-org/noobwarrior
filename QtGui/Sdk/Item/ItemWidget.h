@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: BrowserItem.h
+// File: ItemWidget.h
 // Started by: Hattozo
 // Started on: 7/26/2025
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
@@ -31,9 +31,9 @@
 #include <QListWidgetItem>
 
 namespace NoobWarrior {
-class BrowserItem : public QListWidgetItem {
+class ItemWidget : public QListWidgetItem {
 public:
-    BrowserItem(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview = nullptr);
+    ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview = nullptr);
 
     void Configure();
 private:
