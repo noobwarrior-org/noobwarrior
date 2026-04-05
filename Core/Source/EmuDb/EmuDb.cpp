@@ -529,9 +529,9 @@ SqlDb::Response EmuDb::UpdateItem(ItemType type, int id, SqlRow row) {
 	for (i = 0; i < row.size(); i++) {
 		SqlColumn column = row.at(i);
 		SqlValue columnValue = column.second;
-		stmt.Bind(i, columnValue);
+		stmt.Bind(i + 1, columnValue);
 	}
-	stmt.Bind(i, id);
+	stmt.Bind(i + 1, id);
 
 	switch (stmt.Step()) {
 	default:
@@ -684,62 +684,76 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
 		FAIL("Database initialization failed")
 	}
 
-	if (tableName.compare("Asset") == 0) {
-		// if we are an image asset, we need to get the data from ourselves directly
-		int type = 0;
+    int currentId = id;
+    std::string currentTableName = tableName;
 
-        Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ?;", tableName));
-        if (typeStmt.Fail()) {
-			FAIL("Failed to retrieve asset type for ID {}", id)
-        }
-        typeStmt.Bind(1, id);
+    // Loop to handle ImageId redirection without recursion
+    for (int i = 0; i < 10; ++i) { // Limit iterations to prevent infinite loops in case of bad data
+        if (currentTableName.compare("Asset") == 0) {
+            // If we are an image asset, we need to get the data from ourselves directly
+            int type = 0;
 
-        if (typeStmt.Step() == SQLITE_ROW) {
-            type = typeStmt.GetIntFromColumnIndex(0);
-        }
-
-        if (type == static_cast<int>(Roblox::AssetType::Image)) {
-            Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;");
-			if (hashStmt.Fail()) {
-				FAIL("Failed to prepare statement in order to retrieve image hash")
-			}
-            hashStmt.Bind(1, id);
-
-            if (hashStmt.Step() == SQLITE_ROW) {
-                std::string hash = hashStmt.GetStringFromColumnIndex(0);
-
-                Statement imgDataStmt = PrepareStatement(std::format("SELECT Blob FROM BlobStorage WHERE Hash = ?;"));
-				if (imgDataStmt.Fail()) {
-					FAIL("Failed to prepare statement in order to retrieve image data")
-				}
-                imgDataStmt.Bind(1, hash);
-
-                if (imgDataStmt.Step() == SQLITE_ROW) {
-					std::vector<unsigned char> imgBlob = imgDataStmt.GetBlobFromColumnIndex(0);
-					if (imgBlob.size() == 0) {
-						imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
-						return imgData;
-					}
-					return imgBlob;
-				}
+            Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ?;", currentTableName));
+            if (typeStmt.Fail()) {
+                FAIL("Failed to retrieve asset type for ID {}", currentId)
             }
-		}
-	}
+            typeStmt.Bind(1, currentId);
 
-	Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;",
-		tableName
-	));
-	if (imgIdStmt.Fail()) {
-		FAIL("Failed to prepare statement in order to retrieve image ID")
-	}
-	imgIdStmt.Bind(1, id);
+            if (typeStmt.Step() == SQLITE_ROW) {
+                type = typeStmt.GetIntFromColumnIndex(0);
+            }
 
-	if (imgIdStmt.Step() == SQLITE_ROW) {
-		int64_t imageId = sqlite3_column_int64(imgIdStmt.Get(), 0);
-		return RetrieveImageData("Asset", imageId);
-	}
+            if (type == static_cast<int>(Roblox::AssetType::Image)) {
+                Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;");
+                if (hashStmt.Fail()) {
+                    FAIL("Failed to prepare statement in order to retrieve image hash")
+                }
+                hashStmt.Bind(1, currentId);
 
-	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
+                if (hashStmt.Step() == SQLITE_ROW) {
+                    std::string hash = hashStmt.GetStringFromColumnIndex(0);
+
+                    Statement imgDataStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?;");
+                    if (imgDataStmt.Fail()) {
+                        FAIL("Failed to prepare statement in order to retrieve image data")
+                    }
+                    imgDataStmt.Bind(1, hash);
+
+                    if (imgDataStmt.Step() == SQLITE_ROW) {
+                        std::vector<unsigned char> imgBlob = imgDataStmt.GetBlobFromColumnIndex(0);
+                        if (imgBlob.size() == 0) {
+                            imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+                            return imgData;
+                        }
+                        return imgBlob;
+                    }
+                }
+            }
+        }
+
+        // If not an image asset or not an asset table, try to find an ImageId
+        Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;",
+            currentTableName
+        ));
+        if (imgIdStmt.Fail()) {
+            FAIL("Failed to prepare statement in order to retrieve image ID")
+        }
+        imgIdStmt.Bind(1, currentId);
+
+        if (imgIdStmt.Step() == SQLITE_ROW) {
+            int imageId = imgIdStmt.GetIntFromColumnIndex(0);
+            currentId = imageId;
+            currentTableName = "Asset"; // Next iteration, treat it as an Asset
+        } else {
+            // No ImageId found, or it was an Asset but not an Image type and no ImageId was found
+            break;
+        }
+
+        if (i == 9)
+            Out(std::format("ImageId redirect loop limit reached for ID {} in table {}", id, tableName));
+    }
+
+	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
 	return imgData;
 #undef FAIL
 }
@@ -757,6 +771,5 @@ std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const st
 		const auto data = GetValueFromColumnName<std::vector<unsigned char>>(stmt.Get(), columnName);
 		return data;
 	}
-
-	return {};
+    return {};
 }
