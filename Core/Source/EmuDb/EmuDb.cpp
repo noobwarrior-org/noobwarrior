@@ -504,7 +504,7 @@ SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
 	}
 }
 
-SqlDb::Response EmuDb::UpdateItem(ItemType type, int id, SqlRow row) {
+SqlDb::Response EmuDb::UpdateItem(ItemType type, int64_t id, SqlRow row) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
 	std::string tableName = GetTableNameFromItemType(type);
@@ -547,7 +547,7 @@ SqlDb::Response EmuDb::UpdateItem(ItemType type, int id, SqlRow row) {
 	}
 }
 
-SqlDb::Response EmuDb::DeleteItem(ItemType type, int id) {
+SqlDb::Response EmuDb::DeleteItem(ItemType type, int64_t id) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
 	Statement stmt = PrepareStatement("DELETE FROM " + GetTableNameFromItemType(type) + " WHERE Id = ?;");
@@ -564,7 +564,7 @@ SqlDb::Response EmuDb::DeleteItem(ItemType type, int id) {
 	}
 }
 
-SqlDb::Response EmuDb::AttachDataToAsset(int id, int version, const std::vector<unsigned char> &data) {
+SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
 	std::string hashStr;
@@ -621,59 +621,59 @@ SqlDb::Response EmuDb::AttachDataToAsset(int id, int version, const std::vector<
 	return SqlDb::Response::Success;
 }
 
-SqlDb::Response EmuDb::DetachDataFromAsset(int id, int version) {
+SqlDb::Response EmuDb::DetachDataFromAsset(int64_t id, int version) {
 }
 
-SqlDb::Response EmuDb::AttachBlobHashToAsset(int id, int version, const std::string &hash) {
+SqlDb::Response EmuDb::AttachBlobHashToAsset(int64_t id, int version, const std::string &hash) {
 }
 
-SqlDb::Response EmuDb::DetachBlobHashFromAsset(int id, int version, const std::string &hash) {
+SqlDb::Response EmuDb::DetachBlobHashFromAsset(int64_t id, int version, const std::string &hash) {
 }
 
-SqlDb::Response EmuDb::AttachHistoricalDataToAsset(int id, SqlRow row) {
+SqlDb::Response EmuDb::AttachHistoricalDataToAsset(int64_t id, SqlRow row) {
 }
 
-SqlDb::Response EmuDb::DetachHistoricalDataFromAsset(int id, SqlRow row) {
+SqlDb::Response EmuDb::DetachHistoricalDataFromAsset(int64_t id, SqlRow row) {
 }
 
-SqlDb::Response EmuDb::AttachMicrotransactionDataToAsset(int id, SqlRow row) {
+SqlDb::Response EmuDb::AttachMicrotransactionDataToAsset(int64_t id, SqlRow row) {
 }
 
-SqlDb::Response EmuDb::DetachMicrotransactionDataFromAsset(int id, SqlRow row) {
+SqlDb::Response EmuDb::DetachMicrotransactionDataFromAsset(int64_t id, SqlRow row) {
 }
 
-SqlDb::Response EmuDb::AddThumbnailToPlace(int id, int imageId) {
+SqlDb::Response EmuDb::AddThumbnailToPlace(int64_t id, int64_t imageId) {
 }
 
-SqlDb::Response EmuDb::RemoveThumbnailFromPlace(int id, int imageId) {
+SqlDb::Response EmuDb::RemoveThumbnailFromPlace(int64_t id, int64_t imageId) {
 }
 
-SqlDb::Response EmuDb::RenderThumbnailForAsset(int id, int version) {
+SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
 }
 
-SqlDb::Response EmuDb::AddAssetToBundle(int bundleId, int assetId) {
+SqlDb::Response EmuDb::AddAssetToBundle(int64_t bundleId, int64_t assetId) {
 }
 
-SqlDb::Response EmuDb::RemoveAssetFromBundle(int bundleId, int assetId) {
+SqlDb::Response EmuDb::RemoveAssetFromBundle(int64_t bundleId, int64_t assetId) {
 }
 
-SqlDb::Response EmuDb::AddAssetToOutfit(int outfitId, int assetId) {
+SqlDb::Response EmuDb::AddAssetToOutfit(int64_t outfitId, int64_t assetId) {
 }
 
-SqlDb::Response EmuDb::RemoveAssetFromOutfit(int outfitId, int assetId) {
+SqlDb::Response EmuDb::RemoveAssetFromOutfit(int64_t outfitId, int64_t assetId) {
 }
 
-SqlDb::Response EmuDb::AddAssetToUserCharacter(int userId, int assetId) {
+SqlDb::Response EmuDb::AddAssetToUserCharacter(int64_t userId, int64_t assetId) {
 }
 
-SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int userId, int assetId) {
+SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId) {
 }
 
 AssetRepository* EmuDb::GetAssetRepository() {
 	return &mAssetRepository;
 }
 
-std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int id) {
+std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int64_t id) {
 	std::vector<unsigned char> imgData;
 #define FAIL(...) \
 	Out(std::format("Failed to retrieve image data for ID {} from table {}: ", id, tableName) + __VA_ARGS__); \

@@ -64,7 +64,7 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
 
     while (stmt.Step() == SQLITE_ROW) {
-        auto *item = new ItemWidget(options.Database, options.ItemType, stmt.GetIntFromColumnIndex(0), this);
+        auto *item = new ItemWidget(options.Database, options.ItemType, stmt.GetInt64FromColumnIndex(0), this);
     }
 }
 

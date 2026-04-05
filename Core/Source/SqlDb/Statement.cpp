@@ -61,7 +61,7 @@ SqlValue Statement::GetValueFromColumnIndex(int columnIndex) const {
     switch (sqlite3_column_type(mStmt, columnIndex)) {
     default: return std::monostate();
     case SQLITE_NULL: return std::monostate();
-    case SQLITE_INTEGER: return sqlite3_column_int(mStmt, columnIndex);
+    case SQLITE_INTEGER: return sqlite3_column_int64(mStmt, columnIndex);
     case SQLITE_FLOAT: return sqlite3_column_double(mStmt, columnIndex);
     case SQLITE_TEXT: return std::string(reinterpret_cast<const char*>(sqlite3_column_text(mStmt, columnIndex)));
     case SQLITE_BLOB:

@@ -26,7 +26,7 @@
 
 using namespace NoobWarrior;
 
-int ItemOpenSaveDialog::GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType, Roblox::AssetType assetType, bool enforce) {
+int64_t ItemOpenSaveDialog::GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType, Roblox::AssetType assetType, bool enforce) {
     ItemOpenSaveDialog dialog(db, ItemOpenSaveDialog::Mode::Open, parent);
     dialog.ToggleItemTypeDropdown(!enforce);
     dialog.ToggleAssetTypeDropdown(!enforce);

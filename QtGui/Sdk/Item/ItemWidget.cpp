@@ -35,7 +35,7 @@
 
 using namespace NoobWarrior;
 
-ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview) :
+ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListWidget *listview) :
     QListWidgetItem(listview),
     mDb(db),
     mType(type),

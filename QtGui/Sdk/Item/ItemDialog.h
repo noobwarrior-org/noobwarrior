@@ -50,7 +50,7 @@
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
 public:
-    ItemDialog(EmuDb* db, ItemType type, std::optional<int> id = std::nullopt, QWidget *parent = nullptr);
+    ItemDialog(EmuDb* db, ItemType type, std::optional<int64_t> id = std::nullopt, QWidget *parent = nullptr);
 protected:
     void RegenWidgets();
     void OnSave();
@@ -69,7 +69,7 @@ protected:
     EmuDb* mDb;
     ItemType mType;
 
-    std::optional<int> mId;
+    std::optional<int64_t> mId;
 
     QLabel* mIcon;
 

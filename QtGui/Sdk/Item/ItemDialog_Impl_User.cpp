@@ -31,8 +31,8 @@ void ItemDialog::User_AddFields() {
     std::string displayName;
     std::string status;
     std::string bio;
-    int joinDate = 0;
-    int lastOnline = 0;
+    int64_t joinDate = 0;
+    int64_t lastOnline = 0;
     if (mId.has_value()) {
         Statement stmt = GetDatabase()->PrepareStatement("SELECT DisplayName, Status, Bio, JoinDate, LastOnline FROM Id = ?");
         stmt.Bind(1, mId.value());
@@ -40,8 +40,8 @@ void ItemDialog::User_AddFields() {
             displayName = stmt.GetStringFromColumnIndex(0);
             status = stmt.GetStringFromColumnIndex(1);
             bio = stmt.GetStringFromColumnIndex(2);
-            joinDate = stmt.GetIntFromColumnIndex(3);
-            lastOnline = stmt.GetIntFromColumnIndex(4);
+            joinDate = stmt.GetInt64FromColumnIndex(3);
+            lastOnline = stmt.GetInt64FromColumnIndex(4);
         }
     }
 
@@ -69,13 +69,13 @@ void ItemDialog::User_AddFields() {
 bool ItemDialog::User_OnSave() {
     auto *db = GetDatabase();
 
-    int id = mIdInput->text().toInt();
+    int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
     std::string displayName = mUser_DisplayNameInput->text().toStdString();
     std::string status = mUser_StatusInput->text().toStdString();
     std::string bio = mUser_BioInput->text().toStdString();
-    int joinDate = mUser_JoinDateInput->dateTime().toSecsSinceEpoch();
-    int lastOnline = mUser_LastOnlineInput->dateTime().toSecsSinceEpoch();
+    int64_t joinDate = mUser_JoinDateInput->dateTime().toSecsSinceEpoch();
+    int64_t lastOnline = mUser_LastOnlineInput->dateTime().toSecsSinceEpoch();
 
     Statement stmt = db->PrepareStatement(R"(
         INSERT INTO User (Id, Name, DisplayName, Status, Bio, JoinDate, LastOnline) VALUES (?, ?, ?, ?, ?, ?, ?)

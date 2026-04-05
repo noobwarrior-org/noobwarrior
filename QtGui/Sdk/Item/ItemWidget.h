@@ -33,12 +33,12 @@
 namespace NoobWarrior {
 class ItemWidget : public QListWidgetItem {
 public:
-    ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int id, QListWidget *listview = nullptr);
+    ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListWidget *listview = nullptr);
 
     void Configure();
 private:
     EmuDb* mDb;
     NoobWarrior::ItemType mType;
-    int mId;
+    int64_t mId;
 };
 }

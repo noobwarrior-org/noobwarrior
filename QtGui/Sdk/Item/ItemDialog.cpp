@@ -31,7 +31,7 @@
 
 using namespace NoobWarrior;
 
-ItemDialog::ItemDialog(EmuDb* db, ItemType type, std::optional<int> id, QWidget *parent) :
+ItemDialog::ItemDialog(EmuDb* db, ItemType type, std::optional<int64_t> id, QWidget *parent) :
     QDialog(parent),
     mDb(db),
     mType(type),
@@ -112,7 +112,7 @@ void ItemDialog::RegenWidgets() {
 
         connect(useExistingImage, &QPushButton::clicked, [this]() {
             // TODO: Add ItemOpenSaveDialog here
-            int id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
+            int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
         });
     }
 
@@ -128,6 +128,22 @@ void ItemDialog::RegenWidgets() {
     mNameInput = new QLineEdit();
     mNameInput->setPlaceholderText("Cool Name");
     mContentLayout->addRow("Name", mNameInput);
+
+    if (mId.has_value()) {
+        // deserialization
+        Statement stmt = db->PrepareStatement(std::format("SELECT Id, Name FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        stmt.Bind(1, mId.value());
+        int stepResult = stmt.Step();
+        if (stepResult == SQLITE_ROW) {
+            int64_t id = stmt.GetInt64FromColumnIndex(0);
+            std::string name = stmt.GetStringFromColumnIndex(1);
+
+            mIdInput->setText(QString::number(id));
+            mNameInput->setText(QString::fromStdString(name));
+        } else {
+            QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        }
+    }
 
     switch (mType) {
     default:
@@ -212,18 +228,14 @@ void ItemDialog::AddOwnedItemFields() {
 
     if (mId.has_value()) {
         // deserialization
-        Statement stmt = db->PrepareStatement(std::format("SELECT Id, Name, Description, Created, Updated FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        Statement stmt = db->PrepareStatement(std::format("SELECT Description, Created, Updated FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
-            int id = stmt.GetIntFromColumnIndex(0);
-            std::string name = stmt.GetStringFromColumnIndex(1);
-            std::string desc = stmt.GetStringFromColumnIndex(2);
+            std::string desc = stmt.GetStringFromColumnIndex(0);
 
-            mIdInput->setText(QString::number(id));
-            mNameInput->setText(QString::fromStdString(name));
             mOwned_DescriptionInput->setText(QString::fromStdString(desc));
-            mOwned_CreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(3)));
-            mOwned_UpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(4)));
+            mOwned_CreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(1)));
+            mOwned_UpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(2)));
         } else {
             QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         }
