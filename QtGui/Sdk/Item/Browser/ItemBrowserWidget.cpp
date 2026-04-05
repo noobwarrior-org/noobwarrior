@@ -150,11 +150,15 @@ void ItemBrowserWidget::InitWidgets() {
     AssetFilterDropdownLayout->addWidget(AssetCategoryDropdown);
     AssetFilterDropdownLayout->addWidget(AssetTypeDropdown);
 
-    NoDatabaseFoundLabel = new QLabel("Switch to a database project in order to browse it", MainWidget);
     SearchBox = new QLineEdit(MainWidget);
-
-    NoDatabaseFoundLabel->setWordWrap(true);
     SearchBox->setPlaceholderText("Search...");
+    connect(SearchBox, &QLineEdit::textChanged, [this]() {
+        mPage->SetQuery(SearchBox->text());
+        mPage->Refresh();
+    });
+
+    NoDatabaseFoundLabel = new QLabel("Switch to a database project in order to browse it", MainWidget);
+    NoDatabaseFoundLabel->setWordWrap(true);
 
     MainLayout->addWidget(ItemTypeDropdown);
     MainLayout->addLayout(AssetFilterDropdownLayout);

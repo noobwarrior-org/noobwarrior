@@ -30,6 +30,16 @@
 
 using namespace NoobWarrior;
 
+static std::string EscapeLike(const std::string &input) {
+    std::string result;
+    for (char c : input) {
+        if (c == '%' || c == '_' || c == '\\')
+            result += '\\';
+        result += c;
+    }
+    return result;
+}
+
 ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent) {
     InitWidgets();
 
@@ -45,7 +55,13 @@ void ItemListWidget::Populate(const PopulateOptions options) {
     clear();
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
-    Statement stmt = options.Database->PrepareStatement("SELECT Id, Name FROM " + tableName + ";");
+    std::string stmtStr = "SELECT Id, Name FROM " + tableName;
+    if (!options.Query.empty())
+        stmtStr += " WHERE Name LIKE ? ESCAPE '\\'";
+    stmtStr += ";";
+    Statement stmt = options.Database->PrepareStatement(stmtStr);
+    if (!options.Query.empty())
+        stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
 
     while (stmt.Step() == SQLITE_ROW) {
         auto *item = new BrowserItem(options.Database, options.ItemType, stmt.GetIntFromColumnIndex(0), this);

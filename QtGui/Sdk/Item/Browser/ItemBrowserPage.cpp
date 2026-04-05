@@ -47,7 +47,7 @@ void ItemBrowserPage::Refresh() {
         .Offset = 0,
         .Limit = 100,
         .EnforceLimit = true,
-        .Query = ""
+        .Query = mQuery.toStdString()
     });
 
     /*
@@ -56,6 +56,10 @@ void ItemBrowserPage::Refresh() {
         new BrowserItem<Asset>(item, db, this);
     }
     */
+}
+
+void ItemBrowserPage::SetQuery(const QString &query) {
+    mQuery = query;
 }
 
 void ItemBrowserPage::SetType(ItemType type) {
