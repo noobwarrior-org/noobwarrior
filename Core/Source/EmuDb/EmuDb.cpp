@@ -574,25 +574,32 @@ SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vec
 		return SqlDb::Response::Failed;
 	}
 
-	if (version > 0) {
+    return AttachBlobHashToAsset(id, version,  hashStr);
+}
+
+SqlDb::Response EmuDb::DetachDataFromAsset(int64_t id, int version) {
+}
+
+SqlDb::Response EmuDb::AttachBlobHashToAsset(int64_t id, int version, const std::string &hash) {
+    if (version > 0) {
 		Statement checkStmt = PrepareStatement("SELECT * FROM AssetData WHERE Id = ? AND Version = ?;");
 		CHECK_STMT(checkStmt)
-		checkStmt.Bind(1, hashStr);
+		checkStmt.Bind(1, hash);
 		checkStmt.Bind(2, version);
 		int checkStmtRes = checkStmt.Step();
 		if (checkStmtRes == SQLITE_ROW) {
 			Statement updateStmt = PrepareStatement("UPDATE AssetData SET DataHash WHERE Id = ?;");
 			CHECK_STMT(updateStmt)
 			if (updateStmt.Step() != SQLITE_DONE) {
-				Out("Failed to attach data to asset id {} because updating the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+				Out("Failed to attach data to asset id {} because updating the hash {} failed. Message: \"{}\"", id, hash, GetLastErrorMsg());
 				return SqlDb::Response::Failed;
 			}
 			return SqlDb::Response::Success;
 		} else if (checkStmtRes != SQLITE_DONE) {
-			Out("Failed to attach data to asset id {} because checking the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+			Out("Failed to attach data to asset id {} because checking the hash {} failed. Message: \"{}\"", id, hash, GetLastErrorMsg());
 			return SqlDb::Response::Failed;
 		}
-	}	
+	}
 
 	// if version is set to 0 or lower, this means that the guy who ran the function wants to create a newer version instead of overwriting an existing one.
 	// so get the maximum version that is in the database and increment it by 1 to get a newer version.
@@ -613,18 +620,12 @@ SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vec
 	CHECK_STMT(stmt)
 	stmt.Bind(1, id);
 	stmt.Bind(2, version);
-	stmt.Bind(3, hashStr);
+	stmt.Bind(3, hash);
 	if (stmt.Step() != SQLITE_DONE) {
-		Out("Failed to attach data to asset id {} because inserting the hash {} failed. Message: \"{}\"", id, hashStr, GetLastErrorMsg());
+		Out("Failed to attach data to asset id {} because inserting the hash {} failed. Message: \"{}\"", id, hash, GetLastErrorMsg());
 		return SqlDb::Response::Failed;
 	}
 	return SqlDb::Response::Success;
-}
-
-SqlDb::Response EmuDb::DetachDataFromAsset(int64_t id, int version) {
-}
-
-SqlDb::Response EmuDb::AttachBlobHashToAsset(int64_t id, int version, const std::string &hash) {
 }
 
 SqlDb::Response EmuDb::DetachBlobHashFromAsset(int64_t id, int version, const std::string &hash) {
