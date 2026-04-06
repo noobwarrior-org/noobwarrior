@@ -162,10 +162,38 @@ void ItemDialog::Asset_AddAssetTypeWidgets() {
     }
 }
 
+static constexpr std::string sTablesThatNeedToBeUpdated[] = {
+    "AssetData",
+    "AssetHistorical",
+    "AssetMicrotransaction",
+    "AssetPlaceAttributes",
+    "AssetPlaceGearType",
+    "AssetPlaceThumbnail"
+};
+
 bool ItemDialog::Asset_OnSave() {
     auto *db = GetDatabase();
 
-    int64_t id = mIdInput->text().toLongLong();
+    int64_t newId = mIdInput->text().toLongLong();
+    int64_t oldId = mId.has_value() ? mId.value() : newId;
+    bool idChanged = mId.has_value() && oldId != newId;
+
+    if (idChanged) {
+        // id changed, pls update these other tables!!!
+        for (int i = 0; i < std::size(sTablesThatNeedToBeUpdated); i++) {
+            Statement updateStmt = db->PrepareStatement(std::format("UPDATE {} SET Id = ? WHERE Id = ?;", sTablesThatNeedToBeUpdated[i]));
+            updateStmt.Bind(1, newId);
+            updateStmt.Bind(2, oldId);
+            if (updateStmt.Step() != SQLITE_DONE) {
+                QMessageBox::critical(this, "Cannot Save",
+                    QString("Failed to update Id field in %1 table.\nLast error: %2")
+                    .arg(sTablesThatNeedToBeUpdated[i])
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+                return false;
+            }
+        }
+    }
+
     std::string name = mNameInput->text().toStdString();
     std::string description = mOwned_DescriptionInput->text().toStdString();
 
@@ -173,7 +201,7 @@ bool ItemDialog::Asset_OnSave() {
         INSERT INTO Asset (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
     )");
-    stmt.Bind(1, id);
+    stmt.Bind(1, newId);
     stmt.Bind(2, name);
     stmt.Bind(3, description);
     stmt.Bind(4, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
@@ -211,8 +239,8 @@ bool ItemDialog::Asset_OnSave() {
         Statement dataStmt = db->PrepareStatement(
             "INSERT INTO AssetData (Id, Version, DataHash) VALUES (?, (SELECT COALESCE(MAX(Version), 0) + 1 FROM AssetData WHERE Id = ?), ?);"
         );
-        dataStmt.Bind(1, id);
-        dataStmt.Bind(2, id); // subquery also needs the id
+        dataStmt.Bind(1, newId);
+        dataStmt.Bind(2, newId); // subquery also needs the id
         dataStmt.Bind(3, hashOutput);
         if (dataStmt.Step() != SQLITE_DONE) {
             QMessageBox::critical(this, "Failed to Save Changes",
@@ -224,7 +252,7 @@ bool ItemDialog::Asset_OnSave() {
 
     for (int version : mAsset_DataPendingDeleteVersions) {
         Statement delStmt = db->PrepareStatement("DELETE FROM AssetData WHERE Id = ? AND Version = ?;");
-        delStmt.Bind(1, id);
+        delStmt.Bind(1, newId);
         delStmt.Bind(2, version);
         if (delStmt.Step() != SQLITE_DONE) {
             QMessageBox::critical(this, "Failed to Save Changes",
