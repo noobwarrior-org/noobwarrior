@@ -48,7 +48,10 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     evkeyvalq headers;
-    evhttp_parse_query_str(uri, &headers);
+    if (evhttp_parse_query(uri, &headers) != 0) {
+        evhttp_send_error(req, 500, "Failed to parse URL parameters");
+        return;
+    }
 
     const char* idStr = evhttp_find_header(&headers, "id");
     if (idStr == NULL) {
