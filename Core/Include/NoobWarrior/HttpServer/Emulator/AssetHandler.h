@@ -34,6 +34,6 @@ public:
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
     HttpServer *mHttpServer;
-    EmuDbManager *mDatabaseManager;
+    EmuDbManager *mEmuDbManager;
 };
 }

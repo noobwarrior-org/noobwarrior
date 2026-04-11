@@ -29,7 +29,7 @@ using namespace NoobWarrior;
 
 AssetHandler::AssetHandler(HttpServer *srv, EmuDbManager *dbm) :
     mHttpServer(srv),
-    mDatabaseManager(dbm)
+    mEmuDbManager(dbm)
 {}
 
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
@@ -42,30 +42,83 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
-    evhttp_send_error(req, HTTP_BADMETHOD, "WIP");
-    /*
-    const mg_request_info *request_info = mg_get_request_info(conn);
-    const char *query_string = request_info->query_string;
-    char id_string[256];
-
-    switch (int res = mg_get_var(query_string, strlen(query_string), "id", id_string, sizeof(id_string))) {
-        case -1:
-            break;
-        case -2:
-            mg_send_http_error(conn, 500, "Error when decoding \"id\" parameter");
-            return 500;
-        default: break;
+    if (mEmuDbManager->GetMasterDatabase() == nullptr) {
+        evhttp_send_error(req, 500, "Master database does not exist.");
+        return;
     }
 
-    char* invalidChar = nullptr;
-    int id = static_cast<int>(strtol(id_string, &invalidChar, 10));
-    if (*invalidChar != '\0') {
-        // Invalid character was assigned to by strtol, this means it found something invalid
-        mg_send_http_error(conn, 400, "Invalid id number: '%c'", *invalidChar);
-        return 400;
+    evkeyvalq headers;
+    evhttp_parse_query_str(uri, &headers);
+
+    const char* idStr = evhttp_find_header(&headers, "id");
+    if (idStr == NULL) {
+        evhttp_send_error(req, 400, "Id parameter not given");
+        return;
+    }
+    const char* verStr = evhttp_find_header(&headers, "version");
+    int ver = 0;
+    if (verStr != NULL) {
+        char *verEndPtr;
+        ver = strtol(verStr, &verEndPtr, 10);
+        if (verStr == verEndPtr) {
+            /* strtol failed */
+            evhttp_send_error(req, 400, "Invalid version");
+            return;
+        }
     }
 
-    mg_send_http_error(conn, 404, "WIP");
-    return 404;
-    */
+    std::string stmtStr = "SELECT DataHash FROM AssetData WHERE Id = ?";
+    if (verStr != NULL && ver > 0)
+        stmtStr += " AND Version = ?;";
+    else
+        stmtStr += " ORDER BY Version DESC LIMIT 1;";
+
+    char *idEndPtr;
+    int64_t id = strtoll(idStr, &idEndPtr, 10);
+    if (idStr == idEndPtr) {
+        /* strtoll failed */
+        evhttp_send_error(req, 400, "Invalid ID");
+        return;
+    }
+
+    Statement getHashStmt = mEmuDbManager->GetMasterDatabase()->PrepareStatement(stmtStr);
+    if (getHashStmt.Fail()) {
+        evhttp_send_error(req, 500, "failed to prepare SQL statement");
+        return;
+    }
+    getHashStmt.Bind(1, id);
+    if (verStr != NULL) {
+        getHashStmt.Bind(2, ver);
+    }
+    int res = getHashStmt.Step();
+    if (res != SQLITE_ROW && res != SQLITE_DONE) {
+        evhttp_send_error(req, 500, "failed to execute SQL statement");
+        return;
+    }
+    if (res == SQLITE_ROW) {
+        std::string hash = getHashStmt.GetStringFromColumnIndex(0);
+        Statement blobStmt = mEmuDbManager->GetMasterDatabase()->PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
+        if (blobStmt.Fail()) {
+            evhttp_send_error(req, 500, "failed to prepare SQL statement");
+            return;
+        }
+        blobStmt.Bind(1, hash);
+        int blobStmtRes = blobStmt.Step();
+        if (blobStmtRes != SQLITE_ROW && blobStmtRes != SQLITE_DONE) {
+            evhttp_send_error(req, 500, "failed to execute SQL statement");
+            return;
+        }
+        if (blobStmtRes == SQLITE_ROW) {
+            std::vector<unsigned char> data = blobStmt.GetBlobFromColumnIndex(0);
+            evbuffer* buf = evbuffer_new();
+            evbuffer_add(buf, data.data(), data.size());
+
+            evhttp_send_reply(req, 200, NULL, buf);
+            evbuffer_free(buf);
+            return;
+        }
+        evhttp_send_error(req, 400, "Blob was not found in database");
+        return;
+    }
+    evhttp_send_error(req, 400, "Data for ID was not found in database");
 }
