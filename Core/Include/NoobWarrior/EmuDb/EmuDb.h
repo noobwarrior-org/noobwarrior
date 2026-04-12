@@ -166,6 +166,7 @@ public:
     
     /* Generic item functions */
     SqlDb::Response AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput = nullptr);
+    SqlDb::Response AddBlob(const std::filesystem::path &path, std::string *hashOutput = nullptr);
     SqlDb::Response AddItem(ItemType type, SqlRow row);
     SqlDb::Response UpdateItem(ItemType, int64_t id, SqlRow row);
     SqlDb::Response DeleteItem(ItemType, int64_t id);
@@ -187,6 +188,8 @@ public:
     SqlDb::Response RemoveThumbnailFromPlace(int64_t id, int64_t imageId);
 
     SqlDb::Response RenderThumbnailForAsset(int64_t id, int version = 0);
+
+    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput);
 
     /* Bundle functions */
     SqlDb::Response AddAssetToBundle(int64_t bundleId, int64_t assetId);

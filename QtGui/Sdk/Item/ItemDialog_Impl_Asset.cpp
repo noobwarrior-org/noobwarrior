@@ -213,18 +213,9 @@ bool ItemDialog::Asset_OnSave() {
     }
 
     for (QString filePath : mAsset_DataPendingFiles) {
-        std::ifstream file(filePath.toStdString(), std::ios::binary);
-        if (!file.is_open()) {
-            QMessageBox::critical(this, "Error", "Unable to open file");
-            return false;
-        }
-
+        std::filesystem::path fsPath(filePath.toStdString());
         std::string hashOutput;
-        std::vector<unsigned char> data {
-            std::istreambuf_iterator<char>(file),
-            std::istreambuf_iterator<char>()
-        };
-        SqlDb::Response res = GetDatabase()->AddBlob(data, &hashOutput);
+        SqlDb::Response res = GetDatabase()->AddBlob(fsPath, &hashOutput);
         if (res != SqlDb::Response::Success && res != SqlDb::Response::DidNothing) {
             QString errMsg;
             switch (res) {

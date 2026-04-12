@@ -459,6 +459,53 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::stri
 	}
 }
 
+SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *hashOutput) {
+    if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        return SqlDb::Response::CantOpen;
+    }
+
+    std::vector<unsigned char> data {
+        std::istreambuf_iterator<char>(file),
+        std::istreambuf_iterator<char>()
+    };
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(data.data(), data.size(), hash);
+
+    std::string hashStr;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        hashStr += std::format("{:02x}", hash[i]);
+    }
+
+    Statement checkStmt = PrepareStatement("SELECT * FROM BlobStorage WHERE Hash = ?;");
+    CHECK_STMT(checkStmt)
+    checkStmt.Bind(1, hashStr);
+    if (checkStmt.Step() == SQLITE_ROW) {
+        if (hashOutput != nullptr)
+            *hashOutput = hashStr;
+        return SqlDb::Response::DidNothing;
+    }
+
+    Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
+    CHECK_STMT(stmt)
+    stmt.Bind(1, hashStr);
+    stmt.Bind(2, data);
+
+    switch (stmt.Step()) {
+    default: return SqlDb::Response::Failed;
+    case SQLITE_DONE:
+        if (hashOutput != nullptr)
+            *hashOutput = hashStr;
+        return SqlDb::Response::Success;
+    case SQLITE_BUSY: return SqlDb::Response::Busy;
+    case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+    case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+    }
+}
+
 SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
