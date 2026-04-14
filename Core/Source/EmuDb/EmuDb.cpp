@@ -424,6 +424,9 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 /* Note: This just adds it to the storage. */
 SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
+    if (data.size() >= 2147483648) {
+        return SqlDb::Response::BlobTooLarge;
+    }
 
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	SHA256(data.data(), data.size(), hash);
@@ -467,13 +470,27 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
         return SqlDb::Response::CantOpen;
     }
 
-    std::vector<unsigned char> data {
-        std::istreambuf_iterator<char>(file),
-        std::istreambuf_iterator<char>()
-    };
+    uintmax_t fileSize = 0;
+    try {
+        fileSize = std::filesystem::file_size(path);
+        if (fileSize >= 2147483648) {
+            return SqlDb::Response::BlobTooLarge;
+        }
+    } catch (std::filesystem::filesystem_error &e) {
+        return SqlDb::Response::CantOpen;
+    }
+
+    SHA256_CTX ctx;
+    SHA256_Init(&ctx);
+
+    std::vector<char> buf(1024);
+    while (file.read(buf.data(), 1024) || file.gcount() > 0) {
+        int n = static_cast<int>(file.gcount());
+        SHA256_Update(&ctx, buf.data(), n);
+    }
 
     unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256(data.data(), data.size(), hash);
+    SHA256_Final(hash, &ctx);
 
     std::string hashStr;
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
@@ -489,21 +506,41 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
         return SqlDb::Response::DidNothing;
     }
 
-    Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
-    CHECK_STMT(stmt)
-    stmt.Bind(1, hashStr);
-    stmt.Bind(2, data);
-
-    switch (stmt.Step()) {
-    default: return SqlDb::Response::Failed;
-    case SQLITE_DONE:
-        if (hashOutput != nullptr)
-            *hashOutput = hashStr;
-        return SqlDb::Response::Success;
+    Statement insertStmt = PrepareStatement("INSERT OR IGNORE INTO BlobStorage (Hash, Blob) VALUES (?, ZEROBLOB(?));");
+    CHECK_STMT(insertStmt)
+    insertStmt.Bind(1, hashStr);
+    insertStmt.Bind(2, (sqlite3_int64)fileSize);
+    switch (insertStmt.Step()) {
+    case SQLITE_DONE: break;
     case SQLITE_BUSY: return SqlDb::Response::Busy;
     case SQLITE_MISUSE: return SqlDb::Response::Misuse;
     case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+    default: return SqlDb::Response::Failed;
     }
+
+    sqlite3_blob *blob = nullptr;
+    sqlite3_blob_open(
+        mDb,
+        "main",
+        "BlobStorage",
+        "Blob",
+        sqlite3_last_insert_rowid(mDb),
+        1,
+        &blob
+    );
+
+    std::vector<char> buf2(64 * 1024);
+    int offset = 0;
+    while (file.read(buf2.data(), 64 * 1024) || file.gcount() > 0) {
+        int n = static_cast<int>(file.gcount());
+        sqlite3_blob_write(blob, buf2.data(), n, offset);
+        offset += n;
+    }
+
+    sqlite3_blob_close(blob);
+    if (hashOutput != nullptr)
+        *hashOutput = hashStr;
+    return SqlDb::Response::Success;
 }
 
 SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
@@ -697,6 +734,9 @@ SqlDb::Response EmuDb::RemoveThumbnailFromPlace(int64_t id, int64_t imageId) {
 }
 
 SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
+}
+
+SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput) {
 }
 
 SqlDb::Response EmuDb::AddAssetToBundle(int64_t bundleId, int64_t assetId) {

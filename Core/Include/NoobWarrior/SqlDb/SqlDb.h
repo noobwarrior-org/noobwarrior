@@ -47,7 +47,8 @@ public:
         ConstraintViolation,
         Busy,
         Misuse,
-        DoesNotExist
+        DoesNotExist,
+        BlobTooLarge
     };
 
     enum class FailReason {
