@@ -203,7 +203,7 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
             // if it is then redirect to our server emulator
             addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(port == 80 ? 80 : 443);
+            addrCopy.sin_port = htons(port == 80 ? 8080 : 8081);
             return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
         }
     }

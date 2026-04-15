@@ -84,7 +84,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
     evbuffer* buf = evbuffer_new();
     switch (res) {
-        case SqlDb::Response::Success:
+    case SqlDb::Response::Success:
         if (data.empty()) {
             evhttp_send_error(req, 500, "Asset data is empty");
             break;
