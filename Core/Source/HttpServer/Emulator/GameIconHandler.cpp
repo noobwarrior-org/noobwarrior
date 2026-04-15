@@ -18,21 +18,21 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetHandler.cpp
+// File: GameIconHandler.cpp
 // Started by: Hattozo
-// Started on: 6/19/2025
-// Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
-#include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>
+// Started on: 4/15/2026
+// Description: HTTP request handler that retrieves place thumbnail images
+#include <NoobWarrior/HttpServer/Emulator/GameIconHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
-AssetHandler::AssetHandler(HttpServer *srv, EmuDbManager *dbm) :
+GameIconHandler::GameIconHandler(HttpServer *srv, EmuDbManager *dbm) :
     mHttpServer(srv),
     mEmuDbManager(dbm)
 {}
 
-void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
+void GameIconHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
 
@@ -41,7 +41,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
+    Out("GameIconHandler", "{}:{} requested game icon {}", peer_address, peer_port, uri);
 
     evkeyvalq headers;
     if (evhttp_parse_query(uri, &headers) != 0) {
@@ -49,21 +49,10 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    const char* idStr = evhttp_find_header(&headers, "id");
+    const char* idStr = evhttp_find_header(&headers, "assetId");
     if (idStr == NULL) {
-        evhttp_send_error(req, 400, "Id parameter not given");
+        evhttp_send_error(req, 400, "assetId parameter not given");
         return;
-    }
-    const char* verStr = evhttp_find_header(&headers, "version");
-    int ver = 0;
-    if (verStr != NULL) {
-        char *verEndPtr;
-        ver = strtol(verStr, &verEndPtr, 10);
-        if (verStr == verEndPtr) {
-            /* strtol failed */
-            evhttp_send_error(req, 400, "Invalid version");
-            return;
-        }
     }
 
     char *idEndPtr;
@@ -77,7 +66,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::vector<unsigned char> data;
     std::string hash;
     std::string contentDispositionVal;
-    SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
+    SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, 0, &data, &hash);
     evbuffer* buf = evbuffer_new();
     switch (res) {
     case SqlDb::Response::Success:

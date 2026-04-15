@@ -31,13 +31,14 @@ using json = nlohmann::json;
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAssetHandler(this, mCore->GetEmuDbManager()),
+    mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
     mNegotiateHandler(),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
-    mStudioEditHandler()
+    mStudioEditHandler(),
+    mGameIconHandler(this, mCore->GetEmuDbManager())
 {
-
 }
 
 ServerEmulator::~ServerEmulator() {}
@@ -52,6 +53,8 @@ int ServerEmulator::Start(uint16_t port) {
     SetRequestHandler("/v1/asset", &mAssetHandler);
     SetRequestHandler("/v1/asset/", &mAssetHandler);
 
+    SetRequestHandler("/asset-thumbnail/json", &mAssetThumbnailJsonHandler);
+
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
 
     SetRequestHandler("/Login/Negotiate.ashx", &mNegotiateHandler);
@@ -65,6 +68,9 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/Game/Edit.ashx", &mStudioEditHandler);
     SetRequestHandler("/game/edit.ashx", &mStudioEditHandler);
+
+    SetRequestHandler("/Thumbs/GameIcon.ashx", &mGameIconHandler);
+    SetRequestHandler("/Thumbs/gameicon.ashx", &mGameIconHandler);
 finish:
     return res;
 }

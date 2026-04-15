@@ -30,6 +30,8 @@
 #include "JoinScriptJsonHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
+#include "AssetThumbnailJsonHandler.h"
+#include "GameIconHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -49,11 +51,13 @@ public:
 private:
     //////////////// Handlers ////////////////
     AssetHandler mAssetHandler;
+    AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
     StudioEditHandler mStudioEditHandler;
+    GameIconHandler mGameIconHandler;
 
     std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
 };
