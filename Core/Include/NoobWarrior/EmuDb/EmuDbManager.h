@@ -52,7 +52,7 @@ public:
 
     bool GetUserFromToken(User *user, const std::string &token);
 
-    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput);
+    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;

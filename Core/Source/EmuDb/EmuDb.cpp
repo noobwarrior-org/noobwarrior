@@ -744,7 +744,7 @@ SqlDb::Response EmuDb::RemoveThumbnailFromPlace(int64_t id, int64_t imageId) {
 SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
 }
 
-SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput) {
+SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
     if (Fail()) return SqlDb::Response::DatabaseFailed;
 
     Statement checkAssetExistsStmt = PrepareStatement("SELECT Id FROM Asset WHERE Id = ?;");
@@ -770,6 +770,9 @@ SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<un
         return SqlDb::Response::Failed;
     if (res == SQLITE_ROW) {
         std::string hash = getHashStmt.GetStringFromColumnIndex(0);
+        if (hashOutput != nullptr)
+            *hashOutput = hash;
+
         Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
         CHECK_STMT(getHashStmt)
         blobStmt.Bind(1, hash);

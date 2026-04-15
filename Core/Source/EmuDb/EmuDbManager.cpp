@@ -122,9 +122,9 @@ bool EmuDbManager::GetUserFromToken(User *user, const std::string &token) {
     return true;
 }
 
-SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput) {
+SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
     for (EmuDb* db : mMountedDatabases) {
-        SqlDb::Response res = db->RetrieveAssetData(id, version, dataOutput);
+        SqlDb::Response res = db->RetrieveAssetData(id, version, dataOutput, hashOutput);
         if (res == SqlDb::Response::Success)
             return res;
     }

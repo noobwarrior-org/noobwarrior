@@ -189,7 +189,7 @@ public:
 
     SqlDb::Response RenderThumbnailForAsset(int64_t id, int version = 0);
 
-    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput);
+    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 
     /* Bundle functions */
     SqlDb::Response AddAssetToBundle(int64_t bundleId, int64_t assetId);

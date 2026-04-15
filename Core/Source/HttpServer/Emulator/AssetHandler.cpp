@@ -79,16 +79,23 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     std::vector<unsigned char> data;
-    SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data);
+    std::string hash;
+    std::string contentDispositionVal;
+    SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
     evbuffer* buf = evbuffer_new();
     switch (res) {
-    case SqlDb::Response::Success:
+        case SqlDb::Response::Success:
         if (data.empty()) {
             evhttp_send_error(req, 500, "Asset data is empty");
             break;
         }
-        evbuffer_add(buf, data.data(), data.size());
+
+        contentDispositionVal = std::format("attachment; filename=\"{}\"", !hash.empty() ? hash : "asset");
+
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
+
+        evbuffer_add(buf, data.data(), data.size());
         evhttp_send_reply(req, 200, NULL, buf);
         break;
     case SqlDb::Response::NotFound:
