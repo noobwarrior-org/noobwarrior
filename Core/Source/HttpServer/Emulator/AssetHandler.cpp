@@ -88,6 +88,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
             break;
         }
         evbuffer_add(buf, data.data(), data.size());
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
         evhttp_send_reply(req, 200, NULL, buf);
         break;
     case SqlDb::Response::NotFound:

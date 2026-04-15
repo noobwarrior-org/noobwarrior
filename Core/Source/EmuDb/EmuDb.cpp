@@ -492,6 +492,10 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_Final(hash, &ctx);
 
+    // seek back to the beginning because we're going to be reading this file again
+    file.clear();
+    file.seekg(0, std::ios::beg);
+
     std::string hashStr;
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         hashStr += std::format("{:02x}", hash[i]);
@@ -738,8 +742,6 @@ SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
 
 SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput) {
     if (Fail()) return SqlDb::Response::DatabaseFailed;
-
-    Out("Id: {}, Version: {}", id, version);
 
     Statement checkAssetExistsStmt = PrepareStatement("SELECT Id FROM Asset WHERE Id = ?;");
     CHECK_STMT(checkAssetExistsStmt);
