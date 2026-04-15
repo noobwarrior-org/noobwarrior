@@ -52,69 +52,9 @@ public:
 
     bool GetUserFromToken(User *user, const std::string &token);
 
-    // TODO: PLEASE FIX THE CIRCULATORY DEPENDENCIES. FUCK.
-    // AssetRepositoryManager& GetAssetRepository();
+    SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput);
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;
-    // AssetRepositoryManager mAssetRepository;
-};
-
-template<typename Item, typename RepositoryClass>
-class ItemRepositoryManager : public ItemRepository<Item> {
-public:
-    ItemRepositoryManager(EmuDbManager *dbMgr) : mDbMgr(dbMgr) {}
-    virtual RepositoryClass* GetRepository(EmuDb *db) = 0;
-    SqlDb::Response Save(const Item &item) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->Save(item);
-    }
-    SqlDb::Response Remove(int64_t id) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id);
-    }
-    SqlDb::Response Remove(int64_t id, int snapshot) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->Remove(id, snapshot);
-    }
-    SqlDb::Response Move(int64_t currentId, int64_t newId) override {
-        return GetRepository(mDbMgr->GetMasterDatabase())->Move(currentId, newId);
-    }
-    std::optional<Item> Get(int64_t id) override {
-        for (EmuDb *db : mDbMgr->GetMountedDatabases()) {
-            std::optional<Item> item = GetRepository(db)->Get(id);
-            if (item.has_value())
-                return item.value();
-        }
-    }
-    std::optional<Item> Get(int64_t id, int snapshot) override {
-        for (EmuDb *db : mDbMgr->GetMountedDatabases()) {
-            std::optional<Item> item = GetRepository(db)->Get(id, snapshot);
-            if (item.has_value())
-                return item.value();
-        }
-    }
-    std::vector<Item> List() override {
-        std::vector<Item> allItems;
-        for (EmuDb *db : mDbMgr->GetMountedDatabases()) {
-            std::vector<Item> items = GetRepository(db)->List();
-            allItems.insert(allItems.end(), items.begin(), items.end());
-        }
-        return allItems;
-    }
-    bool Exists(int64_t id) override {
-        for (int i = 0; i < mDbMgr->GetMountedDatabases().size(); i++) {
-            EmuDb *database = mDbMgr->GetMountedDatabases()[i];
-            if (const bool exists = GetRepository(database)->Exists())
-                return exists;
-        }
-        return false;
-    }
-protected:
-    EmuDbManager *mDbMgr;
-};
-
-class AssetRepositoryManager : public ItemRepositoryManager<Asset, AssetRepository> {
-public:
-    inline AssetRepository* GetRepository(EmuDb *db) override {
-        return db->GetAssetRepository();
-    }
 };
 }

@@ -93,7 +93,7 @@ SqlDb::Response AssetRepository::Remove(int64_t id) {
 SqlDb::Response AssetRepository::Move(int64_t currentId, int64_t newId) {
     std::optional<Asset> ass = Get(currentId);
     if (!ass.has_value())
-        return SqlDb::Response::DoesNotExist;
+        return SqlDb::Response::NotFound;
     ass.value().Id = newId;
     SqlDb::Response remove_res = Remove(currentId);
     if (remove_res != SqlDb::Response::Success) return SqlDb::Response::Failed;

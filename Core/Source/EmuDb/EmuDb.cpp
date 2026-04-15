@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Database.cpp
+// File: EmuDb.cpp
 // Started by: Hattozo
 // Started on: 2/17/2025
 // Description: Encapsulates a SQLite database and creates tables containing Roblox assets and other kinds of data
@@ -737,6 +737,47 @@ SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
 }
 
 SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput) {
+    if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+    Out("Id: {}, Version: {}", id, version);
+
+    Statement checkAssetExistsStmt = PrepareStatement("SELECT Id FROM Asset WHERE Id = ?;");
+    CHECK_STMT(checkAssetExistsStmt);
+    checkAssetExistsStmt.Bind(1, id);
+    if (checkAssetExistsStmt.Step() != SQLITE_ROW)
+        return SqlDb::Response::NotFound;
+
+    std::string stmtStr = "SELECT DataHash FROM AssetData WHERE Id = ?";
+    if (version > 0)
+        stmtStr += " AND Version = ?;";
+    else
+        stmtStr += " ORDER BY Version DESC LIMIT 1;";
+
+    Statement getHashStmt = PrepareStatement(stmtStr);
+    CHECK_STMT(getHashStmt)
+    getHashStmt.Bind(1, id);
+    if (version > 0)
+        getHashStmt.Bind(2, version);
+
+    int res = getHashStmt.Step();
+    if (res != SQLITE_ROW && res != SQLITE_DONE)
+        return SqlDb::Response::Failed;
+    if (res == SQLITE_ROW) {
+        std::string hash = getHashStmt.GetStringFromColumnIndex(0);
+        Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
+        CHECK_STMT(getHashStmt)
+        blobStmt.Bind(1, hash);
+
+        int blobStmtRes = blobStmt.Step();
+        if (blobStmtRes != SQLITE_ROW && blobStmtRes != SQLITE_DONE)
+            return SqlDb::Response::Failed;
+        if (blobStmtRes == SQLITE_ROW) {
+            if (dataOutput != nullptr)
+                *dataOutput = blobStmt.GetBlobFromColumnIndex(0);
+            return SqlDb::Response::Success;
+        }
+    }
+    return SqlDb::Response::MissingBlob;
 }
 
 SqlDb::Response EmuDb::AddAssetToBundle(int64_t bundleId, int64_t assetId) {

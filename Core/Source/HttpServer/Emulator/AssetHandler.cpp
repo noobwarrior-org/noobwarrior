@@ -70,12 +70,6 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         }
     }
 
-    std::string stmtStr = "SELECT DataHash FROM AssetData WHERE Id = ?";
-    if (verStr != NULL && ver > 0)
-        stmtStr += " AND Version = ?;";
-    else
-        stmtStr += " ORDER BY Version DESC LIMIT 1;";
-
     char *idEndPtr;
     int64_t id = strtoll(idStr, &idEndPtr, 10);
     if (idStr == idEndPtr) {
@@ -84,44 +78,27 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    Statement getHashStmt = mEmuDbManager->GetMasterDatabase()->PrepareStatement(stmtStr);
-    if (getHashStmt.Fail()) {
-        evhttp_send_error(req, 500, "failed to prepare SQL statement");
-        return;
-    }
-    getHashStmt.Bind(1, id);
-    if (verStr != NULL) {
-        getHashStmt.Bind(2, ver);
-    }
-    int res = getHashStmt.Step();
-    if (res != SQLITE_ROW && res != SQLITE_DONE) {
-        evhttp_send_error(req, 500, "failed to execute SQL statement");
-        return;
-    }
-    if (res == SQLITE_ROW) {
-        std::string hash = getHashStmt.GetStringFromColumnIndex(0);
-        Statement blobStmt = mEmuDbManager->GetMasterDatabase()->PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
-        if (blobStmt.Fail()) {
-            evhttp_send_error(req, 500, "failed to prepare SQL statement");
-            return;
+    std::vector<unsigned char> data;
+    SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data);
+    evbuffer* buf = evbuffer_new();
+    switch (res) {
+    case SqlDb::Response::Success:
+        if (data.empty()) {
+            evhttp_send_error(req, 500, "Asset data is empty");
+            break;
         }
-        blobStmt.Bind(1, hash);
-        int blobStmtRes = blobStmt.Step();
-        if (blobStmtRes != SQLITE_ROW && blobStmtRes != SQLITE_DONE) {
-            evhttp_send_error(req, 500, "failed to execute SQL statement");
-            return;
-        }
-        if (blobStmtRes == SQLITE_ROW) {
-            std::vector<unsigned char> data = blobStmt.GetBlobFromColumnIndex(0);
-            evbuffer* buf = evbuffer_new();
-            evbuffer_add(buf, data.data(), data.size());
-
-            evhttp_send_reply(req, 200, NULL, buf);
-            evbuffer_free(buf);
-            return;
-        }
-        evhttp_send_error(req, 400, "Blob was not found in database");
-        return;
+        evbuffer_add(buf, data.data(), data.size());
+        evhttp_send_reply(req, 200, NULL, buf);
+        break;
+    case SqlDb::Response::NotFound:
+        evhttp_send_error(req, 404, "Asset not found");
+        break;
+    case SqlDb::Response::MissingBlob:
+        evhttp_send_error(req, 500, "Asset blob is missing");
+        break;
+    default:
+        evhttp_send_error(req, 500, "Failed to retrieve asset data");
+        break;
     }
-    evhttp_send_error(req, 400, "Data for ID was not found in database");
+    evbuffer_free(buf);
 }
