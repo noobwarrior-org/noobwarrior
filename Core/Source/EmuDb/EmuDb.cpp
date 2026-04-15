@@ -489,6 +489,10 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
         SHA256_Update(&ctx, buf.data(), n);
     }
 
+    // seek back to the beginning because we're going to be reading this file again
+    file.clear();
+    file.seekg(0, std::ios::beg);
+
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_Final(hash, &ctx);
 
