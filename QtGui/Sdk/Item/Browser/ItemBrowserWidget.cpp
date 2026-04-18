@@ -75,7 +75,7 @@ void ItemBrowserWidget::RefreshAssetCategory() {
     AssetTypeDropdown->addItem("All");
     for (int i = 0; i <= Roblox::AssetTypeCount; i++) {
         auto assetType = static_cast<Roblox::AssetType>(i);
-        QString assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
+        QString assetTypeStr = QString::fromStdString(Roblox::AssetTypeAsTranslatableString(assetType));
         if (assetTypeStr.compare("None") != 0) {
             // Does this match our category type?
             if (AssetCategoryDropdown->currentIndex() == 0 || // If it's 0, then that should mean it's set to "Any" so let it through
@@ -143,7 +143,7 @@ void ItemBrowserWidget::InitWidgets() {
 
     for (int i = 0; i < AssetCategoryCount; i++) {
         auto assetTypeCategory = static_cast<AssetCategory>(i);
-        QString assetTypeCategoryStr = AssetCategoryAsTranslatableString(assetTypeCategory);
+        QString assetTypeCategoryStr = QString::fromStdString(AssetCategoryAsTranslatableString(assetTypeCategory));
         AssetCategoryDropdown->addItem(assetTypeCategoryStr, i);
     }
 

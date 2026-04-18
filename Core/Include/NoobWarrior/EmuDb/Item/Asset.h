@@ -129,10 +129,13 @@ inline AssetCategory MapAssetTypeToCategory(Roblox::AssetType type) {
     case Roblox::AssetType::EyelashAccessory: return AssetCategory::AvatarItem;
     case Roblox::AssetType::MoodAnimation: return AssetCategory::AvatarItem;
     case Roblox::AssetType::DynamicHead: return AssetCategory::AvatarItem;
+    case Roblox::AssetType::FaceMakeup: return AssetCategory::AvatarItem;
+    case Roblox::AssetType::LipMakeup: return AssetCategory::AvatarItem;
+    case Roblox::AssetType::EyeMakeup: return AssetCategory::AvatarItem;
     }
 }
 
-inline const char *AssetCategoryAsTranslatableString(AssetCategory type) {
+inline std::string AssetCategoryAsTranslatableString(AssetCategory type) {
     switch (type) {
         case AssetCategory::DevelopmentItem: return "Development Item";
         case AssetCategory::AvatarItem: return "Avatar Item";

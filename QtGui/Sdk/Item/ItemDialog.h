@@ -34,6 +34,8 @@
 #include <QComboBox>
 #include <QTreeView>
 #include <QStandardItemModel>
+#include <QListWidget>
+#include <QLineEdit>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -41,7 +43,6 @@
 #include <memory>
 #include <optional>
 #include <fstream>
-#include <qlineedit.h>
 
 #include "Sdk/Sdk.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
@@ -59,6 +60,7 @@ protected:
 
     void Asset_AddFields();
     void Asset_AddAssetTypeWidgets();
+    void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
     bool Asset_OnSave();
 
     void User_AddFields();
@@ -80,16 +82,27 @@ protected:
     QLineEdit* mIdInput;
     QLineEdit* mNameInput;
 
+    QPushButton* mUploadImageButton;
+    QPushButton* mUseExistingImageButton;
+
     QLineEdit* mOwned_DescriptionInput;
     QDateTimeEdit* mOwned_CreatedInput;
     QDateTimeEdit* mOwned_UpdatedInput;
     CreatorInfoWidget* mOwned_CreatorInfoWidget;
 
+    QComboBox* mAsset_AssetCategoryInput;
     QComboBox* mAsset_AssetTypeInput;
     QTreeView* mAsset_DataView;
     QStandardItemModel* mAsset_DataModel;
     QList<QString> mAsset_DataPendingFiles;
     QList<int> mAsset_DataPendingDeleteVersions;
+
+    QFrame* mAsset_Place_ThumbnailFrame;
+    QListWidget* mAsset_Place_ThumbnailList;
+    QPushButton* mAsset_Place_UploadThumbnailButton;
+    QPushButton* mAsset_Place_AddThumbnailFromExistingImageButton;
+    QList<int64_t> mAsset_Place_DataPendingThumbnails;
+    QList<int64_t> mAsset_Place_DataPendingDeleteThumbnails;
 
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;

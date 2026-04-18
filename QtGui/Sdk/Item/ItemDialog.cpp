@@ -83,38 +83,39 @@ void ItemDialog::RegenWidgets() {
     image.loadFromData(data);
     mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
-    if (!(mType == ItemType::Asset || mType == ItemType::User)) {
-        auto *uploadImage = new QPushButton("Upload Image");
-        auto *useExistingImage = new QPushButton("Use Existing Image");
-        mSidebarLayout->addWidget(uploadImage);
-        mSidebarLayout->addWidget(useExistingImage);
+    mUploadImageButton = new QPushButton("Upload Image");
+    mUseExistingImageButton = new QPushButton("Use Existing Image");
+    mSidebarLayout->addWidget(mUploadImageButton);
+    mSidebarLayout->addWidget(mUseExistingImageButton);
 
-        connect(uploadImage, &QPushButton::clicked, [this]() {
-            QString filePath = QFileDialog::getOpenFileName(
-                this,
-                "Change Icon",
-                QString(),
-                "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
-            );
-            if (!filePath.isEmpty()) {
-                std::ifstream file(filePath.toStdString());
+    connect(mUploadImageButton, &QPushButton::clicked, [this]() {
+        QString filePath = QFileDialog::getOpenFileName(
+            this,
+            "Change Icon",
+            QString(),
+            "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
+        );
+        if (!filePath.isEmpty()) {
+            std::ifstream file(filePath.toStdString());
 
-                if (!file.is_open()) {
-                    QMessageBox::critical(this, "Error", "Unable to open file");
-                    return;
-                }
-
-                QImage newImage(filePath);
-                QPixmap newPixmap = QPixmap::fromImage(newImage);
-                mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            if (!file.is_open()) {
+                QMessageBox::critical(this, "Error", "Unable to open file");
+                return;
             }
-        });
 
-        connect(useExistingImage, &QPushButton::clicked, [this]() {
-            // TODO: Add ItemOpenSaveDialog here
-            int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
-        });
-    }
+            QImage newImage(filePath);
+            QPixmap newPixmap = QPixmap::fromImage(newImage);
+            mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
+    });
+
+    connect(mUseExistingImageButton, &QPushButton::clicked, [this]() {
+        // TODO: Add ItemOpenSaveDialog here
+        int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
+    });
+
+    mUploadImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User));
+    mUseExistingImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User));
 
     mSidebarLayout->addStretch();
 

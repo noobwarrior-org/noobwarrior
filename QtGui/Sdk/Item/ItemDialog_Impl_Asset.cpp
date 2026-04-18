@@ -24,6 +24,7 @@
 // Description: An unholy abomination that implements the Asset type for ItemDialog
 #include "ItemDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
+#include <NoobWarrior/EmuDb/Item/Asset.h>
 
 using namespace NoobWarrior;
 
@@ -142,14 +143,58 @@ void ItemDialog::Asset_AddFields() {
 void ItemDialog::Asset_AddAssetTypeWidgets() {
     auto *db = GetDatabase();
 
-    Roblox::AssetType type = Roblox::AssetType::Model;
+    mAsset_AssetCategoryInput = new QComboBox();
+    for (int i = 0; i < AssetCategoryCount; i++) {
+        AssetCategory assetCategory = static_cast<AssetCategory>(i);
+        std::string assetCategoryStr = AssetCategoryAsTranslatableString(assetCategory);
+        mAsset_AssetCategoryInput->addItem(QString::fromStdString(assetCategoryStr));
+    }
+    mContentLayout->addRow("Category", mAsset_AssetCategoryInput);
 
     mAsset_AssetTypeInput = new QComboBox();
-    for (int i = 0; i < Roblox::AssetTypeCount; i++) {
-        mAsset_AssetTypeInput->addItem(QString::fromStdString(Roblox::AssetTypeAsTranslatableString(static_cast<Roblox::AssetType>(i))));
-    }
+    connect(mAsset_AssetCategoryInput, &QComboBox::currentIndexChanged, [this](int index) {
+        mAsset_AssetTypeInput->clear();
+        AssetCategory assetCategory = static_cast<AssetCategory>(index);
+        for (int i = 0; i < Roblox::AssetTypeCount; i++) {
+            Roblox::AssetType assetType = static_cast<Roblox::AssetType>(i);
+            std::string assetTypeStr = Roblox::AssetTypeAsTranslatableString(assetType);
+            if (MapAssetTypeToCategory(assetType) == assetCategory && assetTypeStr.compare("None") != 0) {
+                mAsset_AssetTypeInput->addItem(QString::fromStdString(assetTypeStr), QVariant::fromValue(assetType));
+            }
+        }
+    });
+    connect(mAsset_AssetTypeInput, &QComboBox::currentIndexChanged, [this](int index) {
+        Roblox::AssetType assetType = mAsset_AssetTypeInput->itemData(index).value<Roblox::AssetType>();
+        Asset_SetVisibilityOfAssetTypeWidgets(assetType);
+    });
     mContentLayout->addRow("Type", mAsset_AssetTypeInput);
 
+    ////////////////////////////// Place //////////////////////////////
+    mAsset_Place_ThumbnailFrame = new QFrame();
+    auto *thumbnailLayout = new QVBoxLayout(mAsset_Place_ThumbnailFrame);
+
+    mAsset_Place_ThumbnailList = new QListWidget();
+    mAsset_Place_UploadThumbnailButton = new QPushButton("Upload Thumbnail");
+
+    connect(mAsset_Place_UploadThumbnailButton, &QPushButton::clicked, []() {
+        
+    });
+
+    mAsset_Place_AddThumbnailFromExistingImageButton = new QPushButton("Add Thumbnail From Existing Image");
+
+    thumbnailLayout->addWidget(mAsset_Place_ThumbnailList);
+    thumbnailLayout->addWidget(mAsset_Place_UploadThumbnailButton);
+    thumbnailLayout->addWidget(mAsset_Place_AddThumbnailFromExistingImageButton);
+
+    mContentLayout->addRow("Thumbnails", mAsset_Place_ThumbnailFrame);
+
+    // in order to fire the events we attached above without manual user intervention
+    emit mAsset_AssetCategoryInput->currentIndexChanged(0);
+    emit mAsset_AssetTypeInput->currentIndexChanged(0);
+
+    Roblox::AssetType type = Roblox::AssetType::Model;
+
+    // deserialize asset type
     if (mId.has_value()) {
         Statement stmt = db->PrepareStatement("SELECT Type FROM Asset WHERE Id = ?;");
         stmt.Bind(1, mId.value());
@@ -157,9 +202,18 @@ void ItemDialog::Asset_AddAssetTypeWidgets() {
             type = static_cast<Roblox::AssetType>(stmt.GetIntFromColumnIndex(0));
     }
 
-    if (type == Roblox::AssetType::Model) {
-
+    if (MapAssetTypeToCategory(type) == AssetCategory::AvatarItem) {
+        mAsset_AssetCategoryInput->setCurrentIndex(1); // 1 because that's where the avatar item category is
     }
+
+    int index = mAsset_AssetTypeInput->findData(QVariant::fromValue(type));
+    if (index != -1)
+        mAsset_AssetTypeInput->setCurrentIndex(index);
+}
+
+void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
+    // mAsset_Place_ThumbnailFrame->setVisible(type == Roblox::AssetType::Place);
+    mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
 }
 
 static constexpr std::string sTablesThatNeedToBeUpdated[] = {
@@ -206,7 +260,7 @@ bool ItemDialog::Asset_OnSave() {
     stmt.Bind(3, description);
     stmt.Bind(4, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
     stmt.Bind(5, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(6, mAsset_AssetTypeInput->currentIndex());
+    stmt.Bind(6, static_cast<int>(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>()));
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
