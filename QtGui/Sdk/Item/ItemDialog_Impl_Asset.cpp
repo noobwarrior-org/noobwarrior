@@ -30,7 +30,7 @@ using namespace NoobWarrior;
 
 void ItemDialog::Asset_AddFields() {
     AddOwnedItemFields();
-    Asset_AddAssetTypeWidgets();
+    Asset_AddFields_AssetType();
 
     auto *dataFrame = new QFrame();
     auto *dataLayout = new QVBoxLayout(dataFrame);
@@ -131,6 +131,19 @@ void ItemDialog::Asset_AddFields() {
                 << new QStandardItem("N/A")
                 << new QStandardItem("N/A");
             mAsset_DataModel->appendRow(row);
+
+            // Auto set the Asset Type field to the appropriate type according to the file type
+            const std::filesystem::path &stdPath = filePath.toStdString();
+            Roblox::AssetType type = Asset_GetAssetTypeFromFileType(stdPath);
+            if (type != Roblox::AssetType::None) {
+                int index = mAsset_AssetTypeInput->findData(QVariant::fromValue(type));
+                if (index != -1)
+                    mAsset_AssetTypeInput->setCurrentIndex(index);
+
+                if (type == Roblox::AssetType::Image) {
+                    QMessageBox::question(this, "Question", "Would you like to create a decal?");
+                }
+            }
         }
     });
 
@@ -140,7 +153,7 @@ void ItemDialog::Asset_AddFields() {
     mContentLayout->addRow("Data", dataFrame);
 }
 
-void ItemDialog::Asset_AddAssetTypeWidgets() {
+void ItemDialog::Asset_AddFields_AssetType() {
     auto *db = GetDatabase();
 
     mAsset_AssetCategoryInput = new QComboBox();
@@ -169,24 +182,7 @@ void ItemDialog::Asset_AddAssetTypeWidgets() {
     });
     mContentLayout->addRow("Type", mAsset_AssetTypeInput);
 
-    ////////////////////////////// Place //////////////////////////////
-    mAsset_Place_ThumbnailFrame = new QFrame();
-    auto *thumbnailLayout = new QVBoxLayout(mAsset_Place_ThumbnailFrame);
-
-    mAsset_Place_ThumbnailList = new QListWidget();
-    mAsset_Place_UploadThumbnailButton = new QPushButton("Upload Thumbnail");
-
-    connect(mAsset_Place_UploadThumbnailButton, &QPushButton::clicked, []() {
-        
-    });
-
-    mAsset_Place_AddThumbnailFromExistingImageButton = new QPushButton("Add Thumbnail From Existing Image");
-
-    thumbnailLayout->addWidget(mAsset_Place_ThumbnailList);
-    thumbnailLayout->addWidget(mAsset_Place_UploadThumbnailButton);
-    thumbnailLayout->addWidget(mAsset_Place_AddThumbnailFromExistingImageButton);
-
-    mContentLayout->addRow("Thumbnails", mAsset_Place_ThumbnailFrame);
+    Asset_AddFields_Place();
 
     // in order to fire the events we attached above without manual user intervention
     emit mAsset_AssetCategoryInput->currentIndexChanged(0);
@@ -211,9 +207,39 @@ void ItemDialog::Asset_AddAssetTypeWidgets() {
         mAsset_AssetTypeInput->setCurrentIndex(index);
 }
 
+void ItemDialog::Asset_AddFields_Place() {
+    mAsset_Place_ThumbnailFrame = new QFrame();
+    auto *thumbnailLayout = new QVBoxLayout(mAsset_Place_ThumbnailFrame);
+
+    mAsset_Place_ThumbnailList = new QListWidget();
+    mAsset_Place_UploadThumbnailButton = new QPushButton("Upload Thumbnail");
+
+    connect(mAsset_Place_UploadThumbnailButton, &QPushButton::clicked, []() {
+
+    });
+
+    mAsset_Place_AddThumbnailFromExistingImageButton = new QPushButton("Add Thumbnail From Existing Image");
+
+    thumbnailLayout->addWidget(mAsset_Place_ThumbnailList);
+    thumbnailLayout->addWidget(mAsset_Place_UploadThumbnailButton);
+    thumbnailLayout->addWidget(mAsset_Place_AddThumbnailFromExistingImageButton);
+
+    mContentLayout->addRow("Thumbnails", mAsset_Place_ThumbnailFrame);
+}
+
 void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
     // mAsset_Place_ThumbnailFrame->setVisible(type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
+}
+
+Roblox::AssetType ItemDialog::Asset_GetAssetTypeFromFileType(const std::filesystem::path &path) {
+    Roblox::AssetType type = Roblox::AssetType::None;
+    std::ifstream ifs(path);
+    if (ifs.fail())
+        return type;
+    std::vector<char> buf(256);
+    ifs.read(buf.data(), 256);
+    return type;
 }
 
 static constexpr std::string sTablesThatNeedToBeUpdated[] = {

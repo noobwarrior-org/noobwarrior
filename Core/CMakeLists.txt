@@ -16,6 +16,11 @@ else()
 endif()
 
 CPMAddPackage(
+    URI "gh:facebook/zstd#48c0ed7"
+    OPTIONS "ZSTD_BUILD_STATIC ON"
+)
+
+CPMAddPackage(
     URI "gh:curl/curl#85a895c"
     OPTIONS
     "BUILD_CURL_EXE OFF"
@@ -143,6 +148,8 @@ target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/I
 target_link_libraries(NoobWarrior.Core PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto
+    zlibstatic
+    libzstd_static
     libcurl
     sqlite3
     libluajit

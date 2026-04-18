@@ -59,8 +59,10 @@ protected:
     void AddOwnedItemFields();
 
     void Asset_AddFields();
-    void Asset_AddAssetTypeWidgets();
+    void Asset_AddFields_AssetType();
+    void Asset_AddFields_Place();
     void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
+    Roblox::AssetType Asset_GetAssetTypeFromFileType(const std::filesystem::path &path);
     bool Asset_OnSave();
 
     void User_AddFields();
