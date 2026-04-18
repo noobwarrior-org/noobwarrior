@@ -866,6 +866,15 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
                         return imgBlob;
                     }
                 }
+            } else if (type == static_cast<int>(Roblox::AssetType::Model)) {
+                imgData.assign(g_model_png, g_model_png + g_model_png_size);
+                return imgData;
+            } else if (type == static_cast<int>(Roblox::AssetType::Audio)) {
+                imgData.assign(g_audio_png, g_audio_png + g_audio_png_size);
+                return imgData;
+            } else if (type == static_cast<int>(Roblox::AssetType::Animation)) {
+                imgData.assign(g_animation_png, g_animation_png + g_animation_png_size);
+                return imgData;
             }
         }
 
