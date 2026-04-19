@@ -49,7 +49,9 @@ public:
         Misuse,
         NotFound,
         BlobTooLarge,
-        MissingBlob
+        MissingBlob,
+        BlobOpenFailed,
+        BlobCompressionFailed
     };
 
     enum class FailReason {

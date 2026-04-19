@@ -30,6 +30,7 @@
 
 #include <openssl/sha.h>
 #include <sqlite3.h>
+#include <zstd.h>
 #include <cstdio>
 
 #include "../algorithm/base64.h"
@@ -384,6 +385,11 @@ std::string EmuDb::GetDescription() { return GetMetaKeyValue("Description"); }
 std::string EmuDb::GetVersion() { return GetMetaKeyValue("Version"); }
 std::string EmuDb::GetAuthor() { return GetMetaKeyValue("Author"); }
 std::vector<unsigned char> EmuDb::GetIcon() { return base64_decode(GetMetaKeyValue("Icon")); }
+EmuDb::CompressionType EmuDb::GetCompressionType() {
+    std::string str = GetMetaKeyValue("CompressionType");
+    int val = strtol(str.c_str(), nullptr, 10);
+    return static_cast<CompressionType>(val);
+}
 
 SqlDb::Response EmuDb::SetMetaKeyValue(const std::string &key, const std::string &value) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
@@ -445,10 +451,23 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::stri
 		return SqlDb::Response::DidNothing;
 	}
 
+    std::vector<unsigned char> zstd_compressed_data;
+    if (GetCompressionType() == CompressionType::ZStandard) {
+        Out("Compressing...");
+        size_t bufSize = ZSTD_compressBound(data.size());
+        char* buf_c = new char[bufSize];
+        size_t newSize = ZSTD_compress(buf_c, bufSize, data.data(), data.size(), 3);
+        zstd_compressed_data.assign(buf_c, buf_c + newSize);
+        Out("Compressed!");
+    }
+
 	Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
 	CHECK_STMT(stmt)
 	stmt.Bind(1, hashStr);
-	stmt.Bind(2, data);
+    if (GetCompressionType() != CompressionType::ZStandard)
+        stmt.Bind(2, data);
+	else if (GetCompressionType() == CompressionType::ZStandard)
+	    stmt.Bind(2, zstd_compressed_data);
 
 	switch (stmt.Step()) {
 	default: return SqlDb::Response::Failed;
@@ -464,6 +483,8 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::stri
 
 SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *hashOutput) {
     if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+    CompressionType compressionType = GetCompressionType();
 
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
@@ -496,10 +517,6 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_Final(hash, &ctx);
 
-    // seek back to the beginning because we're going to be reading this file again
-    file.clear();
-    file.seekg(0, std::ios::beg);
-
     std::string hashStr;
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         hashStr += std::format("{:02x}", hash[i]);
@@ -519,15 +536,15 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
     insertStmt.Bind(1, hashStr);
     insertStmt.Bind(2, (sqlite3_int64)fileSize);
     switch (insertStmt.Step()) {
-    case SQLITE_DONE: break;
-    case SQLITE_BUSY: return SqlDb::Response::Busy;
-    case SQLITE_MISUSE: return SqlDb::Response::Misuse;
-    case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
-    default: return SqlDb::Response::Failed;
+        case SQLITE_DONE: break;
+        case SQLITE_BUSY: return SqlDb::Response::Busy;
+        case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+        case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+        default: return SqlDb::Response::Failed;
     }
 
     sqlite3_blob *blob = nullptr;
-    sqlite3_blob_open(
+    int blobRes = sqlite3_blob_open(
         mDb,
         "main",
         "BlobStorage",
@@ -536,6 +553,9 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
         1,
         &blob
     );
+    if (blobRes != SQLITE_OK) {
+        return SqlDb::Response::BlobOpenFailed;
+    }
 
     std::vector<char> buf2(64 * 1024);
     int offset = 0;

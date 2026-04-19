@@ -49,7 +49,7 @@ INSERT INTO Meta (Key, Value) VALUES
     ("Author", "N/A"),
     ("Icon", ""),
     ("Mutable", "1"),
-    ("CompressionType", "0"),
+    ("CompressionType", "1"),
     ("OnlyEnableIfServerWithPlaceFromThisDatabaseIsRunning", "0"),
     ("TakeHigherPriorityIfServerWithPlaceFromThisDatabaseIsRunning", "0");
 )***";

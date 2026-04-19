@@ -156,6 +156,7 @@ public:
     std::string GetVersion();
     std::string GetAuthor();
     std::vector<unsigned char> GetIcon();
+    CompressionType GetCompressionType();
 
     SqlDb::Response SetMetaKeyValue(const std::string &key, const std::string &value);
     SqlDb::Response SetTitle(const std::string &title);

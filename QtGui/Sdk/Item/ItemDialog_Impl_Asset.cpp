@@ -299,10 +299,12 @@ bool ItemDialog::Asset_OnSave() {
         if (res != SqlDb::Response::Success && res != SqlDb::Response::DidNothing) {
             QString errMsg;
             switch (res) {
-                default: errMsg = "The reason is unknown."; break;
-                case SqlDb::Response::Busy: errMsg = "The database is busy."; break;
-                case SqlDb::Response::Misuse: errMsg = "The SQLite API was misused."; break;
-                case SqlDb::Response::ConstraintViolation: errMsg = "A constraint was violated."; break;
+            default: errMsg = "The reason is unknown."; break;
+            case SqlDb::Response::Busy: errMsg = "The database is busy."; break;
+            case SqlDb::Response::Misuse: errMsg = "The SQLite API was misused."; break;
+            case SqlDb::Response::ConstraintViolation: errMsg = "A constraint was violated."; break;
+            case SqlDb::Response::BlobOpenFailed: errMsg = "Failed to open the blob."; break;
+            case SqlDb::Response::BlobCompressionFailed: errMsg = "Failed to compress the given file."; break;
             }
             QMessageBox::critical(this, "Error", "Unable to add file to database\n" + errMsg);
             return false;
