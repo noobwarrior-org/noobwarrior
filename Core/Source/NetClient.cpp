@@ -69,14 +69,32 @@ bool NetClient::Fail() {
     return mFailReason != FailReason::None;
 }
 
+void NetClient::AddToQueue(const Url &url) {
+    std::thread thread([]() -> void {
+        CURL* handle = curl_easy_init();
+    });
+    mDownloadThreads.push_back(std::move(thread));
+}
+
+void NetClient::StartDownload(const DownloadOptions &options) {
+
+}
+
 CURLcode NetClient::Request(const std::string &url) {
     curl_easy_setopt(mHandle, CURLOPT_URL, url.c_str());
-    
     return curl_easy_perform(mHandle);
+}
+
+void NetClient::OnDownloadProgress(std::function<void()> callback) {
+
 }
 
 void NetClient::OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback) {
     callback(mData);
+}
+
+void NetClient::OnFileDownloaded(std::function<void()> callback) {
+
 }
 
 void NetClient::SetHeader(const std::string &name, const std::string &contents) {

@@ -75,6 +75,17 @@ void HostServerDialog::InitWidgets() {
         });
     });
 
+    auto* mStartStudio = new QPushButton("Start Studio");
+    mMainLayout->addWidget(mStartStudio);
+    connect(mStartStudio, &QPushButton::clicked, []() {
+        gApp->LaunchEngine({
+            .Type = EngineType::Roblox,
+            .Side = EngineSide::Studio,
+            .Hash = "ef266da340bc4058",
+            .Version = "0.463.0.417004"
+        });
+    });
+
     mCloseButton = new QPushButton("Close");
     mButtonBox->addButton(mCloseButton, QDialogButtonBox::RejectRole);
 

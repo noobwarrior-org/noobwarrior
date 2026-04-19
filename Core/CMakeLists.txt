@@ -63,14 +63,17 @@ CPMAddPackage(
 )
 
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
+
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
     OPTIONS "EVENT__LIBRARY_TYPE STATIC" "EVENT__DISABLE_OPENSSL OFF"
 )
+
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
     OPTIONS "BUILD_SHARED_LIBS OFF" "LIBZIP_DO_INSTALL OFF" "ENABLE_ZSTD OFF"
 )
+
 CPMAddPackage(
     URI "gh:zeux/pugixml#61c9448"
 )

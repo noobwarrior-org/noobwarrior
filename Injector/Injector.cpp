@@ -58,6 +58,16 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
     return std::string(buf);
 }
 
+static bool IsProcess64Bit(HANDLE hProcess) {
+    BOOL isWow64 = FALSE;
+    IsWow64Process(hProcess, &isWow64);
+    SYSTEM_INFO si;
+    GetNativeSystemInfo(&si);
+    if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
+        return !isWow64;
+    return false;
+}
+
 static int GetDllBitness(const wchar_t* dllPath) {
 #if defined(_WIN32)
     HANDLE hFile = CreateFileW(dllPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -133,13 +143,12 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
         return EngineLaunchResponse::InjectCannotAccessProcess;
     }
 
-    BOOL isWow64;
-    IsWow64Process(handle, &isWow64);
+    BOOL is64Bit = IsProcess64Bit(handle);
     int dllBitness = GetDllBitness(dllPath);
 
-    printf("Target WOW64: %s, DLL bitness: %i\n", isWow64 ? "yes" : "no", dllBitness);
+    printf("Target 64 bit: %s, DLL bitness: %i\n", is64Bit ? "yes" : "no", dllBitness);
 
-    if (isWow64 && dllBitness != 32) {
+    if (is64Bit && dllBitness == 32) {
         printf("Error, architecture mismatch\n");
         CloseHandle(handle);
         return EngineLaunchResponse::InjectWrongArchitecture;
@@ -256,7 +265,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
     }
-    EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), L"./noobhook_x86.dll");
+    EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), IsProcess64Bit(pi.hProcess) ? L"./noobhook_x86-64.dll" : L"./noobhook_x86.dll");
     if (inject != EngineLaunchResponse::Success) {
         printf("Failed to inject to target process: error %d\n", inject);
         TerminateProcess(pi.hProcess, 0xEEEEEEEE);

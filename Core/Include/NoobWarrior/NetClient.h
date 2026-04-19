@@ -73,7 +73,7 @@ public:
 
     CURLcode Request(const std::string &url);
 
-    void OnDownloadProgress();
+    void OnDownloadProgress(std::function<void()> callback);
     void OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback);
     void OnFileDownloaded(std::function<void()> callback);
     
