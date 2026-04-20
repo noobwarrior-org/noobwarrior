@@ -34,6 +34,18 @@ enum class EngineSource {
     Remote
 };
 
+enum class EnginePlatform {
+    Windows,
+    Mac,
+    Linux,
+    Android
+};
+
+enum class EngineArchitecture {
+    x86,
+    x86_64
+};
+
 constexpr int EngineTypeCount = 1;
 enum class EngineType {
     Roblox
@@ -46,13 +58,6 @@ enum class EngineSide {
     Studio
 };
 
-enum class EnginePlatform {
-    Windows,
-    Mac,
-    Linux,
-    Android
-};
-
 inline const char *EngineSideAsTranslatableString(EngineSide side) {
     switch (side) {
     case EngineSide::Client: return "Client";
@@ -63,15 +68,16 @@ inline const char *EngineSideAsTranslatableString(EngineSide side) {
 }
 
 struct Engine {
-    EngineSource            Source      {};
-    EnginePlatform          Platform    {};
-    EngineType              Type        {};
-    EngineSide              Side        {};
-    std::string             Hash        {};
-    std::string             Version     {};
-    std::filesystem::path   FilePath    {}; // local only
-    Url                     RemoteUrl   {}; // remote only
-    time_t                  Date        {};
+    EngineSource            Source          {};
+    EnginePlatform          Platform        {};
+    EngineArchitecture      Architecture    {};
+    EngineType              Type            {};
+    EngineSide              Side            {};
+    std::string             Hash            {};
+    std::string             Version         {};
+    std::filesystem::path   FilePath        {}; // local only
+    Url                     RemoteUrl       {}; // remote only
+    time_t                  Date            {};
 };
 
 enum class EngineInstallState {

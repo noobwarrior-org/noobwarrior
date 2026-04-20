@@ -154,8 +154,10 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
         return EngineLaunchResponse::InjectWrongArchitecture;
     }
 
-    SIZE_T size_bytes = (wcslen(dllPath) + 1) * sizeof(wchar_t);
-    void *mem = VirtualAllocEx(handle, NULL, size_bytes, MEM_COMMIT, PAGE_READWRITE);
+    wchar_t absPath[MAX_PATH];
+    GetFullPathNameW(dllPath, MAX_PATH, absPath, nullptr);
+
+    void *mem = VirtualAllocEx(handle, NULL, MAX_PATH, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!mem) {
         DWORD err = GetLastError();
         printf("VirtualAllocEx failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
@@ -163,7 +165,7 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
 		return EngineLaunchResponse::InjectCannotWriteToProcessMemory;
     }
 
-    if (!WriteProcessMemory(handle, mem, dllPath, size_bytes, NULL)) {
+    if (!WriteProcessMemory(handle, mem, absPath, MAX_PATH, NULL)) {
         DWORD err = GetLastError();
         printf("WriteProcessMemory failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         res = EngineLaunchResponse::InjectCannotWriteToProcessMemory;
@@ -200,6 +202,13 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
         goto cleanup;
     }
 
+    DWORD exitCode = 0;
+    GetExitCodeThread(thread, &exitCode);
+    if (exitCode == 0) {
+        printf("LoadLibraryW returned NULL - DLL failed to load\n");
+        res = EngineLaunchResponse::InjectFailedToLoadLibrary;
+        goto cleanup;
+    }
     res = EngineLaunchResponse::Success;
 cleanup:
     if (mem) VirtualFreeEx(handle, mem, 0, MEM_RELEASE);
@@ -247,7 +256,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (fileName.compare("RCCService.exe") == 0) {
         wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
+        wargs += L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
@@ -258,9 +267,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
-	/* HACK TODO FIXME: Really Weird Fucking Error where Roblox Player just doesn't load into the server if I pass in a working directory to CreateProcessW
-       Getting around this by not passing one altogether if it's RobloxPlayerBeta.exe */
-    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, fileName.compare("RobloxPlayerBeta.exe") == 0 ? nullptr : filedir_vec.data(), &si, &pi)) {
+    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, filedir_vec.data(), &si, &pi)) {
         DWORD err = GetLastError();
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;

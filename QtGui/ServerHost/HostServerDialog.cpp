@@ -79,6 +79,7 @@ void HostServerDialog::InitWidgets() {
     mMainLayout->addWidget(mStartStudio);
     connect(mStartStudio, &QPushButton::clicked, []() {
         gApp->LaunchEngine({
+            .Architecture = EngineArchitecture::x86_64,
             .Type = EngineType::Roblox,
             .Side = EngineSide::Studio,
             .Hash = "ef266da340bc4058",

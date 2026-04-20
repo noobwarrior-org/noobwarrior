@@ -170,8 +170,7 @@ public:
     void DownloadAndInstallEngine(const Engine &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback);
     EngineLaunchResponse LaunchEngine(const Engine &client);
 private:
-    EngineLaunchResponse LaunchProcessThroughInjector(const std::filesystem::path &filePath);
-    EngineLaunchResponse LaunchProcessWithoutInjector(const std::filesystem::path &filePath);
+    EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath);
 
     Response                        mInitResponse;
 

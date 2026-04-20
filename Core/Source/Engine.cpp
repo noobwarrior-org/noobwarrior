@@ -430,9 +430,13 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
 }
 #endif
 
-EngineLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::path &filePath) {
-    const std::filesystem::path &injectorPath = GetInstallationDir() / "noobhook_x86_injector.exe";
-    std::wstring wargs = std::format(L"{} --file {}", injectorPath.wstring(), filePath.wstring());
+EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath) {
+    const std::filesystem::path &injectorPath = GetInstallationDir() / (arch == EngineArchitecture::x86_64 ? "noobhook_x86-64_injector.exe" : "noobhook_x86_injector.exe");
+    if (!std::filesystem::exists(injectorPath)) {
+        Out("Inject", "Failed to create injector process: Injector process doesn't exist!");
+        return EngineLaunchResponse::FailedToCreateProcess;
+    }
+    std::wstring wargs = std::format(L"{} --file \"{}\"", injectorPath.wstring(), filePath.wstring());
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
 #if defined(_WIN32)
@@ -464,36 +468,8 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(const std::filesystem::p
 #endif
 }
 
-EngineLaunchResponse Core::LaunchProcessWithoutInjector(const std::filesystem::path &filePath) {
-    std::string fileName = filePath.filename().string();
-    std::wstring wargs = filePath.wstring();
-    Out("Core", "Launching {}", fileName);
-    if (fileName.compare("RCCService.exe") == 0) {
-        wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
-    } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += L" -a \"http://localhost/Login/Negotiate.ashx\" -j \"http://localhost/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
-    } else if (fileName.compare("RobloxPlayerBetaCopy.exe") == 0) {
-        // wargs += L" -a \"http://localhost/2021/login/negotiate.ashx\" -j \"http://localhost/2021/game/placelauncher.ashx?placeid=1818&ip=localhost&user=greg&port=53640&id=7601610&app=http://localhost/charscript/Custom.php?hat=0;password=7601610|Pastel brown;Cyan;Pastel brown;Pastel brown;Cyan;Cyan\" -t \"1\"";
-        wargs += L" -a \"http://localhost:8080/Login/Negotiate.ashx\" -j \"http://localhost:8080/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
-    }
-    std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
-    wargs_vec.push_back(L'\0');
-#if defined(_WIN32)
-    PROCESS_INFORMATION pi {};
-    STARTUPINFOW si = {};
-    si.cb = sizeof(si);
-    if (!CreateProcessW(nullptr, wargs_vec.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
-        DWORD err = GetLastError();
-        Out("Core", "Failed to create process: {} ({})", err, LastErrorStr(err));
-        return EngineLaunchResponse::FailedToCreateProcess;
-    }
-#endif
-    return EngineLaunchResponse::Success;
-}
-
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
-// Roblox gets stuck on the loading screen (the logo doesn't even spin) if a working directory is passed through CreateProcess.
 EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
     bool installed = IsEngineInstalled(engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;
@@ -506,5 +482,5 @@ EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
             break;
         }
     }
-    if (!exe.empty()) return LaunchProcessThroughInjector(exe); else return EngineLaunchResponse::NoValidExecutable;
+    if (!exe.empty()) return LaunchProcessThroughInjector(engine.Architecture, exe); else return EngineLaunchResponse::NoValidExecutable;
 }
