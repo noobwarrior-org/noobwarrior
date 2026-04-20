@@ -36,6 +36,7 @@
 #include <QStandardItemModel>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QCheckBox>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -64,6 +65,9 @@ protected:
     void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
     Roblox::AssetType Asset_GetAssetTypeFromFileType(const std::filesystem::path &path);
     bool Asset_OnSave();
+
+    void Universe_AddFields();
+    bool Universe_OnSave();
 
     void User_AddFields();
     bool User_OnSave();
@@ -105,6 +109,10 @@ protected:
     QPushButton* mAsset_Place_AddThumbnailFromExistingImageButton;
     QList<int64_t> mAsset_Place_DataPendingThumbnails;
     QList<int64_t> mAsset_Place_DataPendingDeleteThumbnails;
+
+    QLineEdit* mUniverse_StartPlaceIdInput;
+    QLineEdit* mUniverse_VisitsInput;
+    QCheckBox* mUniverse_ActiveInput;
 
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;

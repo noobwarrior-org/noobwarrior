@@ -29,6 +29,8 @@
 
 #include <random>
 
+#include <QRegularExpressionValidator>
+
 using namespace NoobWarrior;
 
 ItemDialog::ItemDialog(EmuDb* db, ItemType type, std::optional<int64_t> id, QWidget *parent) :
@@ -114,8 +116,8 @@ void ItemDialog::RegenWidgets() {
         int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
     });
 
-    mUploadImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User));
-    mUseExistingImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User));
+    mUploadImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
+    mUseExistingImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
 
     mSidebarLayout->addStretch();
 
@@ -124,6 +126,7 @@ void ItemDialog::RegenWidgets() {
     std::uniform_int_distribution<> distrib(0, 2147483647);
 
     mIdInput = new QLineEdit(QString::number(distrib(gen)));
+    mIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mIdInput));
     mContentLayout->addRow("Id", mIdInput);
 
     mNameInput = new QLineEdit();
@@ -156,6 +159,9 @@ void ItemDialog::RegenWidgets() {
         break;
     case ItemType::Asset:
         Asset_AddFields();
+        break;
+    case ItemType::Universe:
+        Universe_AddFields();
         break;
     case ItemType::User:
         User_AddFields();
@@ -224,6 +230,9 @@ void ItemDialog::OnSave() {
         return;
     case ItemType::Asset:
         if (!Asset_OnSave()) return;
+        break;
+    case ItemType::Universe:
+        if (!Universe_OnSave()) return;
         break;
     case ItemType::User:
         if (!User_OnSave()) return;

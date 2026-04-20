@@ -39,6 +39,7 @@ set(SOURCES
     Sdk/Item/ItemListWidget.cpp
     Sdk/Item/ItemDialog.cpp
     Sdk/Item/ItemDialog_Impl_Asset.cpp
+    Sdk/Item/ItemDialog_Impl_Universe.cpp
     Sdk/Item/ItemDialog_Impl_User.cpp
     Sdk/Backup/BackupDialog.cpp
     Sdk/Backup/BackupTask.cpp

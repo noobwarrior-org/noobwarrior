@@ -229,6 +229,8 @@ void ItemDialog::Asset_AddFields_Place() {
 
 void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
     // mAsset_Place_ThumbnailFrame->setVisible(type == Roblox::AssetType::Place);
+    mUploadImageButton->setVisible(type == Roblox::AssetType::Place);
+    mUseExistingImageButton->setVisible(type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
 }
 

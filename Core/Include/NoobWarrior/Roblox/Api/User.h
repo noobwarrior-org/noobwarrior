@@ -24,17 +24,27 @@
 // Description:
 #pragma once
 
-namespace NoobWarrior::Roblox {
-    enum class MembershipType {
-        None,
-        BuildersClub,
-        TurboBuildersClub,
-        OutrageousBuildersClub,
-        Premium
-    };
+#include <string>
 
-    enum class CreatorType {
-        User,
-        Group
-    };
+namespace NoobWarrior::Roblox {
+enum class MembershipType {
+    None,
+    BuildersClub,
+    TurboBuildersClub,
+    OutrageousBuildersClub,
+    Premium
+};
+
+enum class CreatorType {
+    User,
+    Group
+};
+
+inline std::string CreatorTypeAsTranslatableString(CreatorType type) {
+    switch (type) {
+    case CreatorType::User: return "User";
+    case CreatorType::Group: return "Group";
+    }
+    return "";
+}
 }

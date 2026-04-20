@@ -34,7 +34,7 @@ void ItemDialog::User_AddFields() {
     int64_t joinDate = 0;
     int64_t lastOnline = 0;
     if (mId.has_value()) {
-        Statement stmt = GetDatabase()->PrepareStatement("SELECT DisplayName, Status, Bio, JoinDate, LastOnline FROM Id = ?");
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT DisplayName, Status, Bio, JoinDate, LastOnline FROM User WHERE Id = ?");
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
             displayName = stmt.GetStringFromColumnIndex(0);
