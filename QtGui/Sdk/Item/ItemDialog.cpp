@@ -54,6 +54,8 @@ void ItemDialog::RegenWidgets() {
         return;
     }
 
+    auto *sdk = dynamic_cast<Sdk*>(this->parent());
+
     std::string tableName = GetTableNameFromItemType(mType);
     setWindowTitle(tr("Configure %1").arg(QString::fromStdString(tableName)));
 
@@ -90,7 +92,7 @@ void ItemDialog::RegenWidgets() {
     mSidebarLayout->addWidget(mUploadImageButton);
     mSidebarLayout->addWidget(mUseExistingImageButton);
 
-    connect(mUploadImageButton, &QPushButton::clicked, [this]() {
+    connect(mUploadImageButton, &QPushButton::clicked, [this, db]() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Change Icon",
@@ -98,12 +100,41 @@ void ItemDialog::RegenWidgets() {
             "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
         );
         if (!filePath.isEmpty()) {
-            std::ifstream file(filePath.toStdString());
-
-            if (!file.is_open()) {
+            if (!std::filesystem::exists(filePath.toStdString())) {
                 QMessageBox::critical(this, "Error", "Unable to open file");
                 return;
             }
+
+            std::filesystem::path stdFilePath = std::filesystem::path(filePath.toStdString());
+
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distrib(0, 2147483647);
+
+            int64_t id = distrib(gen);
+            if (db->DoesItemExist(ItemType::Asset, id)) {
+                QMessageBox::critical(this, "Weird Error", "Tried generating a random ID for image and it somehow conflicted with another ID. Try again.");
+                return;
+            }
+            db->AddItem(ItemType::Asset, {
+                {"Id", id},
+                {"Name", "ImageAsset"},
+                {"Type", static_cast<int>(Roblox::AssetType::Image)}
+            });
+
+            std::string hash;
+            SqlDb::Response blobRes = db->AddBlob(stdFilePath, &hash);
+            if (blobRes != SqlDb::Response::Success && blobRes != SqlDb::Response::DidNothing) {
+                QMessageBox::critical(this, "Error", "Could not attach image because adding the blob failed.");
+                return;
+            }
+            SqlDb::Response attachRes = db->AttachBlobHashToAsset(id, 1, hash);
+            if (attachRes != SqlDb::Response::Success) {
+                QMessageBox::critical(this, "Error", "Could not attach image because attaching the blob to the image asset failed.");
+                return;
+            }
+
+            mImageIdInput->setText(QString::number(id));
 
             QImage newImage(filePath);
             QPixmap newPixmap = QPixmap::fromImage(newImage);
@@ -112,7 +143,6 @@ void ItemDialog::RegenWidgets() {
     });
 
     connect(mUseExistingImageButton, &QPushButton::clicked, [this]() {
-        // TODO: Add ItemOpenSaveDialog here
         int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
     });
 
@@ -128,6 +158,11 @@ void ItemDialog::RegenWidgets() {
     mIdInput = new QLineEdit(QString::number(distrib(gen)));
     mIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mIdInput));
     mContentLayout->addRow("Id", mIdInput);
+
+    mImageIdInput = new QLineEdit("0");
+    mImageIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mImageIdInput));
+    mContentLayout->addRow("Image Id", mImageIdInput);
+    mContentLayout->setRowVisible(mImageIdInput, !(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
 
     mNameInput = new QLineEdit();
     mNameInput->setPlaceholderText("Cool Name");

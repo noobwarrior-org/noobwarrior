@@ -88,6 +88,13 @@ void ItemDialog::Asset_AddFields() {
     });
 
     if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT ImageId FROM Asset WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            int64_t imageId = stmt.GetIntFromColumnIndex(0);
+            mImageIdInput->setText(QString::number(imageId));
+        }
+
         Statement dataInfoStmt = GetDatabase()->PrepareStatement("SELECT Version, DataHash FROM AssetData WHERE Id = ? ORDER BY Version DESC;");
         dataInfoStmt.Bind(1, mId.value());
         int res = dataInfoStmt.Step();
@@ -231,6 +238,7 @@ void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
     // mAsset_Place_ThumbnailFrame->setVisible(type == Roblox::AssetType::Place);
     mUploadImageButton->setVisible(type == Roblox::AssetType::Place);
     mUseExistingImageButton->setVisible(type == Roblox::AssetType::Place);
+    mContentLayout->setRowVisible(mImageIdInput, type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
 }
 
@@ -244,7 +252,7 @@ Roblox::AssetType ItemDialog::Asset_GetAssetTypeFromFileType(const std::filesyst
     return type;
 }
 
-static constexpr std::string sTablesThatNeedToBeUpdated[] = {
+static constexpr const char* sTablesThatNeedToBeUpdated[] = {
     "AssetData",
     "AssetHistorical",
     "AssetMicrotransaction",
@@ -278,17 +286,26 @@ bool ItemDialog::Asset_OnSave() {
 
     std::string name = mNameInput->text().toStdString();
     std::string description = mOwned_DescriptionInput->text().toStdString();
+    int64_t imageId = mImageIdInput->text().toLongLong();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO Asset (Id, Name, Description, Created, Updated, Type) VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT (Id) DO UPDATE SET LastRecorded = (unixepoch()), Name = excluded.Name, Description = excluded.Description, Created = excluded.Created, Updated = excluded.Updated, Type = excluded.Type;
+        INSERT INTO Asset (Id, Name, Description, Created, Updated, ImageId, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (Id) DO UPDATE SET
+            LastRecorded = (unixepoch()),
+            Name = excluded.Name,
+            Description = excluded.Description,
+            Created = excluded.Created,
+            Updated = excluded.Updated,
+            ImageId = excluded.ImageId,
+            Type = excluded.Type;
     )");
     stmt.Bind(1, newId);
     stmt.Bind(2, name);
     stmt.Bind(3, description);
     stmt.Bind(4, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
     stmt.Bind(5, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(6, static_cast<int>(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>()));
+    stmt.Bind(6, imageId);
+    stmt.Bind(7, static_cast<int>(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>()));
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;

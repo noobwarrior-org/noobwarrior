@@ -86,6 +86,7 @@ protected:
     QFormLayout* mContentLayout;
 
     QLineEdit* mIdInput;
+    QLineEdit* mImageIdInput;
     QLineEdit* mNameInput;
 
     QPushButton* mUploadImageButton;

@@ -74,8 +74,34 @@ void ItemDialog::Universe_AddFields() {
     */
 }
 
+static constexpr const char* sTablesThatNeedToBeUpdated[] = {
+    "UniverseMisc",
+    "UniverseHistorical",
+    "UniverseSocialLink"
+};
+
 bool ItemDialog::Universe_OnSave() {
     auto *db = GetDatabase();
+
+    int64_t newId = mIdInput->text().toLongLong();
+    int64_t oldId = mId.has_value() ? mId.value() : newId;
+    bool idChanged = mId.has_value() && oldId != newId;
+
+    if (idChanged) {
+        // id changed, pls update these other tables!!!
+        for (int i = 0; i < std::size(sTablesThatNeedToBeUpdated); i++) {
+            Statement updateStmt = db->PrepareStatement(std::format("UPDATE {} SET Id = ? WHERE Id = ?;", sTablesThatNeedToBeUpdated[i]));
+            updateStmt.Bind(1, newId);
+            updateStmt.Bind(2, oldId);
+            if (updateStmt.Step() != SQLITE_DONE) {
+                QMessageBox::critical(this, "Cannot Save",
+                    QString("Failed to update Id field in %1 table.\nLast error: %2")
+                    .arg(sTablesThatNeedToBeUpdated[i])
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+                return false;
+            }
+        }
+    }
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();

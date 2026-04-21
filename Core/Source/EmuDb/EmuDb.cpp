@@ -676,6 +676,16 @@ SqlDb::Response EmuDb::DeleteItem(ItemType type, int64_t id) {
 	}
 }
 
+bool EmuDb::DoesItemExist(ItemType type, int64_t id) {
+    if (Fail()) return false;
+
+    std::string tableName = GetTableNameFromItemType(type);
+
+    Statement stmt = PrepareStatement("SELECT Id FROM " + tableName + " WHERE Id = ?;");
+    stmt.Bind(1, id);
+    return stmt.Step() == SQLITE_ROW;
+}
+
 SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

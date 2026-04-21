@@ -169,8 +169,9 @@ public:
     SqlDb::Response AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput = nullptr);
     SqlDb::Response AddBlob(const std::filesystem::path &path, std::string *hashOutput = nullptr);
     SqlDb::Response AddItem(ItemType type, SqlRow row);
-    SqlDb::Response UpdateItem(ItemType, int64_t id, SqlRow row);
-    SqlDb::Response DeleteItem(ItemType, int64_t id);
+    SqlDb::Response UpdateItem(ItemType type, int64_t id, SqlRow row);
+    SqlDb::Response DeleteItem(ItemType type, int64_t id);
+    bool DoesItemExist(ItemType type, int64_t id);
 
     /* Asset functions */
     SqlDb::Response AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data);
