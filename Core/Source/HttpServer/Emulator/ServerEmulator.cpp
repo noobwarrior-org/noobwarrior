@@ -36,6 +36,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mNegotiateHandler(),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
+    mMySettingsJsonHandler(),
     mStudioEditHandler(),
     mGameIconHandler(this, mCore->GetEmuDbManager())
 {
@@ -65,6 +66,8 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/Game/Join.ashx", &mJoinScriptJsonHandler);
     SetRequestHandler("/game/join.ashx", &mJoinScriptJsonHandler);
+
+    SetRequestHandler("/my/settings/json", &mMySettingsJsonHandler);
 
     SetRequestHandler("/Game/Edit.ashx", &mStudioEditHandler);
     SetRequestHandler("/game/edit.ashx", &mStudioEditHandler);

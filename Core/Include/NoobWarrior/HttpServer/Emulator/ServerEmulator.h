@@ -29,6 +29,7 @@
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
 #include "JoinScriptJsonHandler.h"
+#include "MySettingsJsonHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
 #include "AssetThumbnailJsonHandler.h"
@@ -61,6 +62,7 @@ private:
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
+    MySettingsJsonHandler mMySettingsJsonHandler;
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
 
