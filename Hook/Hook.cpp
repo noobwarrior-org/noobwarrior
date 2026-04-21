@@ -211,7 +211,7 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
 }
 
 DWORD WINAPI Thread(LPVOID param) {
-    SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+    //SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
     FILE* file = freopen("noobhook.log", "w", stdout);
     printf("Initializing noobHook\n");
@@ -232,7 +232,7 @@ DWORD WINAPI Thread(LPVOID param) {
 
     fclose(file);
 
-    ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+    //ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
 }
 
