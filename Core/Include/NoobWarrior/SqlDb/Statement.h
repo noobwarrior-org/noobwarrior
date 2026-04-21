@@ -80,7 +80,8 @@ public:
         return sqlite3_column_double(mStmt, columnIndex);
     }
     inline std::string GetStringFromColumnIndex(int columnIndex) {
-        return std::string(reinterpret_cast<const char*>(sqlite3_column_text(mStmt, columnIndex)));
+        const unsigned char* text = sqlite3_column_text(mStmt, columnIndex);
+        return text ? reinterpret_cast<const char*>(text) : "";
     }
     inline std::vector<unsigned char> GetBlobFromColumnIndex(int columnIndex) {
         std::vector<unsigned char> data;
