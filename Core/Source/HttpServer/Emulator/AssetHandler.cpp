@@ -161,7 +161,6 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         if (materials.contains(idCppStr)) {
             std::filesystem::path engineDir = mServerEmulator->GetCore()->GetEngineDirectory(*mServerEmulator->GetCurrentEngine());
             std::filesystem::path fileDir = engineDir / "PlatformContent" / "pc" / "textures" / materials[idCppStr];
-            Out("AssetHandler", "{}", fileDir.string());
 
             if (!std::filesystem::exists(fileDir)) {
                 evhttp_send_error(req, 500, "Material file doesn't exist");
