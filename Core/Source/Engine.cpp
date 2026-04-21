@@ -482,5 +482,10 @@ EngineLaunchResponse Core::LaunchEngine(const Engine &engine) {
             break;
         }
     }
-    if (!exe.empty()) return LaunchProcessThroughInjector(engine.Architecture, exe); else return EngineLaunchResponse::NoValidExecutable;
+    if (!exe.empty()) {
+        mServerEmulator->SetCurrentEngine(engine);
+        return LaunchProcessThroughInjector(engine.Architecture, exe);
+    } else {
+        return EngineLaunchResponse::NoValidExecutable;
+    }
 }

@@ -24,6 +24,7 @@
 // Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
+#include <NoobWarrior/Engine.h>
 #include "ClientSettingsHandler.h"
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
@@ -48,7 +49,11 @@ public:
 
     int Start(uint16_t port) override;
     int Stop() override;
+
+    void SetCurrentEngine(const Engine &engine);
+    std::optional<Engine> GetCurrentEngine();
 private:
+    std::optional<Engine> mCurrentEngine;
     //////////////// Handlers ////////////////
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;

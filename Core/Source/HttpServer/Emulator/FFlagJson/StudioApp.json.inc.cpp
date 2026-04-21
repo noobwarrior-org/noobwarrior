@@ -1,7 +1,8 @@
 /* Thanks to MaximumADHD for his Roblox FFlag tracker
 https://github.com/MaximumADHD/Roblox-FFlag-Tracker/blob/800b252dfaaf17d2e62a487a364bb9ff4d34c232/StudioApp.json */
-static const char *StudioApp_json = R"***(
-{
+static const char *StudioApp_json = R"***({
+"applicationSettings": {
+    "FFlagDebugLocalRccServerConnection": true,
 	"AllowVideoPreRoll": true,
 	"AndroidSwipeGestureUseStartingPosition": true,
 	"AxisAdornmentGrabSize": 12,
@@ -2252,7 +2253,7 @@ static const char *StudioApp_json = R"***(
 	"FFlagRenderDXT_KTX": true,
 	"FFlagRenderDynamicLocalShadowmapSize": true,
 	"FFlagRenderEnableDepthClamp": true,
-	"FFlagRenderEnableHbao": false,
+	"FFlagRenderEnableHbao": true,
 	"FFlagRenderEnableSurfaceShadows": true,
 	"FFlagRenderFastTerrainLodUpdate": false,
 	"FFlagRenderFastTerrainLodUpdate2": true,
@@ -2267,7 +2268,7 @@ static const char *StudioApp_json = R"***(
 	"FFlagRenderFixSurfaceLight": true,
 	"FFlagRenderFixThrottleLocalLights": true,
 	"FFlagRenderImproveStreaming3": true,
-	"FFlagRenderingEnableHbao": false,
+	"FFlagRenderingEnableHbao": true,
 	"FFlagRenderLocalizedRichText": true,
 	"FFlagRenderLodShadows": true,
 	"FFlagRenderMarkDirtyOnlyRenderableChunks": true,
@@ -3318,4 +3319,4 @@ static const char *StudioApp_json = R"***(
 	"TreatAndroidInputSourceAsBitmask": true,
 	"VideoPreRollWaitTimeSeconds": 45
 }
-)***";
+})***";

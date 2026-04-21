@@ -27,13 +27,13 @@
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 namespace NoobWarrior {
-class HttpServer;
+class ServerEmulator;
 class AssetHandler : public Handler {
 public:
-    AssetHandler(HttpServer *srv, EmuDbManager *dbm);
+    AssetHandler(ServerEmulator *srv, EmuDbManager *dbm);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
-    HttpServer *mHttpServer;
+    ServerEmulator *mServerEmulator;
     EmuDbManager *mEmuDbManager;
 };
 }

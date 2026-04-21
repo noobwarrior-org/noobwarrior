@@ -78,3 +78,11 @@ finish:
 int ServerEmulator::Stop() {
     return HttpServer::Stop();
 }
+
+void ServerEmulator::SetCurrentEngine(const Engine &engine) {
+    mCurrentEngine = engine;
+}
+
+std::optional<Engine> ServerEmulator::GetCurrentEngine() {
+    return mCurrentEngine;
+}
