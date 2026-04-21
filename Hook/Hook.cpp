@@ -193,11 +193,7 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
 
 static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
 static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
-    int sockType = 0;
-    int optLen = sizeof(sockType);
-    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
-
-    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
+    if (name != nullptr && namelen >= (int)sizeof(sockaddr_in) && name->sa_family == AF_INET) {
         sockaddr_in addrCopy = *(sockaddr_in*)name;
         int port = ntohs(addrCopy.sin_port);
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
@@ -214,22 +210,25 @@ DWORD WINAPI Thread(LPVOID param) {
     //SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
     FILE* file = freopen("noobhook.log", "w", stdout);
-    printf("Initializing noobHook\n");
+    if (file == NULL) {
+		MessageBoxA(NULL, "Failed to open log file for writing", "noobHook", MB_ICONERROR | MB_OK);
+        TerminateProcess(GetCurrentProcess(), 0xFFFFFFFF);
+        return -1;
+    }
+	printf("Initializing noobHook\n");
 
+    printf("Initializing MinHook\n");
     MH_Initialize();
     MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
     MH_EnableHook(MH_ALL_HOOKS);
 
-	Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+    printf("Patching...\n");
+    Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
     Patches::RemoveSignatureCheck();
     Patches::RemoveTLSVerification();
-    //Patches::DoSomething1();
-    //Patches::DoSomething2();
-    
-    //Patches::BypassVersionOutOfDate();
-    //Patches::BypassPlaceIdVerification();
     Patches::FixSettingsKeyMustBeDefined();
 
+    printf("Done\n");
     fclose(file);
 
     //ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
