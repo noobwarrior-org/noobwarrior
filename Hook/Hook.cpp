@@ -260,6 +260,7 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
     MH_EnableHook(MH_ALL_HOOKS);
 
+    Out("Main", "Patching...");
     Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
     Patches::RemoveSignatureCheck();
     Patches::RemoveTLSVerification();
