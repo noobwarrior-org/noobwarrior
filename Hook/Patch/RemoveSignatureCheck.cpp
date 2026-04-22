@@ -28,7 +28,7 @@
 void NoobHook::Patches::RemoveSignatureCheck() {
     auto pattern = hook::pattern("CC CC CC CC CC CC CC CC CC CC CC CC CC CC 55 8B EC 6A FF 68 50 D6");
     if (!pattern.count_hint(1).empty()) {
-		printf("Found rbxsig pattern\n");
+        Out("RemoveSignatureCheck", "Found rbxsig pattern");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(14);
         const uint8_t bytes[] = { 0xC3 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));

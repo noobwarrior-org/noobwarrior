@@ -27,6 +27,7 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <winhttp.h>
 
 #define SECURITY_WIN32
 #include <sspi.h>
@@ -39,15 +40,25 @@
 
 using namespace NoobHook;
 
+FILE* NoobHook::gFile = nullptr;
+
 enum RobloxVersion {
     VER_UNKNOWN,
     VER_0_449_0_411458,
     VER_0_463_0_417004
 };
 
-enum CURLoption {
-    CURLOPT_URL = 10000 + 2
-};
+void NoobHook::Out(const char* category, const char* format, ...) {
+    if (gFile) {
+        fprintf(gFile, "[NoobHook::%s] ", category);
+        va_list args;
+        va_start(args, format);
+        vfprintf(gFile, format, args);
+        fprintf(gFile, "\n");
+        fflush(gFile);
+        va_end(args);
+    }
+}
 
 void NoobHook::WriteMemory(uintptr_t address, const void* data, size_t size) {
     DWORD old_protection;
@@ -193,7 +204,11 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
 
 static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
 static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
-    if (name != nullptr && namelen >= (int)sizeof(sockaddr_in) && name->sa_family == AF_INET) {
+    int sockType = 0;
+    int optLen = sizeof(sockType);
+    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
+
+    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
         sockaddr_in addrCopy = *(sockaddr_in*)name;
         int port = ntohs(addrCopy.sin_port);
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
@@ -206,32 +221,59 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
     return pOrigConnect(s, name, namelen);
 }
 
-DWORD WINAPI Thread(LPVOID param) {
-    //SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+static HINTERNET (WINAPI* pOrigInternetConnectW)(HINTERNET, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD, DWORD_PTR);
+static HINTERNET WINAPI MyInternetConnectW(HINTERNET hInternet, LPCWSTR lpszServerName, INTERNET_PORT nServerPort, LPCWSTR lpszUserName, LPCWSTR lpszPassword, DWORD dwService, DWORD dwFlags, DWORD_PTR dwContext) {
+    Out("InternetConnectW", "InternetConnectW to %ws:%d\n", lpszServerName, nServerPort);
 
-    FILE* file = freopen("noobhook.log", "w", stdout);
-    if (file == NULL) {
-		MessageBoxA(NULL, "Failed to open log file for writing", "noobHook", MB_ICONERROR | MB_OK);
-        TerminateProcess(GetCurrentProcess(), 0xFFFFFFFF);
-        return -1;
+    if (nServerPort == 80 || nServerPort == 443) {
+        return pOrigInternetConnectW(hInternet, L"127.0.0.1",
+            nServerPort == 80 ? 8080 : 8081,
+            lpszUserName, lpszPassword, dwService, dwFlags, dwContext);
     }
-	printf("Initializing noobHook\n");
+    return pOrigInternetConnectW(hInternet, lpszServerName, nServerPort, lpszUserName, lpszPassword, dwService, dwFlags, dwContext);
+}
 
-    printf("Initializing MinHook\n");
+static HINTERNET (WINAPI* pOrigWinHttpConnect)(HINTERNET, LPCWSTR, INTERNET_PORT, DWORD);
+static HINTERNET WINAPI MyWinHttpConnect(HINTERNET hSession, LPCWSTR pswzServerName, INTERNET_PORT nServerPort, DWORD dwReserved) {
+    Out("WinHttpConnect", "WinHttpConnect to %ws:%d", pswzServerName, nServerPort);
+
+    if (nServerPort == 80 || nServerPort == 443) {
+        return pOrigWinHttpConnect(hSession, L"127.0.0.1",
+            nServerPort == 80 ? 8080 : 8081, dwReserved);
+    }
+    return pOrigWinHttpConnect(hSession, pswzServerName, nServerPort, dwReserved);
+}
+
+DWORD WINAPI Thread(LPVOID param) {
+    SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+
+    gFile = freopen("noobhook.log", "w", stdout);
+    if (gFile == nullptr) {
+		MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
+    }
+	Out("Main", "Initializing noobHook");
+
+    Out("Main", "Initializing MinHook");
     MH_Initialize();
     MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+    MH_CreateHookApi(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
+    MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
     MH_EnableHook(MH_ALL_HOOKS);
 
-    printf("Patching...\n");
-    Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
-    Patches::RemoveSignatureCheck();
-    Patches::RemoveTLSVerification();
-    Patches::FixSettingsKeyMustBeDefined();
+    if (!GetModuleHandleW(L"RobloxStudioBeta.exe")) {
+        Out("Main", "Patching...");
+        Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+        Patches::RemoveSignatureCheck();
+        Patches::RemoveTLSVerification();
+        Patches::FixSettingsKeyMustBeDefined();
+    } else {
+		Out("Main", "Running in Roblox Studio, skipping patches");
+    }
 
-    printf("Done\n");
-    fclose(file);
+    Out("Main", "Done");
+    //fclose(file);
 
-    //ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
+    ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
 }
 

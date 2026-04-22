@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Hattozo
+* Copyright (C) 2026 Hattozo
  *
  * This file is part of noobWarrior.
  *
@@ -18,20 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: FixSettingsKeyMustBeDefined.cpp
+// File: CurrentUserHandler.cpp
 // Started by: Hattozo
-// Started on: 3/22/2026
-// Description: Fixes "Settings key must be defined" error for RCCService v0.463
-#include "Patches.h"
-#include <windows.h>
+// Started on: 4/21/2026
+// Description:
+#include <NoobWarrior/HttpServer/Emulator/CurrentUserHandler.h>
+#include <NoobWarrior/Log.h>
 
-void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
-    auto pattern = hook::pattern("74 2A 0F B6 95 E4 FE FF FF");
-    if (!pattern.count_hint(1).empty()) {
-        Out("FixSettingsKeyMustBeDefined", "Found pattern for \"settings key must be defined\" message");
-		//MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
-        uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-		NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
-    }
+using namespace NoobWarrior;
+
+CurrentUserHandler::CurrentUserHandler() {
+
+}
+
+void CurrentUserHandler::OnRequest(evhttp_request *req, void *userdata) {
+    Out("CurrentUserHandler", "Sent!");
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
+    evbuffer* reply = evbuffer_new();
+    evbuffer_add_printf(reply, "%d", 86121841);
+    evhttp_send_reply(req, 200, nullptr, reply);
+    evbuffer_free(reply);
 }

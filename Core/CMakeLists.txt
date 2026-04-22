@@ -139,6 +139,10 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/NegotiateHandler.cpp
     Source/HttpServer/Emulator/PlaceLauncherHandler.cpp
     Source/HttpServer/Emulator/JoinScriptJsonHandler.cpp
+    Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
+    Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp
+    Source/HttpServer/Emulator/CurrentUserHandler.cpp
+    Source/HttpServer/Emulator/RequestAuthHandler.cpp
     Source/HttpServer/Emulator/GameIconHandler.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp

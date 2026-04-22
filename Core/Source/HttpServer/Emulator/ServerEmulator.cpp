@@ -26,6 +26,8 @@
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include "NoobWarrior/HttpServer/Emulator/RequestAuthHandler.h"
+
 using namespace NoobWarrior;
 using json = nlohmann::json;
 
@@ -37,6 +39,9 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
     mMySettingsJsonHandler(),
+    mAuthenticatedUserHandler(),
+    mCurrentUserHandler(),
+    mRequestAuthHandler(),
     mStudioEditHandler(),
     mGameIconHandler(this, mCore->GetEmuDbManager())
 {
@@ -68,6 +73,13 @@ int ServerEmulator::Start(uint16_t port) {
     SetRequestHandler("/game/join.ashx", &mJoinScriptJsonHandler);
 
     SetRequestHandler("/my/settings/json", &mMySettingsJsonHandler);
+
+    SetRequestHandler("/v1/users/authenticated", &mAuthenticatedUserHandler);
+
+    SetRequestHandler("/game/GetCurrentUser.ashx", &mCurrentUserHandler);
+
+    SetRequestHandler("/Login/RequestAuth.ashx", &mRequestAuthHandler);
+    SetRequestHandler("/login/RequestAuth.ashx", &mRequestAuthHandler);
 
     SetRequestHandler("/Game/Edit.ashx", &mStudioEditHandler);
     SetRequestHandler("/game/edit.ashx", &mStudioEditHandler);

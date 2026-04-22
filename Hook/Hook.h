@@ -24,8 +24,11 @@
 // Description:
 #pragma once
 #include <cstdint>
+#include <string>
+#include <string_view>
 
 namespace NoobHook {
-	void WriteMemory(uintptr_t address, const void* data, size_t size);
-    int HookProcess(int handle);
+extern FILE* gFile;
+void Out(const char* category, const char* format, ...);
+void WriteMemory(uintptr_t address, const void* data, size_t size);
 }

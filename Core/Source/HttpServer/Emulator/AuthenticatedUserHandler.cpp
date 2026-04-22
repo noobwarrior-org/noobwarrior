@@ -18,20 +18,26 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: FixSettingsKeyMustBeDefined.cpp
+// File: AuthenticatedUserHandler.cpp
 // Started by: Hattozo
-// Started on: 3/22/2026
-// Description: Fixes "Settings key must be defined" error for RCCService v0.463
-#include "Patches.h"
-#include <windows.h>
+// Started on: 4/21/2026
+// Description:
+#include <NoobWarrior/HttpServer/Emulator/AuthenticatedUserHandler.h>
+#include <NoobWarrior/Log.h>
 
-void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
-    auto pattern = hook::pattern("74 2A 0F B6 95 E4 FE FF FF");
-    if (!pattern.count_hint(1).empty()) {
-        Out("FixSettingsKeyMustBeDefined", "Found pattern for \"settings key must be defined\" message");
-		//MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
-        uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-		NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
-    }
+static constexpr const char* JSON = R"({"id":86121841,"name":"Hattozo","displayName":"Hattozo"})";
+
+using namespace NoobWarrior;
+
+AuthenticatedUserHandler::AuthenticatedUserHandler() {
+
+}
+
+void AuthenticatedUserHandler::OnRequest(evhttp_request *req, void *userdata) {
+    Out("AuthenticatedUserHandler", "Sent!");
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    evbuffer* reply = evbuffer_new();
+    evbuffer_add_printf(reply, "%s", JSON);
+    evhttp_send_reply(req, 200, nullptr, reply);
+    evbuffer_free(reply);
 }

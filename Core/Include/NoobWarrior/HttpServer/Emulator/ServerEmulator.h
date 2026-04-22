@@ -25,11 +25,15 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/Engine.h>
+
 #include "ClientSettingsHandler.h"
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
 #include "JoinScriptJsonHandler.h"
 #include "MySettingsJsonHandler.h"
+#include "AuthenticatedUserHandler.h"
+#include "CurrentUserHandler.h"
+#include "RequestAuthHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
 #include "AssetThumbnailJsonHandler.h"
@@ -45,16 +49,28 @@ namespace NoobWarrior {
 class Core;
 class ServerEmulator : public HttpServer {
 public:
+    enum class Mode {
+        Local,
+        Online
+    };
+
     ServerEmulator(Core *core);
     ~ServerEmulator();
 
     int Start(uint16_t port) override;
     int Stop() override;
 
+    void SetMode(Mode mode);
+    Mode GetMode();
+
+    void SetCurrentlyPlayingServer();
+
     void SetCurrentEngine(const Engine &engine);
     std::optional<Engine> GetCurrentEngine();
 private:
+    Mode mMode;
     std::optional<Engine> mCurrentEngine;
+
     //////////////// Handlers ////////////////
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
@@ -63,6 +79,9 @@ private:
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
+    AuthenticatedUserHandler mAuthenticatedUserHandler;
+    CurrentUserHandler mCurrentUserHandler;
+    RequestAuthHandler mRequestAuthHandler;
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
 

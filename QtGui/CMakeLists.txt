@@ -20,6 +20,7 @@ set(SOURCES
     Dialog/AuthTokenDialog.cpp
     Dialog/DatabaseDialog.cpp
     Dialog/PluginDialog.cpp
+    Dialog/SelectStudioVersionDialog.cpp
     ServerHost/HostServerDialog.cpp
     MasterServer/MasterServerWindow.cpp
     MasterServer/MasterServerSidebar.cpp

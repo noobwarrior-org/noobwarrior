@@ -67,7 +67,15 @@ static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.m
 static void ShowDatabaseMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mDatabaseDialog, DatabaseDialog) }
 static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPluginDialog, PluginDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
-static void LaunchOfflineStudio(Launcher &launcher) { }
+static void LaunchOfflineStudio(Launcher &launcher) {
+    gApp->LaunchEngine({
+        .Architecture = EngineArchitecture::x86_64,
+        .Type = EngineType::Roblox,
+        .Side = EngineSide::Studio,
+        .Hash = "ef266da340bc4058",
+        .Version = "0.463.0.417004"
+    });
+}
 
 static const char* sCategoryNames[] = {
     "Play",
@@ -82,8 +90,7 @@ static const void* sPlay[][3] = {
 
 static const void* sTools[][3] = {
     {"Launch SDK", (void*)&LaunchDatabaseEditor, ":/images/sdk.png"},
-    // WIP, uncomment these when they are completed for later
-    // {"Launch Studio", nullptr, ":/images/silk/application_side_tree.png"}
+    {"Launch Studio", (void*)&LaunchOfflineStudio, ":/images/silk/application_side_tree.png"}
     // {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
     // {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
     // {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},

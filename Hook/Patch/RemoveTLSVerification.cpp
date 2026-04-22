@@ -30,7 +30,7 @@ void NoobHook::Patches::RemoveTLSVerification() {
     auto disableVerifyPeer = hook::pattern("6A 01 6A 40 FF B7 48 01 00 00");
     if (!disableVerifyPeer.count_hint(1).empty()) {
         //MessageBoxA(0, "Found CURL SSL verify peer pattern!", "noobHook", 0);
-        printf("Found pattern for CURL SSL verify peer check\n");
+        Out("RemoveTLSVerification", "Found pattern for CURL SSL verify peer check");
         uintptr_t* address = disableVerifyPeer.get(0).get<uintptr_t>(1);
         const uint8_t bytes[] = { 0x00 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
@@ -40,7 +40,7 @@ void NoobHook::Patches::RemoveTLSVerification() {
     auto disableVerifyHost = hook::pattern("6A 02 6A 51 FF B7 48 01 00 00");
     if (!disableVerifyHost.count_hint(1).empty()) {
         //MessageBoxA(0, "Found CURL SSL verify host pattern!", "noobHook", 0);
-        printf("Found pattern for CURL SSL verify host check\n");
+        Out("RemoveTLSVerification", "Found pattern for CURL SSL verify host check");
         uintptr_t* address = disableVerifyHost.get(0).get<uintptr_t>(1);
         const uint8_t bytes[] = { 0x00 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
