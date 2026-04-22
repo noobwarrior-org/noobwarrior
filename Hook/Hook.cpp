@@ -260,15 +260,10 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
     MH_EnableHook(MH_ALL_HOOKS);
 
-    if (!GetModuleHandleW(L"RobloxStudioBeta.exe")) {
-        Out("Main", "Patching...");
-        Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
-        Patches::RemoveSignatureCheck();
-        Patches::RemoveTLSVerification();
-        Patches::FixSettingsKeyMustBeDefined();
-    } else {
-		Out("Main", "Running in Roblox Studio, skipping patches");
-    }
+    Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+    Patches::RemoveSignatureCheck();
+    Patches::RemoveTLSVerification();
+    Patches::FixSettingsKeyMustBeDefined();
 
     Out("Main", "Done");
     //fclose(file);
