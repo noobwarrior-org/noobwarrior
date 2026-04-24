@@ -32,7 +32,16 @@ NegotiateHandler::NegotiateHandler() {
 }
 
 void NegotiateHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("NegotiateHandler", "Authenticating...");
+    const char* uri = evhttp_request_get_uri(req);
+    evhttp_connection* conn = evhttp_request_get_connection(req);
+
+    const char* peer_address = "";
+    uint16_t peer_port {};
+
+    if (conn != NULL)
+        evhttp_connection_get_peer(conn, &peer_address, &peer_port);
+    Out("NegotiateHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();
     evbuffer_add_printf(reply, "true");

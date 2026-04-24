@@ -52,6 +52,46 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
 
+    SetKeyValueIfNotSet("user.id", 1000);
+    SetKeyValueIfNotSet("user.name", "Player");
+    SetKeyValueIfNotSet("user.display_name", "Player");
+
+    SetKeyValueIfNotSet("user.appearance.tshirt", 0);
+    SetKeyValueIfNotSet("user.appearance.shirt", 0);
+    SetKeyValueIfNotSet("user.appearance.pants", 0);
+    SetKeyValueIfNotSet("user.appearance.face", 0);
+
+    SetKeyValueIfNotSet("user.appearance.color.head", "Bright yellow");
+    SetKeyValueIfNotSet("user.appearance.color.torso", "Bright blue");
+    SetKeyValueIfNotSet("user.appearance.color.left_arm", "Bright yellow");
+    SetKeyValueIfNotSet("user.appearance.color.right_arm", "Bright yellow");
+    SetKeyValueIfNotSet("user.appearance.color.left_leg", "Br. yellowish green");
+    SetKeyValueIfNotSet("user.appearance.color.right_leg", "Br. yellowish green");
+
+    SetKeyValueIfNotSet("user.appearance.accessories", mLua->create_table());
+
+    SetKeyValueIfNotSet("user.appearance.body.head", 0);
+    SetKeyValueIfNotSet("user.appearance.body.torso", 0);
+    SetKeyValueIfNotSet("user.appearance.body.left_arm", 0);
+    SetKeyValueIfNotSet("user.appearance.body.right_arm", 0);
+    SetKeyValueIfNotSet("user.appearance.body.left_leg", 0);
+    SetKeyValueIfNotSet("user.appearance.body.right_leg", 0);
+
+    SetKeyValueIfNotSet("user.appearance.animation.climb", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.fall", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.idle", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.jump", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.run", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.swim", 0);
+    SetKeyValueIfNotSet("user.appearance.animation.walk", 0);
+
+    SetKeyValueIfNotSet("user.appearance.scale.body_type", 0);
+    SetKeyValueIfNotSet("user.appearance.scale.depth", 0);
+    SetKeyValueIfNotSet("user.appearance.scale.head", 0);
+    SetKeyValueIfNotSet("user.appearance.scale.height", 0);
+    SetKeyValueIfNotSet("user.appearance.scale.proportion", 0);
+    SetKeyValueIfNotSet("user.appearance.scale.width", 0);
+
     SetKeyValueIfNotSet("emu.branding.title", "noobWarrior");
     SetKeyValueIfNotSet("emu.branding.logo", "/img/icon1024.png");
     SetKeyValueIfNotSet("emu.branding.tagline", "My noobWarrior server");

@@ -66,6 +66,7 @@ static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mSdk, Sdk) }
 static void ShowDatabaseMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mDatabaseDialog, DatabaseDialog) }
 static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPluginDialog, PluginDialog) }
+static void ShowLocalPlayer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mLocalPlayerDialog, LocalPlayerDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) {
     gApp->LaunchEngine({
@@ -103,6 +104,7 @@ static const void* sApplication[][3] = {
     // {"Lua Shell", nullptr, ":/images/lua16.png"},
     {"Databases", (void*)&ShowDatabaseMenu, ":/images/silk/database.png"},
     {"Plugins", (void*)&ShowPluginMenu, ":/images/silk/plugin.png"},
+    {"Local Player", (void*)&ShowLocalPlayer, ":/images/silk/user.png"},
     {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
     {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
 };
@@ -115,7 +117,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mHostServerDialog(nullptr),
     mMasterServerWindow(nullptr),
     mDatabaseDialog(nullptr),
-    mPluginDialog(nullptr)
+    mPluginDialog(nullptr),
+    mLocalPlayerDialog(nullptr)
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");

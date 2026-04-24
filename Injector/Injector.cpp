@@ -225,17 +225,40 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     if (argc == 1) {
         MessageBoxA(nullptr,
-            "Note: This program is not meant to be used on its own. If you ran this without knowing what it does, just click OK and the program will close on its own.\n\nArgs:\n--file: a path to the file you want to launch and inject a DLL to.",
+            R"(Note: This program is not meant to be used on its own. If you ran this without knowing what it does, just click OK and the program will close on its own.
+
+Args:
+--file: a path to the file you want to launch and inject a DLL to.
+--ip: the IP address of the server to connect to.
+--port: the port of the server to connect to.
+--local: JSON data containing the player's name, user id, membership, and character appearance. Percent encoded. Only works on servers set to Local mode.)",
             "noobHook Injector",
             MB_ICONINFORMATION | MB_OK);
         return 0;
     }
 
     std::wstring filePathStr;
+    std::wstring ipStr;
+    std::wstring portStr;
+    std::wstring localStr;
     for (int i = 0; i < argc; i++) {
+        if (i + 1 >= argc)
+            break;
+
         if (wcscmp(argv[i], L"--file") == 0) {
-            if (i + 1 < argc)
-                filePathStr = argv[i + 1];
+            filePathStr = argv[i + 1];
+
+        }
+        if (wcscmp(argv[i], L"--ip") == 0) {
+            ipStr = argv[i + 1];
+        }
+
+        if (wcscmp(argv[i], L"--port") == 0) {
+            portStr = argv[i + 1];
+        }
+
+        if (wcscmp(argv[i], L"--local") == 0) {
+            localStr = argv[i + 1];
         }
     }
 
@@ -256,7 +279,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (fileName.compare("RCCService.exe") == 0) {
         wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?placeid=1818\" -t \"1\"";
+        wargs += L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip=2.23.23.2.3&port=1818\" -t \"1\"";
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
