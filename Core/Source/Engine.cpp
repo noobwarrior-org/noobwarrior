@@ -436,7 +436,8 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         Out("Inject", "Failed to create injector process: Injector process doesn't exist!");
         return EngineLaunchResponse::FailedToCreateProcess;
     }
-    std::wstring wargs = std::format(L"{} --file \"{}\"", injectorPath.wstring(), filePath.wstring());
+    // std::wstring wargs = std::format(L"{} --file \"{}\" --ip 127.0.0.1 --port 53640 --local %7B%22Id%22%3A5%2C%22Name%22%3A%22Player%22%2C%22DisplayName%22%3A%22Player%22%2C%22HumanoidDescription%22%3A%7B%22HeadColor%22%3A%22Bright+yellow%22%2C%22TorsoColor%22%3A%22Bright+blue%22%2C%22LeftArmColor%22%3A%22Bright+yellow%22%2C%22RightArmColor%22%3A%22Bright+yellow%22%2C%22LeftLegColor%22%3A%22Br.+yellowish+green%22%2C%22RightLegColor%22%3A%22Br.+yellowish+green%22%2C%22GraphicTShirt%22%3A1000%2C%22Shirt%22%3A86121841%2C%22Pants%22%3A86121841%2C%22Face%22%3A1000%2C%22Accessories%22%3A%5B%5D%2C%22Head%22%3A0%2C%22Torso%22%3A0%2C%22LeftArm%22%3A0%2C%22RightArm%22%3A0%2C%22LeftLeg%22%3A0%2C%22RightLeg%22%3A0%2C%22ClimbAnimation%22%3A0%2C%22FallAnimation%22%3A0%2C%22IdleAnimation%22%3A0%2C%22JumpAnimation%22%3A0%2C%22RunAnimation%22%3A0%2C%22SwimAnimation%22%3A0%2C%22WalkAnimation%22%3A0%2C%22BodyTypeScale%22%3A0%2C%22DepthScale%22%3A0%2C%22HeadScale%22%3A0%2C%22HeightScale%22%3A0%2C%22ProportionScale%22%3A0%2C%22WidthScale%22%3A0%7D%7D", injectorPath.wstring(), filePath.wstring());
+    std::wstring wargs = std::format(L"{} --file \"{}\" --ip 127.0.0.1 --port 53640", injectorPath.wstring(), filePath.wstring());
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
 #if defined(_WIN32)

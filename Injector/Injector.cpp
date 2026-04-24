@@ -28,6 +28,7 @@
 #include <vector>
 #include <filesystem>
 #include <cstdio>
+#include <format>
 
 // make sure this matches EngineLaunchResponse in NoobWarrior/Engine.h
 enum class EngineLaunchResponse {
@@ -146,6 +147,8 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
     BOOL is64Bit = IsProcess64Bit(handle);
     int dllBitness = GetDllBitness(dllPath);
 
+    DWORD exitCode = 0;
+
     printf("Target 64 bit: %s, DLL bitness: %i\n", is64Bit ? "yes" : "no", dllBitness);
 
     if (is64Bit && dllBitness == 32) {
@@ -202,7 +205,6 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
         goto cleanup;
     }
 
-    DWORD exitCode = 0;
     GetExitCodeThread(thread, &exitCode);
     if (exitCode == 0) {
         printf("LoadLibraryW returned NULL - DLL failed to load\n");
@@ -262,6 +264,8 @@ Args:
         }
     }
 
+    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\n", filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str());
+
     std::wstring wargs;
 
     std::filesystem::path filePath = std::filesystem::path(filePathStr);
@@ -279,7 +283,7 @@ Args:
     if (fileName.compare("RCCService.exe") == 0) {
         wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip=2.23.23.2.3&port=1818\" -t \"1\"";
+        wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}\" -t \"1\"", ipStr, portStr, localStr);
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');

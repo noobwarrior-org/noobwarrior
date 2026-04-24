@@ -28,7 +28,7 @@
 #include <nlohmann/json.hpp>
 
 static constexpr const char* JSON = R"(--rbxsig2%dTqdbW67JQwDfe9qnwmjBuy2FcsvWET43/BjdLAkuJX2OWTMYyiomVxFXksRn5JgJNCMelGU4cINs6xovCWp/stTHeukrV26opMetBr9U6GkW3ec4h1PVgXlwWGNMDQFCjXUGW3n00G+REEzDlTScdqnz8BBM5ZNSe33oF2V/1tDUDuSmBUufPnkTYjlmjK6XrCoa/lM6nkL4En2/bzwdKGXRns88MJNXOSzYQXCzOf7d/iAyvl3B0CQd+JUsJSdztZAXWCh7KUhL3GDYfN4XRPa0x3taEZMyBoPtmZ6ve3jUqXPih7GRYp0XAv7z3hOGzkF8UZonNKI0yv3Iok/Sg==%
-{"ClientPort":0,"MachineAddress":"","ServerPort":,"ServerConnections":[{"Address":"","Port":}],"DirectServerReturn":true,"PingUrl":"https://assetgame.roblox.com/Game/ClientPresence.ashx?version=old&PlaceID=1818&GameID=29fd9df4-4c59-4d8c-8cee-8f187b09709b&UserID=","PingInterval":120,"UserName":"","DisplayName":"","SeleniumTestMode":false,"UserId":,"RobloxLocale":"en_us","GameLocale":"en_us#RobloxTranslateAbTest2","SuperSafeChat":false,"CharacterAppearance":"","ClientTicket":"2022-03-26T05:13:05.7649319Z;dj09X5iTmYtOPwh0hbEC8yvSO1t99oB3Yh5qD/sinDFszq3hPPaL6hH16TvtCen6cABIycyDv3tghW7k8W+xuqW0/xWvs0XJeiIWstmChYnORzM1yCAVnAh3puyxgaiIbg41WJSMALRSh1hoRiVFOXw4BKjSKk7DrTTcL9nOG1V5YwVnmAJKY7/m0yZ81xE99QL8UVdKz2ycK8l8JFvfkMvgpqLNBv0APRNykGDauEhAx283vARJFF0D9UuSV69q6htLJ1CN2kXL0Saxtt/kRdoP3p3Nhj2VgycZnGEo2NaG25vwc/KzOYEFUV0QdQPC8Vs2iFuq8oK+fXRc3v6dnQ==;BO8oP7rzmnIky5ethym6yRECd6H14ojfHP3nHxSzfTs=;XsuKZL4TBjh8STukr1AgkmDSo5LGgQKQbvymZYi/80TYPM5/MXNr5HKoF3MOT3Nfm0MrubracyAtg5O3slIKBg==;6","GameId":"29fd9df4-4c59-4d8c-8cee-8f187b09709b","PlaceId":1818,"BaseUrl":"http://assetgame.roblox.com/","ChatStyle":"ClassicAndBubble","CreatorId":4372130,"CreatorTypeEnum":"Group","MembershipType":"None","AccountAge":1859,"CookieStoreFirstTimePlayKey":"rbx_evt_ftp","CookieStoreFiveMinutePlayKey":"rbx_evt_fmp","CookieStoreEnabled":true,"IsUnknownOrUnder13":false,"GameChatType":"AllUsers","SessionId":"{\"SessionId\":\"c89589f1-d1de-46e3-80e0-2703d1159409\",\"GameId\":\"29fd9df4-4c59-4d8c-8cee-8f187b09709b\",\"PlaceId\":1818,\"ClientIpAddress\":\"207.241.232.186\",\"PlatformTypeId\":5,\"SessionStarted\":\"2022-03-26T05:13:05.762819Z\",\"BrowserTrackerId\":129849985826,\"PartyId\":null,\"Age\":80.2683342765271,\"Latitude\":37.78,\"Longitude\":-122.465,\"CountryId\":1,\"PolicyCountryId\":null,\"LanguageId\":41,\"BlockedPlayerIds\":[],\"JoinType\":\"MatchMade\",\"PlaySessionFlags\":0,\"MatchmakingDecisionId\":\"a0311216-ec21-4b5d-b3c0-8538a9a4dc7d\",\"UserScoreObfuscated\":4895515560,\"UserScorePublicKey\":235,\"GameJoinMetadata\":{\"JoinSource\":0,\"RequestType\":0},\"RandomSeed2\":\"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==\",\"IsUserVoiceChatEnabled\":false,\"SourcePlaceId\":null}","AnalyticsSessionId":"c89589f1-d1de-46e3-80e0-2703d1159409","DataCenterId":302,"UniverseId":994732206,"FollowUserId":0,"characterAppearanceId":244775698,"CountryCode":"US","RandomSeed1":"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==","ClientPublicKeyData":"{\"creationTime\":\"19:56 11/23/2021\",\"applications\":{\"RakNetEarlyPublicKey\":{\"versions\":[{\"id\":2,\"value\":\"HwatfCnkndvyKCMPSa0VAl2M2c0GQv9+0z0kENhcj2w=\",\"allowed\":true}],\"send\":2,\"revert\":2}}}"})";
+{"ClientPort":0,"MachineAddress":"localhost","ServerPort":53640,"ServerConnections":[{"Address":"localhost","Port":53640}],"DirectServerReturn":true,"PingUrl":"https://assetgame.roblox.com/Game/ClientPresence.ashx?version=old&PlaceID=1818&GameID=29fd9df4-4c59-4d8c-8cee-8f187b09709b&UserID=7601610","PingInterval":120,"UserName":"greg","DisplayName":"greg","SeleniumTestMode":false,"UserId":7601610,"RobloxLocale":"en_us","GameLocale":"en_us#RobloxTranslateAbTest2","SuperSafeChat":false,"CharacterAppearance":"http://localhost/charscript/Custom.php?hat=0;password=7601610|Pastel brown;Cyan;Pastel brown;Pastel brown;Cyan;Cyan","ClientTicket":"2022-03-26T05:13:05.7649319Z;dj09X5iTmYtOPwh0hbEC8yvSO1t99oB3Yh5qD/sinDFszq3hPPaL6hH16TvtCen6cABIycyDv3tghW7k8W+xuqW0/xWvs0XJeiIWstmChYnORzM1yCAVnAh3puyxgaiIbg41WJSMALRSh1hoRiVFOXw4BKjSKk7DrTTcL9nOG1V5YwVnmAJKY7/m0yZ81xE99QL8UVdKz2ycK8l8JFvfkMvgpqLNBv0APRNykGDauEhAx283vARJFF0D9UuSV69q6htLJ1CN2kXL0Saxtt/kRdoP3p3Nhj2VgycZnGEo2NaG25vwc/KzOYEFUV0QdQPC8Vs2iFuq8oK+fXRc3v6dnQ==;BO8oP7rzmnIky5ethym6yRECd6H14ojfHP3nHxSzfTs=;XsuKZL4TBjh8STukr1AgkmDSo5LGgQKQbvymZYi/80TYPM5/MXNr5HKoF3MOT3Nfm0MrubracyAtg5O3slIKBg==;6","GameId":"29fd9df4-4c59-4d8c-8cee-8f187b09709b","PlaceId":1818,"BaseUrl":"http://assetgame.roblox.com/","ChatStyle":"ClassicAndBubble","CreatorId":4372130,"CreatorTypeEnum":"Group","MembershipType":"None","AccountAge":1859,"CookieStoreFirstTimePlayKey":"rbx_evt_ftp","CookieStoreFiveMinutePlayKey":"rbx_evt_fmp","CookieStoreEnabled":true,"IsUnknownOrUnder13":false,"GameChatType":"AllUsers","SessionId":"{\"SessionId\":\"c89589f1-d1de-46e3-80e0-2703d1159409\",\"GameId\":\"29fd9df4-4c59-4d8c-8cee-8f187b09709b\",\"PlaceId\":1818,\"ClientIpAddress\":\"207.241.232.186\",\"PlatformTypeId\":5,\"SessionStarted\":\"2022-03-26T05:13:05.762819Z\",\"BrowserTrackerId\":129849985826,\"PartyId\":null,\"Age\":80.2683342765271,\"Latitude\":37.78,\"Longitude\":-122.465,\"CountryId\":1,\"PolicyCountryId\":null,\"LanguageId\":41,\"BlockedPlayerIds\":[],\"JoinType\":\"MatchMade\",\"PlaySessionFlags\":0,\"MatchmakingDecisionId\":\"a0311216-ec21-4b5d-b3c0-8538a9a4dc7d\",\"UserScoreObfuscated\":4895515560,\"UserScorePublicKey\":235,\"GameJoinMetadata\":{\"JoinSource\":0,\"RequestType\":0},\"RandomSeed2\":\"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==\",\"IsUserVoiceChatEnabled\":false,\"SourcePlaceId\":null}","AnalyticsSessionId":"c89589f1-d1de-46e3-80e0-2703d1159409","DataCenterId":302,"UniverseId":994732206,"FollowUserId":0,"characterAppearanceId":244775698,"CountryCode":"US","RandomSeed1":"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==","ClientPublicKeyData":"{\"creationTime\":\"19:56 11/23/2021\",\"applications\":{\"RakNetEarlyPublicKey\":{\"versions\":[{\"id\":2,\"value\":\"HwatfCnkndvyKCMPSa0VAl2M2c0GQv9+0z0kENhcj2w=\",\"allowed\":true}],\"send\":2,\"revert\":2}}}"})";
 
 using namespace NoobWarrior;
 
@@ -47,13 +47,72 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("JoinScriptJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
+    evkeyvalq headers;
+    if (evhttp_parse_query(uri, &headers) != 0) {
+        evhttp_send_error(req, 500, "Failed to parse URL parameters");
+        return;
+    }
+
+    const char* ipStr = evhttp_find_header(&headers, "ip");
+    const char* portStr = evhttp_find_header(&headers, "port");
+    const char* localStr = evhttp_find_header(&headers, "local");
+
+    std::string ipCppStr = ipStr == nullptr ? "localhost" : ipStr;
+    int port = portStr == nullptr ? 53640 : strtol(portStr, nullptr, 10);
+    std::string localCppStr = localStr == nullptr ? "{}" : localStr;
+
     nlohmann::json joinScript = nlohmann::json::object();
     joinScript["ClientPort"] = 0;
-    joinScript["MachineAddress"] = peer_address;
+    joinScript["MachineAddress"] = ipCppStr;
+    joinScript["ServerPort"] = port;
+    joinScript["ServerConnections"] = nlohmann::json::array();
 
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    nlohmann::json serverConnection = nlohmann::json::object();
+    serverConnection["Address"] = ipCppStr;
+    serverConnection["Port"] = port;
+
+    joinScript["ServerConnections"].push_back(serverConnection);
+    joinScript["DirectServerReturn"] = true;
+    joinScript["PingUrl"] = "https://assetgame.roblox.com/Game/ClientPresence.ashx?version=old&PlaceID=1818&GameID=29fd9df4-4c59-4d8c-8cee-8f187b09709b&UserID=7601610";
+    joinScript["PingInterval"] = 120;
+    joinScript["UserName"] = "heat tozo";
+    joinScript["DisplayName"] = "heat tozo display name";
+    joinScript["SeleniumTestMode"] = false;
+    joinScript["UserId"] = 7601610;
+    joinScript["RobloxLocale"] = "en_us";
+    joinScript["GameLocale"] = "en_us#RobloxTranslateAbTest2";
+    joinScript["SuperSafeChat"] = false;
+    joinScript["CharacterAppearance"] = "";
+    joinScript["ClientTicket"] = "2022-03-26T05:13:05.7649319Z;dj09X5iTmYtOPwh0hbEC8yvSO1t99oB3Yh5qD/sinDFszq3hPPaL6hH16TvtCen6cABIycyDv3tghW7k8W+xuqW0/xWvs0XJeiIWstmChYnORzM1yCAVnAh3puyxgaiIbg41WJSMALRSh1hoRiVFOXw4BKjSKk7DrTTcL9nOG1V5YwVnmAJKY7/m0yZ81xE99QL8UVdKz2ycK8l8JFvfkMvgpqLNBv0APRNykGDauEhAx283vARJFF0D9UuSV69q6htLJ1CN2kXL0Saxtt/kRdoP3p3Nhj2VgycZnGEo2NaG25vwc/KzOYEFUV0QdQPC8Vs2iFuq8oK+fXRc3v6dnQ==;BO8oP7rzmnIky5ethym6yRECd6H14ojfHP3nHxSzfTs=;XsuKZL4TBjh8STukr1AgkmDSo5LGgQKQbvymZYi/80TYPM5/MXNr5HKoF3MOT3Nfm0MrubracyAtg5O3slIKBg==;6";
+    joinScript["GameId"] = "29fd9df4-4c59-4d8c-8cee-8f187b09709b";
+    joinScript["PlaceId"] = 1818;
+    joinScript["BaseUrl"] = "http://assetgame.roblox.com/";
+    joinScript["ChatStyle"] = "ClassicAndBubble";
+    joinScript["CreatorId"] = 4372130;
+    joinScript["CreatorTypeEnum"] = "Group";
+    joinScript["MembershipType"] = "None";
+    joinScript["AccountAge"] = 1859;
+    joinScript["CookieStoreFirstTimePlayKey"] = "rbx_evt_ftp";
+    joinScript["CookieStoreFiveMinutePlayKey"] = "rbx_evt_fmp";
+    joinScript["CookieStoreEnabled"] = true;
+    joinScript["IsUnknownOrUnder13"] = false;
+    joinScript["GameChatType"] = "AllUsers";
+    joinScript["SessionId"] = "{\"SessionId\":\"c89589f1-d1de-46e3-80e0-2703d1159409\",\"GameId\":\"29fd9df4-4c59-4d8c-8cee-8f187b09709b\",\"PlaceId\":1818,\"ClientIpAddress\":\"207.241.232.186\",\"PlatformTypeId\":5,\"SessionStarted\":\"2022-03-26T05:13:05.762819Z\",\"BrowserTrackerId\":129849985826,\"PartyId\":null,\"Age\":80.2683342765271,\"Latitude\":37.78,\"Longitude\":-122.465,\"CountryId\":1,\"PolicyCountryId\":null,\"LanguageId\":41,\"BlockedPlayerIds\":[],\"JoinType\":\"MatchMade\",\"PlaySessionFlags\":0,\"MatchmakingDecisionId\":\"a0311216-ec21-4b5d-b3c0-8538a9a4dc7d\",\"UserScoreObfuscated\":4895515560,\"UserScorePublicKey\":235,\"GameJoinMetadata\":{\"JoinSource\":0,\"RequestType\":0},\"RandomSeed2\":\"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==\",\"IsUserVoiceChatEnabled\":false,\"SourcePlaceId\":null}";
+    joinScript["AnalyticsSessionId"] = "c89589f1-d1de-46e3-80e0-2703d1159409";
+    joinScript["DataCenterId"] = 302;
+    joinScript["UniverseId"] = 994732206;
+    joinScript["FollowUserId"] = 0;
+    joinScript["characterAppearanceId"] = 244775698;
+    joinScript["CountryCode"] = "US";
+    joinScript["RandomSeed1"] = "7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==";
+    joinScript["ClientPublicKeyData"] = "{\"creationTime\":\"19:56 11/23/2021\",\"applications\":{\"RakNetEarlyPublicKey\":{\"versions\":[{\"id\":2,\"value\":\"HwatfCnkndvyKCMPSa0VAl2M2c0GQv9+0z0kENhcj2w=\",\"allowed\":true}],\"send\":2,\"revert\":2}}}";
+
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();
     evbuffer_add_printf(reply, "%s", JSON);
+    // std::string sig = "--rbxsig2%dTqdbW67JQwDfe9qnwmjBuy2FcsvWET43/BjdLAkuJX2OWTMYyiomVxFXksRn5JgJNCMelGU4cINs6xovCWp/stTHeukrV26opMetBr9U6GkW3ec4h1PVgXlwWGNMDQFCjXUGW3n00G+REEzDlTScdqnz8BBM5ZNSe33oF2V/1tDUDuSmBUufPnkTYjlmjK6XrCoa/lM6nkL4En2/bzwdKGXRns88MJNXOSzYQXCzOf7d/iAyvl3B0CQd+JUsJSdztZAXWCh7KUhL3GDYfN4XRPa0x3taEZMyBoPtmZ6ve3jUqXPih7GRYp0XAv7z3hOGzkF8UZonNKI0yv3Iok/Sg==%\n";
+    // std::string body = sig + joinScript.dump();
+    // evbuffer_add(reply, body.data(), body.size());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

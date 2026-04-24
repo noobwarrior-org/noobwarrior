@@ -4,4 +4,4 @@ set_target_properties(NoobWarrior.Injector PROPERTIES
     WIN32_EXECUTABLE ON
 )
 target_link_libraries(NoobWarrior.Injector PRIVATE version -static-libgcc -static-libstdc++)
-target_compile_features(NoobWarrior.Injector PUBLIC cxx_std_17)
+target_compile_features(NoobWarrior.Injector PUBLIC cxx_std_20)
