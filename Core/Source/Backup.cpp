@@ -306,6 +306,6 @@ Backup::Response Backup::StartProcess(Process* proc) {
     client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
         
     });
-    client.Request(asset_download_url.value());
+    client.RequestSync(asset_download_url.value());
     return Backup::Response::Ok;
 }

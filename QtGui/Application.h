@@ -40,6 +40,7 @@ public:
     void DownloadAndInstallWine(std::function<void(bool)> callback);
     void DownloadAndInstallEngine(const Engine &engine, std::function<void(bool)> callback);
     void LaunchEngine(const Engine &engine);
+    void ConnectToServer(const std::string &ip, uint16_t port);
 private:
     Init mInit {};
     Core *mCore;

@@ -18,24 +18,26 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerSidebar.h
+// File: DirectConnectDialog.h
 // Started by: Hattozo
-// Started on: 11/6/2025
-// Description: Widget that contains a list of master servers
+// Started on: 4/24/2026
+// Description:
 #pragma once
-#include <QDockWidget>
-#include <QTreeView>
-#include <QStandardItemModel>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QLineEdit>
 
 namespace NoobWarrior {
-class MasterServerSidebar : public QDockWidget {
-    Q_OBJECT
+class DirectConnectDialog : public QDialog {
 public:
-    MasterServerSidebar(QWidget* parent = nullptr);
-private:
+    DirectConnectDialog(QWidget *parent = nullptr);
+protected:
     void InitWidgets();
-
-    QTreeView* mView;
-    QStandardItemModel* mModel;
+private:
+    QVBoxLayout* mLayout;
+    QLineEdit* mIpInput;
+    QDialogButtonBox* mButtonBox;
 };
 }

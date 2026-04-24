@@ -18,17 +18,34 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerListWidget.h
+// File: OnlineWindow.h
 // Started by: Hattozo
 // Started on: 11/6/2025
-// Description: Widget that contains a list of servers retrieved from the master server
+// Description: Window that contains features that the master server can present
 #pragma once
-#include <QWidget>
+#include "OnlineSidebar.h"
+#include "ServerInformationSidebar.h"
+#include "ServerListWidget.h"
+
+#include <QMainWindow>
+#include <QToolBar>
+#include <QTabWidget>
+#include <QTreeView>
+#include <QVBoxLayout>
+#include <QPushButton>
 
 namespace NoobWarrior {
-class ServerListWidget : public QWidget {
+class OnlineWindow : public QMainWindow {
     Q_OBJECT
 public:
-    ServerListWidget(QWidget* parent = nullptr);
+    OnlineWindow(QWidget* parent = nullptr);
+protected:
+    void InitWidgets();
+private:
+    QToolBar* mToolBar;
+    OnlineSidebar* mSidebar;
+    ServerInformationSidebar* mServerInformationSidebar;
+    ServerListWidget* mServerList;
+    QTabWidget* ServersTab;
 };
 }

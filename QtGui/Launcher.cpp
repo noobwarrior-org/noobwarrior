@@ -60,7 +60,7 @@ using namespace NoobWarrior;
 
 // static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
 static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostServerDialog, HostServerDialog) }
-static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mMasterServerWindow, MasterServerWindow) }
+static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mOnlineWindow, OnlineWindow) }
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mSdk, Sdk) }
@@ -85,7 +85,7 @@ static const char* sCategoryNames[] = {
 };
 
 static const void* sPlay[][3] = {
-    {"Servers", (void*)&ShowJoinServer, ":/images/silk/server_go.png"},
+    {"Online", (void*)&ShowJoinServer, ":/images/silk/world.png"},
     {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"},
 };
 
@@ -115,7 +115,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mSdk(nullptr),
     mAssetDownload(nullptr),
     mHostServerDialog(nullptr),
-    mMasterServerWindow(nullptr),
+    mOnlineWindow(nullptr),
     mDatabaseDialog(nullptr),
     mPluginDialog(nullptr),
     mLocalPlayerDialog(nullptr)

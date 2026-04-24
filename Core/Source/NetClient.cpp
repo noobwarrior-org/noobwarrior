@@ -26,9 +26,9 @@
 
 using namespace NoobWarrior;
 
-static size_t WriteToBuf(void *contents, size_t size, size_t nmemb, std::string *buffer) {
+static size_t WriteToBuf(void *contents, size_t size, size_t nmemb, void *buffer) {
     size_t totalSize = size * nmemb;
-    buffer->insert(buffer->end(), (char*)contents, (char*)contents + totalSize);
+    static_cast<std::vector<unsigned char>*>(buffer)->insert(static_cast<std::vector<unsigned char>*>(buffer)->end(), (char*)contents, (char*)contents + totalSize);
     return totalSize;
 }
 
@@ -80,9 +80,15 @@ void NetClient::StartDownload(const DownloadOptions &options) {
 
 }
 
-CURLcode NetClient::Request(const std::string &url) {
+CURLcode NetClient::RequestSync(const std::string &url) {
     curl_easy_setopt(mHandle, CURLOPT_URL, url.c_str());
-    return curl_easy_perform(mHandle);
+    curl_easy_setopt(mHandle, CURLOPT_WRITEFUNCTION, WriteToBuf);
+    curl_easy_setopt(mHandle, CURLOPT_WRITEDATA, &mData);
+    CURLcode code = curl_easy_perform(mHandle);
+    for (std::function<void(std::vector<unsigned char>&)> &callback : mWriteToMemoryCallbacks) {
+        callback(mData);
+    }
+    return code;
 }
 
 void NetClient::OnDownloadProgress(std::function<void()> callback) {
@@ -90,7 +96,7 @@ void NetClient::OnDownloadProgress(std::function<void()> callback) {
 }
 
 void NetClient::OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback) {
-    callback(mData);
+    mWriteToMemoryCallbacks.push_back(callback);
 }
 
 void NetClient::OnFileDownloaded(std::function<void()> callback) {

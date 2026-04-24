@@ -23,9 +23,11 @@ set(SOURCES
     Dialog/PluginDialog.cpp
     Dialog/SelectStudioVersionDialog.cpp
     ServerHost/HostServerDialog.cpp
-    MasterServer/MasterServerWindow.cpp
-    MasterServer/MasterServerSidebar.cpp
-    MasterServer/ServerListWidget.cpp
+    OnlineWindow/OnlineWindow.cpp
+    OnlineWindow/OnlineSidebar.cpp
+    OnlineWindow/ServerInformationSidebar.cpp
+    OnlineWindow/ServerListWidget.cpp
+    OnlineWindow/DirectConnectDialog.cpp
     Sdk/Sdk.cpp
     Sdk/WelcomeWidget.cpp
     Sdk/FileManagerWidget.cpp

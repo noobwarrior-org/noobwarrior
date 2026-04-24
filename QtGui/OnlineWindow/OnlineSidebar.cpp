@@ -18,23 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerSidebar.cpp
+// File: OnlineSidebar.cpp
 // Started by: Hattozo
 // Started on: 11/6/2025
 // Description: Widget that contains a list of master servers
-#include "MasterServerSidebar.h"
+#include "OnlineSidebar.h"
 #include "../Application.h"
 
 #include <NoobWarrior/NetClient.h>
 
 using namespace NoobWarrior;
 
-MasterServerSidebar::MasterServerSidebar(QWidget* parent) : QDockWidget(parent) {
+OnlineSidebar::OnlineSidebar(QWidget* parent) : QDockWidget(parent) {
     setWindowTitle("Sidebar");
     InitWidgets();
+    setFeatures(features() & ~DockWidgetClosable);
 }
 
-void MasterServerSidebar::InitWidgets() {
+void OnlineSidebar::InitWidgets() {
     mView = new QTreeView(this);
     mView->setHeaderHidden(true);
 
@@ -50,7 +51,7 @@ void MasterServerSidebar::InitWidgets() {
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
             NetClient client;
-            client.Request(server["url"].get<std::string>() + "/autodiscover");
+            client.RequestSync(server["url"].get<std::string>() + "/autodiscover");
             client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) -> void {
 
             });

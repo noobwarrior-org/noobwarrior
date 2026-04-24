@@ -18,29 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerWindow.h
+// File: ServerListWidget.h
 // Started by: Hattozo
 // Started on: 11/6/2025
-// Description: Window that contains features that the master server can present
+// Description: Widget that contains a list of servers retrieved from the master server
 #pragma once
-#include "MasterServerSidebar.h"
-#include "ServerListWidget.h"
-
-#include <QMainWindow>
-#include <QTabWidget>
-#include <QTreeView>
+#include <QWidget>
 #include <QVBoxLayout>
+#include <QTreeView>
+#include <QStandardItemModel>
 
 namespace NoobWarrior {
-class MasterServerWindow : public QMainWindow {
+class ServerListWidget : public QTreeView {
     Q_OBJECT
 public:
-    MasterServerWindow(QWidget* parent = nullptr);
-private:
+    ServerListWidget(QWidget* parent = nullptr);
+protected:
     void InitWidgets();
-
-    MasterServerSidebar* mSidebar;
-    ServerListWidget* mServerList;
-    QTabWidget* ServersTab;
+private:
+    QStandardItemModel* mModel;
 };
 }

@@ -276,6 +276,19 @@ void Application::LaunchEngine(const Engine &engine) {
     } else callback(true);
 }
 
+void Application::ConnectToServer(const std::string &ip, uint16_t port) {
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+    dialog->SetText(QString("Connecting to server %1:%2...").arg(QString::fromStdString(ip), QString::number(port)));
+    dialog->show();
+
+    NetClient client;
+    client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
+
+    });
+}
+
 int main(int argc, char **argv) {
     Q_INIT_RESOURCE(resources);
     Q_INIT_RESOURCE(shared_resources); // you must do this or else the compiler will optimize it out of the code.

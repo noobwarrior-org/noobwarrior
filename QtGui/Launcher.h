@@ -31,7 +31,7 @@
 #include "Dialog/PluginDialog.h"
 #include "Dialog/LocalPlayerDialog.h"
 #include "ServerHost/HostServerDialog.h"
-#include "MasterServer/MasterServerWindow.h"
+#include "OnlineWindow/OnlineWindow.h"
 
 #include <QDialog>
 #include <QVBoxLayout>
@@ -48,7 +48,7 @@ public:
     Sdk *mSdk;
     AssetDownloader *mAssetDownload;
     HostServerDialog *mHostServerDialog;
-    MasterServerWindow *mMasterServerWindow;
+    OnlineWindow *mOnlineWindow;
     DatabaseDialog *mDatabaseDialog;
     PluginDialog *mPluginDialog;
     LocalPlayerDialog *mLocalPlayerDialog;

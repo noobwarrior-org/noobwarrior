@@ -71,7 +71,7 @@ public:
     void AddToQueue(const Url &url);
     void StartDownload(const DownloadOptions &options);
 
-    CURLcode Request(const std::string &url);
+    CURLcode RequestSync(const std::string &url);
 
     void OnDownloadProgress(std::function<void()> callback);
     void OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback);
@@ -84,6 +84,8 @@ private:
     std::vector<unsigned char> mData;
 
     std::vector<std::thread> mDownloadThreads;
+
+    std::vector<std::function<void(std::vector<unsigned char>&)>> mWriteToMemoryCallbacks;
 
     struct curl_slist *mHeaderList;
     Account *mAccount;

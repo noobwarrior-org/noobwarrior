@@ -26,6 +26,13 @@
 
 using namespace NoobWarrior;
 
-ServerListWidget::ServerListWidget(QWidget* parent) : QWidget(parent) {
+ServerListWidget::ServerListWidget(QWidget* parent) : QTreeView(parent) {
+    InitWidgets();
+}
 
+void ServerListWidget::InitWidgets() {
+    mModel = new QStandardItemModel(this);
+    mModel->setColumnCount(5);
+    mModel->setHorizontalHeaderLabels({"Locked", "Ping", "Server", "Game", "Players"});
+    setModel(mModel);
 }

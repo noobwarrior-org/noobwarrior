@@ -18,23 +18,46 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: MasterServerWindow.cpp
+// File: OnlineWindow.cpp
 // Started by: Hattozo
 // Started on: 11/6/2025
 // Description: Window that contains features that the master server can present
-#include "MasterServerWindow.h"
+#include "OnlineWindow.h"
+#include "DirectConnectDialog.h"
+
+#include <QMenuBar>
+#include <QPushButton>
 
 using namespace NoobWarrior;
 
-MasterServerWindow::MasterServerWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle("Servers");
+OnlineWindow::OnlineWindow(QWidget* parent) : QMainWindow(parent) {
+    setWindowTitle("Online");
     InitWidgets();
 }
 
-void MasterServerWindow::InitWidgets() {
-    mServerList = new ServerListWidget(this);
+void OnlineWindow::InitWidgets() {
+    menuBar()->addMenu("View");
 
-    mSidebar = new MasterServerSidebar(this);
+    mToolBar = new QToolBar("Standard", this);
+    addToolBar(mToolBar);
+
+    auto *directConnect = new QPushButton("Direct Connect");
+    connect(directConnect, &QPushButton::clicked, []() {
+        DirectConnectDialog directConnect;
+        directConnect.exec();
+    });
+    
+    mToolBar->addWidget(directConnect);
+    mToolBar->addWidget(new QPushButton("Refresh"));
+
+    mServerList = new ServerListWidget(this);
+    setCentralWidget(mServerList);
+
+    mSidebar = new OnlineSidebar(this);
     mSidebar->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mSidebar);
+
+    mServerInformationSidebar = new ServerInformationSidebar(this);
+    mServerInformationSidebar->setAllowedAreas(Qt::AllDockWidgetAreas);
+    addDockWidget(Qt::RightDockWidgetArea, mServerInformationSidebar);
 }
