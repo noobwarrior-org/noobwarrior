@@ -59,7 +59,7 @@ void LocalPlayerDialog::InitWidgets() {
     mFormLayout->addRow("Name", mNameInput);
     mFormLayout->addRow("Display Name", mDisplayNameInput);
 
-    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Apply | QDialogButtonBox::Cancel);
+    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
     connect(mButtonBox, &QDialogButtonBox::accepted, [this, reg]() {
         reg->SetKeyValue("user.id", mIdInput->text().toLongLong());
         reg->SetKeyValue("user.name", mNameInput->text().toStdString());
