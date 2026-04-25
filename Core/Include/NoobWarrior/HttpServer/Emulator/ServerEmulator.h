@@ -26,6 +26,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/Engine.h>
 
+#include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
@@ -72,6 +73,7 @@ private:
     std::optional<Engine> mCurrentEngine;
 
     //////////////// Handlers ////////////////
+    RunningGameServersHandler mRunningGameServersHandler;
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
