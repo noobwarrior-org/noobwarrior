@@ -70,11 +70,16 @@ static void ShowLocalPlayer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mLocal
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) {
     gApp->LaunchEngine({
-        .Architecture = EngineArchitecture::x86_64,
-        .Type = EngineType::Roblox,
-        .Side = EngineSide::Studio,
-        .Hash = "ef266da340bc4058",
-        .Version = "0.463.0.417004"
+        .Engine = {
+            .Architecture = EngineArchitecture::x86_64,
+            .Type = EngineType::Roblox,
+            .Side = EngineSide::Studio,
+            .Hash = "ef266da340bc4058",
+            .Version = "0.463.0.417004"
+        },
+        .Ip = "",
+        .Port = std::nullopt,
+        .PlaceId = std::nullopt
     });
 }
 

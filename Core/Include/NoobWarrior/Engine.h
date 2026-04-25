@@ -80,6 +80,13 @@ struct Engine {
     time_t                  Date            {};
 };
 
+struct EngineStartParameters {
+    Engine Engine {};
+    std::string Ip {};
+    std::optional<uint16_t> Port { std::nullopt };
+    std::optional<int64_t> PlaceId { std::nullopt };
+};
+
 enum class EngineInstallState {
     Failed,
     Success,

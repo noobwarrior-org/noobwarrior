@@ -39,7 +39,7 @@ public:
     // GUI versions for downloading engines
     void DownloadAndInstallWine(std::function<void(bool)> callback);
     void DownloadAndInstallEngine(const Engine &engine, std::function<void(bool)> callback);
-    void LaunchEngine(const Engine &engine);
+    void LaunchEngine(EngineStartParameters params);
     void ConnectToServer(const std::string &ip, uint16_t port);
 private:
     Init mInit {};

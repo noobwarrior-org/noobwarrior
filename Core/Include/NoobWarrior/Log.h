@@ -26,8 +26,10 @@
 #include <string_view>
 #include <iostream>
 #include <format>
+#include <mutex>
 
 namespace NoobWarrior {
+extern std::mutex gLog_Mutex;
 extern bool gLog_PrintToStdOut;
 enum class Level {
     Info,
@@ -38,6 +40,7 @@ enum class Level {
 
 template <typename... Args>
 void OutEx(std::ostream *stream, std::string_view category, std::string_view fmt, Args...args) {
+    std::lock_guard<std::mutex> lock(gLog_Mutex);
     if (stream == &std::cout && !gLog_PrintToStdOut)
         return;
     std::string fmtStr = std::vformat("[NoobWarrior::{}] ", std::make_format_args(category)) + std::vformat(fmt, std::make_format_args(args...));

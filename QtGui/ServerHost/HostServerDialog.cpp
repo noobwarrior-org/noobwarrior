@@ -64,29 +64,6 @@ void HostServerDialog::InitWidgets() {
     mStartServer = new QPushButton("Start Server");
     mButtonBox->addButton(mStartServer, QDialogButtonBox::AcceptRole);
 
-    auto* mStartClient = new QPushButton("Start Client");
-    mMainLayout->addWidget(mStartClient);
-    connect(mStartClient, &QPushButton::clicked, []() {
-        gApp->LaunchEngine({
-            .Type = EngineType::Roblox,
-            .Side = EngineSide::Client,
-            .Hash = "5a54208fe8e24e87",
-            .Version = "0.463.0.417004"
-        });
-    });
-
-    auto* mStartStudio = new QPushButton("Start Studio");
-    mMainLayout->addWidget(mStartStudio);
-    connect(mStartStudio, &QPushButton::clicked, []() {
-        gApp->LaunchEngine({
-            .Architecture = EngineArchitecture::x86_64,
-            .Type = EngineType::Roblox,
-            .Side = EngineSide::Studio,
-            .Hash = "ef266da340bc4058",
-            .Version = "0.463.0.417004"
-        });
-    });
-
     mCloseButton = new QPushButton("Close");
     mButtonBox->addButton(mCloseButton, QDialogButtonBox::RejectRole);
 
@@ -94,10 +71,13 @@ void HostServerDialog::InitWidgets() {
 
     connect(mStartServer, &QPushButton::clicked, []() {
         gApp->LaunchEngine({
-            .Type = EngineType::Roblox,
-            .Side = EngineSide::Server,
-            .Hash = "07b64feec0bd47c1",
-            .Version = "0.463.0.417004"
+            .Engine = {
+                .Type = EngineType::Roblox,
+                .Side = EngineSide::Server,
+                .Hash = "07b64feec0bd47c1",
+                .Version = "0.463.0.417004"
+            },
+            .PlaceId = 1818
         });
     });
 }

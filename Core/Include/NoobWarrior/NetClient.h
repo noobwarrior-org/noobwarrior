@@ -35,14 +35,21 @@
 #include <thread>
 
 namespace NoobWarrior {
+struct DownloadProgress {
+    curl_off_t DownloadTotal;
+    curl_off_t DownloadNow;
+    curl_off_t UploadTotal;
+    curl_off_t UploadNow;
+};
+
+// Represents an in-flight async download.
+// Canceled can be set from any thread to abort the transfer.
 struct Transfer {
     CURL* Handle = nullptr;
-    std::shared_ptr<std::atomic_bool> Cancelled = std::make_shared<std::atomic_bool>(false);
+    std::shared_ptr<std::atomic_bool> Canceled = std::make_shared<std::atomic_bool>(false);
     std::shared_ptr<std::ofstream> File;
-    size_t DownloadTotal {};
-    size_t DownloadNow {};
-    size_t UploadTotal {};
-    size_t UploadNow {};
+    std::vector<unsigned char> Data;
+    DownloadProgress Progress {};
 };
 
 enum class DownloadOutputFormat {
@@ -51,15 +58,16 @@ enum class DownloadOutputFormat {
 };
 
 struct DownloadOptions {
-    DownloadOutputFormat OutputFormat;
-    std::filesystem::path OutputDir;
+    DownloadOutputFormat OutputFormat { DownloadOutputFormat::Memory };
+    std::filesystem::path OutputDir {};
 };
 
 class NetClient {
 public:
     enum class FailReason {
         None,
-        Unknown
+        Unknown,
+        CurlInitFailed
     };
 
     NetClient(Account *account);
@@ -68,27 +76,43 @@ public:
 
     bool Fail();
 
-    void AddToQueue(const Url &url);
-    void StartDownload(const DownloadOptions &options);
+    /* these functions do not block and are multi-threaded under the hood. you can safely use them on the main thread. */
+    void AddToQueueAsync(const Url &url);
+    void StartDownloadAsync(const DownloadOptions &options = {});
 
+    /* these functions are simple wrappers over the curl_easy functions and are blocking */
     CURLcode RequestSync(const std::string &url);
+    long GetHttpCodeSync() const;
+    void SetTimeoutSync(long timeout);
 
-    void OnDownloadProgress(std::function<void()> callback);
-    void OnWriteToMemoryFinished(std::function<void(std::vector<unsigned char>&)> callback);
-    void OnFileDownloaded(std::function<void()> callback);
+    void OnDownloadProgress(std::function<void(const DownloadProgress&)> callback);
+    void OnWriteToMemoryFinished(std::function<void(const std::vector<unsigned char>&)> callback);
+    void OnFileDownloaded(std::function<void(const std::filesystem::path&)> callback);
     
-    void SetHeader(const std::string &name, const std::string &contents);
-    void SetUserAgent(const std::string &str);
+    void SetHeader(const std::string &name, const std::string &value);
+    void SetUserAgent(const std::string &userAgent);
+
+    std::vector<unsigned char> GetData();
 private:
     FailReason mFailReason;
     std::vector<unsigned char> mData;
 
-    std::vector<std::thread> mDownloadThreads;
+    std::vector<Url> mPendingDownloads;
+    std::vector<Transfer> mTransfers;
 
-    std::vector<std::function<void(std::vector<unsigned char>&)>> mWriteToMemoryCallbacks;
+    std::vector<std::function<void(const DownloadProgress&)>>         mProgressCallbacks;
+    std::vector<std::function<void(const std::vector<unsigned char>&)>> mMemoryCallbacks;
+    std::vector<std::function<void(const std::filesystem::path&)>>     mFileCallbacks;
 
     struct curl_slist *mHeaderList;
+    std::vector<std::string> mHeaders;
     Account *mAccount;
     CURL *mHandle;
+
+    // curl write/progress callbacks.
+    static size_t WriteToBuf(void* contents, size_t size, size_t nmemb, void* userp);
+    static size_t WriteToDisk(void* contents, size_t size, size_t nmemb, void* userp);
+    static int    OnProgress(void* userp, curl_off_t dlTotal, curl_off_t dlNow,
+                             curl_off_t ulTotal, curl_off_t ulNow);
 };
 }

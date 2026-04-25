@@ -26,6 +26,7 @@
 
 using namespace NoobWarrior;
 
+std::mutex NoobWarrior::gLog_Mutex;
 bool NoobWarrior::gLog_PrintToStdOut = true;
 
 static const char* MapLevelToString(Level lv) {

@@ -52,7 +52,7 @@ void OnlineSidebar::InitWidgets() {
         for (auto &server : servers.value()) {
             NetClient client;
             client.RequestSync(server["url"].get<std::string>() + "/autodiscover");
-            client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) -> void {
+            client.OnWriteToMemoryFinished([](const std::vector<unsigned char> &data) -> void {
 
             });
             std::string name = server.contains("name") ? server["name"].get<std::string>() : "Loading...";

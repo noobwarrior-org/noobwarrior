@@ -303,7 +303,7 @@ Backup::Response Backup::StartProcess(Process* proc) {
     NetClient client(proc->Core->GetRbxKeychain()->GetActiveAccount());
     if (client.Fail())
         return Backup::Response::Failed;
-    client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
+    client.OnWriteToMemoryFinished([](const std::vector<unsigned char> &data) {
         
     });
     client.RequestSync(asset_download_url.value());

@@ -306,6 +306,75 @@ std::string Core::GetIndexMessage() {
     return "";
 }
 
+void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback) {
+    std::thread([=]() {
+        NetClient client;
+        client.SetTimeoutSync(10L);
+
+        std::string url = "http://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
+        CURLcode res = client.RequestSync(url);
+
+        if (res != CURLE_OK) {
+            callback(ServerEmulatorConnectFailReason::TimedOut, {});
+            return;
+        }
+
+        if (client.GetHttpCodeSync() == 404) {
+            callback(ServerEmulatorConnectFailReason::EndpointNotFound, {});
+            return;
+        }
+
+        std::vector<EngineStartParameters> paramsList;
+        nlohmann::json json;
+        try {
+            json = nlohmann::json::parse(client.GetData()); // however you expose mData
+        } catch (nlohmann::json::exception &e) {
+            callback(ServerEmulatorConnectFailReason::JsonFailed, {});
+            return;
+        }
+
+        for (auto &obj : json.items()) {
+            nlohmann::json gameServerArray = obj.value();
+            if (!gameServerArray.contains("Ip")) {
+                Out("ConnectToServerEmulator", "WARNING! IP address not found in JSON object from endpoint /v1/running-game-servers.");
+                continue;
+            }
+
+            EngineStartParameters params {};
+
+            try {
+                params.Ip = gameServerArray["Ip"].get<std::string>();
+            } catch (nlohmann::json::exception &e) {
+                Out("ConnectToServerEmulator", "WARNING! Invalid IP address found in JSON object from endpoint /v1/running-game-servers.");
+                continue;
+            }
+            try {
+                params.Port = gameServerArray.contains("Port") ? gameServerArray["Port"].get<uint16_t>() : 53640;
+            } catch (nlohmann::json::exception &e) {
+                Out("ConnectToServerEmulator", "WARNING! Invalid port found in JSON object from endpoint /v1/running-game-servers.");
+                continue;
+            }
+            try {
+                params.Engine.Version = gameServerArray["EngineVersion"].get<std::string>();
+            } catch (nlohmann::json::exception &e) {
+                Out("ConnectToServerEmulator", "WARNING! Invalid engine version found in JSON object from endpoint /v1/running-game-servers.");
+                continue;
+            }
+            params.Engine.Side = EngineSide::Client;
+            try {
+                params.Engine.Type = gameServerArray["EngineType"].get<std::string>().compare("Roblox") == 0 ? EngineType::Roblox : EngineType::Roblox; // yea kind of useless
+            } catch (nlohmann::json::exception &e) {
+                Out("ConnectToServerEmulator", "WARNING! Invalid engine type found in JSON object from endpoint /v1/running-game-servers.");
+                continue;
+            }
+
+            paramsList.push_back(params);
+        }
+
+        callback(ServerEmulatorConnectFailReason::None, paramsList);
+    }).detach();
+}
+
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {
 #if defined(_WIN32)
     std::vector<char> buf;

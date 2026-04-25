@@ -25,6 +25,8 @@
 #include "DirectConnectDialog.h"
 #include "../Application.h"
 
+#include <QMessageBox>
+
 using namespace NoobWarrior;
 
 DirectConnectDialog::DirectConnectDialog(QWidget *parent) : QDialog(parent) {
@@ -48,7 +50,29 @@ void DirectConnectDialog::InitWidgets() {
 
     connect(mButtonBox, &QDialogButtonBox::accepted, [this]() {
         close();
-        gApp->ConnectToServer("localhost", 8080);
+
+        QStringList list = mIpInput->text().split(":");
+        if (list.at(0).isEmpty()) {
+            QMessageBox::critical(this, "Error", "No IP address entered!");
+            return;
+        }
+        QString ipAddress = list.at(0);
+        uint16_t port = 8080;
+        if (list.size() > 1) {
+            QString portStr = list.at(1);
+            if (portStr.toUInt() > 65535) {
+                QMessageBox::critical(this, "Error", "Port number out of range!");
+                return;
+            }
+            bool ok = false;
+            port = portStr.toUInt(&ok);
+            if (!ok) {
+                QMessageBox::critical(this, "Error", "Please enter a valid port number!");
+                return;
+            }
+        }
+
+        gApp->ConnectToServer(ipAddress.toStdString(), port);
     });
 
     connect(mButtonBox, &QDialogButtonBox::rejected, [this]() {

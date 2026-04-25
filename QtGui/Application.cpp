@@ -187,9 +187,9 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
 
     auto transfers = std::make_shared<std::vector<std::shared_ptr<Transfer>>>();;
 
-    QObject::connect(dialog, &QWidget::destroyed, [transfers]() {
+    connect(dialog, &QWidget::destroyed, [transfers]() {
         for (auto &t : *transfers) {
-            if (t && t->Cancelled) t->Cancelled->store(true);
+            if (t && t->Canceled) t->Canceled->store(true);
         }
     });
 
@@ -235,18 +235,18 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
     mCore->DownloadAndInstallEngine(client, transfers, install_callback);
 }
 
-void Application::LaunchEngine(const Engine &engine) {
-    std::function callback = [this, engine](bool success) {
+void Application::LaunchEngine(EngineStartParameters params) {
+    std::function callback = [this, params](bool success) {
         if (!success) return;
         
         auto *dialog = new LoadingDialog(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModal(false);
-        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsTranslatableString(engine.Side)), QString::fromStdString(engine.Version)));
+        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsTranslatableString(params.Engine.Side)), QString::fromStdString(params.Engine.Version)));
         dialog->DisableCancel(true);
         dialog->show();
 
-        EngineLaunchResponse res = mCore->LaunchEngine(engine);
+        EngineLaunchResponse res = mCore->LaunchEngine(params);
         if (res != EngineLaunchResponse::Success) {
             QString errMsg;
             switch (res) {
@@ -271,8 +271,8 @@ void Application::LaunchEngine(const Engine &engine) {
     callback(true);
     return;
 
-    if (!mCore->IsEngineInstalled(engine)) {
-        DownloadAndInstallEngine(engine, callback);
+    if (!mCore->IsEngineInstalled(params.Engine)) {
+        DownloadAndInstallEngine(params.Engine, callback);
     } else callback(true);
 }
 
@@ -283,9 +283,46 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
     dialog->SetText(QString("Connecting to server %1:%2...").arg(QString::fromStdString(ip), QString::number(port)));
     dialog->show();
 
-    NetClient client;
-    client.OnWriteToMemoryFinished([](std::vector<unsigned char> &data) {
+    auto cancelled = std::make_shared<bool>(false);
+    QPointer<LoadingDialog> dialogPtr(dialog);
 
+    connect(dialog, &QWidget::destroyed, [cancelled]() {
+        *cancelled = true;
+    });
+
+    mCore->ConnectToServerEmulator(ip, port, [this, dialogPtr, cancelled](ServerEmulatorConnectFailReason failReason, std::vector<EngineStartParameters> availableServers) mutable {
+        QTimer::singleShot(0, qApp, [this, dialogPtr, cancelled, failReason, availableServers]() mutable {
+            if (*cancelled || !dialogPtr) return;
+
+            if (failReason != ServerEmulatorConnectFailReason::None) {
+                QString reasonMsg;
+                switch (failReason) {
+                default: reasonMsg = "The reason is unknown."; break;
+                case ServerEmulatorConnectFailReason::TimedOut:
+                    reasonMsg = "The connection timed out."; break;
+                case ServerEmulatorConnectFailReason::EndpointNotFound:
+                    reasonMsg = "The endpoint /v1/running-game-servers could not be found."; break;
+                case ServerEmulatorConnectFailReason::JsonFailed:
+                    reasonMsg = "Failed to parse JSON."; break;
+                }
+                QMessageBox::critical(dialogPtr, "Cannot Connect",
+                    QString("Failed to connect to server emulator.\n%1").arg(reasonMsg));
+                dialogPtr->close();
+                return;
+            }
+            if (availableServers.empty()) {
+                QMessageBox::critical(dialogPtr, "No Running Game Servers",
+                    "The server emulator has no running game servers.");
+                dialogPtr->close();
+                return;
+            }
+            if (availableServers.size() > 1) {
+                QMessageBox::warning(dialogPtr, "Not Implemented Yet",
+                    "The server emulator currently has more than one game server running at a time. Right now there is no implemented behavior for picking from a selection of game servers, so you'll just be joining the first one on the list.");
+            }
+            dialogPtr->close();
+            LaunchEngine(availableServers.at(0));
+        });
     });
 }
 

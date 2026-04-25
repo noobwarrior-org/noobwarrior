@@ -95,6 +95,14 @@ struct BackupArgs {
     std::vector<std::pair<int64_t, int64_t>>    IdAndVersion {};
 };
 
+enum class ServerEmulatorConnectFailReason {
+    None,
+    Unknown,
+    TimedOut,
+    EndpointNotFound,
+    JsonFailed
+};
+
 std::string WideCharToUTF8(wchar_t* wc);
 
 class Core {
@@ -163,14 +171,21 @@ public:
     std::vector<Engine> GetAllEngines();
     std::filesystem::path GetEngineDirectory(const Engine &client);
 
-    /* This searches your engines directory and compiles a list of usable engines */
+    /* This searches your engines directory, finds engines from master servers you have added, and compiles a list of usable engines */
     void DiscoverEngines();
 
     bool IsEngineInstalled(const Engine &client);
     void DownloadAndInstallEngine(const Engine &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback);
-    EngineLaunchResponse LaunchEngine(const Engine &client);
+    EngineLaunchResponse LaunchEngine(EngineStartParameters params);
+
+    /* This is a two-part flow.
+     * Whenever callback is fired, the first parameter indicates if the request succeeded or not, and the second parameter is the response if successful.
+     * The vector part contains start parameters for each server containing their respective IP addresses, ports, and what version of Roblox they use.
+     * This response should be passed to LaunchEngine, which will promptly start the game.
+     */
+    void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
 private:
-    EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath);
+    EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
 
     Response                        mInitResponse;
 
