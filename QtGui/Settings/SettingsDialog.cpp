@@ -53,7 +53,8 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent),
 }
 
 void SettingsDialog::InitWidgets() {
-    auto *mainLayout = new QHBoxLayout(this);
+    mLayout = new QVBoxLayout(this);
+    mSideLayout = new QHBoxLayout();
 
     ListWidget = new QListWidget();
     ListWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
@@ -72,9 +73,11 @@ void SettingsDialog::InitWidgets() {
 
     // INPUT("Asset Delivery Api", gApp->GetCore()->GetConfig()->Api_AssetDownload, "Roblox API URLs", "Internet")
 
-    mainLayout->addWidget(ListWidget);
-    mainLayout->addWidget(StackedWidget);
-    mainLayout->addWidget(ButtonBox);
+    mSideLayout->addWidget(ListWidget);
+    mSideLayout->addWidget(StackedWidget);
+
+    mLayout->addLayout(mSideLayout);
+    mLayout->addWidget(ButtonBox);
 
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }

@@ -160,21 +160,18 @@ public:
     // std::future<char*> DownloadAssetAsync(DownloadAssetArgs);
 
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
-    
-    //////////////// Index Related Functions ////////////////
-    int RetrieveIndex(nlohmann::json &index, bool forceRefresh = false);
-    std::string GetIndexMessage();
 
-    //////////////// Client Related Functions ////////////////
+    //////////////// Engine Related Functions ////////////////
+    nlohmann::json GetEngineManifest();
+
     std::vector<Engine> GetInstalledEngines();
-    std::vector<Engine> GetEnginesFromIndex();
     std::vector<Engine> GetAllEngines();
     std::filesystem::path GetEngineDirectory(const Engine &client);
 
-    /* This searches your engines directory, finds engines from master servers you have added, and compiles a list of usable engines */
+    /* This searches your engine manifest file, finds engines from master servers you have added, and compiles a list of usable engines */
     void DiscoverEngines();
 
-    bool IsEngineInstalled(const Engine &client);
+    bool IsEngineInManifest(const Engine &client);
     void DownloadAndInstallEngine(const Engine &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback);
     EngineLaunchResponse LaunchEngine(EngineStartParameters params);
 
@@ -193,7 +190,7 @@ private:
 
     Init                            mInit;
     LuaState*                       mLuaState;
-    Registry*                         mRegistry;
+    Registry*                       mRegistry;
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 
@@ -203,8 +200,5 @@ private:
     EmuKeychain*                    mEmuKeychain;
     RbxKeychain*                    mRbxKeychain;
     std::vector<RccServiceManager*> mRccServiceManagers;
-
-    nlohmann::json                  mIndexJson;
-    bool                            mIndexDirty;
 };
 }

@@ -31,6 +31,7 @@
 #include <QListWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QStackedWidget>
 #include <QDialogButtonBox>
 
@@ -43,9 +44,11 @@ public:
     void InitPages();
     void AddPage(SettingsPage *page);
 private:
-    QListWidget *ListWidget;
-    QStackedWidget *StackedWidget;
-    QDialogButtonBox *ButtonBox;
+    QVBoxLayout* mLayout;
+    QHBoxLayout* mSideLayout;
+    QListWidget* ListWidget;
+    QStackedWidget* StackedWidget;
+    QDialogButtonBox* ButtonBox;
     std::vector<SettingsPage*> Pages;
 };
 }

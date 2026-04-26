@@ -213,7 +213,7 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
                     dialogPtr->SetProgress(-1);
                     break;
                 case EngineInstallState::DownloadingFiles:
-                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(EngineSideAsTranslatableString(client.Side)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
+                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(EngineSideAsString(client.Side)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
                     if (totalSizeMb > 0) // pls dont ever divide by 0
                         dialogPtr->SetProgress(sizeMb / totalSizeMb);
                     break;
@@ -242,7 +242,7 @@ void Application::LaunchEngine(EngineStartParameters params) {
         auto *dialog = new LoadingDialog(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModal(false);
-        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsTranslatableString(params.Engine.Side)), QString::fromStdString(params.Engine.Version)));
+        dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsString(params.Engine.Side)), QString::fromStdString(params.Engine.Version)));
         dialog->DisableCancel(true);
         dialog->show();
 
@@ -271,7 +271,7 @@ void Application::LaunchEngine(EngineStartParameters params) {
     callback(true);
     return;
 
-    if (!mCore->IsEngineInstalled(params.Engine)) {
+    if (!mCore->IsEngineInManifest(params.Engine)) {
         DownloadAndInstallEngine(params.Engine, callback);
     } else callback(true);
 }

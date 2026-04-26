@@ -27,6 +27,7 @@
 
 #include <string>
 #include <ctime>
+#include <optional>
 
 namespace NoobWarrior {
 enum class EngineSource {
@@ -34,11 +35,12 @@ enum class EngineSource {
     Remote
 };
 
-enum class EnginePlatform {
+enum class EngineOs {
     Windows,
     Mac,
     Linux,
-    Android
+    Android,
+    Ios
 };
 
 enum class EngineArchitecture {
@@ -65,7 +67,7 @@ inline std::string EngineTypeAsString(EngineType side) {
     return "None";
 }
 
-inline std::string EngineSideAsTranslatableString(EngineSide side) {
+inline std::string EngineSideAsString(EngineSide side) {
     switch (side) {
     case EngineSide::Client: return "Client";
     case EngineSide::Server: return "Server";
@@ -76,7 +78,7 @@ inline std::string EngineSideAsTranslatableString(EngineSide side) {
 
 struct Engine {
     EngineSource            Source          {};
-    EnginePlatform          Platform        {};
+    EngineOs                Os              {};
     EngineArchitecture      Architecture    {};
     EngineType              Type            {};
     EngineSide              Side            {};

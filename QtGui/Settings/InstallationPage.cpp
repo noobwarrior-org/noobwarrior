@@ -64,7 +64,7 @@ void InstallationPage::InitWidgets() {
 
     for (int i = 0; i < EngineSideCount; i++) {
         auto engineSide = static_cast<EngineSide>(i);
-        auto engineSideItem = new QListWidgetItem(QIcon(sIcons[engineSide]), QString::fromStdString(EngineSideAsTranslatableString(engineSide)), ListWidget);
+        auto engineSideItem = new QListWidgetItem(QIcon(sIcons[engineSide]), QString::fromStdString(EngineSideAsString(engineSide)), ListWidget);
         QFont font = engineSideItem->font();
         font.setPointSize(12);
         engineSideItem->setFont(font);
@@ -107,72 +107,9 @@ void InstallationPage::InitWidgets() {
 }
 
 void InstallationPage::Refresh() {
-    nlohmann::json index;
-    int res = gApp->GetCore()->RetrieveIndex(index);
-    if (res != CURLE_OK) {
-        auto url = gApp->GetCore()->GetRegistry()->GetKeyValue<std::string>("internet.index");
-        QString errMsg;
-        switch (res) {
-            default: errMsg = QString("Could not connect to server for file \"\"").arg(QString::fromStdString(url.value())); break;
-            case -1: errMsg = "Could not connect to server to retrieve clients; no URL is set!"; break;
-        }
-        CannotConnectLabel->setText(errMsg);
-        CannotConnectLabel->setVisible(true);
-        return;
-    }
-
-#define REQUIRE(key) if (!index.contains(key)) { QMessageBox::critical(this, "Cannot Load Index", QString("This JSON is malformed since it does not contain a \"%1\" object.").arg(key)); return; }
-    REQUIRE("Version")
-    REQUIRE("Roblox")
-#undef REQUIRE
-
-    if (index.contains("Message") && !index["Message"].get<std::string>().empty()) {
-        IndexMessageLabel->setText(QString::fromStdString(index["Message"].get<std::string>()));
-        IndexMessageLabel->setVisible(true);
-    }
-
-    for (int i = 0; i <= EngineSideCount; i++) {
-        auto engineSide = static_cast<EngineSide>(i);
-        std::string clientTypeStr = EngineSideAsTranslatableString(engineSide);
-        QStandardItemModel *engineVersionModel = EngineVersionModelMap.at(engineSide);
-        engineVersionModel->removeRows(0, engineVersionModel->rowCount());
-        engineVersionModel->setRowCount(0);
-
-        if (!index["Roblox"].contains(clientTypeStr)) {
-            QMessageBox::critical(this, "Error", QString("The index does not contain \"%1\" within the list.").arg(clientTypeStr));
-            continue;
-        }
-
-        for (auto &engineInfo : index["Roblox"][clientTypeStr]) {
-            std::string hash = engineInfo.at("Hash").get<std::string>();
-            std::string version = engineInfo.at("Version").get<std::string>();
-            std::string date = engineInfo.at("Date").get<std::string>();
-
-            auto dateTime = QDateTime::fromString(QString::fromStdString(date), Qt::ISODate);
-
-            Engine engine = {
-                .Type = EngineType::Roblox,
-                .Side = engineSide,
-                .Hash = hash,
-                .Version = version
-            };
-
-            QList<QStandardItem*> engineRow;
-            engineRow
-                << new QStandardItem("")
-                << new QStandardItem(QIcon(":/images/silk/star.png"), "")
-                << new QStandardItem(QIcon(gApp->GetCore()->IsEngineInstalled(engine) ? ":/images/silk/tick.png" : ":/images/silk/cross.png"), "")
-                << new QStandardItem(QString::fromStdString(version))
-                << new QStandardItem(QString::fromStdString(hash))
-                << new QStandardItem(dateTime.toString("ddd MMMM d yyyy h:mm:ss AP"));
-            engineVersionModel->appendRow(engineRow);
-        }
-
-        QTreeView *engineVersionView = EngineVersionViewMap.at(engineSide);
-        for (int i = 0; i < engineVersionModel->columnCount(); i++) {
-            engineVersionView->resizeColumnToContents(i);
-        }
-    }
+    QString errMsg = "Could not connect to server to retrieve clients; no URL is set!";
+    CannotConnectLabel->setText(errMsg);
+    CannotConnectLabel->setVisible(true);
 }
 
 const QString InstallationPage::GetTitle() {

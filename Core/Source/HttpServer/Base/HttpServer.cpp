@@ -241,7 +241,7 @@ LuaSignal* HttpServer::GetOnRequestSignal() {
 }
 
 bool HttpServer::IsRunning() {
-    return mRunning;
+    return mRunning || mRunningSecure;
 }
 
 Core *HttpServer::GetCore() {

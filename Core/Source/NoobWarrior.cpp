@@ -53,8 +53,7 @@ Core::Core(Init init) :
     mLuaState(nullptr),
     mEmuDbManager(this),
     mServerEmulator(nullptr),
-    mPluginManager(this),
-    mIndexDirty(true)
+    mPluginManager(this)
 {
 #if defined(_WIN32)
     // https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
@@ -235,10 +234,6 @@ void Core::CreateStandardUserDataDirectories() {
     NW_CREATE(NW_PATH_DATABASES)
     NW_CREATE(NW_PATH_PLUGINS)
     NW_CREATE(NW_PATH_ENGINES)
-    NW_CREATE(NW_PATH_ENGINES_ROBLOX)
-    NW_CREATE(NW_PATH_ENGINES_ROBLOX_CLIENT)
-    NW_CREATE(NW_PATH_ENGINES_ROBLOX_SERVER)
-    NW_CREATE(NW_PATH_ENGINES_ROBLOX_STUDIO)
     NW_CREATE(NW_PATH_TEMP)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS_ENGINES)
@@ -267,43 +262,6 @@ bool Core::IsServerEmulatorRunning() {
 static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
     static_cast<std::string*>(userp)->append(static_cast<char*>(contents), size * nmemb);
     return size * nmemb;
-}
-
-int Core::RetrieveIndex(nlohmann::json &index, bool forceRefresh) {
-    if (!mIndexDirty && !forceRefresh) {
-        index = mIndexJson;
-        return CURLE_OK;
-    }
-
-    auto url = mRegistry->GetKeyValue<const char*>("internet.index");
-    if (!url.has_value())
-        return -1;
-
-    CURL *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_URL, url.value());
-
-    std::string jsonStr;
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &jsonStr);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK)
-        return res;
-
-    index = nlohmann::json::parse(jsonStr);
-    mIndexJson = index;
-    mIndexDirty = false;
-    return res;
-}
-
-std::string Core::GetIndexMessage() {
-    nlohmann::json index;
-    int res = RetrieveIndex(index);
-    if (res != CURLE_OK)
-        return "";
-    if (index.contains("Message"))
-        return index["Message"].get<std::string>();
-    return "";
 }
 
 void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback) {
@@ -343,32 +301,35 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
 
             EngineStartParameters params {};
 
-            try {
+            if (gameServerArray.contains("Ip") && gameServerArray["Ip"].is_string()) {
                 params.Ip = gameServerArray["Ip"].get<std::string>();
-            } catch (nlohmann::json::exception &e) {
+            } else {
                 Out("ConnectToServerEmulator", "WARNING! Invalid IP address found in JSON object from endpoint /v1/running-game-servers. Skipping...");
                 continue;
             }
+
             try {
                 params.Port = gameServerArray["Port"].get<uint16_t>();
             } catch (nlohmann::json::exception &e) {
                 Out("ConnectToServerEmulator", "WARNING! Invalid port found in JSON object from endpoint /v1/running-game-servers. Skipping...");
                 continue;
             }
-            try {
+
+            if (gameServerArray.contains("EngineVersion") && gameServerArray["EngineVersion"].is_string()) {
                 params.Engine.Version = gameServerArray["EngineVersion"].get<std::string>();
-            } catch (nlohmann::json::exception &e) {
+            } else {
                 Out("ConnectToServerEmulator", "WARNING! Invalid engine version found in JSON object from endpoint /v1/running-game-servers. Skipping...");
                 continue;
             }
-            params.Engine.Side = EngineSide::Client;
-            try {
+
+            if (gameServerArray.contains("EngineType") && gameServerArray["EngineType"].is_string()) {
                 params.Engine.Type = gameServerArray["EngineType"].get<std::string>().compare("Roblox") == 0 ? EngineType::Roblox : EngineType::Roblox; // yea kind of useless
-            } catch (nlohmann::json::exception &e) {
+            } else {
                 Out("ConnectToServerEmulator", "WARNING! Invalid engine type found in JSON object from endpoint /v1/running-game-servers. Skipping...");
                 continue;
             }
 
+            params.Engine.Side = EngineSide::Client;
             paramsList.push_back(params);
         }
 

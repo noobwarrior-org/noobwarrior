@@ -44,30 +44,70 @@
 
 using namespace NoobWarrior;
 
+nlohmann::json Core::GetEngineManifest() {
+    nlohmann::json manifest;
+    try {
+        std::ifstream stream(GetUserDataDir() / NW_PATH_ENGINES / "engines.json");
+        std::string str;
+        std::string line;
+        while (std::getline(stream, line)) {
+            str += line + "\n";
+        }
+        stream.close();
+        manifest = nlohmann::json::parse(str);
+    } catch (nlohmann::json::exception &e) {
+        manifest = nlohmann::json::array();
+    }
+    return manifest;
+}
+
 std::vector<Engine> Core::GetInstalledEngines() {
     std::vector<Engine> engines;
     if (!std::filesystem::exists(GetUserDataDir() / NW_PATH_ENGINES))
         return engines;
 
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(GetUserDataDir() / NW_PATH_ENGINES)) {
-        if (entry.path().extension().compare("exe")) {
-            engines.push_back({
-                .Source = EngineSource::Local,
-                .Platform = EnginePlatform::Windows,
-                .FilePath = entry.path()
-            });
+    nlohmann::json manifest = GetEngineManifest();
+    for (auto &item : manifest.items()) {
+        Engine engine {};
+        auto engineJson = item.value();
+        if (engineJson.contains("Os") && engineJson["Os"].is_string()) {
+            std::string osStr = engineJson["Os"].get<std::string>();
+            if (osStr.compare("Windows") == 0)
+                engine.Os = EngineOs::Windows;
+            else if (osStr.compare("Mac") == 0)
+                engine.Os = EngineOs::Mac;
+            else if (osStr.compare("Linux") == 0)
+                engine.Os = EngineOs::Linux;
+            else if (osStr.compare("Android") == 0)
+                engine.Os = EngineOs::Android;
+            else if (osStr.compare("Ios") == 0)
+                engine.Os = EngineOs::Ios;
         }
+
+        if (engineJson.contains("Arch") && engineJson["Arch"].is_string()) {
+            std::string archStr = engineJson["Arch"].get<std::string>();
+            if (archStr.compare("x86") == 0)
+                engine.Architecture = EngineArchitecture::x86;
+            else if (archStr.compare("x86_64") == 0)
+                engine.Architecture = EngineArchitecture::x86_64;
+        }
+
+        if (engineJson.contains("Type") && engineJson["Type"].is_string()) {
+            std::string typeStr = engineJson["Type"].get<std::string>();
+            if (typeStr.compare("Roblox") == 0)
+                engine.Type = EngineType::Roblox;
+        }
+
+        if (engineJson.contains("Version"))
+            engine.Version = engineJson["Version"].get<std::string>();
+
+        if (engineJson.contains("Hash"))
+            engine.Hash = engineJson["Hash"].get<std::string>();
+
+        engines.push_back(engine);
     }
 
     return engines;
-}
-
-std::vector<Engine> Core::GetEnginesFromIndex() {
-    nlohmann::json index;
-    int res = RetrieveIndex(index);
-    if (res != CURLE_OK)
-        return {};
-    return {};
 }
 
 std::vector<Engine> Core::GetAllEngines() {
@@ -75,42 +115,54 @@ std::vector<Engine> Core::GetAllEngines() {
 }
 
 std::filesystem::path Core::GetEngineDirectory(const Engine &engine) {
-    std::filesystem::path dir = GetUserDataDir();
-    switch (engine.Type) {
-    default:
-        switch (engine.Side) {
-        case EngineSide::Client: dir = dir / NW_PATH_ENGINES_ROBLOX_CLIENT; break;
-        case EngineSide::Server: dir = dir / NW_PATH_ENGINES_ROBLOX_SERVER; break;
-        case EngineSide::Studio: dir = dir / NW_PATH_ENGINES_ROBLOX_STUDIO; break;
+    for (auto &item : GetEngineManifest().items()) {
+        auto engineJson = item.value();
+        Out("IsEngineInManifest", "{}", engineJson.dump());
+
+        if (EngineSideAsString(engine.Side).compare(engineJson["Side"]) != 0)
+            continue;
+
+        // if you give it a hash it knows where to look
+        if (engineJson.contains("Hash") && engineJson["Hash"].is_string()) {
+            if (engine.Hash.compare(engineJson["Hash"].get<std::string>()) == 0) {
+                return GetUserDataDir() / NW_PATH_ENGINES / engine.Hash;
+            }
         }
-        break;
-    }  
-    dir /= ("version-" + engine.Hash);
-    return dir;
+
+        // if you give it a version but not a hash, it will try finding that
+        if (engineJson.contains("Version") && engineJson["Version"].is_string()) {
+            if (engine.Version.compare(engineJson["Version"].get<std::string>()) == 0
+                && engineJson.contains("Hash")
+                && engineJson["Hash"].is_string()) {
+                return GetUserDataDir() / NW_PATH_ENGINES / engineJson["Hash"].get<std::string>();
+            }
+        }
+    }
+    return {};
 }
 
 void Core::DiscoverEngines() {
 
 }
 
-bool Core::IsEngineInstalled(const Engine &engine) {
-    if (!std::filesystem::exists(GetEngineDirectory(engine))) return false;
-    bool foundExe = false;
-    for (const auto &entry : std::filesystem::directory_iterator(GetEngineDirectory(engine))) {
-        if (entry.path().extension() == ".exe")
-            foundExe = true;
+bool Core::IsEngineInManifest(const Engine &engine) {
+    for (auto &item : GetEngineManifest().items()) {
+        auto engineJson = item.value();
+        if (engineJson.contains("Version") && engineJson["Version"].is_string()) {
+            if (engine.Version.compare(engineJson["Version"].get<std::string>()) == 0)
+                return true;
+        }
+
+        if (engineJson.contains("Hash") && engineJson["Hash"].is_string()) {
+            if (engine.Hash.compare(engineJson["Hash"].get<std::string>()) == 0)
+                return true;
+        }
     }
-    return foundExe;
+    return false;
 }
 
 void Core::DownloadAndInstallEngine(const Engine &engine, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback) {
     nlohmann::json index;
-    int res = RetrieveIndex(index);
-    if (res != CURLE_OK) {
-        Out("Download", "Failed to retrieve index");
-        (*callback)(EngineInstallState::Failed, static_cast<CURLcode>(res), 0, 0);
-        return;
-    }
 
     bool foundEngine = false;
 
@@ -188,7 +240,7 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
         }
     }
 
-    bool installed = IsEngineInstalled(params.Engine);
+    bool installed = IsEngineInManifest(params.Engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;
     const std::filesystem::path dir = GetEngineDirectory(params.Engine);
     std::filesystem::path exe;
