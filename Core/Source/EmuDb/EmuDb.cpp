@@ -48,6 +48,7 @@
 #include "migrations/v6.sql.inc.cpp"
 #include "migrations/v7.sql.inc.cpp"
 #include "migrations/v8.sql.inc.cpp"
+#include "migrations/v9.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -253,6 +254,9 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v7)
     /* V8: added tables for forums */
     MIGRATE(v8)
+    /* V9: added UniversePlace table because that didn't exist before for some reason.
+     * Also removed Description column from Universe table */
+    MIGRATE(v9)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
