@@ -74,7 +74,8 @@ HttpServer::HttpServer(Core *core, std::string logName) :
 {}
 
 HttpServer::~HttpServer() {
-    Stop();
+    HttpServer::Stop();
+    HttpServer::StopSecure();
     NOOBWARRIOR_FREE_PTR(mVfs)
 }
 

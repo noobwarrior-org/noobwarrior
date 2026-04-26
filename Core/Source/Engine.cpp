@@ -22,7 +22,6 @@
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description: Implementation for all methods related to handling Roblox clients
-#include <codecvt>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
@@ -36,6 +35,7 @@
 #include <filesystem>
 #include <thread>
 #include <set>
+#include <codecvt>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -143,7 +143,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         injectorPath.wstring(),
         filePath.wstring(),
         !params.Ip.empty() ? L" --ip " + ipStrW : L"",
-        params.Port.has_value() ? L"--port " + std::to_wstring(params.Port.value()) : L""
+        params.Port.has_value() ? L" --port " + std::to_wstring(params.Port.value()) : L""
     );
     Out("Inject", "Launching process \"{}\"", converter.to_bytes(wargs));
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
@@ -180,6 +180,14 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
 EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
+    if (params.Port.has_value()) {
+        if (params.Engine.Side == EngineSide::Client) {
+            mServerEmulator->AddTemporaryProxy(params.Ip, *params.Port);
+        } else if (params.Engine.Side == EngineSide::Server) {
+            mServerEmulator->AddGameServer(params);
+        }
+    }
+
     bool installed = IsEngineInstalled(params.Engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;
     const std::filesystem::path dir = GetEngineDirectory(params.Engine);

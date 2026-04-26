@@ -32,7 +32,7 @@ using namespace NoobWarrior;
 using json = nlohmann::json;
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
-    mRunningGameServersHandler(),
+    mRunningGameServersHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
@@ -95,6 +95,42 @@ finish:
 
 int ServerEmulator::Stop() {
     return HttpServer::Stop();
+}
+
+void ServerEmulator::SetMode(Mode mode) {
+}
+
+ServerEmulator::Mode ServerEmulator::GetMode() {
+}
+
+void ServerEmulator::AddTemporaryProxy(const std::string &ip, uint16_t port) {
+    mTemporaryProxies.emplace_back( ip, port );
+}
+
+void ServerEmulator::RemoveTemporaryProxy(const std::string &ip, uint16_t port) {
+    for (int i = 0; i < mTemporaryProxies.size(); i++) {
+        std::pair<std::string, uint16_t> ipAndPort = mTemporaryProxies.at(i);
+        if (ipAndPort.first == ip && ipAndPort.second == port) {
+            mTemporaryProxies.erase(mTemporaryProxies.begin() + i);
+        }
+    }
+}
+
+void ServerEmulator::AddGameServer(const EngineStartParameters &params) {
+    mGameServers.emplace_back(params);
+}
+
+void ServerEmulator::RemoveGameServer(const std::string &ip, uint16_t port) {
+    for (int i = 0; i < mGameServers.size(); i++) {
+        EngineStartParameters gameServer = mGameServers.at(i);
+        if (gameServer.Ip == ip && gameServer.Port == port) {
+            mGameServers.erase(mGameServers.begin() + i);
+        }
+    }
+}
+
+std::vector<EngineStartParameters> &ServerEmulator::GetGameServers() {
+    return mGameServers;
 }
 
 void ServerEmulator::SetCurrentEngine(const Engine &engine) {

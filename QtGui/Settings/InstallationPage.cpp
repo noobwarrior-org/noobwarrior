@@ -64,7 +64,7 @@ void InstallationPage::InitWidgets() {
 
     for (int i = 0; i < EngineSideCount; i++) {
         auto engineSide = static_cast<EngineSide>(i);
-        auto engineSideItem = new QListWidgetItem(QIcon(sIcons[engineSide]), EngineSideAsTranslatableString(engineSide), ListWidget);
+        auto engineSideItem = new QListWidgetItem(QIcon(sIcons[engineSide]), QString::fromStdString(EngineSideAsTranslatableString(engineSide)), ListWidget);
         QFont font = engineSideItem->font();
         font.setPointSize(12);
         engineSideItem->setFont(font);
@@ -133,7 +133,7 @@ void InstallationPage::Refresh() {
 
     for (int i = 0; i <= EngineSideCount; i++) {
         auto engineSide = static_cast<EngineSide>(i);
-        const char* clientTypeStr = EngineSideAsTranslatableString(engineSide);
+        std::string clientTypeStr = EngineSideAsTranslatableString(engineSide);
         QStandardItemModel *engineVersionModel = EngineVersionModelMap.at(engineSide);
         engineVersionModel->removeRows(0, engineVersionModel->rowCount());
         engineVersionModel->setRowCount(0);

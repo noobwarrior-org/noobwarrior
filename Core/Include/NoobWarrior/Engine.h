@@ -58,7 +58,14 @@ enum class EngineSide {
     Studio
 };
 
-inline const char *EngineSideAsTranslatableString(EngineSide side) {
+inline std::string EngineTypeAsString(EngineType side) {
+    switch (side) {
+    case EngineType::Roblox: return "Roblox";
+    }
+    return "None";
+}
+
+inline std::string EngineSideAsTranslatableString(EngineSide side) {
     switch (side) {
     case EngineSide::Client: return "Client";
     case EngineSide::Server: return "Server";

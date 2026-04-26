@@ -25,6 +25,7 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/Engine.h>
+#include <NoobWarrior/Url.h>
 
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
@@ -64,7 +65,12 @@ public:
     void SetMode(Mode mode);
     Mode GetMode();
 
-    void SetCurrentlyPlayingServer();
+    void AddTemporaryProxy(const std::string &ip, uint16_t port);
+    void RemoveTemporaryProxy(const std::string &ip, uint16_t port);
+
+    void AddGameServer(const EngineStartParameters &params);
+    void RemoveGameServer(const std::string &ip, uint16_t port);
+    std::vector<EngineStartParameters> &GetGameServers();
 
     void SetCurrentEngine(const Engine &engine);
     std::optional<Engine> GetCurrentEngine();
@@ -87,6 +93,7 @@ private:
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
 
-    std::priority_queue<std::pair<uint16_t, std::string>> TemporaryProxies;
+    std::vector<std::pair<std::string, uint16_t>> mTemporaryProxies;
+    std::vector<EngineStartParameters> mGameServers;
 };
 }

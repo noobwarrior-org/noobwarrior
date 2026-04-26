@@ -77,6 +77,7 @@ void HostServerDialog::InitWidgets() {
                 .Hash = "07b64feec0bd47c1",
                 .Version = "0.463.0.417004"
             },
+            .Port = 53640,
             .PlaceId = 1818
         });
     });
