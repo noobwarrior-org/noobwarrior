@@ -861,6 +861,9 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName
 
     // Loop to handle ImageId redirection without recursion
     for (int i = 0; i < 10; ++i) { // Limit iterations to prevent infinite loops in case of bad data
+        if (currentTableName.compare("Universe") == 0) {
+            
+        }
         if (currentTableName.compare("Asset") == 0) {
             // If we are an image asset, we need to get the data from ourselves directly
             int type = 0;

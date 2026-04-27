@@ -238,13 +238,21 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
 void Application::LaunchEngine(EngineStartParameters params) {
     std::function callback = [this, params](bool success) {
         if (!success) return;
-        
+
         auto *dialog = new LoadingDialog(nullptr);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModal(false);
         dialog->SetText(QString("Loading Roblox %1 %2...").arg(QString::fromUtf8(EngineSideAsString(params.Engine.Side)), QString::fromStdString(params.Engine.Version)));
         dialog->DisableCancel(true);
         dialog->show();
+
+        QPointer<LoadingDialog> dialogPtr(dialog);
+
+        QTimer::singleShot(5000, [dialogPtr]() {
+            if (dialogPtr) {
+                dialogPtr->deleteLater();
+            }
+        });
 
         EngineLaunchResponse res = mCore->LaunchEngine(params);
         if (res != EngineLaunchResponse::Success) {

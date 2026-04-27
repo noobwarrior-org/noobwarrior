@@ -25,10 +25,11 @@
 #include "HostServerDialog.h"
 #include "../Application.h"
 
+#include <QMessageBox>
+
 using namespace NoobWarrior;
 
-HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent),
-    mCurrentDbPage(nullptr)
+HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent)
 {
     setWindowTitle("Host Server");
     InitWidgets();
@@ -38,22 +39,26 @@ void HostServerDialog::InitWidgets() {
     mMainLayout = new QHBoxLayout(this);
 
     mDbListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted);
-    mDbPages = new QStackedWidget(this);
+    mTreeWidget = new QTreeWidget(this);
 
     mMainLayout->addWidget(mDbListWidget);
-    mMainLayout->addWidget(mDbPages);
+    mMainLayout->addWidget(mTreeWidget);
 
     connect(mDbListWidget, &QListWidget::itemSelectionChanged, [this]() {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
         if (db != nullptr) {
-            if (mCurrentDbPage != nullptr) {
-                mDbPages->removeWidget(mCurrentDbPage);
-                mCurrentDbPage->deleteLater();
-                mCurrentDbPage = nullptr;
+            Statement stmt = db->PrepareStatement("SELECT Name, StartPlaceId FROM Universe;");
+            while (stmt.Step() == SQLITE_ROW) {
+                auto *item = new QTreeWidgetItem(mTreeWidget);
+                item->setText(0, QString::fromStdString(stmt.GetStringFromColumnIndex(0)));
+
+                int64_t startPlaceId = stmt.GetInt64FromColumnIndex(1);
+
+                Statement stmt2 = db->PrepareStatement("SELECT PlaceId FROM UniversePlace WHERE Id = ?;");
+                while (stmt2.Step() == SQLITE_ROW) {
+
+                }
             }
-            mCurrentDbPage = new HostServerDbPage(db);
-            mDbPages->addWidget(mCurrentDbPage);
-            mDbPages->setCurrentWidget(mCurrentDbPage);
         }
     });
     mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -81,15 +86,4 @@ void HostServerDialog::InitWidgets() {
             .PlaceId = 1818
         });
     });
-}
-
-HostServerDbPage::HostServerDbPage(EmuDb* db, QWidget* parent) : QWidget(parent) {
-    auto *layout = new QHBoxLayout(this);
-    setLayout(layout);
-
-    mUniverseListWidget = new ItemListWidget();
-    layout->addWidget(mUniverseListWidget);
-
-    mPlaceListWidget = new ItemListWidget();
-    layout->addWidget(mPlaceListWidget);
 }

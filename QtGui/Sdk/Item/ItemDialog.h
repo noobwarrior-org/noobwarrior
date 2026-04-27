@@ -114,6 +114,9 @@ protected:
     QLineEdit* mUniverse_StartPlaceIdInput;
     QLineEdit* mUniverse_VisitsInput;
     QCheckBox* mUniverse_ActiveInput;
+    QFrame* mUniverse_PlaceFrame;
+    QListWidget* mUniverse_PlaceList;
+    QPushButton* mUniverse_AddPlaceButton;
 
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;

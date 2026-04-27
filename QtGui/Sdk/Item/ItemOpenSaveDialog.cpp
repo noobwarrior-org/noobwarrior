@@ -27,16 +27,18 @@
 using namespace NoobWarrior;
 
 int64_t ItemOpenSaveDialog::GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType, Roblox::AssetType assetType, bool enforce) {
-    ItemOpenSaveDialog dialog(db, ItemOpenSaveDialog::Mode::Open, parent);
+    ItemOpenSaveDialog dialog(db, ItemOpenSaveDialog::Mode::Open, itemType, assetType, parent);
     dialog.ToggleItemTypeDropdown(!enforce);
     dialog.ToggleAssetTypeDropdown(!enforce);
     dialog.exec();
     return 0;
 }
 
-ItemOpenSaveDialog::ItemOpenSaveDialog(EmuDb* db, Mode mode, QWidget *parent) : QDialog(parent),
+ItemOpenSaveDialog::ItemOpenSaveDialog(EmuDb* db, Mode mode, ItemType defaultItemType, Roblox::AssetType defaultAssetType, QWidget *parent) : QDialog(parent),
     mDb(db),
-    mLayout(new QVBoxLayout(this))
+    mLayout(new QVBoxLayout(this)),
+    mItemType(defaultItemType),
+    mAssetType(defaultAssetType)
 {
     setWindowTitle(mode == Mode::Open ? "Open Item" : "Save Item");
     InitWidgets();
@@ -62,6 +64,11 @@ void ItemOpenSaveDialog::InitWidgets() {
     }
 
     mList = new ItemListWidget();
+    mList->Populate({
+        .Database = mDb,
+        .ItemType = mItemType,
+        .AssetType = mAssetType
+    });
 
     mLayout->addWidget(mItemTypeDropdown);
     mLayout->addWidget(mAssetTypeDropdown);

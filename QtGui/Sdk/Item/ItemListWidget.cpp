@@ -56,8 +56,16 @@ void ItemListWidget::Populate(const PopulateOptions options) {
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
     std::string stmtStr = "SELECT Id, Name FROM " + tableName;
-    if (!options.Query.empty())
+    bool hasWhere = false;
+
+    if (!options.Query.empty()) {
         stmtStr += " WHERE Name LIKE ? ESCAPE '\\'";
+        hasWhere = true;
+    }
+    if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
+        stmtStr += hasWhere ? " AND " : " WHERE ";
+        stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
+    }
     stmtStr += ";";
     Statement stmt = options.Database->PrepareStatement(stmtStr);
     if (!options.Query.empty())

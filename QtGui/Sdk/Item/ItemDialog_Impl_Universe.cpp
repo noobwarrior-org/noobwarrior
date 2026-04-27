@@ -23,6 +23,7 @@
 // Started on: 4/19/2026
 // Description:
 #include "ItemDialog.h"
+#include "ItemOpenSaveDialog.h"
 
 #include <NoobWarrior/Roblox/Api/User.h>
 
@@ -31,7 +32,30 @@
 using namespace NoobWarrior;
 
 void ItemDialog::Universe_AddFields() {
-    AddOwnedItemFields();
+    auto *db = GetDatabase();
+
+    mOwned_CreatedInput = new QDateTimeEdit();
+    mOwned_CreatedInput->setDateTime(QDateTime::currentDateTime());
+    mContentLayout->addRow("Created", mOwned_CreatedInput);
+
+    mOwned_UpdatedInput = new QDateTimeEdit();
+    mOwned_UpdatedInput->setDateTime(QDateTime::currentDateTime());
+    mContentLayout->addRow("Updated", mOwned_UpdatedInput);
+
+    mOwned_CreatorInfoWidget = new CreatorInfoWidget();
+    mContentLayout->addRow("Creator", mOwned_CreatorInfoWidget);
+
+    if (mId.has_value()) {
+        // deserialization
+        Statement stmt = db->PrepareStatement(std::format("SELECT Created, Updated FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            mOwned_CreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(0)));
+            mOwned_UpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(1)));
+        } else {
+            QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        }
+    }
 
     int64_t startPlaceId = 0;
     int64_t userId = 0;
@@ -64,6 +88,20 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_ActiveInput->setChecked(active);
     mContentLayout->addRow("Active", mUniverse_ActiveInput);
 
+    mUniverse_PlaceFrame = new QFrame();
+    auto *placeFrameLayout = new QVBoxLayout(mUniverse_PlaceFrame);
+
+    mUniverse_PlaceList = new QListWidget();
+    mUniverse_AddPlaceButton = new QPushButton("Add Place");
+    placeFrameLayout->addWidget(mUniverse_PlaceList);
+    placeFrameLayout->addWidget(mUniverse_AddPlaceButton);
+
+    connect(mUniverse_AddPlaceButton, &QPushButton::clicked, [this]() {
+        int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Place, true);
+    });
+
+    mContentLayout->addRow("Places", mUniverse_PlaceFrame);
+
     /*
     mUniverse_CreatorTypeInput = new QComboBox();
     for (int i = 0; i < 2; i++) {
@@ -75,6 +113,7 @@ void ItemDialog::Universe_AddFields() {
 }
 
 static constexpr const char* sTablesThatNeedToBeUpdated[] = {
+    "UniversePlace",
     "UniverseMisc",
     "UniverseHistorical",
     "UniverseSocialLink"
@@ -105,7 +144,6 @@ bool ItemDialog::Universe_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
     int64_t startPlaceId = mUniverse_StartPlaceIdInput->text().toLongLong();
     int64_t userId = 0;
     int64_t groupId = 0;
@@ -113,11 +151,10 @@ bool ItemDialog::Universe_OnSave() {
     int64_t visits = mUniverse_VisitsInput->text().toLongLong();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO Universe (Id, Name, Description, Created, Updated, StartPlaceId, UserId, GroupId, Active, Visits) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Universe (Id, Name, Created, Updated, StartPlaceId, UserId, GroupId, Active, Visits) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id) DO UPDATE SET
             LastRecorded = (unixepoch()),
             Name = excluded.Name,
-            Description = excluded.Description,
             Created = excluded.Created,
             Updated = excluded.Updated,
             StartPlaceId = excluded.StartPlaceId,
@@ -128,14 +165,13 @@ bool ItemDialog::Universe_OnSave() {
     )");
     stmt.Bind(1, id);
     stmt.Bind(2, name);
-    stmt.Bind(3, description);
-    stmt.Bind(4, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(5, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(6, startPlaceId);
-    stmt.Bind(7, userId);
-    stmt.Bind(8, groupId);
-    stmt.Bind(9, active);
-    stmt.Bind(10, visits);
+    stmt.Bind(3, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
+    stmt.Bind(4, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
+    stmt.Bind(5, startPlaceId);
+    stmt.Bind(6, userId);
+    stmt.Bind(7, groupId);
+    stmt.Bind(8, active);
+    stmt.Bind(9, visits);
 
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);

@@ -34,32 +34,24 @@
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QStackedWidget>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
 
 namespace NoobWarrior {
-class HostServerDbPage : public QWidget {
-    Q_OBJECT
-public:
-    HostServerDbPage(EmuDb* db, QWidget* parent = nullptr);
-private:
-    EmuDb* mDb;
-    ItemListWidget *mUniverseListWidget;
-    ItemListWidget *mPlaceListWidget;
-};
-
 class HostServerDialog : public QDialog {
     Q_OBJECT
 public:
     HostServerDialog(QWidget* parent = nullptr);
 private:
     void InitWidgets();
-    QHBoxLayout *mMainLayout;
+    QVBoxLayout* mLayout;
+    QHBoxLayout* mMainLayout;
 
-    EmuDbListWidget *mDbListWidget;
-    QStackedWidget* mDbPages;
-    HostServerDbPage *mCurrentDbPage;
+    EmuDbListWidget* mDbListWidget;
+    QTreeWidget* mTreeWidget;
 
-    QDialogButtonBox *mButtonBox;
-    QPushButton *mStartServer;
-    QPushButton *mCloseButton;
+    QDialogButtonBox* mButtonBox;
+    QPushButton* mStartServer;
+    QPushButton* mCloseButton;
 };
 }
