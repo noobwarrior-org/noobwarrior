@@ -25,6 +25,8 @@
 #pragma once
 #include "SettingsPage.h"
 
+#include <QComboBox>
+
 namespace NoobWarrior {
 class GeneralPage : public SettingsPage {
 public:
@@ -33,6 +35,11 @@ public:
     const QString GetTitle() override;
     const QString GetDescription() override;
     const QIcon GetIcon() override;
+    void Deserialize(Registry* reg) override;
+    void Serialize(Registry* reg) override;
+private:
+    QComboBox* mLanguage;
+    QComboBox* mTheme;
 };
 }
 

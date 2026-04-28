@@ -63,6 +63,17 @@ void SettingsDialog::InitWidgets() {
     StackedWidget = new QStackedWidget();
 
     ButtonBox = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Save | QDialogButtonBox::Discard, this);
+    connect(ButtonBox, &QDialogButtonBox::accepted, [this]() {
+        for (int i = 0; i < StackedWidget->count(); i++) {
+            QWidget* widget = StackedWidget->widget(i);
+            auto *page = dynamic_cast<SettingsPage*>(widget);
+            if (page != nullptr) {
+                page->Serialize(gApp->GetCore()->GetRegistry());
+            }
+        }
+        Out("SettingsDialog", "Saved!");
+        close();
+    });
 
     InitPages();
 
@@ -90,6 +101,7 @@ void SettingsDialog::InitPages() {
 }
 
 void SettingsDialog::AddPage(SettingsPage *page) {
+    page->Deserialize(gApp->GetCore()->GetRegistry());
     auto button = new QListWidgetItem(page->GetIcon(), page->GetTitle());
     int index = StackedWidget->addWidget(page);
     ListWidget->addItem(button);

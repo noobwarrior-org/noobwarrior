@@ -32,6 +32,10 @@
 
 using namespace NoobWarrior;
 
+static void SetTheme() {
+
+}
+
 GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
     Init();
     InitWidgets();
@@ -42,10 +46,13 @@ void GeneralPage::InitWidgets() {
     auto uiLayout = new QFormLayout(uiBox);
     uiBox->setLayout(uiLayout);
 
-    gApp->GetCore()->GetRegistry()->GetKeyValue<std::string>("language");
+    mLanguage = new QComboBox;
+    mTheme = new QComboBox;
+    mTheme->addItem("Darcula");
+    mTheme->addItem("System");
 
-    uiLayout->addRow(new QLabel("Language"), new QComboBox());
-    uiLayout->addRow(new QLabel("Theme"), new QComboBox());
+    uiLayout->addRow(new QLabel("Language"), mLanguage);
+    uiLayout->addRow(new QLabel("Theme"), mTheme);
 
     Layout->addWidget(uiBox);
 }
@@ -60,4 +67,15 @@ const QString GeneralPage::GetDescription() {
 
 const QIcon GeneralPage::GetIcon() {
     return QIcon(":/images/silk/cog.png");
+}
+
+void GeneralPage::Deserialize(Registry* reg) {
+    std::optional<std::string> theme = reg->GetKeyValue<std::string>("gui.theme");
+    if (theme.has_value()) {
+
+    }
+}
+
+void GeneralPage::Serialize(Registry* reg) {
+
 }

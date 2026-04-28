@@ -28,6 +28,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <NoobWarrior/Registry.h>
+
 namespace NoobWarrior {
 class SettingsPage : public QWidget {
     Q_OBJECT
@@ -37,6 +39,8 @@ public:
     virtual const QString GetTitle() = 0;
     virtual const QString GetDescription() = 0;
     virtual const QIcon GetIcon() = 0;
+    virtual void Deserialize(Registry* reg);
+    virtual void Serialize(Registry* reg);
 protected:
     QVBoxLayout *Layout;
 };

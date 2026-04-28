@@ -31,6 +31,11 @@
 namespace NoobWarrior {
 class Application : public QApplication {
 public:
+    enum class Theme {
+        System,
+        Darcula
+    };
+
     Application(int &argc, char **argv);
     int Run();
     Core *GetCore();

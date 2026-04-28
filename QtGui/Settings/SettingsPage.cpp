@@ -50,3 +50,9 @@ void SettingsPage::Init() {
     nameAndDescLayout->addWidget(desc);
     Layout->addLayout(nameAndDescLayout);
 }
+
+void SettingsPage::Deserialize(Registry* reg) {
+}
+
+void SettingsPage::Serialize(Registry* reg) {
+}
