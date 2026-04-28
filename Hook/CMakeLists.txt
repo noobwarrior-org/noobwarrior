@@ -35,11 +35,13 @@ target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 minhook patterns v
 if (MSVC)
     target_link_libraries(NoobWarrior.Hook PRIVATE
         LIBCMT
+        LIBCPMT
     )
 
     target_link_options(NoobWarrior.Hook PRIVATE
-        /NODEFAULTLIB:MSVCRT
         /NODEFAULTLIB:MSVCRTD
+        /NODEFAULTLIB:MSVCRT
+        /NODEFAULTLIB:LIBCMTD
     )
 
     set_property(TARGET NoobWarrior.Hook PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
