@@ -5,3 +5,4 @@ set_target_properties(NoobWarrior.Injector PROPERTIES
 )
 target_link_libraries(NoobWarrior.Injector PRIVATE version -static-libgcc -static-libstdc++)
 target_compile_features(NoobWarrior.Injector PUBLIC cxx_std_20)
+set_property(TARGET NoobWarrior.Injector PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

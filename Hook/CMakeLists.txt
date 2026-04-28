@@ -14,6 +14,8 @@ CPMAddPackage(
 
 if (Hooking.Patterns_ADDED)
     add_library(patterns STATIC ${Hooking.Patterns_SOURCE_DIR}/Hooking.Patterns.cpp)
+    set_property(TARGET patterns PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
     target_include_directories(patterns PUBLIC ${Hooking.Patterns_SOURCE_DIR})
 else()
     message(FATAL_ERROR "Failed to add Hooking.Patterns package")
@@ -31,7 +33,16 @@ set_target_properties(NoobWarrior.Hook PROPERTIES
 )
 target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 minhook patterns version -static -static-libgcc -static-libstdc++)
 if (MSVC)
-    # target_compile_options(NoobWarrior.Hook PRIVATE /MT)
+    target_link_libraries(NoobWarrior.Hook PRIVATE
+        LIBCMT
+    )
+
+    target_link_options(NoobWarrior.Hook PRIVATE
+        /NODEFAULTLIB:MSVCRT
+        /NODEFAULTLIB:MSVCRTD
+    )
+
+    set_property(TARGET NoobWarrior.Hook PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     target_compile_features(NoobWarrior.Hook PUBLIC cxx_std_23) # doesnt work on msvc because it retarded
 endif()
