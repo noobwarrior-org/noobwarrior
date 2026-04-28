@@ -246,14 +246,6 @@ void Application::LaunchEngine(EngineStartParameters params) {
         dialog->DisableCancel(true);
         dialog->show();
 
-        QPointer<LoadingDialog> dialogPtr(dialog);
-
-        QTimer::singleShot(5000, [dialogPtr]() {
-            if (dialogPtr) {
-                dialogPtr->deleteLater();
-            }
-        });
-
         EngineLaunchResponse res = mCore->LaunchEngine(params);
         if (res != EngineLaunchResponse::Success) {
             QString errMsg;
@@ -274,6 +266,14 @@ void Application::LaunchEngine(EngineStartParameters params) {
             }
             QMessageBox::critical(dialog, "Cannot Launch Engine", errMsg);
             dialog->close();
+        } else {
+            QPointer<LoadingDialog> dialogPtr(dialog);
+
+            QTimer::singleShot(5000, [dialogPtr]() {
+                if (dialogPtr) {
+                    dialogPtr->deleteLater();
+                }
+            });
         }
     };
     callback(true);
