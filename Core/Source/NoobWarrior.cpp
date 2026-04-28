@@ -42,6 +42,12 @@
 #include <shlobj.h>
 #endif
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <spawn.h>
+#include <sys/wait.h>
+extern char** environ;
+#endif
+
 #include <utility>
 #include <istream>
 
@@ -335,6 +341,16 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
 
         callback(ServerEmulatorConnectFailReason::None, paramsList);
     }).detach();
+}
+
+std::string Core::GetWinePath(const std::filesystem::path &path) {
+#if defined(__unix__) || defined(__APPLE__)
+    std::filesystem::path absPath = std::filesystem::absolute(path);
+    std::string str = absPath.generic_string();
+    std::replace(str.begin(), str.end(), '/', '\\');
+    return "Z:" + str;
+#endif
+    return std::filesystem::absolute(path).string();
 }
 
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {

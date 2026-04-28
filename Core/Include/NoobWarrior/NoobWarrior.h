@@ -181,9 +181,10 @@ public:
      * This response should be passed to LaunchEngine, which will promptly start the game.
      */
     void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
-private:
+protected:
+    std::string GetWinePath(const std::filesystem::path &path);
     EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
-
+private:
     Response                        mInitResponse;
 
     event_base*                     mEventBase;
