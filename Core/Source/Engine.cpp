@@ -42,6 +42,12 @@
 #include <tlhelp32.h>
 #endif
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <spawn.h>
+#include <sys/wait.h>
+extern char** environ;
+#endif
+
 using namespace NoobWarrior;
 
 nlohmann::json Core::GetEngineManifest() {
@@ -225,7 +231,27 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     return static_cast<EngineLaunchResponse>(exitCode);
 #elif defined(__unix__) || defined(__APPLE__)
     // where wine comes in
-    return EngineLaunchResponse::Failed;
+    pid_t pid = 0;
+    std::filesystem::path wine_path = GetUserDataDir() / NW_PATH_WINE;
+    std::filesystem::path wine_root = GetUserDataDir() / NW_PATH_WINE_ROOT;
+    std::filesystem::path wine_prefix = GetUserDataDir() / NW_PATH_WINE_PREFIX;
+    std::filesystem::path wine_exe = wine_root / "bin" / "wine";
+
+    std::string wineprefix_env = "WINEPREFIX=" + wine_prefix.generic_string();
+
+    char* argv[] = {(char*)wine_exe.c_str(), (char*)injectorPath.c_str(), NULL};
+    char* wine_environ[] = {(char*)wineprefix_env.c_str(), NULL};
+
+    // Launch the process
+    int status = posix_spawn(&pid, wine_exe.c_str(), NULL, NULL, argv, wine_environ);
+
+    if (status == 0) {
+        std::cout << "Launched process with PID: " << pid << std::endl;
+        // waitpid(pid, &status, 0);
+    } else {
+        perror("posix_spawn failed");
+    }
+    return EngineLaunchResponse::Success;
 #endif
 }
 
