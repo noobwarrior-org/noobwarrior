@@ -28,11 +28,6 @@
 
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Lua/Lhp.h>
-#include <NoobWarrior/Lua/Bridge/LuaSignalBridge.h>
-#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
-#include <NoobWarrior/Lua/Bridge/VfsBridge.h>
-#include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
-#include <NoobWarrior/Lua/Bridge/ServerEmulatorBridge.h>
 
 #include <vector>
 #include <unordered_set>
@@ -63,11 +58,6 @@ public:
 private:
     Core* mCore;
     Lhp mLhp;
-    LuaSignalBridge mLuaSignalBridge;
-    PluginBridge mPluginBridge;
-    VfsBridge mVfsBridge;
-    HttpServerBridge mHttpServerBridge;
-    ServerEmulatorBridge mServerEmulatorBridge;
 
     std::unordered_set<std::string> mLoadingScripts;
     std::unordered_map<std::string, std::unique_ptr<LuaScript>> mCachedModules;

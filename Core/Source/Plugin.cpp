@@ -23,7 +23,6 @@
 // Started on: 12/3/2025
 // Description:
 #include <NoobWarrior/Plugin.h>
-#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Url.h>

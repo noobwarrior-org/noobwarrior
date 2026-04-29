@@ -112,13 +112,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Lua/LuaScript.cpp
     Source/Lua/LuaSignal.cpp
     Source/Lua/Lhp.cpp
-    Source/Lua/Bridge/LuaObjectBridge.cpp
-    Source/Lua/Bridge/LuaScriptBridge.cpp
-    Source/Lua/Bridge/LuaSignalBridge.cpp
-    Source/Lua/Bridge/PluginBridge.cpp
-    Source/Lua/Bridge/HttpServerBridge.cpp
-    Source/Lua/Bridge/ServerEmulatorBridge.cpp
-    Source/Lua/Bridge/VfsBridge.cpp
     Source/BaseRegistry.cpp
     Source/Registry.cpp
     Source/Plugin.cpp

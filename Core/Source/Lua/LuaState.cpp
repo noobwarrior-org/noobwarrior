@@ -24,10 +24,7 @@
 // Description: Uses sol
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/LuaSignal.h>
-#include <NoobWarrior/Lua/Bridge/PluginBridge.h>
 #include <NoobWarrior/Lua/Lhp.h>
-#include <NoobWarrior/Lua/Bridge/VfsBridge.h>
-#include <NoobWarrior/Lua/Bridge/HttpServerBridge.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
@@ -68,12 +65,7 @@ int exception_handler(lua_State* L, sol::optional<const std::exception&> maybe_e
 
 LuaState::LuaState(Core* core) :
     mCore(core),
-    mLhp(this),
-    mLuaSignalBridge(this),
-    mPluginBridge(this),
-    mVfsBridge(this),
-    mHttpServerBridge(this),
-    mServerEmulatorBridge(this)
+    mLhp(this)
 {
     set_exception_handler(&exception_handler);
 
