@@ -63,6 +63,10 @@ public:
             Out("BaseRegistry", "Error setting value for key \"{}\": key is empty", key);
             return;
         }
+        if (key.starts_with('.')) {
+            Out("BaseRegistry", "Error setting value for key \"{}\": key cannot start with a period", key);
+            return;
+        }
         if (key.ends_with('.')) {
             Out("BaseRegistry", "Error setting value for key \"{}\": key cannot end with a period", key);
             return;
@@ -80,6 +84,10 @@ public:
     std::optional<T> GetKeyValue(const std::string &key) {
         if (key.empty()) {
             Out("BaseRegistry", "Error getting value for key \"{}\": key is empty", key);
+            return std::nullopt;
+        }
+        if (key.starts_with('.')) {
+            Out("BaseRegistry", "Error getting value for key \"{}\": key cannot start with a period", key);
             return std::nullopt;
         }
         if (key.ends_with('.')) {
@@ -103,6 +111,8 @@ public:
             return;
         SetKeyValue<T>(key, value);
     }
+
+    std::string GetGlobalName();
 protected:
     std::string             mGlobalName;
     std::string             mLastError;

@@ -200,3 +200,7 @@ std::string NoobWarrior::BaseRegistry::GetLuaError() {
 void NoobWarrior::BaseRegistry::SetKeyComment(const char *key, const char *comment) {
 
 }
+
+std::string NoobWarrior::BaseRegistry::GetGlobalName() {
+    return mGlobalName;
+}
