@@ -1,0 +1,12 @@
+<?lua
+pageTitle = "Servers"
+include("header.lhp")
+?>
+
+<h1>Servers</h1>
+
+for _, server in ipairs(emu:GetGameServers()) do
+    
+end
+
+<?lua include("footer.lhp") ?>

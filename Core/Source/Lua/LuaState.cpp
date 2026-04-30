@@ -347,6 +347,11 @@ int LuaState::Open() {
     });
 
     auto srvEmuType = new_usertype<ServerEmulator>("ServerEmulator", sol::no_constructor, sol::base_classes, sol::bases<HttpServer>());
+    srvEmuType["GetGameServers"] = [this](ServerEmulator &emu) {
+        std::vector<EngineStartParameters> params = emu.GetGameServers();
+        sol::table tbl = create_table();
+        return tbl;
+    };
 
     sol::table lhpLib = create_table();
     lhpLib.set_function("Render", [this](sol::this_state state, sol::this_environment thisEnv, std::string input, const std::optional<sol::table> &globalsList) -> std::string {

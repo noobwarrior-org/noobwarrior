@@ -118,12 +118,12 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.auth.enable_custom_pfp", false);
     SetKeyComment("emu.auth.enable_custom_pfp", "Allows users to upload their own profile pictures instead of using their avatar headshot.");
 
-    SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><br><p>Welcome to my noobWarrior server.</p><br><h2>Rules</h2><br><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
+    SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
-    SetKeyValueIfNotSet("emu.port_http", 53640);
+    SetKeyValueIfNotSet("emu.port_http", 8080);
     SetKeyComment("emu.port_http", "The port that the HTTP server emulator should listen on.");
 
-    SetKeyValueIfNotSet("emu.port_https", 53640);
+    SetKeyValueIfNotSet("emu.port_https", 8081);
     SetKeyComment("emu.port_https", "The port that the HTTPS server emulator should listen on.");
 
     sol::table proxies_tbl = mLua->create_table();
