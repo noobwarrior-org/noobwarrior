@@ -1,0 +1,58 @@
+<?lua
+pageTitle = "Control Panel"
+include("header.lhp")
+?>
+
+<?lua
+local function SetupSidebar(categories)
+    for _, category in ipairs(categories) do
+        if category.Name then
+            echo("<h3>"..category.Name.."</h3>")
+        end
+        for i, buttonTbl in ipairs(category.Buttons) do
+            if buttonTbl[1] ~= "emergency" then
+                echo(string.format("<a href=\"control-panel?category=%s\" class=\"%s\">%s</a>", buttonTbl[1], "", buttonTbl[2]))
+            else
+                echo(string.format("<a href=\"control-panel?category=%s\" class=\"%s\" style=\"color: red;\">%s</a>", buttonTbl[1], "", buttonTbl[2]))
+            end
+        end
+        echo("<hr>")
+    end
+end
+?>
+
+<h1>Control Panel</h1>
+
+<div class="sidebar">
+    <?lua
+        SetupSidebar({
+            {
+                Name = "Server Settings",
+                Buttons = {
+                    {"overview", "Overview"},
+                    {"items", "Items"},
+                    {"databases", "Databases"},
+                    {"email", "Email"},
+                    {"avatar", "Avatar"},
+                    {"banners", "Banners"}
+                }
+            },
+            {
+                Name = "Moderation",
+                Buttons = {
+                    {"logs", "Logs"},
+                    {"reports", "Reports"},
+                    {"bans", "Bans"},
+                    {"emergency", "Emergency"}
+                }
+            },
+            {
+                Buttons = {
+                    {"about", "About"}
+                }
+            }
+        })
+    ?>
+</div>
+
+<?lua include("footer.lhp") ?>

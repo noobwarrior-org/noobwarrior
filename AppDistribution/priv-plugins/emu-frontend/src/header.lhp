@@ -34,10 +34,10 @@ end
                 </div>
                 <div class="navbar-right">
                 <?lua
-                    AddNavbarButton("/groups", "Control Panel")
-                    AddNavbarButton("/groups", "Messages")
-                    AddNavbarButton("/groups", "Settings")
-                    AddNavbarButton("/groups", "Hattozo")
+                    AddNavbarButton("/control-panel", "Control Panel")
+                    AddNavbarButton("/messages", "Messages")
+                    AddNavbarButton("/settings", "Settings")
+                    AddNavbarButton("/users/86121841/profile", "Hattozo")
                 ?>
                 </div>
             </ul>

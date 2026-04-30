@@ -25,7 +25,8 @@ local sitemap = {
     ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp",
     ["/login"] = "plugin://emu-frontend@noobwarrior.org/src/login.lhp",
     ["/register"] = "plugin://emu-frontend@noobwarrior.org/src/register.lhp",
-    ["/servers"] = "plugin://emu-frontend@noobwarrior.org/src/servers.lhp"
+    ["/servers"] = "plugin://emu-frontend@noobwarrior.org/src/servers.lhp",
+    ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp"
 }
 
 http_shared.AttachToServer(emu, {

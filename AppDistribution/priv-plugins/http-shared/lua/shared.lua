@@ -55,12 +55,21 @@ end
 
 function http_shared.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
-        if params.Sitemap[req.Uri] then
+        local get_tbl = {}
+
+        local uri_query_pos = string.find(req.Uri, "?")
+        local uri_without_params = uri_query_pos and string.sub(req.Uri, 1, uri_query_pos - 1) or req.Uri
+        local uri_with_params_only = uri_query_pos and string.sub(req.Uri, uri_query_pos + 1) or ""
+        for word in string.gmatch(uri_with_params_only, '([^&]+)') do
+            print(word)
+        end
+
+        if params.Sitemap[uri_without_params] then
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
-                local output = lhp.RenderFile(params.Sitemap[req.Uri], {
+                local output = lhp.RenderFile(params.Sitemap[uri_without_params], {
                     ["_SERVER"] = {},
-                    ["_GET"] = {},
+                    ["_GET"] = get_tbl,
                     ["_POST"] = {},
                     ["_FILES"] = {},
                     ["_COOKIE"] = {},
@@ -71,20 +80,20 @@ function http_shared.AttachToServer(srv, params)
                 req:SendReply(200, nil, output)
             end)
             if not success then
-                req:SendError(500, "LHP Error: Failed to render page \""..params.Sitemap[req.Uri].."\"<br>"..err)
+                req:SendError(500, "LHP Error: Failed to render page \""..params.Sitemap[uri_without_params].."\"<br>"..err)
             end
         else
             local vfs = srv:GetVfs()
-            if vfs:EntryExists(req.Uri) then
-                local data = http_shared.ReadFileBinary(vfs, req.Uri)
+            if vfs:EntryExists(uri_without_params) then
+                local data = http_shared.ReadFileBinary(vfs, uri_without_params)
                 if data == nil then
-                    error("Failed to read binary data from "..req.Uri)
+                    error("Failed to read binary data from "..uri_without_params)
                 end
-                local mimeType = file_extension_map[http_shared.GetFileExtension(req.Uri)]
+                local mimeType = file_extension_map[http_shared.GetFileExtension(uri_without_params)]
                 req:AddHeader("Content-Type", mimeType == nil and "application/octet-stream" or mimeType)
                 req:SendReply(200, nil, data)
             else
-                print("File", req.Uri, "doesn't exist!")
+                print("File", uri_without_params, "doesn't exist!")
                 req:AddHeader("Content-Type", "text/html")
                 req:SendError(404, "This page was not found!")
             end
