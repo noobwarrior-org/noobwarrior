@@ -4,6 +4,7 @@
   "description": "Visual Studio Code support for noobWarrior",
   "icon": "img/icon128.png",
   "version": "0.0.1",
+  "publisher": "Hattozo",
   "engines": {
     "vscode": "^1.107.0"
   },
@@ -45,7 +46,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.118.0",
+    "@types/vscode": "^1.107.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "typescript-eslint": "^8.56.1",
