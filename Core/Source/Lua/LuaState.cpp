@@ -403,6 +403,12 @@ int LuaState::Open() {
     });
     set("lhp", lhpLib);
 
+    sol::table coreLib = create_table();
+    coreLib.set_function("GetVersion", []() {
+        return NOOBWARRIOR_VERSION;
+    });
+    set("core", coreLib);
+
     Out("Lua", "Initialized Lua");
     return 1;
 }
