@@ -9,6 +9,7 @@
 if emu == nil then
     error("Server emulator global \"emu\" is nil! This should not happen!")
 end
+_G.EMU_FRONTEND_VER = "0.1"
 emu:MountVolume("/", "/static")
 
 emu.PreStart:Connect(function(secure)

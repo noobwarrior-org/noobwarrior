@@ -25,7 +25,8 @@ local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua
 
 local sitemap = {
     ["/"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
-    ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp"
+    ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
+    ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp"
 }
 
 master = http_shared.CreateServer({

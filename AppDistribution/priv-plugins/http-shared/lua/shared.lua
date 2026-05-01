@@ -7,6 +7,7 @@
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
 print("hello from shared.lua")
+_G.HTTP_SHARED_VER = "0.1"
 local http_shared = {}
 
 local file_extension_map = {
@@ -60,8 +61,11 @@ function http_shared.AttachToServer(srv, params)
         local uri_query_pos = string.find(req.Uri, "?")
         local uri_without_params = uri_query_pos and string.sub(req.Uri, 1, uri_query_pos - 1) or req.Uri
         local uri_with_params_only = uri_query_pos and string.sub(req.Uri, uri_query_pos + 1) or ""
-        for word in string.gmatch(uri_with_params_only, '([^&]+)') do
-            print(word)
+        for param in string.gmatch(uri_with_params_only, '([^&]+)') do
+            local equals_index = string.find(param, "=")
+            local key = string.sub(param, 1, equals_index - 1)
+            local val = string.sub(param, equals_index + 1, -1)
+            get_tbl[key] = val
         end
 
         if params.Sitemap[uri_without_params] then
