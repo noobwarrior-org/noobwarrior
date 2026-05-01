@@ -1,0 +1,25 @@
+{
+  "name": "LHP",
+  "scopeName": "source.lhp",
+  "fileTypes": ["lhp"],
+  "injectionSelector": "",
+  "patterns": [
+    {
+      "begin": "<\\?lua",
+      "end": "\\?>",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.lhp" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.lhp" }
+      },
+      "contentName": "meta.embedded.block.lua",
+      "patterns": [
+        { "include": "source.lua" }
+      ]
+    },
+    {
+      "include": "text.html.basic"
+    }
+  ]
+}

@@ -15,3 +15,5 @@ CMakeSettings.json
 # android
 .gradle/
 AndroidApp/local.properties
+# node.js
+node_modules/
