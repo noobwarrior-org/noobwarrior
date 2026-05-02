@@ -32,6 +32,7 @@ using namespace NoobWarrior;
 using json = nlohmann::json;
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
+    mCreateAccountHandler(this),
     mRunningGameServersHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
@@ -53,6 +54,8 @@ ServerEmulator::~ServerEmulator() {}
 int ServerEmulator::Start(uint16_t port) {
     int res = HttpServer::Start(port);
     if (!res) goto finish;
+
+    SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
 
     SetRequestHandler("/v1/running-game-servers", &mRunningGameServersHandler);
 

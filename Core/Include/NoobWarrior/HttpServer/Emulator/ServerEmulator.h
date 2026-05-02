@@ -27,6 +27,7 @@
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/Url.h>
 
+#include "CreateAccountHandler.h"
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
 #include "NegotiateHandler.h"
@@ -79,6 +80,7 @@ private:
     std::optional<Engine> mCurrentEngine;
 
     //////////////// Handlers ////////////////
+    CreateAccountHandler mCreateAccountHandler;
     RunningGameServersHandler mRunningGameServersHandler;
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
