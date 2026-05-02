@@ -67,6 +67,19 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         evhttp_send_error(req, error, reason.c_str());
         sentReply = true;
     };
+    evhttp_cmd_type method = evhttp_request_get_command(req);
+    if (method == EVHTTP_REQ_POST) {
+        struct evbuffer *buf = evhttp_request_get_input_buffer(req);
+        size_t len = evbuffer_get_length(buf);
+
+        char *data = new char[len + 1];
+        evbuffer_copyout(buf, data, len);
+        data[len] = '\0';
+
+        reqTbl["PostBody"] = std::string(data);
+
+        delete[] data;
+    }
     mServer->GetOnRequestSignal()->Fire(reqTbl);
     if (!sentReply)
         evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);

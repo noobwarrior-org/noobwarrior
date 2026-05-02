@@ -25,10 +25,12 @@
 #pragma once
 
 #include <evhttp.h>
+#include <map>
 
 namespace NoobWarrior {
 class Handler {
 public:
+    static std::map<std::string, std::string> GetPostFormParameters(evhttp_request *req);
     virtual ~Handler() = default;
 
     virtual void OnRequest(evhttp_request *req, void *userdata) = 0;

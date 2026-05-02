@@ -56,6 +56,7 @@ end
 
 function http_shared.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
+        print(req.PostBody)
         local get_tbl = {}
 
         local uri_query_pos = string.find(req.Uri, "?")

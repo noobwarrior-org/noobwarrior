@@ -25,6 +25,8 @@
 #include <NoobWarrior/HttpServer/Emulator/CreateAccountHandler.h>
 #include <NoobWarrior/Log.h>
 
+#include <sstream>
+
 using namespace NoobWarrior;
 
 CreateAccountHandler::CreateAccountHandler(ServerEmulator* emu) : mEmu(emu) {
@@ -32,15 +34,9 @@ CreateAccountHandler::CreateAccountHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
-    evhttp_cmd_type method = evhttp_request_get_command(req);
-    if (method == EVHTTP_REQ_POST) {
-        struct evbuffer *buf = evhttp_request_get_input_buffer(req);
-        size_t len = evbuffer_get_length(buf);
-
-        char *data = new char[len + 1];
-        evbuffer_copyout(buf, data, len);
-        data[len] = '\0';
-        Out("CreateAccountHandler", data);
-        delete[] data;
+    std::map<std::string, std::string> params = GetPostFormParameters(req);
+    for (auto& [k, v] : params) {
+        Out("CreateAccountHandler", "{} {}", k, v);
     }
+    evhttp_send_error(req, 500, "oops");
 }
