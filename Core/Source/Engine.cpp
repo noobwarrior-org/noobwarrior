@@ -222,8 +222,6 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         }
     }
     Out("Inject", "Launching process \"{}\"", argsStr);
-    std::vector<wchar_t> wargs_vec(argsStr.begin(), argsStr.end());
-    wargs_vec.push_back(L'\0');
 #if defined(_WIN32)
     PROCESS_INFORMATION pi {};
     STARTUPINFOA si = {};
