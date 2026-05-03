@@ -257,7 +257,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 
     std::vector<char*> argv_ptrs;
     argv_ptrs.push_back((char*)wine_exe.c_str());
-    for (auto& arg : argsStr) {
+    for (auto& arg : args) {
         argv_ptrs.push_back(arg.data());
     }
     argv_ptrs.push_back(nullptr);
