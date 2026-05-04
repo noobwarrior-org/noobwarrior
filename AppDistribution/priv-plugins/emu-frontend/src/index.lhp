@@ -4,7 +4,7 @@ include("header.lhp")
 ?>
 
 <?lua
-local text = reg.GetKeyValue("emu.logged_out_text")
+local text = reg.GetKeyValue("emu.homepage.guest_msg")
 if text ~= nil then
     echo(text)
 end
