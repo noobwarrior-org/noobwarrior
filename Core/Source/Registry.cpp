@@ -146,12 +146,12 @@ RegistryResponse Registry::Open() {
     // SetKeyValueIfNotSet("emu.banner.message", "");
     // SetKeyComment("emu.banner", "Customizes the banner that any visitor who connects to your website will see.");
 
-    SetKeyValueIfNotSet("emu.logged_out_text", R"(<h1>Welcome</h1>
+    SetKeyValueIfNotSet("emu.homepage.guest_msg", R"(<h1>Welcome</h1>
 <p>This message appears when you try to access the homepage while logged out.</p>
 <p>Please log in by clicking the Login button.</p>
 
 <h2>For Server Operators</h2>
-<p>If you are the operator of this server and are setting this up for the first time, you need to manually enable registration. You should also probably edit this message; you can do so by opening the emu.lua file in the registry directory and editing the "homepage.guest_msg" key.</p>
+<p>If you are the operator of this server and are setting this up for the first time, you need to manually enable registration. You should also probably edit this message; you can do so by opening the emu.lua file in the registry directory and editing the "emu.homepage.guest_msg" key.</p>
 <p>To administer the server emulator from this website, you need to create an admin account in the master database using either the SDK or the command-line interface. Whatever you should use depends on if you are hosting this on a server with a GUI or not.</p>)");
 
     if (!GetKeyValue<sol::table>("emu.roles").has_value()) {

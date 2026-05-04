@@ -33,6 +33,8 @@
 #define NW_PATH_TEMP_DOWNLOADS NW_PATH_TEMP / "downloads"
 #define NW_PATH_TEMP_DOWNLOADS_ENGINES NW_PATH_TEMP_DOWNLOADS / "engines"
 
+#define NW_PATH_SSL "ssl"
+
 #define NW_PATH_WINE "wine"
 #define NW_PATH_WINE_ROOT NW_PATH_WINE / "root"
 #define NW_PATH_WINE_PREFIX NW_PATH_WINE / "prefix"

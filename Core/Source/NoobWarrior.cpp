@@ -111,6 +111,9 @@ Core::Core(Init init) :
     if (mInit.EnableKeychain)
         GetRbxKeychain()->ReadFromKeychain();
 
+    if (mInit.AutocreateCert)
+        AutocreateCert();
+
     if (mInit.LoadPlugins)
         GetPluginManager()->MountPlugins();
 
@@ -243,6 +246,7 @@ void Core::CreateStandardUserDataDirectories() {
     NW_CREATE(NW_PATH_TEMP)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS_ENGINES)
+    NW_CREATE(NW_PATH_SSL)
 #if defined(__unix__) || defined(__APPLE__)
     NW_CREATE(NW_PATH_WINE)
     NW_CREATE(NW_PATH_WINE_ROOT)
@@ -351,6 +355,60 @@ std::string Core::GetWinePath(const std::filesystem::path &path) {
     return "Z:" + str;
 #endif
     return std::filesystem::absolute(path).string();
+}
+
+void Core::AutocreateCert() {
+    std::filesystem::path certPath = GetUserDataDir() / NW_PATH_SSL / "cert.pem";
+    std::filesystem::path keyPath = GetUserDataDir() / NW_PATH_SSL / "key.pem";
+
+    time_t seconds = time(NULL);
+    auto issuedTime = mRegistry->GetKeyValue<time_t>("internal.cert_issued_time");
+    if (issuedTime.has_value() && seconds - issuedTime.value() < 864000) {
+        Out("AutocreateCert", "Been less than 10 days, not auto-generating cert.");
+        return;
+    }
+    mRegistry->SetKeyValue("internal.cert_issued_time", seconds);
+
+    EVP_PKEY *pkey = NULL;
+    RSA *rsa = NULL;
+    X509 *x509 = NULL;
+    FILE *fcrt = NULL, *fkey = NULL;
+
+    pkey = EVP_PKEY_new();
+    rsa = RSA_generate_key(2048, RSA_F4, NULL, NULL);
+    EVP_PKEY_assign_RSA(pkey, rsa);
+
+    x509 = X509_new();
+    ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+    X509_gmtime_adj(X509_get_notBefore(x509), 0);
+    X509_gmtime_adj(X509_get_notAfter(x509), 315576000L); // 10 years
+    X509_set_pubkey(x509, pkey);
+
+    X509_NAME *name = X509_get_subject_name(x509);
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char*)"localhost", -1, -1, 0);
+    X509_set_issuer_name(x509, name);
+
+    X509_sign(x509, pkey, EVP_sha256());
+
+#if defined(_WIN32)
+    fcrt = _wfopen(certPath.c_str(), L"wb");
+#else
+    fcrt = fopen(certPath.c_str(), "wb");
+#endif
+    PEM_write_X509(fcrt, x509);
+    fclose(fcrt);
+
+#if defined(_WIN32)
+    fkey = _wfopen(keyPath.c_str(), L"wb");
+#else
+    fkey = fopen(keyPath.c_str(), "wb");
+#endif
+    PEM_write_PrivateKey(fkey, pkey, NULL, NULL, 0, NULL, NULL);
+    fclose(fkey);
+
+    X509_free(x509);
+    EVP_PKEY_free(pkey);
+    Out("AutocreateCert", "Generated key.pem and cert.pem");
 }
 
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {

@@ -58,6 +58,7 @@ struct Init {
     bool        AutocreateStandardUserDataDirectories { true };
     bool        Portable                              { true };
     bool        EnableKeychain                        { true };
+    bool        AutocreateCert                        { true };
     bool        LoadPlugins                           { true };
     /* noobWarrior will try to find its installation files in this directory name, relative to the executable location
        If you are not using noobWarrior as a simple library, you should probably just set this to an empty string
@@ -184,6 +185,7 @@ public:
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
     EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
+    void AutocreateCert();
 private:
     Response                        mInitResponse;
 

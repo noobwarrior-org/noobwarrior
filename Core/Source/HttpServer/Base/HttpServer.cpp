@@ -134,17 +134,29 @@ int HttpServer::StartSecure(uint16_t port) {
             return -1;
         }
 
-        Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
-        SSL_CTX_set_default_passwd_cb(mSslCtx, pem_passwd_cb);
-        SSL_CTX_set_default_passwd_cb_userdata(mSslCtx, (void*)"farted");
+        // Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
+        // SSL_CTX_set_default_passwd_cb(mSslCtx, pem_passwd_cb);
+        // SSL_CTX_set_default_passwd_cb_userdata(mSslCtx, (void*)"farted");
 
-        if (!SSL_CTX_use_certificate_file(mSslCtx, "cert.pem", SSL_FILETYPE_PEM)) {
+        std::filesystem::path certPath = mCore->GetUserDataDir() / NW_PATH_SSL / "cert.pem";
+        std::filesystem::path keyPath = mCore->GetUserDataDir() / NW_PATH_SSL / "key.pem";
+
+
+#if defined(_WIN32)
+        if (!SSL_CTX_use_certificate_file(mSslCtx, WideCharToUTF8((wchar_t*)certPath.c_str()).c_str(), SSL_FILETYPE_PEM)) {
+#else
+        if (!SSL_CTX_use_certificate_file(mSslCtx, certPath.c_str(), SSL_FILETYPE_PEM)) {
+#endif
             Out(mLogName, "OpenSSL: Failed to use public key certificate \"cert.pem\"!");
             SSL_CTX_free(mSslCtx);
             mSslCtx = nullptr;
             return -2;
         }
-        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, "key.pem", SSL_FILETYPE_PEM)) {
+#if defined(_WIN32)
+        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, WideCharToUTF8((wchar_t*)keyPath.c_str()).c_str(), SSL_FILETYPE_PEM)) {
+#else
+        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, keyPath, SSL_FILETYPE_PEM)) {
+#endif
             Out(mLogName, "OpenSSL: Failed to use private key \"key.pem\"! Maybe the passphrase is incorrect?");
             SSL_CTX_free(mSslCtx);
             mSslCtx = nullptr;
