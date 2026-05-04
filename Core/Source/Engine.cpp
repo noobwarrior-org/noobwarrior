@@ -189,8 +189,6 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
 #endif
 
 EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring ipStrW = converter.from_bytes(params.Ip);
     const std::filesystem::path &injectorPath = GetInstallationDir() / (arch == EngineArchitecture::x86_64 ? "noobhook_x86-64_injector.exe" : "noobhook_x86_injector.exe");
     if (!std::filesystem::exists(injectorPath)) {
         Out("Inject", "Failed to create injector process: Injector process doesn't exist!");
@@ -215,9 +213,9 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     }
 
     std::string argsStr;
-    for (int i = 0; i < argsStr.size(); i++) {
-        argsStr += argsStr[i];
-        if (i < argsStr.size() - 1) {
+    for (int i = 0; i < args.size(); i++) {
+        argsStr += args[i];
+        if (i < args.size() - 1) {
             argsStr += " ";
         }
     }
