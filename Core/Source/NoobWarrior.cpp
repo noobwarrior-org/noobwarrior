@@ -363,8 +363,8 @@ void Core::AutocreateCert() {
 
     time_t seconds = time(NULL);
     auto issuedTime = mRegistry->GetKeyValue<time_t>("internal.cert_issued_time");
-    if (issuedTime.has_value() && seconds - issuedTime.value() < 864000) {
-        Out("AutocreateCert", "Been less than 10 days, not auto-generating cert.");
+    if (issuedTime.has_value() && seconds - issuedTime.value() < 31536000) {
+        Out("AutocreateCert", "It has been less than 1 year since the last certificate was generated, so a certificate will not be auto-generated.");
         return;
     }
     mRegistry->SetKeyValue("internal.cert_issued_time", seconds);
