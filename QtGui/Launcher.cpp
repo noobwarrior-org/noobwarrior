@@ -146,7 +146,11 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     auto *titleLabel = new QLabel();
     titleLabel->setText("noobWarrior");
     QFont font = titleLabel->font();
+#if !defined(Q_OS_MACOS)
     font.setPointSize(20);
+#else
+    font.setPointSize(30); // fonts are smaller on Macs for whatever reason so we have to adjust for it
+#endif
     titleLabel->setFont(font);
     logoLayout->addWidget(titleLabel);
 

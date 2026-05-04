@@ -122,6 +122,7 @@ void DefaultStyle::polish(QWidget *widget) {
 
     QFont font = widget->font();
     font.setFamily("Source Sans Pro");
+    widget->setFont(font);
 
     if (widget->palette() == QProxyStyle::standardPalette()) {
         widget->setPalette(QApplication::palette());
