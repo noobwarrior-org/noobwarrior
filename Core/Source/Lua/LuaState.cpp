@@ -121,9 +121,10 @@ int LuaState::Open() {
     signalType["Connect"] = &LuaSignal::Connect;
     signalType["Fire"] = &LuaSignal::LuaFire;
 
-    auto regType = new_usertype<Registry>("Registry", sol::no_constructor);
-    regType["SetKeyValue"] = [this](sol::this_state state, Registry &reg, std::string key, sol::object value) {
+    sol::table regLib = create_table();
+    regLib["SetKeyValue"] = [this](sol::this_state state, std::string key, sol::object value) {
         lua_State* L = state;
+        Registry* reg = mCore->GetRegistry();
         if (key.empty()) {
             luaL_error(L, "error setting value for key \"%s\": key is empty", key.c_str());
             return;
@@ -137,15 +138,16 @@ int LuaState::Open() {
             return;
         }
         (*this)["__REG_BUF"] = value;
-        sol::protected_function_result res = safe_script(std::format("{}.{} = __REG_BUF", reg.GetGlobalName(), key));
+        sol::protected_function_result res = safe_script(std::format("{}.{} = __REG_BUF", reg->GetGlobalName(), key));
         if (!res.valid()) {
             luaL_error(L, "error setting value for key \"%s\": failed to run script", key.c_str());
             return;
         }
         (*this)["__REG_BUF"] = sol::lua_nil;
     };
-    regType["GetKeyValue"] = [this](sol::this_state state, Registry &reg, std::string key) -> sol::object {
+    regLib["GetKeyValue"] = [this](sol::this_state state, std::string key) -> sol::object {
         lua_State* L = state;
+        Registry* reg = mCore->GetRegistry();
         if (key.empty()) {
             luaL_error(L, "error getting value for key \"%s\": key is empty", key.c_str());
             return sol::lua_nil;
@@ -158,7 +160,7 @@ int LuaState::Open() {
             luaL_error(L, "error getting value for key \"%s\": key cannot end with a period", key.c_str());
             return sol::lua_nil;
         }
-        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg.GetGlobalName(), key), sol::script_pass_on_error);
+        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg->GetGlobalName(), key), sol::script_pass_on_error);
         if (!res.valid()) {
             luaL_error(L, "error getting value for key \"%s\": failed to run script", key.c_str());
             return sol::lua_nil;
@@ -166,8 +168,9 @@ int LuaState::Open() {
         sol::object obj = res.get<sol::object>();
         return obj;
     };
-    regType["SetKeyValueIfNotSet"] = [this](sol::this_state state, Registry &reg, std::string key, sol::object value) {
+    regLib["SetKeyValueIfNotSet"] = [this](sol::this_state state, std::string key, sol::object value) {
         lua_State* L = state;
+        Registry* reg = mCore->GetRegistry();
         if (key.empty()) {
             luaL_error(L, "error setting value for key \"%s\": key is empty", key.c_str());
             return;
@@ -180,7 +183,7 @@ int LuaState::Open() {
             luaL_error(L, "error setting value for key \"%s\": key cannot end with a period", key.c_str());
             return;
         }
-        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg.GetGlobalName(), key), sol::script_pass_on_error);
+        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg->GetGlobalName(), key), sol::script_pass_on_error);
         if (!res.valid()) {
             luaL_error(L, "error setting value for key \"%s\": failed to run script", key.c_str());
             return;
@@ -189,13 +192,14 @@ int LuaState::Open() {
             return;
         }
         (*this)["__REG_BUF"] = value;
-        sol::protected_function_result res2 = safe_script(std::format("{}.{} = __REG_BUF", reg.GetGlobalName(), key));
+        sol::protected_function_result res2 = safe_script(std::format("{}.{} = __REG_BUF", reg->GetGlobalName(), key));
         if (!res2.valid()) {
             luaL_error(L, "error setting value for key \"%s\": failed to run script", key.c_str());
             return;
         }
         (*this)["__REG_BUF"] = sol::lua_nil;
     };
+    set("reg", regLib);
 
     auto vfsType = new_usertype<VirtualFileSystem>("VirtualFileSystem");
     vfsType["new"] = [](sol::this_state state, std::string path) {

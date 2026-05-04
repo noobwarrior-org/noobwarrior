@@ -105,7 +105,6 @@ Core::Core(Init init) :
     GetEmuDbManager()->MountMasterDbIfNotAlreadyMounted();
 
     mServerEmulator = new ServerEmulator(this);
-    mLuaState->set("reg", mRegistry);
     mLuaState->set("emu", mServerEmulator);
     mLuaState->set("emu_db_mgr", mEmuDbManager);
 
