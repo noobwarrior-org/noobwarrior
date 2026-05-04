@@ -145,6 +145,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
 
     auto *titleLabel = new QLabel();
     titleLabel->setText("noobWarrior");
+    titleLabel->setStyleSheet("QLabel { color: white; }");
+    titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
+
     QFont font = titleLabel->font();
 #if !defined(Q_OS_MACOS)
     font.setPointSize(20);
