@@ -24,11 +24,21 @@ metatable = {
         local value = rawget(table, index)
         if value == nil then
             local tbl = {}
-            setmetatable(tbl, metatable) -- recursively do this :)
+            setmetatable(tbl, metatable)
             rawset(table, index, tbl)
             return tbl
         else return value end
     end
 }
-setmetatable(%s, metatable)
+
+local function attachMeta(tbl)
+    setmetatable(tbl, metatable)
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            attachMeta(v)
+        end
+    end
+end
+
+attachMeta(%s)
 )***";
