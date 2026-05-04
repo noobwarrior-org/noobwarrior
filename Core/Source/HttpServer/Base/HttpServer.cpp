@@ -155,7 +155,7 @@ int HttpServer::StartSecure(uint16_t port) {
 #if defined(_WIN32)
         if (!SSL_CTX_use_PrivateKey_file(mSslCtx, WideCharToUTF8((wchar_t*)keyPath.c_str()).c_str(), SSL_FILETYPE_PEM)) {
 #else
-        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, keyPath, SSL_FILETYPE_PEM)) {
+        if (!SSL_CTX_use_PrivateKey_file(mSslCtx, keyPath.c_str(), SSL_FILETYPE_PEM)) {
 #endif
             Out(mLogName, "OpenSSL: Failed to use private key \"key.pem\"! Maybe the passphrase is incorrect?");
             SSL_CTX_free(mSslCtx);
