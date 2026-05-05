@@ -7,7 +7,7 @@
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
 print("hello from shared.lua")
-_G.http_base_VER = "0.1"
+_G.HTTP_BASE_VER = "0.1"
 local http_base = {}
 
 local file_extension_map = {
