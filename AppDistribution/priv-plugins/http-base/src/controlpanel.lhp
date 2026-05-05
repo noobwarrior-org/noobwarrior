@@ -86,7 +86,7 @@ end
         <?lua elseif _GET["category"] == "about" then ?>
         <!-- About -->
         <p>noobWarrior version: <?lua echo(core.GetVersion()) ?></p>
-        <p>HTTP Server Shared plugin version: <?lua echo(_G.HTTP_BASE_VER) ?></p>
+        <p>HTTP Server Base plugin version: <?lua echo(_G.HTTP_BASE_VER) ?></p>
         <p>Server Emulator frontend plugin version: <?lua echo(_G.EMU_FRONTEND_VER) ?></p>
         <?lua end ?>
     </div>

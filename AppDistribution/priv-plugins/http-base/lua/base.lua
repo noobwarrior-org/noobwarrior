@@ -1,12 +1,12 @@
 -- ////////////////////////////////////////////////////////////////////////////////
 -- noobWarrior
--- Plugin: HTTP Server Shared
--- File: shared.lua
--- Description: Main file for HTTP Server Shared
+-- Plugin: HTTP Server Base
+-- File: base.lua
+-- Description: Main file for HTTP Server Base
 -- Started by: Hattozo
 -- Started on: 1/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
-print("hello from shared.lua")
+print("hello from base.lua")
 _G.HTTP_BASE_VER = "0.1"
 local http_base = {}
 
