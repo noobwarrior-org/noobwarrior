@@ -78,7 +78,6 @@
 #include <NoobWarrior/SqlDb/Statement.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
 #include <NoobWarrior/EmuDb/ContentImages.h>
-#include <NoobWarrior/EmuDb/Repository/Item/AssetRepository.h>
 #include <NoobWarrior/EmuDb/Item/Asset.h>
 #include <NoobWarrior/EmuDb/Item/Universe.h>
 #include <NoobWarrior/EmuDb/Item/User.h>
@@ -204,8 +203,6 @@ public:
     SqlDb::Response AddAssetToUserCharacter(int64_t userId, int64_t assetId);
     SqlDb::Response RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId);
 
-    AssetRepository* GetAssetRepository();
-
     std::vector<unsigned char> RetrieveImageData(const std::string &tableName, int64_t id);
 
     template<typename T>
@@ -270,8 +267,6 @@ protected:
     }
 
     std::vector<unsigned char> RetrieveBlobFromTableName(int64_t id, const std::string &tableName, const std::string &columnName);
-
-    AssetRepository mAssetRepository;
 private:
     bool VerifyIntegrityOfMigration();
     bool MigrateToLatestVersion();

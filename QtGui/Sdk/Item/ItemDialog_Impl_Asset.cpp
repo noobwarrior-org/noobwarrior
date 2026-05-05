@@ -302,8 +302,8 @@ bool ItemDialog::Asset_OnSave() {
     stmt.Bind(1, newId);
     stmt.Bind(2, name);
     stmt.Bind(3, description);
-    stmt.Bind(4, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(5, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
+    stmt.Bind(4, static_cast<int64_t>(mOwned_CreatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(5, static_cast<int64_t>(mOwned_UpdatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(6, imageId);
     stmt.Bind(7, static_cast<int>(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>()));
     if (stmt.Step() != SQLITE_DONE) {

@@ -75,7 +75,6 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 	SqlDb(path, "EmuDb"),
 	mAutoCommit(autocommit),
 	mDirty(false),
-	mAssetRepository(this),
 	mMigrationFailMsg("no failure detected")
 {
 	if (Fail())
@@ -538,7 +537,7 @@ SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *h
     Statement insertStmt = PrepareStatement("INSERT OR IGNORE INTO BlobStorage (Hash, Blob) VALUES (?, ZEROBLOB(?));");
     CHECK_STMT(insertStmt)
     insertStmt.Bind(1, hashStr);
-    insertStmt.Bind(2, (sqlite3_int64)fileSize);
+    insertStmt.Bind(2, static_cast<int64_t>(fileSize));
     switch (insertStmt.Step()) {
         case SQLITE_DONE: break;
         case SQLITE_BUSY: return SqlDb::Response::Busy;
@@ -839,10 +838,6 @@ SqlDb::Response EmuDb::AddAssetToUserCharacter(int64_t userId, int64_t assetId) 
 }
 
 SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId) {
-}
-
-AssetRepository* EmuDb::GetAssetRepository() {
-	return &mAssetRepository;
 }
 
 std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int64_t id) {

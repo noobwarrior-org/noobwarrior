@@ -24,7 +24,6 @@
 // Description:
 #pragma once
 #include <NoobWarrior/EmuDb/EmuDb.h>
-#include <NoobWarrior/EmuDb/Repository/Repository.h>
 
 #include <filesystem>
 #include <vector>

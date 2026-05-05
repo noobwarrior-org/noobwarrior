@@ -25,6 +25,7 @@
 #pragma once
 
 #include <evhttp.h>
+#include <string>
 #include <map>
 
 namespace NoobWarrior {

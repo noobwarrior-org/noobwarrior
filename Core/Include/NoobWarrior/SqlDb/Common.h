@@ -32,7 +32,7 @@
 #include <sqlite3.h>
 
 namespace NoobWarrior {
-typedef std::variant<std::monostate, int, std::string, std::vector<unsigned char>, sqlite3_int64, double, bool> SqlValue;
+typedef std::variant<std::monostate, int, std::string, std::vector<unsigned char>, int64_t, double, bool> SqlValue;
 typedef std::pair<std::string, SqlValue> SqlColumn;
 typedef std::map<std::string, SqlValue> SqlColumnMap;
 typedef std::vector<SqlColumn> SqlRow;

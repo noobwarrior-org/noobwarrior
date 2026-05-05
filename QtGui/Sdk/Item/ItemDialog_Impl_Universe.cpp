@@ -165,8 +165,8 @@ bool ItemDialog::Universe_OnSave() {
     )");
     stmt.Bind(1, id);
     stmt.Bind(2, name);
-    stmt.Bind(3, mOwned_CreatedInput->dateTime().toSecsSinceEpoch());
-    stmt.Bind(4, mOwned_UpdatedInput->dateTime().toSecsSinceEpoch());
+    stmt.Bind(3, static_cast<int64_t>(mOwned_CreatedInput->dateTime().toSecsSinceEpoch()));
+    stmt.Bind(4, static_cast<int64_t>(mOwned_UpdatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(5, startPlaceId);
     stmt.Bind(6, userId);
     stmt.Bind(7, groupId);

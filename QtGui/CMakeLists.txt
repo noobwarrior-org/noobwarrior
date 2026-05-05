@@ -92,7 +92,7 @@ target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 
 if (NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-    target_link_options(NoobWarrior.QtGui PRIVATE -static -static-libgcc -static-libstdc++)
+    target_link_options(NoobWarrior.QtGui PRIVATE -static-libgcc -static-libstdc++)
 endif()
 
 add_custom_target(CopyAppDistDir

@@ -99,7 +99,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/EmuDb/EmuDb.cpp
     Source/EmuDb/EmuDbManager.cpp
     Source/EmuDb/ContentImages.cpp
-    Source/EmuDb/Repository/Item/AssetRepository.cpp
     Source/FileSystem/VirtualFileSystem.cpp
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
