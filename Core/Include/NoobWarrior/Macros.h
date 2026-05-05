@@ -30,7 +30,7 @@
 #define NOOBWARRIOR_CONTRIBUTORS \
 "Hattozo\n"
 #define NOOBWARRIOR_ATTRIBUTIONS_BRIEF \
-"noobWarrior (https://github.com/noobWarrior-org/noobWarrior), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"noobWarrior (https://github.com/noobWarrior-org/noobWarrior), licensed under the LGPLv3 License (https://www.gnu.org/licenses/lgpl-3.0.html)\n" \
 "curl (https://github.com/curl/curl), licensed under the curl license (https://curl.se/docs/copyright.html)\n" \
 "SQLite (https://github.com/sqlite/sqlite/tree/master) - This is under the public domain.\n" \
 "nlohmann/json (https://github.com/nlohmann/json), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
