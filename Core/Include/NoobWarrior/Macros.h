@@ -24,7 +24,7 @@
 // Description: Contains useful macros
 #pragma once
 
-#define NOOBWARRIOR_VERSION "0.0.4"
+#define NOOBWARRIOR_VERSION "0.0.5"
 #define NOOBWARRIOR_AUTHORS \
 "Hattozo - Creator of the noobWarrior project and software\n"
 #define NOOBWARRIOR_CONTRIBUTORS \
@@ -33,8 +33,14 @@
 "noobWarrior (https://github.com/noobWarrior-org/noobWarrior), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "curl (https://github.com/curl/curl), licensed under the curl license (https://curl.se/docs/copyright.html)\n" \
 "SQLite (https://github.com/sqlite/sqlite/tree/master) - This is under the public domain.\n" \
-"yaml-cpp (https://github.com/jbeder/yaml-cpp), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "nlohmann/json (https://github.com/nlohmann/json), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"LuaJIT (https://github.com/luajit/luajit), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"sol2 (https://github.com/ThePhD/sol2), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"libevent (https://github.com/libevent/libevent), licensed under the 3-clause BSD license (https://github.com/libevent/libevent/blob/master/LICENSE)\n" \
+"libzip (https://github.com/nih-at/libzip), licensed under the 3-clause BSD license (https://github.com/libevent/libevent/blob/master/LICENSE)\n" \
+"zlib (https://github.com/madler/zlib), licensed under the zlib license (https://github.com/madler/zlib/blob/develop/LICENSE)\n" \
+"zstd (https://github.com/facebook/zstd), licensed under the 3-clause BSD License (https://github.com/facebook/zstd/blob/dev/LICENSE)\n" \
+"pugixml (https://github.com/zeux/pugixml), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "Roblox-File-Format (https://github.com/MaximumADHD/Roblox-File-Format), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n"
 
