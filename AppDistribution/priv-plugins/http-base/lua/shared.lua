@@ -56,8 +56,8 @@ end
 
 function http_base.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
-        print(req.PostBody)
         local get_tbl = {}
+        local post_tbl = {}
 
         local uri_query_pos = string.find(req.Uri, "?")
         local uri_without_params = uri_query_pos and string.sub(req.Uri, 1, uri_query_pos - 1) or req.Uri
@@ -69,13 +69,22 @@ function http_base.AttachToServer(srv, params)
             get_tbl[key] = val
         end
 
+        if req.PostBody ~= nil then
+            for param in string.gmatch(req.PostBody, '([^&]+)') do
+                local equals_index = string.find(param, "=")
+                local key = string.sub(param, 1, equals_index - 1)
+                local val = string.sub(param, equals_index + 1, -1)
+                post_tbl[key] = val
+            end
+        end
+
         if params.Sitemap[uri_without_params] then
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
                 local output = lhp.RenderFile(params.Sitemap[uri_without_params], {
                     ["_SERVER"] = {},
                     ["_GET"] = get_tbl,
-                    ["_POST"] = {},
+                    ["_POST"] = post_tbl,
                     ["_FILES"] = {},
                     ["_COOKIE"] = {},
                     ["_SESSION"] = {},
