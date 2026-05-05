@@ -3,6 +3,6 @@ pageTitle = "Control Panel"
 include("header.lhp")
 ?>
 
-<?lua include("plugin://http-shared@noobwarrior.org/src/controlpanel.lhp") ?>
+<?lua include("plugin://http-base@noobwarrior.org/src/controlpanel.lhp") ?>
 
 <?lua include("footer.lhp") ?>

@@ -1,0 +1,102 @@
+<?lua
+local button_names = {
+    ["overview"] = "Overview",
+    ["items"] = "Items",
+    ["databases"] = "Databases",
+    ["email"] = "Email",
+    ["avatar"] = "Avatar",
+    ["banners"] = "Banners",
+    ["themes"] = "Themes",
+    ["logs"] = "Logs",
+    ["reports"] = "Reports",
+    ["bans"] = "Bans",
+    ["emergency"] = "Emergency",
+    ["about"] = "About"
+}
+
+local function SetupSidebar(categories)
+    for _, category in ipairs(categories) do
+        if category.Name then
+            echo("<h3>"..category.Name.."</h3>")
+        end
+        for i, buttonName in ipairs(category.Buttons) do
+            if buttonName ~= "emergency" then
+                echo(string.format("<a href=\"control-panel?category=%s\" class=\"%s\">%s</a>", buttonName, _GET["category"] == buttonName and "active" or "", button_names[buttonName]))
+            else
+                echo(string.format("<a href=\"control-panel?category=%s\" class=\"%s\" style=\"color: red;\">%s</a>", buttonName, _GET["category"] == buttonName and "active" or "", button_names[buttonName]))
+            end
+        end
+        echo("<hr>")
+    end
+end
+?>
+
+<div class="sidebar-container">
+    <div>
+        <h1>Control Panel</h1>
+        <div class="sidebar">
+            <?lua
+                SetupSidebar({
+                    {
+                        Name = "Server Settings",
+                        Buttons = {
+                            "overview",
+                            "items",
+                            "databases",
+                            "email",
+                            "avatar",
+                            "banners",
+                            "themes"
+                        }
+                    },
+                    {
+                        Name = "Moderation",
+                        Buttons = {
+                            "logs",
+                            "reports",
+                            "bans",
+                            "emergency"
+                        }
+                    },
+                    {
+                        Buttons = {
+                            "about"
+                        }
+                    }
+                })
+            ?>
+        </div>
+    </div>
+
+    <div>
+        <h1>
+            <?lua
+                local category = _GET["category"]
+                echo(button_names[category])
+            ?>
+        </h1>
+        <?lua if _GET["category"] == "overview" then ?>
+        <!-- Overview -->
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" size="10" placeholder="Server Emulator" />
+        <br>
+        <label for="file">Icon</label>
+        <input type="file" accept="image/*" name="file"/>
+        <?lua elseif _GET["category"] == "items" then ?>
+        <?lua elseif _GET["category"] == "about" then ?>
+        <!-- About -->
+        <p>noobWarrior version: <?lua echo(core.GetVersion()) ?></p>
+        <p>HTTP Server Shared plugin version: <?lua echo(_G.http_base_VER) ?></p>
+        <p>Server Emulator frontend plugin version: <?lua echo(_G.EMU_FRONTEND_VER) ?></p>
+        <?lua end ?>
+    </div>
+</div>
+
+<?lua if _GET["category"] == "items" then ?>
+<br>
+<div class="sidebar">
+    <h3>Items</h3>
+    <a href="/control-panel?category=items&item=asset">Asset</a>
+    <a href="/control-panel?category=items&item=badge">Badge</a>
+</div>
+<?lua end ?>

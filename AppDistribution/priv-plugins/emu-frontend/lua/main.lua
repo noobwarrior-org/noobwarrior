@@ -20,7 +20,7 @@ emu.PreStop:Connect(function(secure)
     print("Stopping "..(secure and "HTTPS" or "HTTP").." server emulator frontend!")
 end)
 
-local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")
+local http_base = require("plugin://http-base@noobwarrior.org/lua/shared.lua")
 
 local sitemap = {
     ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp",
@@ -30,6 +30,6 @@ local sitemap = {
     ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp"
 }
 
-http_shared.AttachToServer(emu, {
+http_base.AttachToServer(emu, {
     Sitemap = sitemap
 })

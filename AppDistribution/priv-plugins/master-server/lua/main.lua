@@ -21,7 +21,7 @@ for k, v in pairs(rows) do
     print("Row " .. k .. ": Contact Id: " .. tostring(v.contact_id) .. ", First Name: " .. v.first_name .. ", Last Name: " .. v.last_name .. ", Email: " .. v.email .. ", Phone: " .. v.phone)
 end
 
-local http_shared = require("plugin://http-shared@noobwarrior.org/lua/shared.lua")
+local http_base = require("plugin://http-base@noobwarrior.org/lua/shared.lua")
 
 local sitemap = {
     ["/"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
@@ -29,7 +29,7 @@ local sitemap = {
     ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp"
 }
 
-master = http_shared.CreateServer({
+master = http_base.CreateServer({
     Name = "MasterServer",
     Sitemap = sitemap
 })
