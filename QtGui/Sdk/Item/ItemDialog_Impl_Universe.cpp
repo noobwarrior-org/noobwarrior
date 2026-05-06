@@ -97,7 +97,10 @@ void ItemDialog::Universe_AddFields() {
     placeFrameLayout->addWidget(mUniverse_AddPlaceButton);
 
     connect(mUniverse_AddPlaceButton, &QPushButton::clicked, [this]() {
-        int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Place, true);
+        std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Place, true);
+        if (id.has_value()) {
+            mUniverse_PendingPlaces.push_back(id.value());
+        }
     });
 
     mContentLayout->addRow("Places", mUniverse_PlaceFrame);

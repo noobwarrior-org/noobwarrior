@@ -36,6 +36,8 @@ public:
     ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListWidget *listview = nullptr);
 
     void Configure();
+    NoobWarrior::ItemType GetType();
+    int64_t GetId();
 private:
     EmuDb* mDb;
     NoobWarrior::ItemType mType;

@@ -31,7 +31,7 @@ class ItemBrowserWidget;
 class ItemBrowserPage : public ItemListWidget {
 public:
     ItemBrowserPage(ItemBrowserWidget *browser);
-    void Refresh() override;
+    void Refresh();
     void SetQuery(const QString &query = "");
     void SetType(ItemType);
     void SetAssetType(Roblox::AssetType);

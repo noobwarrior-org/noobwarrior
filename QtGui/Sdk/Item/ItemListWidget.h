@@ -27,10 +27,13 @@
 #include <NoobWarrior/EmuDb/ItemType.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
+#include "ItemWidget.h"
+
 #include <QListWidget>
 #include <QAbstractListModel>
 
 #include <string>
+#include <functional>
 
 namespace NoobWarrior {
 class ItemListModel : public QAbstractListModel {
@@ -52,12 +55,12 @@ public:
         std::string Query { "" };
     };
 
-    ItemListWidget(QWidget *parent = nullptr);
-    virtual void Refresh();
+    ItemListWidget(QWidget *parent = nullptr, const std::function<void(ItemWidget* item)> onDoubleClick = [](ItemWidget* item){ item->Configure(); });
     void Populate(const PopulateOptions options);
 protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);
     PopulateOptions mLastOptions;
+    const std::function<void(ItemWidget* item)> mOnDoubleClick;
 };
 }

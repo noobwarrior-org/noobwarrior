@@ -77,3 +77,11 @@ void ItemWidget::Configure() {
     ItemDialog dialog(mDb, mType, mId, sdk);
     dialog.exec();
 }
+
+NoobWarrior::ItemType ItemWidget::GetType() {
+    return mType;
+}
+
+int64_t ItemWidget::GetId() {
+    return mId;
+}

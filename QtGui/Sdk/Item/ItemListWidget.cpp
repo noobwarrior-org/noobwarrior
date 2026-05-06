@@ -40,15 +40,13 @@ static std::string EscapeLike(const std::string &input) {
     return result;
 }
 
-ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent) {
+ItemListWidget::ItemListWidget(QWidget *parent, const std::function<void(ItemWidget* item)> onDoubleClick) : QListWidget(parent),
+    mOnDoubleClick(onDoubleClick)
+{
     InitWidgets();
 
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &QListWidget::customContextMenuRequested, this, &ItemListWidget::ShowContextMenu);
-}
-
-void ItemListWidget::Refresh() {
-
 }
 
 void ItemListWidget::Populate(const PopulateOptions options) {
@@ -86,10 +84,10 @@ void ItemListWidget::InitWidgets() {
     setIconSize(QSize(64, 64));
     setWordWrap(true);
 
-    connect(this, &QListWidget::itemDoubleClicked, this, [](QListWidgetItem *item) {
+    connect(this, &QListWidget::itemDoubleClicked, [this](QListWidgetItem *item) {
         auto *contentItem = dynamic_cast<ItemWidget*>(item);
         if (contentItem) {
-            contentItem->Configure();
+            mOnDoubleClick(contentItem);
         }
     });
 }

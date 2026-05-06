@@ -143,7 +143,7 @@ void ItemDialog::RegenWidgets() {
     });
 
     connect(mUseExistingImageButton, &QPushButton::clicked, [this]() {
-        int64_t id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
+        std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
     });
 
     mUploadImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));

@@ -43,13 +43,16 @@ public:
 
     // if enforce is true then itemType and assetType parameters will be forced. otherwise they are just defaults.\
     // assetType does nothing if itemType is set to anything but Asset
-    static int64_t GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType = ItemType::Asset, Roblox::AssetType assetType = Roblox::AssetType::None, bool enforce = false);
+    static std::optional<int64_t> GetOpenId(QWidget *parent, EmuDb* db, ItemType itemType = ItemType::Asset, Roblox::AssetType assetType = Roblox::AssetType::None, bool enforce = false);
 
     ItemOpenSaveDialog(EmuDb* db, Mode mode = Mode::Open, ItemType defaultItemType = ItemType::Asset, Roblox::AssetType defaultAssetType = Roblox::AssetType::None, QWidget *parent = nullptr);
     void ToggleItemTypeDropdown(bool val);
     void ToggleAssetTypeDropdown(bool val);
-private:
+protected:
     void InitWidgets();
+private:
+    std::optional<int64_t> mSelectedId;
+
     EmuDb* mDb;
     ItemType mItemType;
     Roblox::AssetType mAssetType;

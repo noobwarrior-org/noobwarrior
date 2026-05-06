@@ -117,6 +117,8 @@ protected:
     QFrame* mUniverse_PlaceFrame;
     QListWidget* mUniverse_PlaceList;
     QPushButton* mUniverse_AddPlaceButton;
+    QList<int64_t> mUniverse_PendingPlaces;
+    QList<int64_t> mUniverse_PendingDeletePlaces;
 
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;
