@@ -45,6 +45,7 @@ set(SOURCES
     Sdk/Item/ItemDialog_Impl_Asset.cpp
     Sdk/Item/ItemDialog_Impl_Universe.cpp
     Sdk/Item/ItemDialog_Impl_User.cpp
+    Sdk/Item/UniverseDropdown.cpp
     Sdk/Backup/BackupDialog.cpp
     Sdk/Backup/BackupTask.cpp
     Sdk/Backup/BackupTreeView.cpp

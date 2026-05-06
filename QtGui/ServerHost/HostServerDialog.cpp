@@ -24,6 +24,7 @@
 // Description: Dialog that allows for starting a game server
 #include "HostServerDialog.h"
 #include "../Application.h"
+#include "Sdk/Item/UniverseDropdown.h"
 
 #include <QMessageBox>
 
@@ -39,27 +40,14 @@ void HostServerDialog::InitWidgets() {
     mMainLayout = new QHBoxLayout(this);
 
     mDbListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted);
-    mTreeWidget = new QTreeWidget(this);
+    mUniverseDropdown = new UniverseDropdown(this);
 
     mMainLayout->addWidget(mDbListWidget);
-    mMainLayout->addWidget(mTreeWidget);
+    mMainLayout->addWidget(mUniverseDropdown);
 
     connect(mDbListWidget, &QListWidget::itemSelectionChanged, [this]() {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
-        if (db != nullptr) {
-            Statement stmt = db->PrepareStatement("SELECT Name, StartPlaceId FROM Universe;");
-            while (stmt.Step() == SQLITE_ROW) {
-                auto *item = new QTreeWidgetItem(mTreeWidget);
-                item->setText(0, QString::fromStdString(stmt.GetStringFromColumnIndex(0)));
-
-                int64_t startPlaceId = stmt.GetInt64FromColumnIndex(1);
-
-                Statement stmt2 = db->PrepareStatement("SELECT PlaceId FROM UniversePlace WHERE Id = ?;");
-                while (stmt2.Step() == SQLITE_ROW) {
-
-                }
-            }
-        }
+        mUniverseDropdown->Populate(db);
     });
     mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     mDbListWidget->setCurrentRow(0);

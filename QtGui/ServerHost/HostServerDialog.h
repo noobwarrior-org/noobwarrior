@@ -27,6 +27,7 @@
 
 #include "Sdk/EmuDbListWidget.h"
 #include "Sdk/Item/ItemListWidget.h"
+#include "Sdk/Item/UniverseDropdown.h"
 
 #include <QDialog>
 #include <QHBoxLayout>
@@ -48,7 +49,7 @@ private:
     QHBoxLayout* mMainLayout;
 
     EmuDbListWidget* mDbListWidget;
-    QTreeWidget* mTreeWidget;
+    UniverseDropdown* mUniverseDropdown;
 
     QDialogButtonBox* mButtonBox;
     QPushButton* mStartServer;
