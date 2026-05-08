@@ -88,8 +88,8 @@ end
                 echo(button_names[category])
             ?>
         </h1>
-        <?lua if _GET["category"] == "overview" then ?>
-        <!-- Overview -->
+        <?lua if _GET["category"] == "general" then ?>
+        <!-- General -->
         <label for="name">Name</label>
         <input type="text" id="name" name="name" size="10" placeholder="Server Emulator" />
         <br>
