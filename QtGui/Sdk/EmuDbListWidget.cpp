@@ -35,6 +35,7 @@ using namespace NoobWarrior;
 EmuDbListWidget::EmuDbListWidget(Mode mode, QWidget* parent) : QListWidget(parent),
     mMode(mode)
 {
+    setIconSize(QSize(64, 64));
     Refresh();
 }
 
