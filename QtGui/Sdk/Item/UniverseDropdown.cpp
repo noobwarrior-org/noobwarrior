@@ -27,23 +27,47 @@
 using namespace NoobWarrior;
 
 UniverseDropdown::UniverseDropdown(QWidget *parent) : QTreeWidget(parent) {
-    
+    setHeaderLabel("Name");
 }
 
 void UniverseDropdown::Populate(EmuDb* db) {
+    clear();
     if (db == nullptr)
         return;
 
-    Statement stmt = db->PrepareStatement("SELECT Name, StartPlaceId FROM Universe;");
+    Statement stmt = db->PrepareStatement("SELECT Id, StartPlaceId, Name FROM Universe;");
     while (stmt.Step() == SQLITE_ROW) {
-        auto *item = new QTreeWidgetItem(this);
-        item->setText(0, QString::fromStdString(stmt.GetStringFromColumnIndex(0)));
-
+        int64_t id = stmt.GetInt64FromColumnIndex(0);
         int64_t startPlaceId = stmt.GetInt64FromColumnIndex(1);
+        QString name = QString::fromStdString(stmt.GetStringFromColumnIndex(2));
+
+        auto *universeItem = new QTreeWidgetItem(this);
+        universeItem->setText(0, name);
 
         Statement stmt2 = db->PrepareStatement("SELECT PlaceId FROM UniversePlace WHERE Id = ?;");
+        stmt2.Bind(1, id);
         while (stmt2.Step() == SQLITE_ROW) {
+            int64_t placeId = stmt2.GetInt64FromColumnIndex(0);
 
+            auto *placeItem = new QTreeWidgetItem();
+            universeItem->addChild(placeItem);
+
+            Statement stmt3 = db->PrepareStatement("SELECT Name FROM Asset WHERE Id = ?;");
+            stmt3.Bind(1, placeId);
+            int res = stmt3.Step();
+
+            if (res == SQLITE_ROW) {
+                std::vector<unsigned char> iconData = db->RetrieveImageData("Asset", placeId);
+                QPixmap pixmap;
+                pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
+                QIcon icon = pixmap;
+
+                QString placeName = QString::fromStdString(stmt3.GetStringFromColumnIndex(0));
+                placeItem->setText(0, placeName);
+                placeItem->setIcon(0, icon);
+            } else {
+                placeItem->setText(0, "Missing Place");
+            }
         }
     }
 }
