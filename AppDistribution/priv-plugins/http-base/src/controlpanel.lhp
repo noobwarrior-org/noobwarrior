@@ -1,12 +1,16 @@
 <?lua
 local button_names = {
-    ["overview"] = "Overview",
+    ["general"] = "General",
     ["items"] = "Items",
     ["databases"] = "Databases",
-    ["email"] = "Email",
+    ["plugins"] = "Plugins",
     ["avatar"] = "Avatar",
     ["banners"] = "Banners",
     ["themes"] = "Themes",
+    ["email"] = "Email",
+    ["taskscheduler"] = "Task Scheduler",
+    ["filesystem"] = "File System",
+    ["lua"] = "Lua Shell",
     ["logs"] = "Logs",
     ["reports"] = "Reports",
     ["bans"] = "Bans",
@@ -40,13 +44,22 @@ end
                     {
                         Name = "Server Settings",
                         Buttons = {
-                            "overview",
+                            "general",
                             "items",
                             "databases",
-                            "email",
+                            "plugins",
                             "avatar",
                             "banners",
                             "themes"
+                        }
+                    },
+                    {
+                        Name = "System Administration",
+                        Buttons = {
+                            "email",
+                            "taskscheduler",
+                            "filesystem",
+                            "lua"
                         }
                     },
                     {
