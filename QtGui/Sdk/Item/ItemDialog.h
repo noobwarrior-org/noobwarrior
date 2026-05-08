@@ -48,6 +48,7 @@
 #include "Sdk/Sdk.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "Sdk/CreatorInfoWidget.h"
+#include "ItemListWidget.h"
 
 namespace NoobWarrior {
 class ItemDialog : public QDialog {
@@ -115,7 +116,7 @@ protected:
     QLineEdit* mUniverse_VisitsInput;
     QCheckBox* mUniverse_ActiveInput;
     QFrame* mUniverse_PlaceFrame;
-    QListWidget* mUniverse_PlaceList;
+    ItemListWidget* mUniverse_PlaceList;
     QPushButton* mUniverse_AddPlaceButton;
     QList<int64_t> mUniverse_PendingPlaces;
     QList<int64_t> mUniverse_PendingDeletePlaces;

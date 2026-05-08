@@ -40,9 +40,34 @@ static std::string EscapeLike(const std::string &input) {
     return result;
 }
 
-ItemListWidget::ItemListWidget(QWidget *parent, const std::function<void(ItemWidget* item)> onDoubleClick) : QListWidget(parent),
-    mOnDoubleClick(onDoubleClick)
+ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent)
 {
+    mOnDoubleClick = [](ItemWidget* item) {
+        item->Configure();
+    };
+    mOnContextMenuShown = [this](QMenu* menu, ItemWidget* item) {
+        QAction* config = menu->addAction(QIcon(":/images/silk/cog.png"), "Configure Item");
+        QAction* del = menu->addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
+
+        connect(config, &QAction::triggered, [this]() {
+            QListWidgetItem *item = currentItem();
+            auto *itemWidget = dynamic_cast<ItemWidget*>(item);
+            if (itemWidget) {
+                itemWidget->Configure();
+            }
+        });
+
+        connect(del, &QAction::triggered, [this]() {
+            QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
+            if (button != QMessageBox::Yes)
+                return;
+
+            for (QListWidgetItem *item : selectedItems()) {
+                QMessageBox::warning(this, "Notice", "Deleting items doesn't actually work for now lmao. The item has temporarily disappeared as a placeholder.");
+                delete takeItem(row(item));
+            }
+        });
+    };
     InitWidgets();
 
     setContextMenuPolicy(Qt::CustomContextMenu);
@@ -51,6 +76,7 @@ ItemListWidget::ItemListWidget(QWidget *parent, const std::function<void(ItemWid
 
 void ItemListWidget::Populate(const PopulateOptions options) {
     clear();
+    mItems.clear();
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
     std::string stmtStr = "SELECT Id, Name FROM " + tableName;
@@ -70,8 +96,33 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
 
     while (stmt.Step() == SQLITE_ROW) {
-        auto *item = new ItemWidget(options.Database, options.ItemType, stmt.GetInt64FromColumnIndex(0), this);
+        Add(options.Database, options.ItemType, stmt.GetInt64FromColumnIndex(0));
     }
+}
+
+void ItemListWidget::Add(EmuDb* db, ItemType type, int64_t id) {
+    auto *item = new ItemWidget(db, type, id, this);
+    mItems[std::make_tuple(db, type, id)] = item;
+}
+
+void ItemListWidget::Remove(EmuDb* db, ItemType type, int64_t id) {
+    auto it = mItems.find(std::make_tuple(db, type, id));
+    if (it != mItems.end()) {
+        delete it->second;
+    }
+}
+
+bool ItemListWidget::IsItemInList(EmuDb* db, ItemType type, int64_t id) {
+    auto it = mItems.find(std::make_tuple(db, type, id));
+    return it != mItems.end();
+}
+
+void ItemListWidget::SetOnDoubleClick(const std::function<void(ItemWidget*)> func) {
+    mOnDoubleClick = func;
+}
+
+void ItemListWidget::SetOnContextMenuShown(const std::function<void(QMenu*, ItemWidget*)> func) {
+    mOnContextMenuShown = func;
 }
 
 void ItemListWidget::InitWidgets() {
@@ -97,29 +148,11 @@ void ItemListWidget::ShowContextMenu(QPoint point) {
         return;
 
     QPoint globalPos = mapToGlobal(point);
+    QMenu menu;
 
-    QMenu myMenu;
-    QAction* config = myMenu.addAction(QIcon(":/images/silk/cog.png"), "Configure Item");
-    QAction* del = myMenu.addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
+    QListWidgetItem *item = currentItem();
+    auto *itemWidget = dynamic_cast<ItemWidget*>(item);
+    mOnContextMenuShown(&menu, itemWidget);
 
-    connect(config, &QAction::triggered, [this]() {
-        QListWidgetItem *item = currentItem();
-        auto *contentItem = dynamic_cast<ItemWidget*>(item);
-        if (contentItem) {
-            contentItem->Configure();
-        }
-    });
-
-    connect(del, &QAction::triggered, [this]() {
-        QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
-        if (button != QMessageBox::Yes)
-            return;
-
-        for (QListWidgetItem *item : selectedItems()) {
-            QMessageBox::warning(this, "Notice", "Deleting items doesn't actually work for now lmao. The item has temporarily disappeared as a placeholder.");
-            delete takeItem(row(item));
-        }
-    });
-
-    myMenu.exec(globalPos);
+    menu.exec(globalPos);
 }

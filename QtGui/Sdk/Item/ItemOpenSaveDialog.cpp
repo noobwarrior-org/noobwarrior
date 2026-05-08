@@ -64,7 +64,8 @@ void ItemOpenSaveDialog::InitWidgets() {
         mAssetTypeDropdown->addItem(QString::fromStdString(Roblox::AssetTypeAsTranslatableString(static_cast<Roblox::AssetType>(i))));
     }
 
-    mList = new ItemListWidget(nullptr, [this](ItemWidget* item) {
+    mList = new ItemListWidget(nullptr);
+    mList->SetOnDoubleClick([this](ItemWidget* item) {
         mSelectedId = item->GetId();
         close();
     });

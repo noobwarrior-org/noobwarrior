@@ -34,6 +34,8 @@
 
 #include <string>
 #include <functional>
+#include <tuple>
+#include <map>
 
 namespace NoobWarrior {
 class ItemListModel : public QAbstractListModel {
@@ -55,12 +57,20 @@ public:
         std::string Query { "" };
     };
 
-    ItemListWidget(QWidget *parent = nullptr, const std::function<void(ItemWidget* item)> onDoubleClick = [](ItemWidget* item){ item->Configure(); });
+    ItemListWidget(QWidget *parent = nullptr);
     void Populate(const PopulateOptions options);
+    void Add(EmuDb* db, ItemType type, int64_t id);
+    void Remove(EmuDb* db, ItemType type, int64_t id);
+    bool IsItemInList(EmuDb* db, ItemType type, int64_t id);
+
+    void SetOnDoubleClick(const std::function<void(ItemWidget*)> func);
+    void SetOnContextMenuShown(const std::function<void(QMenu*, ItemWidget*)> func);
 protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);
     PopulateOptions mLastOptions;
-    const std::function<void(ItemWidget* item)> mOnDoubleClick;
+    std::function<void(ItemWidget*)> mOnDoubleClick;
+    std::function<void(QMenu*, ItemWidget*)> mOnContextMenuShown;
+    std::map<std::tuple<EmuDb*, ItemType, int64_t>, ItemWidget*> mItems;
 };
 }

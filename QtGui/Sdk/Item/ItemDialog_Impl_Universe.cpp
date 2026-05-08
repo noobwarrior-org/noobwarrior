@@ -91,7 +91,11 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_PlaceFrame = new QFrame();
     auto *placeFrameLayout = new QVBoxLayout(mUniverse_PlaceFrame);
 
-    mUniverse_PlaceList = new QListWidget();
+    mUniverse_PlaceList = new ItemListWidget();
+    mUniverse_PlaceList->SetOnContextMenuShown([](QMenu* menu, ItemWidget* item) {
+        menu->addAction(QIcon(":/images/spawn_16x16.png"), "Set as Start Place");
+        menu->addAction(QIcon(":/images/silk/cross.png"), "Remove From List");
+    });
     mUniverse_AddPlaceButton = new QPushButton("Add Place");
     placeFrameLayout->addWidget(mUniverse_PlaceList);
     placeFrameLayout->addWidget(mUniverse_AddPlaceButton);
@@ -99,7 +103,12 @@ void ItemDialog::Universe_AddFields() {
     connect(mUniverse_AddPlaceButton, &QPushButton::clicked, [this]() {
         std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Place, true);
         if (id.has_value()) {
+            if (mUniverse_PlaceList->IsItemInList(GetDatabase(), ItemType::Asset, id.value())) {
+                QMessageBox::critical(this, "Place Already Exists", "You already added this place to the list.");
+                return;
+            }
             mUniverse_PendingPlaces.push_back(id.value());
+            mUniverse_PlaceList->Add(GetDatabase(), ItemType::Asset, id.value());
         }
     });
 
