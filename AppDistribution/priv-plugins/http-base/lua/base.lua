@@ -64,17 +64,21 @@ function http_base.AttachToServer(srv, params)
         local uri_with_params_only = uri_query_pos and string.sub(req.Uri, uri_query_pos + 1) or ""
         for param in string.gmatch(uri_with_params_only, '([^&]+)') do
             local equals_index = string.find(param, "=")
-            local key = string.sub(param, 1, equals_index - 1)
-            local val = string.sub(param, equals_index + 1, -1)
-            get_tbl[key] = val
+            if equals_index then
+                local key = string.sub(param, 1, equals_index - 1)
+                local val = string.sub(param, equals_index + 1, -1)
+                get_tbl[key] = val
+            end
         end
 
         if req.PostBody ~= nil then
             for param in string.gmatch(req.PostBody, '([^&]+)') do
                 local equals_index = string.find(param, "=")
-                local key = string.sub(param, 1, equals_index - 1)
-                local val = string.sub(param, equals_index + 1, -1)
-                post_tbl[key] = val
+                if equals_index then
+                    local key = string.sub(param, 1, equals_index - 1)
+                    local val = string.sub(param, equals_index + 1, -1)
+                    post_tbl[key] = val
+                end
             end
         end
 
