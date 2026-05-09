@@ -289,6 +289,42 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     bool installed = IsEngineInManifest(params.Engine);
     if (!installed) return EngineLaunchResponse::NotInstalled;
     const std::filesystem::path dir = GetEngineDirectory(params.Engine);
+
+    if (params.PlaceId.has_value()) {
+        nlohmann::json gameServerJson = nlohmann::json::object();
+        gameServerJson["Mode"] = "GameServer";
+        gameServerJson["GameId"] = 13058;
+        gameServerJson["Arguments"] = nlohmann::json::object();
+        
+        nlohmann::json settingsJson = nlohmann::json::object();
+        settingsJson["Type"] = "Avatar";
+        settingsJson["PlaceId"] = 1818;
+        settingsJson["CreatorId"] = 1;
+        settingsJson["CreatorType"] = "User";
+        settingsJson["GameId"] = "1";
+        settingsJson["MachineAddress"] = "http://127.0.0.1";
+        settingsJson["GsmInterval"] = 5;
+        settingsJson["MaxPlayers"] = 50;
+        settingsJson["MaxGameInstances"] = 51;
+        settingsJson["ApiKey"] = "";
+        settingsJson["PreferredPlayerCapacity"] = 50;
+        settingsJson["DataCenterId"] = "0";
+        settingsJson["PlaceVisitAccessKey"] = "";
+        settingsJson["UniverseId"] = 13058;
+        settingsJson["PlaceFetchUrl"] = "http://www.roblox.com/asset/?id=" + std::to_string(params.PlaceId.value());
+        settingsJson["MatchmakingContextId"] = 1;
+        settingsJson["PlaceVersion"] = 1;
+        settingsJson["BaseUrl"] = "http://www.roblox.com";
+        settingsJson["JobId"] = "Test";
+        settingsJson["script"] = "print('Initializing NetworkServer.')";
+        settingsJson["PreferredPort"] = 53640;
+
+        gameServerJson["Settings"] = settingsJson;
+        
+        std::ofstream gameServerStream(dir / "gameserver.json");
+        gameServerStream << gameServerJson << std::endl;
+    }
+
     std::filesystem::path exe;
     for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
         std::string fn = entry.path().filename().string();

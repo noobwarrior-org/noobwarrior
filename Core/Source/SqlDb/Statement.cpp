@@ -54,6 +54,10 @@ bool Statement::Fail() const {
     return mFailed;
 }
 
+bool Statement::IsColumnIndexNull(int columnIndex) {
+    return sqlite3_column_type(mStmt, columnIndex) == SQLITE_NULL;
+}
+
 SqlValue Statement::GetValueFromColumnIndex(int columnIndex) const {
     std::vector<unsigned char> data;
     unsigned char* buf;

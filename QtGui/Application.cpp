@@ -115,9 +115,13 @@ int Application::Run() {
     mTrayMenu = new QMenu();
         QAction* rbxAcc = mTrayMenu->addAction("");
         rbxAcc->setDisabled(true);
+    mTrayMenu->addSeparator();
+        QAction* emuAction = mTrayMenu->addAction("", [this]() {
+            !mCore->IsServerEmulatorRunning() ? mCore->StartServerEmulator() : mCore->StopServerEmulator();
+        });
 
-        QAction* gameServersAction = mTrayMenu->addAction("0 Running Game Servers");
-        gameServersAction->setDisabled(true);
+        QAction* robloxProcessesAction = mTrayMenu->addAction("0 Running Roblox Processes");
+        robloxProcessesAction->setDisabled(true);
     mTrayMenu->addSeparator();
         QAction* openLauncherAction = mTrayMenu->addAction(QIcon(":/images/silk/application_view_list.png"), "Open Launcher", [this]() {
             if (mLauncher == nullptr) {
@@ -132,10 +136,6 @@ int Application::Run() {
             }
         });
     mTrayMenu->addSeparator();
-        QAction* emuAction = mTrayMenu->addAction("", [this]() {
-            !mCore->IsServerEmulatorRunning() ? mCore->StartServerEmulator() : mCore->StopServerEmulator();
-        });
-
         mTrayMenu->addAction(QIcon(":/images/silk/cross.png"), "Quit", [this]() {
             this->exit();
         });

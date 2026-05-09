@@ -62,7 +62,26 @@ void HostServerDialog::InitWidgets() {
 
     mMainLayout->addWidget(mButtonBox);
 
-    connect(mStartServer, &QPushButton::clicked, []() {
+    connect(mStartServer, &QPushButton::clicked, [this]() {
+        std::optional<int64_t> placeId = mUniverseDropdown->GetSelectedPlaceId();
+
+        QList<QTreeWidgetItem*> items = mUniverseDropdown->selectedItems();
+        if (items.size() <= 0) {
+            QMessageBox::critical(nullptr, "Error", "You need to select a place!");
+            return;
+        }
+        QTreeWidgetItem* item = items.at(0);
+        int flagThatTellsUsIfSomethingWentWrong = item->data(0, Qt::UserRole + 1).toInt();
+        if (flagThatTellsUsIfSomethingWentWrong != 0) {
+            QMessageBox::critical(nullptr, "Error", flagThatTellsUsIfSomethingWentWrong == 1 ? "This universe has no places!" : "This universe does not have a set start place!");
+            return;
+        }
+
+        if (!placeId.has_value()) {
+            QMessageBox::critical(nullptr, "Error", "No selected place id!");
+            return;
+        }
+
         gApp->LaunchEngine({
             .Engine = {
                 .Type = EngineType::Roblox,
@@ -71,7 +90,7 @@ void HostServerDialog::InitWidgets() {
                 .Version = "0.463.0.417004"
             },
             .Port = 53640,
-            .PlaceId = 1818
+            .PlaceId = placeId.value()
         });
     });
 }

@@ -31,5 +31,6 @@ class UniverseDropdown : public QTreeWidget {
 public:
     UniverseDropdown(QWidget *parent = nullptr);
     void Populate(EmuDb* db);
+    std::optional<int64_t> GetSelectedPlaceId();
 };
 }

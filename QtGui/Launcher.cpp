@@ -127,9 +127,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
-    setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
 
     Layout = new QVBoxLayout(this);
+    Layout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(Layout);
 
     QImage logoImg(":/images/icon1024.png");
@@ -190,8 +190,8 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     ServerEmulatorStatusLabel = new QLabel("Server Emulator: Stopped");
     Layout->addWidget(ServerEmulatorStatusLabel);
 
-    auto *robloxServersLabel = new QLabel("0 Running Game Servers");
-    Layout->addWidget(robloxServersLabel);
+    auto *robloxProcessesLabel = new QLabel("0 Running Roblox Processes");
+    Layout->addWidget(robloxProcessesLabel);
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
