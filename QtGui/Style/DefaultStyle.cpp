@@ -122,6 +122,11 @@ void DefaultStyle::polish(QWidget *widget) {
 
     QFont font = widget->font();
     font.setFamily("Source Sans Pro");
+#if defined(_WIN32)
+    // Makes the font look much nicer and softer on Windows
+    font.setHintingPreference(QFont::PreferNoHinting);
+    font.setStyleStrategy(QFont::PreferAntialias);
+#endif
     widget->setFont(font);
 
     if (widget->palette() == QProxyStyle::standardPalette()) {
