@@ -28,7 +28,12 @@ using namespace NoobWarrior;
 
 UniverseDropdown::UniverseDropdown(QWidget *parent) : QTreeWidget(parent) {
     setHeaderLabel("Name");
-    setIconSize(QSize(64, 64));
+    setIconSize(QSize(48, 48));
+    setStyleSheet(R"(
+    QTreeWidget::item {
+        padding: 4px 4px 4px 8px;
+    }
+    )");
 }
 
 void UniverseDropdown::Populate(EmuDb* db) {
