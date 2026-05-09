@@ -27,6 +27,7 @@
 #include "Launcher.h"
 
 #include <QApplication>
+#include <QSystemTrayIcon>
 
 namespace NoobWarrior {
 class Application : public QApplication {
@@ -50,6 +51,8 @@ private:
     Init mInit {};
     Core *mCore;
     Launcher *mLauncher;
+    QSystemTrayIcon *mTrayIcon;
+    QMenu *mTrayMenu;
 };
 extern Application *gApp;
 }

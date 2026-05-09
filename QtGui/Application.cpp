@@ -45,6 +45,8 @@
 
 #include <curl/curl.h>
 #include <event.h>
+#include <qnamespace.h>
+#include <qsystemtrayicon.h>
 
 #define USE_CUSTOM_STYLE 1
 
@@ -52,7 +54,9 @@ using namespace NoobWarrior;
 
 Application *NoobWarrior::gApp = nullptr;
 
-Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
+Application::Application(int &argc, char **argv) : QApplication(argc, argv),
+    mLauncher(nullptr)
+{
     mInit.ArgCount = argc;
     mInit.ArgVec = argv;
     mInit.Portable = QDir(applicationDirPath()).exists("NW_PORTABLE");
@@ -92,6 +96,7 @@ int Application::Run() {
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Regular.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Medium.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Bold.ttf");
+
 #if USE_CUSTOM_STYLE
     /*
     QFile styleFile(":/css/style.css");
@@ -106,7 +111,54 @@ int Application::Run() {
         QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
     #endif
 #endif
-    mLauncher = new Launcher();
+
+    mTrayMenu = new QMenu();
+        QAction* rbxAcc = mTrayMenu->addAction("");
+        rbxAcc->setDisabled(true);
+    mTrayMenu->addSeparator();
+        QAction* emuAction = mTrayMenu->addAction("");
+        QAction* gameServersAction = mTrayMenu->addAction("0 Running Game Servers");
+        gameServersAction->setDisabled(true);
+    mTrayMenu->addSeparator();
+        QAction* openLauncherAction = mTrayMenu->addAction(QIcon(":/images/silk/application_view_list.png"), "Open Launcher", [this]() {
+            if (mLauncher == nullptr) {
+                mLauncher = new Launcher();
+                mLauncher->setAttribute(Qt::WA_DeleteOnClose);
+                connect(mLauncher, &QDialog::destroyed, [this]() {
+                    mLauncher = nullptr;
+                });
+                mLauncher->show();
+            } else {
+                mLauncher->activateWindow();
+            }
+        });
+    mTrayMenu->addSeparator();
+        mTrayMenu->addAction(QIcon(":/images/silk/cross.png"), "Quit", [this]() {
+            this->exit();
+        });
+
+    mTrayIcon = new QSystemTrayIcon(this);
+    mTrayIcon->setToolTip("noobWarrior");
+    mTrayIcon->setContextMenu(mTrayMenu);
+
+    connect(mTrayIcon, &QSystemTrayIcon::activated, [this, rbxAcc, openLauncherAction, emuAction](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger) {
+            openLauncherAction->trigger();
+        } else if (reason == QSystemTrayIcon::Context) {
+            rbxAcc->setText(mCore->GetRbxKeychain()->IsLoggedIn() ?
+                QString("Roblox Account: ") + QString::fromStdString(mCore->GetRbxKeychain()->GetActiveAccount()->Name) :
+                "Not logged into Roblox"
+            );
+            emuAction->setText(QString("%1 Server Emulator").arg(mCore->IsServerEmulatorRunning() ? "Stop" : "Start"));
+            emuAction->setIcon(QIcon(mCore->IsServerEmulatorRunning() ? ":/images/silk/server_delete.png" : ":/images/silk/server_add.png"));
+        }
+    });
+
+    auto appIcon = QIcon(":/images/icon16_aa.png");
+    mTrayIcon->setIcon(appIcon);
+
+    mTrayIcon->show();
+
     QMessageBox msg;
 #if !defined(Q_OS_MACOS)
     msg.setText("Warning");
@@ -121,13 +173,14 @@ int Application::Run() {
     int res = msg.exec();
     if (res != QMessageBox::Yes)
         goto cleanup;
-    mLauncher->show();
+    openLauncherAction->trigger();
     ret = exec();
 cleanup:
     Out("QtApplication", "Cleaning up!");
 
-    mLauncher->deleteLater();
-    mLauncher = nullptr;
+    if (mLauncher != nullptr)
+        mLauncher->deleteLater();
+    mTrayMenu->deleteLater();
 
     curl_global_cleanup();
     mCore->StopServerEmulator();
