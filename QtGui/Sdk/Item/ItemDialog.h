@@ -112,7 +112,7 @@ protected:
     QList<int64_t> mAsset_Place_DataPendingThumbnails;
     QList<int64_t> mAsset_Place_DataPendingDeleteThumbnails;
 
-    QLineEdit* mUniverse_StartPlaceIdInput;
+    int64_t mUniverse_StartPlaceId;
     QLineEdit* mUniverse_VisitsInput;
     QCheckBox* mUniverse_ActiveInput;
     QFrame* mUniverse_PlaceFrame;

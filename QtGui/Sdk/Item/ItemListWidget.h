@@ -36,6 +36,7 @@
 #include <functional>
 #include <tuple>
 #include <map>
+#include <utility>
 
 namespace NoobWarrior {
 class ItemListModel : public QAbstractListModel {
@@ -57,11 +58,13 @@ public:
         std::string Query { "" };
     };
 
-    ItemListWidget(QWidget *parent = nullptr);
+    ItemListWidget(QWidget *parent = nullptr, EmuDb* db = nullptr);
     void Populate(const PopulateOptions options);
-    void Add(EmuDb* db, ItemType type, int64_t id);
-    void Remove(EmuDb* db, ItemType type, int64_t id);
-    bool IsItemInList(EmuDb* db, ItemType type, int64_t id);
+    bool Add(ItemType type, int64_t id);
+    bool Remove(ItemType type, int64_t id);
+    bool IsItemInList(ItemType type, int64_t id);
+    ItemWidget* GetItemWidget(ItemType type, int64_t id);
+    std::vector<std::pair<ItemType, int64_t>> GetItems();
 
     void SetOnDoubleClick(const std::function<void(ItemWidget*)> func);
     void SetOnContextMenuShown(const std::function<void(QMenu*, ItemWidget*)> func);
@@ -71,6 +74,6 @@ protected:
     PopulateOptions mLastOptions;
     std::function<void(ItemWidget*)> mOnDoubleClick;
     std::function<void(QMenu*, ItemWidget*)> mOnContextMenuShown;
-    std::map<std::tuple<EmuDb*, ItemType, int64_t>, ItemWidget*> mItems;
+    std::map<std::pair<ItemType, int64_t>, ItemWidget*> mItems;
 };
 }

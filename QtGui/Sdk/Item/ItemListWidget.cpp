@@ -24,6 +24,7 @@
 // Description:
 #include "ItemListWidget.h"
 #include "ItemWidget.h"
+#include "Sdk/Item/ItemWidget.h"
 
 #include <QMenu>
 #include <QMessageBox>
@@ -40,8 +41,9 @@ static std::string EscapeLike(const std::string &input) {
     return result;
 }
 
-ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent)
+ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
 {
+    mLastOptions.Database = db;
     mOnDoubleClick = [](ItemWidget* item) {
         item->Configure();
     };
@@ -75,8 +77,9 @@ ItemListWidget::ItemListWidget(QWidget *parent) : QListWidget(parent)
 }
 
 void ItemListWidget::Populate(const PopulateOptions options) {
-    clear();
+    mLastOptions = options;
     mItems.clear();
+    clear();
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
     std::string stmtStr = "SELECT Id, Name FROM " + tableName;
@@ -96,25 +99,44 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
 
     while (stmt.Step() == SQLITE_ROW) {
-        Add(options.Database, options.ItemType, stmt.GetInt64FromColumnIndex(0));
+        Add(options.ItemType, stmt.GetInt64FromColumnIndex(0));
     }
 }
 
-void ItemListWidget::Add(EmuDb* db, ItemType type, int64_t id) {
-    auto *item = new ItemWidget(db, type, id, this);
-    mItems[std::make_tuple(db, type, id)] = item;
+bool ItemListWidget::Add(ItemType type, int64_t id) {
+    if (mLastOptions.Database == nullptr)
+        return false;
+    auto *item = new ItemWidget(mLastOptions.Database, type, id, this);
+    mItems[{ type, id }] = item;
+    return true;
 }
 
-void ItemListWidget::Remove(EmuDb* db, ItemType type, int64_t id) {
-    auto it = mItems.find(std::make_tuple(db, type, id));
+bool ItemListWidget::Remove(ItemType type, int64_t id) {
+    auto it = mItems.find({ type, id });
     if (it != mItems.end()) {
         delete it->second;
+        mItems.erase(it);
+        return true;
     }
+    return false;
 }
 
-bool ItemListWidget::IsItemInList(EmuDb* db, ItemType type, int64_t id) {
-    auto it = mItems.find(std::make_tuple(db, type, id));
+bool ItemListWidget::IsItemInList(ItemType type, int64_t id) {
+    auto it = mItems.find({ type, id });
     return it != mItems.end();
+}
+
+ItemWidget* ItemListWidget::GetItemWidget(ItemType type, int64_t id) {
+    auto it = mItems.find({ type, id });
+    return it != mItems.end() ? it->second : nullptr;
+}
+
+std::vector<std::pair<ItemType, int64_t>> ItemListWidget::GetItems() {
+    std::vector<std::pair<ItemType, int64_t>> items;
+    for (const auto &[k, v] : mItems) {
+        items.push_back(k);
+    }
+    return items;
 }
 
 void ItemListWidget::SetOnDoubleClick(const std::function<void(ItemWidget*)> func) {

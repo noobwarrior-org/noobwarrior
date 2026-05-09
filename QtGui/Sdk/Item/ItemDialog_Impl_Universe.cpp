@@ -74,10 +74,7 @@ void ItemDialog::Universe_AddFields() {
         }
     }
 
-    mUniverse_StartPlaceIdInput = new QLineEdit();
-    mUniverse_StartPlaceIdInput->setText(QString::number(startPlaceId));
-    mUniverse_StartPlaceIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_StartPlaceIdInput));
-    mContentLayout->addRow("Start Place Id", mUniverse_StartPlaceIdInput);
+    mUniverse_StartPlaceId = startPlaceId;
 
     mUniverse_VisitsInput = new QLineEdit();
     mUniverse_VisitsInput->setText(QString::number(visits));
@@ -91,11 +88,51 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_PlaceFrame = new QFrame();
     auto *placeFrameLayout = new QVBoxLayout(mUniverse_PlaceFrame);
 
-    mUniverse_PlaceList = new ItemListWidget();
-    mUniverse_PlaceList->SetOnContextMenuShown([](QMenu* menu, ItemWidget* item) {
-        menu->addAction(QIcon(":/images/spawn_16x16.png"), "Set as Start Place");
-        menu->addAction(QIcon(":/images/silk/cross.png"), "Remove From List");
+    mUniverse_PlaceList = new ItemListWidget(nullptr, GetDatabase());
+    mUniverse_PlaceList->setUniformItemSizes(false); // So "(Start Place)" text can show without being truncated
+    mUniverse_PlaceList->SetOnContextMenuShown([this](QMenu* menu, ItemWidget* item) {
+        QAction* startPlaceAction = menu->addAction(QIcon(":/images/spawn_16x16.png"), "Set as Start Place");
+        QAction* removeAction = menu->addAction(QIcon(":/images/silk/cross.png"), "Remove From List");
+
+        connect(startPlaceAction, &QAction::triggered, [this, item]() {
+            for (int i = 0; i < mUniverse_PlaceList->count(); i++) {
+                QListWidgetItem* other = mUniverse_PlaceList->item(i);
+                QString text = other->text();
+                if (text.endsWith("\n(Start Place)")) {
+                    other->setText(text.chopped(QString("\n(Start Place)").length()));
+                }
+            }
+
+            item->setText(item->text() + "\n(Start Place)");
+            mUniverse_StartPlaceId = item->GetId();
+        });
+
+        connect(removeAction, &QAction::triggered, [this, item]() {
+            int64_t placeId = item->GetId();
+            mUniverse_PlaceList->Remove(item->GetType(), placeId);
+            mUniverse_PendingDeletePlaces.push_back(placeId);
+            // Also remove from pending adds if it was just added this session
+            mUniverse_PendingPlaces.removeAll(placeId);
+        });
     });
+
+    if (mId.has_value()) {
+        Statement placesStmt = db->PrepareStatement(
+            "SELECT PlaceId FROM UniversePlace WHERE Id = ?");
+        placesStmt.Bind(1, mId.value());
+        while (placesStmt.Step() == SQLITE_ROW) {
+            int64_t placeId = placesStmt.GetInt64FromColumnIndex(0);
+            if (!mUniverse_PlaceList->Add(ItemType::Asset, placeId)) {
+                QMessageBox::critical(this, "Error", "Failed to load place into list!");
+            }
+            if (placeId == startPlaceId) {
+                // Get the widget just added and append the label
+                ItemWidget* w = mUniverse_PlaceList->GetItemWidget(ItemType::Asset, placeId);
+                if (w) w->setText(w->text() + "\n(Start Place)");
+            }
+        }
+    }
+
     mUniverse_AddPlaceButton = new QPushButton("Add Place");
     placeFrameLayout->addWidget(mUniverse_PlaceList);
     placeFrameLayout->addWidget(mUniverse_AddPlaceButton);
@@ -103,12 +140,15 @@ void ItemDialog::Universe_AddFields() {
     connect(mUniverse_AddPlaceButton, &QPushButton::clicked, [this]() {
         std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Place, true);
         if (id.has_value()) {
-            if (mUniverse_PlaceList->IsItemInList(GetDatabase(), ItemType::Asset, id.value())) {
+            if (mUniverse_PlaceList->IsItemInList(ItemType::Asset, id.value())) {
                 QMessageBox::critical(this, "Place Already Exists", "You already added this place to the list.");
                 return;
             }
+            if (!mUniverse_PlaceList->Add(ItemType::Asset, id.value())) {
+                QMessageBox::critical(this, "Error", "Failed to add place");
+                return;
+            }
             mUniverse_PendingPlaces.push_back(id.value());
-            mUniverse_PlaceList->Add(GetDatabase(), ItemType::Asset, id.value());
         }
     });
 
@@ -156,7 +196,7 @@ bool ItemDialog::Universe_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    int64_t startPlaceId = mUniverse_StartPlaceIdInput->text().toLongLong();
+    int64_t startPlaceId = mUniverse_StartPlaceId;
     int64_t userId = 0;
     int64_t groupId = 0;
     bool active = mUniverse_ActiveInput->isChecked();
@@ -188,6 +228,30 @@ bool ItemDialog::Universe_OnSave() {
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
+    }
+
+    // Delete removed places
+    for (int64_t placeId : mUniverse_PendingDeletePlaces) {
+        Statement del = db->PrepareStatement(
+            "DELETE FROM UniversePlace WHERE Id = ? AND PlaceId = ?");
+        del.Bind(1, id);
+        del.Bind(2, placeId);
+        if (del.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+    }
+
+    // Insert new places
+    for (int64_t placeId : mUniverse_PendingPlaces) {
+        Statement ins = db->PrepareStatement(
+            "INSERT OR IGNORE INTO UniversePlace (Id, PlaceId) VALUES (?, ?)");
+        ins.Bind(1, id);
+        ins.Bind(2, placeId);
+        if (ins.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
     }
     return true;
 }
