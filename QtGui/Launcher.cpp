@@ -127,6 +127,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
 {
     // ui->setupUi(this);
     setWindowTitle("noobWarrior");
+    setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
 
     Layout = new QVBoxLayout(this);
     setLayout(Layout);

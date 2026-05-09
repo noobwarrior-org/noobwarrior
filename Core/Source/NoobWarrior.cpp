@@ -126,12 +126,18 @@ Core::~Core() {
 
     GetPluginManager()->UnmountPlugins();
     
-    if (mInit.EnableKeychain)
-        GetRbxKeychain()->WriteToKeychain();
+    if (mInit.EnableKeychain) {
+        AuthResponse res = GetRbxKeychain()->WriteToKeychain();
+        if (res != AuthResponse::Success) {
+            Out("Core", "GetRbxKeychain()->WriteToKeychain() failed", (int)res);
+        }
+    }
 
     GetEmuDbManager()->UnmountDatabases();
     sqlite3_shutdown();
     curl_global_cleanup();
+
+    NOOBWARRIOR_FREE_PTR(mRbxKeychain)
 
     RegistryReturnCode = mRegistry->Close();
     NOOBWARRIOR_FREE_PTR(mRegistry)

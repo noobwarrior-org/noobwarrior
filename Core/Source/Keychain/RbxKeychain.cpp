@@ -41,18 +41,28 @@ std::string RbxKeychain::GetName() {
 }
 
 nlohmann::json RbxKeychain::GetJsonFromToken(const std::string &token) {
-    std::string jsonStr;
-
     CURL *handle = curl_easy_init();
-    std::string cock = std::format(".ROBLOSECURITY={};", token);
+    if (!handle) return nlohmann::json {};
+
+    std::string jsonStr;
+    std::string cookie = std::format(".ROBLOSECURITY={};", token);
+
     curl_easy_setopt(handle, CURLOPT_URL, "https://users.roblox.com/v1/users/authenticated");
-    curl_easy_setopt(handle, CURLOPT_COOKIE, cock.c_str());
+    curl_easy_setopt(handle, CURLOPT_COOKIE, cookie.c_str());
+    curl_easy_setopt(handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, CurlWriteToBuf);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &jsonStr);
+
     CURLcode ret = curl_easy_perform(handle);
+    curl_easy_cleanup(handle);
+
     if (ret == CURLE_OK) {
-        nlohmann::json jsonRes = nlohmann::json::parse(jsonStr);
-        return jsonRes;
+        try {
+            return nlohmann::json::parse(jsonStr);
+        } catch (nlohmann::json::exception &e) {
+            Out("RbxKeychain", "parse failed: {} | body: {}", e.what(), jsonStr);
+        }
     }
+    Out("RbxKeychain", "curl failed: {}", (int)ret);
     return nlohmann::json {};
 }

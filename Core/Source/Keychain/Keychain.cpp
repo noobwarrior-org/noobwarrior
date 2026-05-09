@@ -111,7 +111,7 @@ AuthResponse Keychain::AddAccountFromToken(const std::string &token, Account **a
     accStack.Token = token;
 
     nlohmann::json userInfo = GetJsonFromToken(token);
-    Out("Auth", "{}", userInfo.dump());
+    Out("Keychain", "{}", userInfo.dump());
     if (userInfo.empty() || userInfo.contains("errors") || !userInfo.contains("id") || !userInfo.contains("name"))
         return AuthResponse::Failed;
 
@@ -140,7 +140,7 @@ std::vector<Account>& Keychain::GetAccounts() {
 }
 
 AuthResponse Keychain::TryAuthAccount(std::string& name, std::string& pass) {
-    Out("Auth", "Attempting to log into account {}", name);
+    Out("Keychain", "Attempting to log into account {}", name);
     CURL *handle = curl_easy_init();
     if (handle == nullptr) return AuthResponse::Failed;
     curl_easy_setopt(handle, CURLOPT_URL, "http://example.com/");

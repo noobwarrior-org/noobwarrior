@@ -115,8 +115,7 @@ int Application::Run() {
     mTrayMenu = new QMenu();
         QAction* rbxAcc = mTrayMenu->addAction("");
         rbxAcc->setDisabled(true);
-    mTrayMenu->addSeparator();
-        QAction* emuAction = mTrayMenu->addAction("");
+
         QAction* gameServersAction = mTrayMenu->addAction("0 Running Game Servers");
         gameServersAction->setDisabled(true);
     mTrayMenu->addSeparator();
@@ -133,10 +132,13 @@ int Application::Run() {
             }
         });
     mTrayMenu->addSeparator();
+        QAction* emuAction = mTrayMenu->addAction("", [this]() {
+            !mCore->IsServerEmulatorRunning() ? mCore->StartServerEmulator() : mCore->StopServerEmulator();
+        });
+
         mTrayMenu->addAction(QIcon(":/images/silk/cross.png"), "Quit", [this]() {
             this->exit();
         });
-
     mTrayIcon = new QSystemTrayIcon(this);
     mTrayIcon->setToolTip("noobWarrior");
     mTrayIcon->setContextMenu(mTrayMenu);

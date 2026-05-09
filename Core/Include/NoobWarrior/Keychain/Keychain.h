@@ -44,7 +44,6 @@ enum class AuthResponse {
     InvalidToken,
     InvalidJson,
     KeychainFailed
-
 };
 
 struct Account {
