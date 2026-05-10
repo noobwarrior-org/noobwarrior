@@ -28,6 +28,8 @@
 #include "Sdk/EmuDbListWidget.h"
 #include "Sdk/Item/ItemListWidget.h"
 #include "Sdk/Item/UniverseDropdown.h"
+#include "PlaceInfoCardWidget.h"
+#include "ServerSettingsWidget.h"
 
 #include <QDialog>
 #include <QHBoxLayout>
@@ -50,7 +52,8 @@ private:
 
     EmuDbListWidget* mDbListWidget;
     UniverseDropdown* mUniverseDropdown;
-
+    PlaceInfoCardWidget* mPlaceInfoCardWidget;
+    ServerSettingsWidget* mServerSettingsWidget;
     QDialogButtonBox* mButtonBox;
     QPushButton* mStartServer;
     QPushButton* mCloseButton;

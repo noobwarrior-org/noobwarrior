@@ -23,6 +23,8 @@ set(SOURCES
     Dialog/PluginDialog.cpp
     Dialog/SelectStudioVersionDialog.cpp
     ServerHost/HostServerDialog.cpp
+    ServerHost/PlaceInfoCardWidget.cpp
+    ServerHost/ServerSettingsWidget.cpp
     OnlineWindow/OnlineWindow.cpp
     OnlineWindow/OnlineSidebar.cpp
     OnlineWindow/ServerInformationSidebar.cpp

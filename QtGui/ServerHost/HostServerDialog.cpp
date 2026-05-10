@@ -24,9 +24,12 @@
 // Description: Dialog that allows for starting a game server
 #include "HostServerDialog.h"
 #include "../Application.h"
+#include "PlaceInfoCardWidget.h"
 #include "Sdk/Item/UniverseDropdown.h"
+#include "ServerSettingsWidget.h"
 
 #include <QMessageBox>
+#include <qsizepolicy.h>
 
 using namespace NoobWarrior;
 
@@ -34,10 +37,12 @@ HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent)
 {
     setWindowTitle("Host Server");
     InitWidgets();
+    resize(QSize(size().width() + 192, size().height() + 128));
 }
 
 void HostServerDialog::InitWidgets() {
     mMainLayout = new QHBoxLayout(this);
+    mLayout = new QVBoxLayout();
 
     mDbListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted);
     mUniverseDropdown = new UniverseDropdown(this);
@@ -52,15 +57,18 @@ void HostServerDialog::InitWidgets() {
     mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     mDbListWidget->setCurrentRow(0);
 
+    mPlaceInfoCardWidget = new PlaceInfoCardWidget();
+    mServerSettingsWidget = new ServerSettingsWidget();
+
     mButtonBox = new QDialogButtonBox();
 
-    mStartServer = new QPushButton("Start Server");
-    mButtonBox->addButton(mStartServer, QDialogButtonBox::AcceptRole);
+    mStartServer = mButtonBox->addButton("Start Server", QDialogButtonBox::AcceptRole);
+    mCloseButton = mButtonBox->addButton("Close", QDialogButtonBox::RejectRole);
 
-    mCloseButton = new QPushButton("Close");
-    mButtonBox->addButton(mCloseButton, QDialogButtonBox::RejectRole);
-
-    mMainLayout->addWidget(mButtonBox);
+    mLayout->addWidget(mPlaceInfoCardWidget);
+    mLayout->addWidget(mServerSettingsWidget);
+    mLayout->addWidget(mButtonBox);
+    mMainLayout->addLayout(mLayout);
 
     connect(mStartServer, &QPushButton::clicked, [this]() {
         std::optional<int64_t> placeId = mUniverseDropdown->GetSelectedPlaceId();
@@ -70,7 +78,9 @@ void HostServerDialog::InitWidgets() {
             QMessageBox::critical(nullptr, "Error", "You need to select a place!");
             return;
         }
+
         QTreeWidgetItem* item = items.at(0);
+
         int flagThatTellsUsIfSomethingWentWrong = item->data(0, Qt::UserRole + 1).toInt();
         if (flagThatTellsUsIfSomethingWentWrong != 0) {
             QMessageBox::critical(nullptr, "Error", flagThatTellsUsIfSomethingWentWrong == 1 ? "This universe has no places!" : "This universe does not have a set start place!");
@@ -79,6 +89,11 @@ void HostServerDialog::InitWidgets() {
 
         if (!placeId.has_value()) {
             QMessageBox::critical(nullptr, "Error", "No selected place id!");
+            return;
+        }
+
+        if (!mDbListWidget->GetSelectedDatabase()->DoesItemExist(ItemType::Asset, placeId.value())) {
+            QMessageBox::critical(nullptr, "Error", "This place no longer exists in the database!");
             return;
         }
 
@@ -92,5 +107,10 @@ void HostServerDialog::InitWidgets() {
             .Port = 53640,
             .PlaceId = placeId.value()
         });
+        close();
+    });
+
+    connect(mCloseButton, &QPushButton::clicked, [this]() {
+        close();
     });
 }
