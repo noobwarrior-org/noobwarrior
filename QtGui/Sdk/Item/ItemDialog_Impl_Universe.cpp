@@ -57,7 +57,7 @@ void ItemDialog::Universe_AddFields() {
         }
     }
 
-    int64_t startPlaceId = 0;
+    std::optional<int64_t> startPlaceId = std::nullopt;
     int64_t userId = 0;
     int64_t groupId = 0;
     bool active = false;
@@ -66,7 +66,9 @@ void ItemDialog::Universe_AddFields() {
         Statement stmt = GetDatabase()->PrepareStatement("SELECT StartPlaceId, UserId, GroupId, Active, Visits FROM Universe WHERE Id = ?");
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
-            startPlaceId = stmt.GetInt64FromColumnIndex(0);
+            !stmt.IsColumnIndexNull(0) ?
+                startPlaceId = stmt.GetInt64FromColumnIndex(0) :
+                startPlaceId = std::nullopt;
             userId = stmt.GetInt64FromColumnIndex(1);
             groupId = stmt.GetInt64FromColumnIndex(2);
             active = stmt.GetIntFromColumnIndex(3);
@@ -196,7 +198,7 @@ bool ItemDialog::Universe_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    int64_t startPlaceId = mUniverse_StartPlaceId;
+    std::optional<int64_t> startPlaceId = mUniverse_StartPlaceId;
     int64_t userId = 0;
     int64_t groupId = 0;
     bool active = mUniverse_ActiveInput->isChecked();
@@ -219,7 +221,10 @@ bool ItemDialog::Universe_OnSave() {
     stmt.Bind(2, name);
     stmt.Bind(3, static_cast<int64_t>(mOwned_CreatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(4, static_cast<int64_t>(mOwned_UpdatedInput->dateTime().toSecsSinceEpoch()));
-    stmt.Bind(5, startPlaceId);
+    if (startPlaceId.has_value())
+        stmt.Bind(5, startPlaceId.value());
+    else
+        stmt.Bind(5); // bind as null
     stmt.Bind(6, userId);
     stmt.Bind(7, groupId);
     stmt.Bind(8, active);
