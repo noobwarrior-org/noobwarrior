@@ -27,6 +27,7 @@
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/Url.h>
 
+#include "ProcessPingHandler.h"
 #include "CreateAccountHandler.h"
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
@@ -80,6 +81,7 @@ private:
     std::optional<Engine> mCurrentEngine;
 
     //////////////// Handlers ////////////////
+    ProcessPingHandler mProcessPingHandler;
     CreateAccountHandler mCreateAccountHandler;
     RunningGameServersHandler mRunningGameServersHandler;
     AssetHandler mAssetHandler;

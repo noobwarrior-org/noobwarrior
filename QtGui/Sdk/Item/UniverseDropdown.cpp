@@ -34,6 +34,7 @@ UniverseDropdown::UniverseDropdown(QWidget *parent) : QTreeWidget(parent) {
     setStyleSheet(R"(
     QTreeWidget::item {
         padding: 4px 4px 4px 8px;
+        border-bottom: 1px solid #303030;
     }
     )");
 }
