@@ -487,91 +487,22 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::stri
 SqlDb::Response EmuDb::AddBlob(const std::filesystem::path &path, std::string *hashOutput) {
     if (Fail()) return SqlDb::Response::DatabaseFailed;
 
-    CompressionType compressionType = GetCompressionType();
-
     std::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
-        return SqlDb::Response::CantOpen;
-    }
+    if (!file.is_open()) return SqlDb::Response::CantOpen;
 
     uintmax_t fileSize = 0;
     try {
         fileSize = std::filesystem::file_size(path);
-        if (fileSize >= 2147483648) {
-            return SqlDb::Response::BlobTooLarge;
-        }
-    } catch (std::filesystem::filesystem_error &e) {
+        if (fileSize >= 2147483648) return SqlDb::Response::BlobTooLarge;
+    } catch (std::filesystem::filesystem_error &) {
         return SqlDb::Response::CantOpen;
     }
 
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
+    std::vector<unsigned char> rawData(fileSize);
+    if (!file.read(reinterpret_cast<char*>(rawData.data()), fileSize))
+        return SqlDb::Response::CantOpen;
 
-    std::vector<char> buf(1024);
-    while (file.read(buf.data(), 1024) || file.gcount() > 0) {
-        int n = static_cast<int>(file.gcount());
-        SHA256_Update(&ctx, buf.data(), n);
-    }
-
-    // seek back to the beginning because we're going to be reading this file again
-    file.clear();
-    file.seekg(0, std::ios::beg);
-
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_Final(hash, &ctx);
-
-    std::string hashStr;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        hashStr += std::format("{:02x}", hash[i]);
-    }
-
-    Statement checkStmt = PrepareStatement("SELECT * FROM BlobStorage WHERE Hash = ?;");
-    CHECK_STMT(checkStmt)
-    checkStmt.Bind(1, hashStr);
-    if (checkStmt.Step() == SQLITE_ROW) {
-        if (hashOutput != nullptr)
-            *hashOutput = hashStr;
-        return SqlDb::Response::DidNothing;
-    }
-
-    Statement insertStmt = PrepareStatement("INSERT OR IGNORE INTO BlobStorage (Hash, Blob) VALUES (?, ZEROBLOB(?));");
-    CHECK_STMT(insertStmt)
-    insertStmt.Bind(1, hashStr);
-    insertStmt.Bind(2, static_cast<int64_t>(fileSize));
-    switch (insertStmt.Step()) {
-        case SQLITE_DONE: break;
-        case SQLITE_BUSY: return SqlDb::Response::Busy;
-        case SQLITE_MISUSE: return SqlDb::Response::Misuse;
-        case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
-        default: return SqlDb::Response::Failed;
-    }
-
-    sqlite3_blob *blob = nullptr;
-    int blobRes = sqlite3_blob_open(
-        mDb,
-        "main",
-        "BlobStorage",
-        "Blob",
-        sqlite3_last_insert_rowid(mDb),
-        1,
-        &blob
-    );
-    if (blobRes != SQLITE_OK) {
-        return SqlDb::Response::BlobOpenFailed;
-    }
-
-    std::vector<char> buf2(64 * 1024);
-    int offset = 0;
-    while (file.read(buf2.data(), 64 * 1024) || file.gcount() > 0) {
-        int n = static_cast<int>(file.gcount());
-        sqlite3_blob_write(blob, buf2.data(), n, offset);
-        offset += n;
-    }
-
-    sqlite3_blob_close(blob);
-    if (hashOutput != nullptr)
-        *hashOutput = hashStr;
-    return SqlDb::Response::Success;
+    return AddBlob(rawData, hashOutput);
 }
 
 SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {

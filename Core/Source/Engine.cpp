@@ -317,10 +317,10 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
         settingsJson["BaseUrl"] = "http://www.roblox.com";
         settingsJson["JobId"] = "Test";
         settingsJson["script"] = "print('Initializing NetworkServer.')";
-        settingsJson["PreferredPort"] = 53640;
+        settingsJson["PreferredPort"] = params.Port.value_or(53640);
 
         gameServerJson["Settings"] = settingsJson;
-        
+
         std::ofstream gameServerStream(dir / "gameserver.json");
         gameServerStream << gameServerJson << std::endl;
     }
