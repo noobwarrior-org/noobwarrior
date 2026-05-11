@@ -117,6 +117,9 @@ Core::Core(Init init) :
     if (mInit.LoadPlugins)
         GetPluginManager()->MountPlugins();
 
+    if (mInit.AutoStartServerEmulator)
+        StartServerEmulator();
+
     mInitResponse = Response::Success;
 }
 
@@ -261,14 +264,24 @@ void Core::CreateStandardUserDataDirectories() {
 #undef NW_CREATE
 }
 
-int Core::StartServerEmulator(uint16_t port) {
+int Core::StartServerEmulator() {
     mServerEmulator->StartSecure(8081);
-    return mServerEmulator->Start(port);
+    return mServerEmulator->Start(8080);
 }
 
 int Core::StopServerEmulator() {
     mServerEmulator->StopSecure();
     return mServerEmulator->Stop();
+}
+
+void Core::RestartServerEmulator() {
+    /* Can't actually do a hard-reset by deleting it from memory and allocating
+       a new one because that would ruin the state set by the Lua plugins */
+    StopServerEmulator();
+    // NOOBWARRIOR_FREE_PTR(mServerEmulator)
+    // mServerEmulator = new ServerEmulator(this);
+    // mLuaState->set("emu", mServerEmulator);
+    StartServerEmulator();
 }
 
 bool Core::IsServerEmulatorRunning() {

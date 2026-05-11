@@ -183,15 +183,11 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         }
     }
 
-    // Comment this out, this is moreof-so secondary functionality at this point
-    // AuthenticationStatusLabel = new QLabel("Not authenticated with Roblox");
-    // Layout->addWidget(AuthenticationStatusLabel);
+    auto *versionLabel = new QLabel(QString("noobWarrior v%1").arg(NOOBWARRIOR_VERSION));
+    Layout->addWidget(versionLabel);
 
-    ServerEmulatorStatusLabel = new QLabel("Server Emulator: Stopped");
-    Layout->addWidget(ServerEmulatorStatusLabel);
-
-    auto *robloxProcessesLabel = new QLabel("0 Running Roblox Processes");
-    Layout->addWidget(robloxProcessesLabel);
+    AuthenticationStatusLabel = new QLabel("Not logged into Roblox");
+    Layout->addWidget(AuthenticationStatusLabel);
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
@@ -201,8 +197,8 @@ Launcher::~Launcher() {}
 void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
 
-    // RobloxAuth *auth = gApp->GetCore()->GetRobloxAuth();
-    // AuthenticationStatusLabel->setText(auth->IsLoggedIn() ? QString("Logged in as %1").arg(QString::fromStdString(auth->GetActiveAccount()->Name)) : "Not authenticated with Roblox");
+    RbxKeychain *keychain = gApp->GetCore()->GetRbxKeychain();
+    AuthenticationStatusLabel->setText(keychain->IsLoggedIn() ? QString("Roblox Account: %1").arg(QString::fromStdString(keychain->GetActiveAccount()->Name)) : "Not logged into Roblox");
 
-    ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
+    // ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

@@ -67,7 +67,6 @@ int Application::Run() {
     int ret = 1;
 
     mCore = new Core(mInit);
-    mCore->StartServerEmulator(8080);
 
     QTimer* evTimer = new QTimer(this);
     evTimer->setTimerType(Qt::CoarseTimer);
@@ -116,10 +115,6 @@ int Application::Run() {
         QAction* rbxAcc = mTrayMenu->addAction("");
         rbxAcc->setDisabled(true);
     mTrayMenu->addSeparator();
-        QAction* emuAction = mTrayMenu->addAction("", [this]() {
-            !mCore->IsServerEmulatorRunning() ? mCore->StartServerEmulator() : mCore->StopServerEmulator();
-        });
-
         QAction* robloxProcessesAction = mTrayMenu->addAction("0 Running Roblox Processes");
         robloxProcessesAction->setDisabled(true);
     mTrayMenu->addSeparator();
@@ -143,7 +138,7 @@ int Application::Run() {
     mTrayIcon->setToolTip("noobWarrior");
     mTrayIcon->setContextMenu(mTrayMenu);
 
-    connect(mTrayIcon, &QSystemTrayIcon::activated, [this, rbxAcc, openLauncherAction, emuAction](QSystemTrayIcon::ActivationReason reason) {
+    connect(mTrayIcon, &QSystemTrayIcon::activated, [this, rbxAcc, openLauncherAction](QSystemTrayIcon::ActivationReason reason) {
 #if !defined(Q_OS_MACOS)
         if (reason == QSystemTrayIcon::Trigger) {
             openLauncherAction->trigger();
@@ -153,8 +148,6 @@ int Application::Run() {
                 QString("Roblox Account: ") + QString::fromStdString(mCore->GetRbxKeychain()->GetActiveAccount()->Name) :
                 "Not logged into Roblox"
             );
-            emuAction->setText(QString("%1 Server Emulator").arg(mCore->IsServerEmulatorRunning() ? "Stop" : "Start"));
-            emuAction->setIcon(QIcon(mCore->IsServerEmulatorRunning() ? ":/images/silk/server_delete.png" : ":/images/silk/server_add.png"));
 #if !defined(Q_OS_MACOS)
         }
 #endif

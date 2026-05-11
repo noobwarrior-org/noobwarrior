@@ -60,6 +60,7 @@ struct Init {
     bool        EnableKeychain                        { true };
     bool        AutocreateCert                        { true };
     bool        LoadPlugins                           { true };
+    bool        AutoStartServerEmulator               { true };
     /* noobWarrior will try to find its installation files in this directory name, relative to the executable location
        If you are not using noobWarrior as a simple library, you should probably just set this to an empty string
        so that it uses the root directory of the executable. */
@@ -150,8 +151,9 @@ public:
 
     void CreateStandardUserDataDirectories();
 
-    int StartServerEmulator(uint16_t port = 8080);
+    int StartServerEmulator();
     int StopServerEmulator();
+    void RestartServerEmulator();
     bool IsServerEmulatorRunning();
     
     /**
