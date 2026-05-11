@@ -38,17 +38,24 @@ void OsKeychain::SetPassword(const std::string &package, const std::string &serv
                  const std::string &user, const std::string &password,
                  Error &err)
 {
-    
+    err.Message = "This function is not implemented because there is no keychain implementation.";
+    err.Type = OsKeychain::ErrorType::NotImplemented;
+    err.Code = -1;
 }
 
 std::string OsKeychain::GetPassword(const std::string &package, const std::string &service,
                         const std::string &user, Error &err)
 {
+    err.Message = "This function is not implemented because there is no keychain implementation.";
+    err.Type = OsKeychain::ErrorType::NotImplemented;
+    err.Code = -1;
     return "";
 }
 
 void OsKeychain::DeletePassword(const std::string &package, const std::string &service,
                     const std::string &user, Error &err)
 {
-
+    err.Message = "This function is not implemented because there is no keychain implementation.";
+    err.Type = OsKeychain::ErrorType::NotImplemented;
+    err.Code = -1;
 }

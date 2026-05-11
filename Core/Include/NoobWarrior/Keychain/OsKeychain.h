@@ -91,6 +91,7 @@ enum class ErrorType {
     // OS-specific errors
     PasswordTooLong = 10, // Windows only
     AccessDenied,         // macOS only
+    NotImplemented
 };
 
 /*! \brief A struct to collect error information
