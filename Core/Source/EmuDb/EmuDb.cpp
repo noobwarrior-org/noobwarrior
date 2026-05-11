@@ -820,10 +820,13 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemTy
             typeStmt.Bind(1, currentId);
 
 			if (typeStmt.Step() != SQLITE_ROW)
-                return faily("Universe does not have start place");
+                break;
 
-			int64_t placeId = typeStmt.GetInt64FromColumnIndex(0);
-			return RetrieveImageData(NoobWarrior::ItemType::Asset, placeId);
+			int64_t startPlaceId = typeStmt.GetInt64FromColumnIndex(0);
+			if (startPlaceId == 0)
+				break;
+			
+			return RetrieveImageData(NoobWarrior::ItemType::Asset, startPlaceId);
 		}
         if (currentType == NoobWarrior::ItemType::Asset) {
             Statement typeStmt = PrepareStatement("SELECT Type, ImageId FROM Asset WHERE Id = ?;");
