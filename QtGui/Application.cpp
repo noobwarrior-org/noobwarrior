@@ -144,19 +144,28 @@ int Application::Run() {
     mTrayIcon->setContextMenu(mTrayMenu);
 
     connect(mTrayIcon, &QSystemTrayIcon::activated, [this, rbxAcc, openLauncherAction, emuAction](QSystemTrayIcon::ActivationReason reason) {
+#if !defined(Q_OS_MACOS)
         if (reason == QSystemTrayIcon::Trigger) {
             openLauncherAction->trigger();
         } else if (reason == QSystemTrayIcon::Context) {
+#endif
             rbxAcc->setText(mCore->GetRbxKeychain()->IsLoggedIn() ?
                 QString("Roblox Account: ") + QString::fromStdString(mCore->GetRbxKeychain()->GetActiveAccount()->Name) :
                 "Not logged into Roblox"
             );
             emuAction->setText(QString("%1 Server Emulator").arg(mCore->IsServerEmulatorRunning() ? "Stop" : "Start"));
             emuAction->setIcon(QIcon(mCore->IsServerEmulatorRunning() ? ":/images/silk/server_delete.png" : ":/images/silk/server_add.png"));
+#if !defined(Q_OS_MACOS)
         }
+#endif
     });
 
+#if !defined(Q_OS_MACOS)
     auto appIcon = QIcon(":/images/icon16_aa.png");
+#else
+    auto appIcon = QIcon(":/images/tray_mac.png");
+    appIcon.setIsMask(true);
+#endif
     mTrayIcon->setIcon(appIcon);
 
     mTrayIcon->show();
