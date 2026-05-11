@@ -52,7 +52,7 @@
 
 using namespace NoobWarrior;
 
-std::vector<unsigned char> RetrieveAssetTypeImageData(Roblox::AssetType type) {
+std::vector<unsigned char> EmuDb::RetrieveAssetTypeImageData(Roblox::AssetType type) {
 	std::vector<unsigned char> imgData;
 	switch (type) {
 	default:
@@ -69,6 +69,11 @@ std::vector<unsigned char> RetrieveAssetTypeImageData(Roblox::AssetType type) {
 		break;
 	}
 	return imgData;
+}
+
+bool EmuDb::IsZstdCompressed(const std::vector<unsigned char>& data) {
+    if (data.size() < 4) return false;
+    return data[0] == 0x28 && data[1] == 0xB5 && data[2] == 0x2F && data[3] == 0xFD;
 }
 
 EmuDb::EmuDb(const std::string &path, bool autocommit) :
@@ -456,21 +461,28 @@ SqlDb::Response EmuDb::AddBlob(const std::vector<unsigned char> &data, std::stri
 
     std::vector<unsigned char> zstd_compressed_data;
     if (GetCompressionType() == CompressionType::ZStandard) {
-        Out("Compressing...");
-        size_t bufSize = ZSTD_compressBound(data.size());
-        char* buf_c = new char[bufSize];
-        size_t newSize = ZSTD_compress(buf_c, bufSize, data.data(), data.size(), 3);
-        zstd_compressed_data.assign(buf_c, buf_c + newSize);
-        Out("Compressed!");
-    }
+		size_t bufSize = ZSTD_compressBound(data.size());
+		zstd_compressed_data.resize(bufSize);
+		size_t newSize = ZSTD_compress(
+			zstd_compressed_data.data(), bufSize,
+			data.data(), data.size(),
+			3
+		);
+		if (ZSTD_isError(newSize)) {
+			Out(std::format("ZSTD compression failed: {}", ZSTD_getErrorName(newSize)));
+			return SqlDb::Response::Failed;
+		}
+		zstd_compressed_data.resize(newSize); // trim to actual compressed size
+	}
 
 	Statement stmt = PrepareStatement("INSERT INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
 	CHECK_STMT(stmt)
 	stmt.Bind(1, hashStr);
-    if (GetCompressionType() != CompressionType::ZStandard)
-        stmt.Bind(2, data);
-	else if (GetCompressionType() == CompressionType::ZStandard)
+    if (GetCompressionType() != CompressionType::ZStandard) {
+    	stmt.Bind(2, data);
+	} else if (GetCompressionType() == CompressionType::ZStandard) {
 	    stmt.Bind(2, zstd_compressed_data);
+	}
 
 	switch (stmt.Step()) {
 	default: return SqlDb::Response::Failed;
@@ -745,8 +757,27 @@ SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<un
         if (blobStmtRes != SQLITE_ROW && blobStmtRes != SQLITE_DONE)
             return SqlDb::Response::Failed;
         if (blobStmtRes == SQLITE_ROW) {
+			std::vector<unsigned char> data = blobStmt.GetBlobFromColumnIndex(0);
+
+			if (IsZstdCompressed(data)) {
+				unsigned long long decompSize = ZSTD_getFrameContentSize(data.data(), data.size());
+				if (decompSize == ZSTD_CONTENTSIZE_ERROR || decompSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+					return SqlDb::Response::BlobDecompressionFailed;
+				}
+
+				std::vector<unsigned char> decompressed(decompSize);
+				size_t result = ZSTD_decompress(
+					decompressed.data(), decompSize,
+					data.data(), data.size()
+				);
+				if (ZSTD_isError(result)) {
+					return SqlDb::Response::BlobDecompressionFailed;
+				}
+				data = std::move(decompressed);
+			}
+
             if (dataOutput != nullptr)
-                *dataOutput = blobStmt.GetBlobFromColumnIndex(0);
+                *dataOutput = std::move(data);
             return SqlDb::Response::Success;
         }
     }
@@ -771,101 +802,89 @@ SqlDb::Response EmuDb::AddAssetToUserCharacter(int64_t userId, int64_t assetId) 
 SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId) {
 }
 
-std::vector<unsigned char> EmuDb::RetrieveImageData(const std::string &tableName, int64_t id) {
-	std::vector<unsigned char> imgData;
-#define FAIL(...) \
-	Out(std::format("Failed to retrieve image data for ID {} from table {}: ", id, tableName) + __VA_ARGS__); \
-	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size); \
-	return imgData;
+std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemType, int64_t id) {
+    auto faily = [&](const std::string &reason) {
+        Out(std::format("Failed to retrieve image data for ID {}: {}", id, reason));
+        return std::vector<unsigned char>(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+    };
 
-	if (Fail()) {
-		FAIL("Database initialization failed")
-	}
+    if (Fail()) return faily("Database initialization failed");
 
     int currentId = id;
-    std::string currentTableName = tableName;
+    NoobWarrior::ItemType currentType = itemType;
 
-    // Loop to handle ImageId redirection without recursion
-    for (int i = 0; i < 10; ++i) { // Limit iterations to prevent infinite loops in case of bad data
-        if (currentTableName.compare("Universe") == 0) {
-            
-        }
-        if (currentTableName.compare("Asset") == 0) {
-            // If we are an image asset, we need to get the data from ourselves directly
-            int type = 0;
-
-            Statement typeStmt = PrepareStatement(std::format("SELECT Type FROM {} WHERE Id = ?;", currentTableName));
-            if (typeStmt.Fail()) {
-                FAIL("Failed to retrieve asset type for ID {}", currentId)
-            }
+    for (int i = 0; i < 10; ++i) {
+        if (currentType == NoobWarrior::ItemType::Asset) {
+            Statement typeStmt = PrepareStatement("SELECT Type, ImageId FROM Asset WHERE Id = ?;");
+            if (typeStmt.Fail()) return faily("Failed to retrieve asset type");
             typeStmt.Bind(1, currentId);
 
-            if (typeStmt.Step() == SQLITE_ROW) {
-                type = typeStmt.GetIntFromColumnIndex(0);
-            }
+            if (typeStmt.Step() != SQLITE_ROW)
+                return faily("Asset not found");
+
+            int type = typeStmt.GetIntFromColumnIndex(0);
+            int64_t imageId = typeStmt.GetInt64FromColumnIndex(1);
+
+            if (type != static_cast<int>(Roblox::AssetType::Image) && imageId != 0)
+                return RetrieveImageData(NoobWarrior::ItemType::Asset, imageId);
 
             if (type == static_cast<int>(Roblox::AssetType::Image)) {
                 Statement hashStmt = PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = ? ORDER BY Version DESC LIMIT 1;");
-                if (hashStmt.Fail()) {
-                    FAIL("Failed to prepare statement in order to retrieve image hash")
-                }
+                if (hashStmt.Fail()) return faily("Failed to prepare hash statement");
                 hashStmt.Bind(1, currentId);
 
-                if (hashStmt.Step() == SQLITE_ROW) {
-                    std::string hash = hashStmt.GetStringFromColumnIndex(0);
+                if (hashStmt.Step() != SQLITE_ROW)
+                    return faily("No asset data found");
 
-                    Statement imgDataStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?;");
-                    if (imgDataStmt.Fail()) {
-                        FAIL("Failed to prepare statement in order to retrieve image data")
-                    }
-                    imgDataStmt.Bind(1, hash);
+                std::string hash = hashStmt.GetStringFromColumnIndex(0);
 
-                    if (imgDataStmt.Step() == SQLITE_ROW) {
-                        std::vector<unsigned char> imgBlob = imgDataStmt.GetBlobFromColumnIndex(0);
-                        if (imgBlob.size() == 0) {
-                            imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
-                            return imgData;
-                        }
-                        return imgBlob;
-                    }
+                Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?;");
+                if (blobStmt.Fail()) return faily("Failed to prepare blob statement");
+                blobStmt.Bind(1, hash);
+
+                if (blobStmt.Step() != SQLITE_ROW)
+                    return faily("Blob not found");
+
+                std::vector<unsigned char> blob = blobStmt.GetBlobFromColumnIndex(0);
+                if (blob.empty())
+                    return std::vector<unsigned char>(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+
+                if (IsZstdCompressed(blob)) {
+                    unsigned long long decompSize = ZSTD_getFrameContentSize(blob.data(), blob.size());
+                    if (decompSize == ZSTD_CONTENTSIZE_ERROR || decompSize == ZSTD_CONTENTSIZE_UNKNOWN)
+                        return faily("Failed to get decompressed size");
+
+                    std::vector<unsigned char> decompressed(decompSize);
+                    size_t result = ZSTD_decompress(decompressed.data(), decompSize, blob.data(), blob.size());
+                    if (ZSTD_isError(result))
+                        return faily("Decompression failed");
+
+                    return decompressed;
                 }
-            } else if (type == static_cast<int>(Roblox::AssetType::Model)) {
-                imgData.assign(g_model_png, g_model_png + g_model_png_size);
-                return imgData;
-            } else if (type == static_cast<int>(Roblox::AssetType::Audio)) {
-                imgData.assign(g_audio_png, g_audio_png + g_audio_png_size);
-                return imgData;
-            } else if (type == static_cast<int>(Roblox::AssetType::Animation)) {
-                imgData.assign(g_animation_png, g_animation_png + g_animation_png_size);
-                return imgData;
+
+                return blob;
             }
+
+            return RetrieveAssetTypeImageData(static_cast<Roblox::AssetType>(type));
         }
 
-        // If not an image asset or not an asset table, try to find an ImageId
-        Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;",
-            currentTableName
-        ));
-        if (imgIdStmt.Fail()) {
-            FAIL("Failed to prepare statement in order to retrieve image ID")
-        }
+        // Follow ImageId redirect into Asset table
+        std::string tableName = GetTableNameFromItemType(currentType);
+        Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;", tableName));
+        if (imgIdStmt.Fail()) return faily("Failed to prepare ImageId statement");
         imgIdStmt.Bind(1, currentId);
 
-        if (imgIdStmt.Step() == SQLITE_ROW) {
-            int imageId = imgIdStmt.GetIntFromColumnIndex(0);
-            currentId = imageId;
-            currentTableName = "Asset"; // Next iteration, treat it as an Asset
-        } else {
-            // No ImageId found, or it was an Asset but not an Image type and no ImageId was found
+        if (imgIdStmt.Step() != SQLITE_ROW)
             break;
-        }
+
+        currentId = imgIdStmt.GetIntFromColumnIndex(0);
+        currentType = NoobWarrior::ItemType::Asset;
 
         if (i == 9)
-            Out(std::format("ImageId redirect loop limit reached for ID {} in table {}", id, tableName));
+            Out(std::format("ImageId redirect loop limit reached for ID {}", id));
     }
 
-	imgData.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
-	return imgData;
-#undef FAIL
+    return std::vector<unsigned char>(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
 }
 
 std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const std::string &tableName,

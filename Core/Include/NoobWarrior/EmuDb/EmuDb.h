@@ -124,6 +124,7 @@ public:
     };
 
     static std::vector<unsigned char> RetrieveAssetTypeImageData(Roblox::AssetType type);
+    static bool IsZstdCompressed(const std::vector<unsigned char>& data);
 
     /**
      * @param autocommit Will enable SQLite's auto-commit feature if true; any writes you do to the database are immediately saved to disk. Set this to false if you are not using this in the context of a rapidly changing online database.
@@ -203,7 +204,7 @@ public:
     SqlDb::Response AddAssetToUserCharacter(int64_t userId, int64_t assetId);
     SqlDb::Response RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId);
 
-    std::vector<unsigned char> RetrieveImageData(const std::string &tableName, int64_t id);
+    std::vector<unsigned char> RetrieveImageData(NoobWarrior::ItemType itemType, int64_t id);
 
     template<typename T>
     static T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {

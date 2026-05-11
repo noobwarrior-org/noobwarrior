@@ -51,7 +51,8 @@ public:
         BlobTooLarge,
         MissingBlob,
         BlobOpenFailed,
-        BlobCompressionFailed
+        BlobCompressionFailed,
+        BlobDecompressionFailed
     };
 
     enum class FailReason {

@@ -57,7 +57,7 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
 
     setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(id)));
 
-    std::vector<unsigned char> imageData = db->RetrieveImageData(tableName, id);
+    std::vector<unsigned char> imageData = db->RetrieveImageData(mType, id);
     if (!imageData.empty()) {
         QImage image;
         image.loadFromData(imageData);

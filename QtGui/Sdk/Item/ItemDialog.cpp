@@ -80,7 +80,7 @@ void ItemDialog::RegenWidgets() {
     QImage image;
 
     if (mId.has_value())
-        data = std::move(db->RetrieveImageData(tableName, mId.has_value() ? mId.value() : -1));
+        data = std::move(db->RetrieveImageData(mType, mId.has_value() ? mId.value() : -1));
     else
         data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
 

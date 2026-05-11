@@ -50,7 +50,7 @@ void UniverseDropdown::Populate(EmuDb* db) {
         QString name = QString::fromStdString(universePlacesStmt.GetStringFromColumnIndex(2));
         bool universeHasPlace = false;
 
-        std::vector<unsigned char> iconData = db->RetrieveImageData("Universe", id);
+        std::vector<unsigned char> iconData = db->RetrieveImageData(ItemType::Universe, id);
         QPixmap pixmap;
         pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
         QIcon icon = pixmap;
@@ -76,7 +76,7 @@ void UniverseDropdown::Populate(EmuDb* db) {
             int res = getPlaceNameStmt.Step();
 
             if (res == SQLITE_ROW) {
-                std::vector<unsigned char> iconData = db->RetrieveImageData("Asset", placeId);
+                std::vector<unsigned char> iconData = db->RetrieveImageData(ItemType::Asset, placeId);
                 QPixmap pixmap;
                 pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
                 QIcon icon = pixmap;
