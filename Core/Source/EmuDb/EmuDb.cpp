@@ -67,6 +67,9 @@ std::vector<unsigned char> EmuDb::RetrieveAssetTypeImageData(Roblox::AssetType t
 	case Roblox::AssetType::Animation:
 		imgData.assign(g_animation_png, g_animation_png + g_animation_png_size);
 		break;
+	case Roblox::AssetType::Video:
+		imgData.assign(g_animation_png, g_animation_png + g_animation_png_size);
+		break;
 	}
 	return imgData;
 }
