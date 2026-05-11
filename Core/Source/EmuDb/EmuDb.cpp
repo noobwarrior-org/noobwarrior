@@ -814,6 +814,17 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemTy
     NoobWarrior::ItemType currentType = itemType;
 
     for (int i = 0; i < 10; ++i) {
+		if (currentType == NoobWarrior::ItemType::Universe) {
+			Statement typeStmt = PrepareStatement("SELECT StartPlaceId FROM Universe WHERE Id = ?;");
+			if (typeStmt.Fail()) return faily("Failed to retrieve asset type");
+            typeStmt.Bind(1, currentId);
+
+			if (typeStmt.Step() != SQLITE_ROW)
+                return faily("Universe does not have start place");
+
+			int64_t placeId = typeStmt.GetInt64FromColumnIndex(0);
+			return RetrieveImageData(NoobWarrior::ItemType::Asset, placeId);
+		}
         if (currentType == NoobWarrior::ItemType::Asset) {
             Statement typeStmt = PrepareStatement("SELECT Type, ImageId FROM Asset WHERE Id = ?;");
             if (typeStmt.Fail()) return faily("Failed to retrieve asset type");
