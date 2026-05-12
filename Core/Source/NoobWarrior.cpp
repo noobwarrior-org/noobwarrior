@@ -223,16 +223,12 @@ std::filesystem::path Core::GetInstallationDir() const {
 std::filesystem::path Core::GetUserDataDir() {
     if (!mInit.Portable) {
 #if defined(_WIN32)
-        // Our user data directory is in the Documents folder instead of the %LocalAppData% directory, which is where most developers will store their user data.
-        // We do this because Windows wipes away your AppData folder when you reinstall the OS, even when you choose to keep your data.
-        // Typically it won't actually do this and it will instead move it away to a Windows.old folder
-        // But, most people do not realize this and they end up losing everything when the OS decides to delete the directory after a grace period.
         WCHAR *path;
-        SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, NULL, &path);
-        std::filesystem::path documentsDir(path);
-        std::filesystem::create_directory(documentsDir / NOOBWARRIOR_USERDATA_DIRNAME);
+        SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, NULL, &path);
+        std::filesystem::path baseDir(path);
+        std::filesystem::create_directory(baseDir / NOOBWARRIOR_USERDATA_DIRNAME);
         CoTaskMemFree(path);
-        return documentsDir / NOOBWARRIOR_USERDATA_DIRNAME;
+        return baseDir / NOOBWARRIOR_USERDATA_DIRNAME;
 #elif defined(__unix__) || defined(__APPLE__)
         std::filesystem::path home_path(getenv("HOME"));
         #if defined(__APPLE__)

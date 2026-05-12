@@ -245,7 +245,6 @@ static HINTERNET WINAPI MyWinHttpConnect(HINTERNET hSession, LPCWSTR pswzServerN
 }
 
 DWORD WINAPI Thread(LPVOID param) {
-    SuspendAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
 
     gFile = freopen("noobhook.log", "w", stdout);
     if (gFile == nullptr) {
@@ -269,7 +268,6 @@ DWORD WINAPI Thread(LPVOID param) {
     Out("Main", "Done");
     //fclose(file);
 
-    ResumeAllThreadsExceptMines(GetCurrentProcessId(), GetCurrentThreadId());
     return 0;
 }
 
