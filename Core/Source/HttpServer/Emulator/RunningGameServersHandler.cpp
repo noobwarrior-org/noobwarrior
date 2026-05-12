@@ -36,10 +36,35 @@ RunningGameServersHandler::RunningGameServersHandler(ServerEmulator* emu) : mEmu
 
 void RunningGameServersHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("RunningGameServersHandler", "Yes.");
+
+    struct evhttp_connection *evcon = evhttp_request_get_connection(req);
+    struct bufferevent *bev = evhttp_connection_get_bufferevent(evcon);
+    evutil_socket_t fd = bufferevent_getfd(bev);
+
+    struct sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
+
+    char ip_str[INET6_ADDRSTRLEN];
+    int port;
+    bool ip_found = false;
+
+    if (getsockname(fd, (struct sockaddr*)&addr, &addr_len) == 0) {
+        if (addr.ss_family == AF_INET) {
+            struct sockaddr_in *sin = (struct sockaddr_in*)&addr;
+            evutil_inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET6_ADDRSTRLEN);
+            port = ntohs(sin->sin_port);
+        } else if (addr.ss_family == AF_INET6) {
+            struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)&addr;
+            evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN);
+            port = ntohs(sin6->sin6_port);
+        }
+        ip_found = true;
+    }
+
     nlohmann::json json = nlohmann::json::array();
     for (auto &gameServer : mEmu->GetGameServers()) {
         nlohmann::json obj = nlohmann::json::object();
-        obj["Ip"] = gameServer.Ip;
+        obj["Ip"] = gameServer.Ip.empty() && ip_found ? std::string(ip_str) : gameServer.Ip;
         if (gameServer.Port.has_value()) obj["Port"] = gameServer.Port.value();
         if (gameServer.PlaceId.has_value()) obj["PlaceId"] = gameServer.PlaceId.value();
         obj["EngineType"] = EngineTypeAsString(gameServer.Engine.Type);
