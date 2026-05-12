@@ -28,7 +28,9 @@
 // make sure windows.h is included before wincred.h
 #include <NoobWarrior/Keychain/OsKeychain.h>
 
+#include <algorithm>
 #include <memory>
+#include <string>
 
 #define UNICODE
 
@@ -153,12 +155,15 @@ void updateError(OsKeychain::Error &err) {
 
 /*! /brief Create the target name used to lookup and store credentials
  *
- * The result is wrapped in a ScopedLpwstr.
+ * The result is wrapped in a ScopedLpwstr. If `chunkSuffix` is non-empty it
+ * is appended to the base target name — used to spread an oversized blob
+ * across multiple Windows credentials.
  */
 ScopedLpwstr makeTargetName(const std::string &package,
                             const std::string &service, const std::string &user,
+                            const std::string &chunkSuffix,
                             OsKeychain::Error &err) {
-    auto result = utf8ToWideChar(package + "." + service + '/' + user);
+    auto result = utf8ToWideChar(package + "." + service + '/' + user + chunkSuffix);
     if (!result) {
         updateError(err);
 
@@ -171,6 +176,55 @@ ScopedLpwstr makeTargetName(const std::string &package,
     }
 
     return result;
+}
+
+ScopedLpwstr makeTargetName(const std::string &package,
+                            const std::string &service, const std::string &user,
+                            OsKeychain::Error &err) {
+    return makeTargetName(package, service, user, std::string{}, err);
+}
+
+static std::string makeChunkSuffix(size_t chunkIndex) {
+    return ".chunk" + std::to_string(chunkIndex);
+}
+
+static bool writeCredentialBlob(LPWSTR targetName, LPWSTR userName,
+                                const char *data, size_t size,
+                                OsKeychain::Error &err) {
+    CREDENTIAL cred = {};
+    cred.Type = kCredType;
+    cred.TargetName = targetName;
+    cred.UserName = userName;
+    cred.CredentialBlobSize = static_cast<DWORD>(size);
+    cred.CredentialBlob = reinterpret_cast<LPBYTE>(const_cast<char *>(data));
+    cred.Persist = CRED_PERSIST_ENTERPRISE;
+
+    if (::CredWrite(&cred, 0) == FALSE) {
+        updateError(err);
+        return false;
+    }
+    return true;
+}
+
+// Delete chunks .chunkN, .chunk(N+1), ... until a NotFound is encountered.
+// Used to clear leftover chunks after switching from a large to a smaller
+// blob (or back to an unchunked write).
+static void deleteChunksFrom(const std::string &package,
+                             const std::string &service,
+                             const std::string &user, size_t startIndex) {
+    for (size_t i = startIndex;; ++i) {
+        OsKeychain::Error scratch;
+        auto chunkTarget =
+            makeTargetName(package, service, user, makeChunkSuffix(i), scratch);
+        if (scratch) return;
+        if (::CredDelete(chunkTarget.get(), kCredType, 0) == FALSE) {
+            // Stop on the first missing chunk — there cannot be more beyond it.
+            if (::GetLastError() == ERROR_NOT_FOUND) return;
+            // For any other failure, stop quietly — this is best-effort cleanup
+            // and surfacing the error would mask the caller's primary result.
+            return;
+        }
+    }
 }
 
 void OsKeychain::SetPassword(const std::string &package, const std::string &service,
@@ -188,25 +242,48 @@ void OsKeychain::SetPassword(const std::string &package, const std::string &serv
         return;
     }
 
-    if (password.size() > CRED_MAX_CREDENTIAL_BLOB_SIZE ||
-        password.size() > DWORD_MAX) {
+    if (password.size() > DWORD_MAX) {
         err.Type = ErrorType::PasswordTooLong;
         err.Message = "Password too long.";
         err.Code = -1; // generic non-zero
         return;
     }
 
-    CREDENTIAL cred = {};
-    cred.Type = kCredType;
-    cred.TargetName = target_name.get();
-    cred.UserName = user_name.get();
-    cred.CredentialBlobSize = static_cast<DWORD>(password.size());
-    cred.CredentialBlob = (LPBYTE)(password.data());
-    cred.Persist = CRED_PERSIST_ENTERPRISE;
-
-    if (::CredWrite(&cred, 0) == FALSE) {
-        updateError(err);
+    // Small enough to live in a single credential — preserves the original
+    // on-disk layout for callers whose data fits.
+    if (password.size() <= CRED_MAX_CREDENTIAL_BLOB_SIZE) {
+        if (!writeCredentialBlob(target_name.get(), user_name.get(),
+                                 password.data(), password.size(), err)) {
+            return;
+        }
+        // Clear any chunks left over from a previous larger write.
+        deleteChunksFrom(package, service, user, 0);
+        return;
     }
+
+    // Oversized blob: split across .chunk0, .chunk1, ... and drop the
+    // unchunked credential so a subsequent read finds the chunked form.
+    size_t chunkIndex = 0;
+    size_t offset = 0;
+    while (offset < password.size()) {
+        size_t chunkSize = std::min<size_t>(CRED_MAX_CREDENTIAL_BLOB_SIZE,
+                                            password.size() - offset);
+        auto chunkTarget = makeTargetName(package, service, user,
+                                          makeChunkSuffix(chunkIndex), err);
+        if (err) return;
+
+        if (!writeCredentialBlob(chunkTarget.get(), user_name.get(),
+                                 password.data() + offset, chunkSize, err)) {
+            return;
+        }
+        offset += chunkSize;
+        ++chunkIndex;
+    }
+
+    // Best-effort cleanup of the old unchunked credential and any trailing
+    // chunks from a previous, larger write.
+    ::CredDelete(target_name.get(), kCredType, 0);
+    deleteChunksFrom(package, service, user, chunkIndex);
 }
 
 std::string OsKeychain::GetPassword(const std::string &package, const std::string &service,
@@ -219,18 +296,47 @@ std::string OsKeychain::GetPassword(const std::string &package, const std::strin
         return password;
     }
 
-    CREDENTIAL *cred;
-    bool result = ::CredRead(target_name.get(), kCredType, 0, &cred);
-
-    if (result == TRUE) {
-        password = std::string(reinterpret_cast<char *>(cred->CredentialBlob),
-                               cred->CredentialBlobSize);
+    // Try the single-credential layout first.
+    CREDENTIAL *cred = nullptr;
+    if (::CredRead(target_name.get(), kCredType, 0, &cred) == TRUE) {
+        password.assign(reinterpret_cast<char *>(cred->CredentialBlob),
+                        cred->CredentialBlobSize);
         ::CredFree(cred);
-    } else {
-        updateError(err);
+        return password;
     }
 
-    return password;
+    const DWORD firstErr = ::GetLastError();
+    if (firstErr != ERROR_NOT_FOUND) {
+        updateError(err);
+        return password;
+    }
+
+    // Fall through to the chunked layout.
+    for (size_t i = 0;; ++i) {
+        auto chunkTarget =
+            makeTargetName(package, service, user, makeChunkSuffix(i), err);
+        if (err) return std::string{};
+
+        CREDENTIAL *chunkCred = nullptr;
+        if (::CredRead(chunkTarget.get(), kCredType, 0, &chunkCred) == TRUE) {
+            password.append(reinterpret_cast<char *>(chunkCred->CredentialBlob),
+                            chunkCred->CredentialBlobSize);
+            ::CredFree(chunkCred);
+            continue;
+        }
+
+        const DWORD chunkErr = ::GetLastError();
+        if (chunkErr == ERROR_NOT_FOUND) {
+            if (i == 0) {
+                // No unchunked credential and no chunks — report NotFound.
+                updateError(err);
+            }
+            return password;
+        }
+
+        updateError(err);
+        return std::string{};
+    }
 }
 
 void OsKeychain::DeletePassword(const std::string &package, const std::string &service,
@@ -241,7 +347,38 @@ void OsKeychain::DeletePassword(const std::string &package, const std::string &s
         return;
     }
 
-    if (::CredDelete(target_name.get(), kCredType, 0) == FALSE) {
+    bool deletedAny = false;
+    DWORD lastErr = ERROR_NOT_FOUND;
+
+    if (::CredDelete(target_name.get(), kCredType, 0) == TRUE) {
+        deletedAny = true;
+    } else {
+        lastErr = ::GetLastError();
+        if (lastErr != ERROR_NOT_FOUND) {
+            updateError(err);
+            return;
+        }
+    }
+
+    for (size_t i = 0;; ++i) {
+        auto chunkTarget =
+            makeTargetName(package, service, user, makeChunkSuffix(i), err);
+        if (err) return;
+
+        if (::CredDelete(chunkTarget.get(), kCredType, 0) == TRUE) {
+            deletedAny = true;
+            continue;
+        }
+        lastErr = ::GetLastError();
+        if (lastErr == ERROR_NOT_FOUND) break;
+        updateError(err);
+        return;
+    }
+
+    if (!deletedAny) {
+        // Preserve the original behavior of reporting NotFound when there was
+        // nothing to delete.
+        ::SetLastError(ERROR_NOT_FOUND);
         updateError(err);
     }
 }
