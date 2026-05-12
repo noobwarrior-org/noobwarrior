@@ -16,4 +16,3 @@ CMakeSettings.json
 AndroidApp/local.properties
 # node.js
 node_modules/
-build-clang/
