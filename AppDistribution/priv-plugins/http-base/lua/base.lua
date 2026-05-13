@@ -83,8 +83,10 @@ function http_base.AttachToServer(srv, params)
             end
         end
 
-        for key, value in req.Headers["Cookie"]:gmatch("([^%s=]+)=([^;]+)") do
-            cookies_tbl[key] = value
+        if req.Headers and req.Headers["Cookie"] then
+            for key, value in req.Headers["Cookie"]:gmatch("([^%s=]+)=([^;]+)") do
+                cookies_tbl[key] = value
+            end
         end
 
         if params.Sitemap[uri_without_params] then

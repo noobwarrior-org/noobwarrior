@@ -34,10 +34,14 @@ end
                 </div>
                 <div class="navbar-right">
                 <?lua
-                    AddNavbarButton("/control-panel", "Control Panel")
-                    AddNavbarButton("/messages", "Messages")
-                    AddNavbarButton("/settings", "Settings")
-                    AddNavbarButton("/users/86121841/profile", "Hattozo")
+                    if _COOKIE[".LOGINSESSION"] then
+                        AddNavbarButton("/control-panel", "Control Panel")
+                        AddNavbarButton("/messages", "Messages")
+                        AddNavbarButton("/settings", "Settings")
+                        AddNavbarButton("/users/86121841/profile", "Hattozo")
+                    else
+                        AddNavbarButton("/login", "Login")
+                    end
                 ?>
                 </div>
             </ul>

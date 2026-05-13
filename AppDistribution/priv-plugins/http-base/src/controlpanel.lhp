@@ -1,4 +1,9 @@
 <?lua
+if _COOKIE[".LOGINSESSION"] == nil then
+    include("login-required.lhp")
+    return
+end
+
 local button_names = {
     ["general"] = "General",
     ["items"] = "Items",

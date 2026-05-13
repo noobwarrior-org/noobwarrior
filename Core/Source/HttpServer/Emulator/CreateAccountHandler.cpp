@@ -24,8 +24,8 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/CreateAccountHandler.h>
 #include <NoobWarrior/Log.h>
-
-#include <sstream>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -38,5 +38,12 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
     for (auto& [k, v] : params) {
         Out("CreateAccountHandler", "{} {}", k, v);
     }
+    EmuDb* masterDb = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
+    Statement checkUserStmt = masterDb->PrepareStatement("SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE;");
+    if (checkUserStmt.Step() == SQLITE_ROW) {
+        evhttp_send_error(req, HTTP_FORBIDDEN, "Username already exists!");
+        return;
+    }
+    Statement createUserStmt = masterDb->PrepareStatement("INSERT INTO User (Id, Name, PasswordHash) VALUES (?, ?, ?);");
     evhttp_send_error(req, 500, "oops");
 }
