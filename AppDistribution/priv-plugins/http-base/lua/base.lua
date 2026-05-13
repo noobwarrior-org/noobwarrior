@@ -105,8 +105,7 @@ function http_base.AttachToServer(srv, params)
                     end,
                     ["setcookie"] = function(name, value, expires, path, domain, secure, httponly)
                         assert(name ~= nil, "Parameter #1 \"name\" cannot be nil")
-                        assert(value ~= nil, "Parameter #2 \"value\" cannot be nil")
-
+                        
                         expires = expires or 0
                         path = path or ""
                         domain = domain or ""
@@ -115,6 +114,12 @@ function http_base.AttachToServer(srv, params)
                         end
                         if httponly == nil then
                             httponly = false
+                        end
+
+                        -- deletes the cookie if value is empty
+                        if value == nil or string.match(value, "^%s*$") then
+                            value = "deleted"
+                            expires = 1
                         end
 
                         local cookieHeader = string.format("%s=%s; Max-Age=%d; Path=%s; Domain=%s", name, tostring(value), expires - os.time(), path, domain)
