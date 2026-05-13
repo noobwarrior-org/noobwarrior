@@ -199,8 +199,9 @@ static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
         res = EngineLaunchResponse::InjectCannotCreateThreadInProcess;
         goto cleanup;
     }
-    if (WaitForSingleObject(thread, 5000) != WAIT_OBJECT_0) {
-        printf("Thread wait failed or timed out \n");
+    if (WaitForSingleObject(thread, 30000) != WAIT_OBJECT_0) {
+        DWORD err = GetLastError();
+        printf("Thread wait failed or timed out: %lu (%s)\n", err, LastErrorStr(err).c_str());
         res = EngineLaunchResponse::InjectThreadTimedOut;
         goto cleanup;
     }

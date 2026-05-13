@@ -16,3 +16,5 @@ CMakeSettings.json
 AndroidApp/local.properties
 # node.js
 node_modules/
+build-msvc-x64/
+build-msvc-x86/

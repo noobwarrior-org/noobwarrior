@@ -31,7 +31,7 @@ set_target_properties(NoobWarrior.Hook PROPERTIES
     PREFIX ""
     OUTPUT_NAME "noobhook"
 )
-target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 minhook patterns version -static -static-libgcc -static-libstdc++)
+target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 winhttp minhook patterns version -static -static-libgcc -static-libstdc++)
 if (MSVC)
     target_link_libraries(NoobWarrior.Hook PRIVATE
         LIBCMT

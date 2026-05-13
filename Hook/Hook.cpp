@@ -244,6 +244,16 @@ static HINTERNET WINAPI MyWinHttpConnect(HINTERNET hSession, LPCWSTR pswzServerN
     return pOrigWinHttpConnect(hSession, pswzServerName, nServerPort, dwReserved);
 }
 
+static BOOL (WINAPI* pOrigWinHttpSendRequest)(HINTERNET, LPCWSTR, DWORD, LPVOID, DWORD, DWORD, DWORD_PTR);
+static BOOL WINAPI MyWinHttpSendRequest(HINTERNET hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength, LPVOID lpOptional, DWORD dwOptionalLength, DWORD dwTotalLength, DWORD_PTR dwContext) {
+    DWORD secFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA
+                   | SECURITY_FLAG_IGNORE_CERT_CN_INVALID
+                   | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+                   | SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+    WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &secFlags, sizeof(secFlags));
+    return pOrigWinHttpSendRequest(hRequest, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength, dwTotalLength, dwContext);
+}
+
 DWORD WINAPI Thread(LPVOID param) {
 
     gFile = freopen("noobhook.log", "w", stdout);
@@ -257,6 +267,7 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
     MH_CreateHookApi(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
     MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
+    MH_CreateHookApi(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
     MH_EnableHook(MH_ALL_HOOKS);
 
     Out("Main", "Patching...");
