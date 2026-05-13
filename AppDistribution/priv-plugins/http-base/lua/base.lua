@@ -58,6 +58,7 @@ function http_base.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}
         local post_tbl = {}
+        local cookies_tbl = {}
 
         local uri_query_pos = string.find(req.Uri, "?")
         local uri_without_params = uri_query_pos and string.sub(req.Uri, 1, uri_query_pos - 1) or req.Uri
@@ -82,6 +83,10 @@ function http_base.AttachToServer(srv, params)
             end
         end
 
+        for key, value in req.Headers["Cookie"]:gmatch("([^%s=]+)=([^;]+)") do
+            cookies_tbl[key] = value
+        end
+
         if params.Sitemap[uri_without_params] then
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
@@ -90,10 +95,37 @@ function http_base.AttachToServer(srv, params)
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
                     ["_FILES"] = {},
-                    ["_COOKIE"] = {},
+                    ["_COOKIE"] = cookies_tbl,
                     ["_SESSION"] = {},
                     ["_REQUEST"] = {},
-                    ["_ENV"] = {}
+                    ["_ENV"] = {},
+                    ["header"] = function(header, replace, response_code)
+                        local key, value = string.match(header, "([^:]+):%s*(.*)")
+                        req:AddHeader(key, value)
+                    end,
+                    ["setcookie"] = function(name, value, expires, path, domain, secure, httponly)
+                        assert(name ~= nil, "Parameter #1 \"name\" cannot be nil")
+                        assert(value ~= nil, "Parameter #2 \"value\" cannot be nil")
+
+                        expires = expires or 0
+                        path = path or ""
+                        domain = domain or ""
+                        if secure == nil then
+                            secure = false
+                        end
+                        if httponly == nil then
+                            httponly = false
+                        end
+
+                        local cookieHeader = string.format("%s=%s; Max-Age=%d; Path=%s; Domain=%s", name, tostring(value), expires - os.time(), path, domain)
+                        if secure then
+                            cookieHeader = cookieHeader .. "; Secure"
+                        end
+                        if httponly then
+                            cookieHeader = cookieHeader .. "; HttpOnly"
+                        end
+                        req:AddHeader("Set-Cookie", cookieHeader)
+                    end
                 })
                 req:SendReply(200, nil, output)
             end)

@@ -43,12 +43,20 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
 
+    evkeyvalq* headers = evhttp_request_get_input_headers(req);
+    
+
     Out("RootHandler", "{}:{} requested URI {}", peer_address, peer_port, uri);
 
     sol::table reqTbl = mServer->GetCore()->GetLuaState()->create_table();
     reqTbl["Uri"] = uri;
     reqTbl["PeerIp"] = peer_address;
     reqTbl["PeerPort"] = peer_port;
+    
+    sol::table headersTbl = mServer->GetCore()->GetLuaState()->create_table();
+    headersTbl["Cookie"] = evhttp_find_header(headers, "Cookie");
+    reqTbl["Headers"] = headersTbl;
+
     reqTbl["AddHeader"] = [req](sol::table self, std::string key, std::string val) {
         evhttp_add_header(evhttp_request_get_output_headers(req), key.c_str(), val.c_str());
     };
