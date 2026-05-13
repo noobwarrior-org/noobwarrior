@@ -49,6 +49,7 @@
 #include "migrations/v7.sql.inc.cpp"
 #include "migrations/v8.sql.inc.cpp"
 #include "migrations/v9.sql.inc.cpp"
+#include "migrations/v10.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -142,9 +143,9 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 		return false;
 	}
 
-	int prevRowId;
-	std::string prevVersion;
-	sqlite3_int64 prevTimestamp;
+	int prevRowId = 0;
+	int prevVer = 0;
+	sqlite3_int64 prevTimestamp = 0;
 
 	while (1) {
 		int step = stmt.Step();
@@ -170,14 +171,14 @@ bool EmuDb::VerifyIntegrityOfMigration() {
 				return false;
 			}
 
-			if (rowId > prevRowId && prevVersion > version) {
-				mMigrationFailMsg = std::format("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVersion);
+			if (rowId > prevRowId && prevVer > verToStr) {
+				mMigrationFailMsg = std::format("Failed to verify integrity of migration: the newer version {} has a lower number than previous version {}. Did the developer order the versions wrong?", version, prevVer);
 				Out(mMigrationFailMsg);
 				return false;
 			}
 
 			prevRowId = rowId;
-			prevVersion = version;
+			prevVer = verToStr;
 			prevTimestamp = timestamp;
 		} else {
 			if (step != SQLITE_DONE) {
@@ -264,6 +265,8 @@ bool EmuDb::MigrateToLatestVersion() {
     /* V9: added UniversePlace table because that didn't exist before for some reason.
      * Also removed Description column from Universe table */
     MIGRATE(v9)
+	/* V10: added Email and PasswordHash fields to User table */
+	MIGRATE(v10)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
