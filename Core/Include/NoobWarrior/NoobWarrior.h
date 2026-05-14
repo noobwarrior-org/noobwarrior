@@ -165,8 +165,6 @@ public:
     int GetAssetDetails(int64_t id, Roblox::AssetDetails *details);
 
     //////////////// Engine Related Functions ////////////////
-    nlohmann::json GetEngineManifest();
-
     std::vector<Engine> GetInstalledEngines();
     std::vector<Engine> GetAllEngines();
     std::filesystem::path GetEngineDirectory(const Engine &client);

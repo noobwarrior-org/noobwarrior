@@ -181,7 +181,8 @@ if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
 
     target_link_libraries(NoobWarrior.Core
         PRIVATE
-            crypt32)
+            crypt32
+            version)  # GetFileVersionInfo etc. for Engine PE inspection
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainMac.cpp)
 

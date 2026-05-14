@@ -42,6 +42,10 @@
 #include <tlhelp32.h>
 #endif
 
+#include <cstring>
+#include <optional>
+#include <unordered_map>
+
 #if defined(__unix__) || defined(__APPLE__)
 #include <spawn.h>
 #include <sys/wait.h>
@@ -50,69 +54,118 @@ extern char** environ;
 
 using namespace NoobWarrior;
 
-nlohmann::json Core::GetEngineManifest() {
-    nlohmann::json manifest;
-    try {
-        std::ifstream stream(GetUserDataDir() / NW_PATH_ENGINES / "engines.json");
-        std::string str;
-        std::string line;
-        while (std::getline(stream, line)) {
-            str += line + "\n";
+static EngineArchitecture ReadPeArchitecture(const std::filesystem::path &path) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.is_open()) return EngineArchitecture::x86;
+
+    uint8_t dosHeader[64];
+    f.read(reinterpret_cast<char*>(dosHeader), sizeof(dosHeader));
+    if (f.gcount() < (std::streamsize)sizeof(dosHeader)) return EngineArchitecture::x86;
+    if (dosHeader[0] != 'M' || dosHeader[1] != 'Z')      return EngineArchitecture::x86;
+
+    uint32_t peOffset = 0;
+    std::memcpy(&peOffset, dosHeader + 0x3C, sizeof(peOffset));
+
+    f.seekg(peOffset, std::ios::beg);
+    char sig[4];
+    f.read(sig, 4);
+    if (f.gcount() < 4)                          return EngineArchitecture::x86;
+    if (std::memcmp(sig, "PE\0\0", 4) != 0)      return EngineArchitecture::x86;
+
+    uint16_t machine = 0;
+    f.read(reinterpret_cast<char*>(&machine), sizeof(machine));
+    return machine == 0x8664 ? EngineArchitecture::x86_64 : EngineArchitecture::x86;
+}
+
+static std::string ReadPeProductVersion(const std::filesystem::path &path) {
+#if defined(_WIN32)
+    std::string pathStr = path.string();
+    DWORD handle = 0;
+    DWORD size = GetFileVersionInfoSizeA(pathStr.c_str(), &handle);
+    if (size == 0) return "";
+
+    std::vector<char> buffer(size);
+    if (!GetFileVersionInfoA(pathStr.c_str(), handle, size, buffer.data())) return "";
+    
+    const char* paths[] = {
+        "\\StringFileInfo\\040904E4\\ProductVersion",
+        "\\StringFileInfo\\000004B0\\ProductVersion",
+    };
+    for (const char* p : paths) {
+        void *value = nullptr;
+        UINT len = 0;
+        if (!VerQueryValueA(buffer.data(), p, &value, &len) || value == nullptr)
+            continue;
+        std::string raw(static_cast<const char*>(value), len);
+        while (!raw.empty() && raw.back() == '\0') raw.pop_back();
+
+        // "0, 463, 0, 417004" -> "0.463.0.417004"
+        std::string out;
+        out.reserve(raw.size());
+        for (char c : raw) {
+            if (c == ' ') continue;
+            out += (c == ',') ? '.' : c;
         }
-        stream.close();
-        manifest = nlohmann::json::parse(str);
-    } catch (nlohmann::json::exception &e) {
-        manifest = nlohmann::json::array();
+        return out;
     }
-    return manifest;
+    return "";
+#else
+    (void)path;
+    return "";
+#endif
+}
+
+static std::optional<Engine> InspectEngineDirectory(const std::filesystem::path &dir) {
+    static const std::unordered_map<std::string, EngineSide> exeToSide = {
+        {"RobloxPlayerBeta.exe", EngineSide::Client},
+        {"RCCService.exe",       EngineSide::Server},
+        {"RobloxStudioBeta.exe", EngineSide::Studio},
+    };
+
+    std::filesystem::path exe;
+    EngineSide side {};
+    for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+        auto it = exeToSide.find(entry.path().filename().string());
+        if (it != exeToSide.end()) {
+            exe = entry.path();
+            side = it->second;
+            break;
+        }
+    }
+    if (exe.empty()) return std::nullopt;
+
+    Engine engine {};
+    engine.Source       = EngineSource::Local;
+    engine.Os           = EngineOs::Windows;
+    engine.Type         = EngineType::Roblox;
+    engine.Side         = side;
+    engine.Hash         = dir.filename().string();
+    engine.FilePath     = exe;
+    engine.Architecture = ReadPeArchitecture(exe);
+    engine.Version      = ReadPeProductVersion(exe);
+    return engine;
 }
 
 std::vector<Engine> Core::GetInstalledEngines() {
     std::vector<Engine> engines;
-    if (!std::filesystem::exists(GetUserDataDir() / NW_PATH_ENGINES))
+    std::filesystem::path enginesDir = GetUserDataDir() / NW_PATH_ENGINES;
+    if (!std::filesystem::exists(enginesDir))
         return engines;
 
-    nlohmann::json manifest = GetEngineManifest();
-    for (auto &item : manifest.items()) {
-        Engine engine {};
-        auto engineJson = item.value();
-        if (engineJson.contains("Os") && engineJson["Os"].is_string()) {
-            std::string osStr = engineJson["Os"].get<std::string>();
-            if (osStr.compare("Windows") == 0)
-                engine.Os = EngineOs::Windows;
-            else if (osStr.compare("Mac") == 0)
-                engine.Os = EngineOs::Mac;
-            else if (osStr.compare("Linux") == 0)
-                engine.Os = EngineOs::Linux;
-            else if (osStr.compare("Android") == 0)
-                engine.Os = EngineOs::Android;
-            else if (osStr.compare("Ios") == 0)
-                engine.Os = EngineOs::Ios;
+    for (const auto &entry : std::filesystem::directory_iterator(enginesDir)) {
+        if (!entry.is_directory()) continue;
+        if (auto engine = InspectEngineDirectory(entry.path())) {
+            Out("Engine", "Detected engine in \"{}\": side={} arch={} version=\"{}\"",
+                entry.path().filename().string(),
+                EngineSideAsString(engine->Side),
+                engine->Architecture == EngineArchitecture::x86_64 ? "x86_64" : "x86",
+                engine->Version);
+            engines.push_back(*engine);
+        } else {
+            Out("Engine", "Skipping \"{}\" — no recognised Roblox executable found inside",
+                entry.path().filename().string());
         }
-
-        if (engineJson.contains("Arch") && engineJson["Arch"].is_string()) {
-            std::string archStr = engineJson["Arch"].get<std::string>();
-            if (archStr.compare("x86") == 0)
-                engine.Architecture = EngineArchitecture::x86;
-            else if (archStr.compare("x86_64") == 0)
-                engine.Architecture = EngineArchitecture::x86_64;
-        }
-
-        if (engineJson.contains("Type") && engineJson["Type"].is_string()) {
-            std::string typeStr = engineJson["Type"].get<std::string>();
-            if (typeStr.compare("Roblox") == 0)
-                engine.Type = EngineType::Roblox;
-        }
-
-        if (engineJson.contains("Version"))
-            engine.Version = engineJson["Version"].get<std::string>();
-
-        if (engineJson.contains("Hash"))
-            engine.Hash = engineJson["Hash"].get<std::string>();
-
-        engines.push_back(engine);
     }
-
     return engines;
 }
 
@@ -120,30 +173,38 @@ std::vector<Engine> Core::GetAllEngines() {
     return {};
 }
 
-std::filesystem::path Core::GetEngineDirectory(const Engine &engine) {
-    for (auto &item : GetEngineManifest().items()) {
-        auto engineJson = item.value();
-        Out("IsEngineInManifest", "{}", engineJson.dump());
+static std::optional<Engine> PickBestMatch(const std::vector<Engine> &installed, const Engine &want) {
+    const Engine *exactMatch = nullptr;
+    const Engine *sideOnlyFallback = nullptr;
 
-        if (EngineSideAsString(engine.Side).compare(engineJson["Side"]) != 0)
+    for (const auto &candidate : installed) {
+        if (!want.Hash.empty() && candidate.Hash != want.Hash)
+            continue;
+        if (candidate.Side != want.Side)
             continue;
 
-        // if you give it a hash it knows where to look
-        if (engineJson.contains("Hash") && engineJson["Hash"].is_string()) {
-            if (engine.Hash.compare(engineJson["Hash"].get<std::string>()) == 0) {
-                return GetUserDataDir() / NW_PATH_ENGINES / engine.Hash;
-            }
+        if (!want.Version.empty() && !candidate.Version.empty()
+                && candidate.Version == want.Version) {
+            exactMatch = &candidate;
+            break;
         }
-
-        // if you give it a version but not a hash, it will try finding that
-        if (engineJson.contains("Version") && engineJson["Version"].is_string()) {
-            if (engine.Version.compare(engineJson["Version"].get<std::string>()) == 0
-                && engineJson.contains("Hash")
-                && engineJson["Hash"].is_string()) {
-                return GetUserDataDir() / NW_PATH_ENGINES / engineJson["Hash"].get<std::string>();
-            }
-        }
+        if (sideOnlyFallback == nullptr)
+            sideOnlyFallback = &candidate;
     }
+
+    if (exactMatch) return *exactMatch;
+    if (sideOnlyFallback) return *sideOnlyFallback;
+    return std::nullopt;
+}
+
+std::filesystem::path Core::GetEngineDirectory(const Engine &engine) {
+    if (!engine.Hash.empty()) {
+        std::filesystem::path candidate = GetUserDataDir() / NW_PATH_ENGINES / engine.Hash;
+        if (std::filesystem::exists(candidate))
+            return candidate;
+    }
+    if (auto picked = PickBestMatch(GetInstalledEngines(), engine))
+        return GetUserDataDir() / NW_PATH_ENGINES / picked->Hash;
     return {};
 }
 
@@ -152,19 +213,14 @@ void Core::DiscoverEngines() {
 }
 
 bool Core::IsEngineInManifest(const Engine &engine) {
-    for (auto &item : GetEngineManifest().items()) {
-        auto engineJson = item.value();
-        if (engineJson.contains("Version") && engineJson["Version"].is_string()) {
-            if (engine.Version.compare(engineJson["Version"].get<std::string>()) == 0)
-                return true;
-        }
-
-        if (engineJson.contains("Hash") && engineJson["Hash"].is_string()) {
-            if (engine.Hash.compare(engineJson["Hash"].get<std::string>()) == 0)
-                return true;
-        }
+    auto installed = GetInstalledEngines();
+    bool ok = PickBestMatch(installed, engine).has_value();
+    if (!ok) {
+        Out("Engine", "No installed engine matches side={} version=\"{}\" hash=\"{}\" "
+                     "(scanned {} engine directories)",
+            EngineSideAsString(engine.Side), engine.Version, engine.Hash, installed.size());
     }
-    return false;
+    return ok;
 }
 
 void Core::DownloadAndInstallEngine(const Engine &engine, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback) {
@@ -221,9 +277,6 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     }
     Out("Inject", "Launching process \"{}\"", argsStr);
 #if defined(_WIN32)
-    // Fire and forget: the injector exits as soon as it's done injecting, and the actual
-    // Roblox process reports its own lifecycle via /v1/process-ping. Blocking here used to
-    // freeze the caller for the full injection round-trip for no good reason.
     PROCESS_INFORMATION pi {};
     STARTUPINFOA si = {};
     si.cb = sizeof(si);
