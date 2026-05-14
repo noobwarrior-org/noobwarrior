@@ -173,7 +173,7 @@ public:
     void DiscoverEngines();
 
     bool IsEngineInManifest(const Engine &client);
-    void DownloadAndInstallEngine(const Engine &client, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback);
+    void DownloadAndInstallEngine(const Engine &client, std::function<void()> callback);
     EngineLaunchResponse LaunchEngine(EngineStartParameters params);
 
     /* This is a two-part flow.

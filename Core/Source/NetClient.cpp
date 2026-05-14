@@ -21,153 +21,108 @@
 // File: NetClient.cpp
 // Started by: Hattozo
 // Started on: 3/15/2025
-// Description: A thin layer over libcurl that makes it less annoying to use
+// Description: Thin wrapper over libcurl. Fetch one URL or many in parallel.
 #include <NoobWarrior/NetClient.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstring>
+#include <thread>
 
 using namespace NoobWarrior;
 
-size_t NetClient::WriteToBuf(void* contents, size_t size, size_t nmemb, void* userp) {
+static size_t WriteToBuf(void *contents, size_t size, size_t nmemb, void *userp) {
     const size_t total = size * nmemb;
-    auto* buf = static_cast<std::vector<unsigned char>*>(userp);
-    const auto* begin = static_cast<unsigned char*>(contents);
-    buf->insert(buf->end(), begin, begin + total);
+    auto *buf = static_cast<std::vector<unsigned char>*>(userp);
+    const auto *bytes = static_cast<const unsigned char*>(contents);
+    buf->insert(buf->end(), bytes, bytes + total);
     return total;
 }
 
-size_t NetClient::WriteToDisk(void* contents, size_t size, size_t nmemb, void* userp) {
-    const size_t total = size * nmemb;
-    static_cast<std::ofstream*>(userp)->write(static_cast<char*>(contents), static_cast<std::streamsize>(total));
-    return total;
-}
+struct PreparedHandle {
+    CURL *Handle = nullptr;
+    curl_slist *HeaderList = nullptr;
+    HttpResponse Response;
 
-int NetClient::OnProgress(void* userp,
-                          curl_off_t dlTotal, curl_off_t dlNow,
-                          curl_off_t ulTotal, curl_off_t ulNow) {
-    auto* self = static_cast<NetClient*>(userp);
-    const DownloadProgress prog { dlTotal, dlNow, ulTotal, ulNow };
-    for (auto& cb : self->mProgressCallbacks)
-        cb(prog);
-    return 0; // Non-zero aborts the transfer.
-}
-
-NetClient::NetClient(Account *account) : NetClient() {
-    mAccount = account;
-
-    if (mAccount) {
-        const std::string cookie = std::format(".ROBLOSECURITY={};", mAccount->Token);
-        curl_easy_setopt(mHandle, CURLOPT_COOKIE,    cookie.c_str());
-        curl_easy_setopt(mHandle, CURLOPT_USERAGENT, "Roblox/WinINet");
+    ~PreparedHandle() {
+        if (HeaderList) curl_slist_free_all(HeaderList);
+        if (Handle)     curl_easy_cleanup(Handle);
     }
+    PreparedHandle() = default;
+    PreparedHandle(PreparedHandle&&) = delete;
+    PreparedHandle& operator=(PreparedHandle&&) = delete;
+    PreparedHandle(const PreparedHandle&) = delete;
+    PreparedHandle& operator=(const PreparedHandle&) = delete;
+};
+
+static bool ConfigureHandle(PreparedHandle &slot, const HttpRequest &req) {
+    slot.Handle = curl_easy_init();
+    if (!slot.Handle) return false;
+
+    curl_easy_setopt(slot.Handle, CURLOPT_URL, req.Url.c_str());
+    curl_easy_setopt(slot.Handle, CURLOPT_FOLLOWLOCATION, req.FollowRedirects ? 1L : 0L);
+    curl_easy_setopt(slot.Handle, CURLOPT_TIMEOUT, req.TimeoutSeconds);
+
+    curl_easy_setopt(slot.Handle, CURLOPT_WRITEFUNCTION, WriteToBuf);
+    curl_easy_setopt(slot.Handle, CURLOPT_WRITEDATA, &slot.Response.Body);
+
+    curl_easy_setopt(slot.Handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+
+    if (!req.Cookie.empty())
+        curl_easy_setopt(slot.Handle, CURLOPT_COOKIE, req.Cookie.c_str());
+    if (!req.UserAgent.empty())
+        curl_easy_setopt(slot.Handle, CURLOPT_USERAGENT, req.UserAgent.c_str());
+
+    for (const auto &[name, value] : req.Headers) {
+        std::string line = name + ": " + value;
+        slot.HeaderList = curl_slist_append(slot.HeaderList, line.c_str());
+    }
+    if (slot.HeaderList)
+        curl_easy_setopt(slot.Handle, CURLOPT_HTTPHEADER, slot.HeaderList);
+
+    return true;
 }
 
-NetClient::NetClient() : mFailReason(FailReason::Unknown), mHeaderList(nullptr) {
-    mHandle = curl_easy_init();
-    if (mHandle == nullptr) {
-        mFailReason = FailReason::CurlInitFailed;
-        return;
+NetClient::NetClient() = default;
+NetClient::~NetClient() = default;
+
+HttpResponse NetClient::Fetch(const HttpRequest &request) {
+    PreparedHandle slot;
+    if (!ConfigureHandle(slot, request)) {
+        slot.Response.Code = CURLE_FAILED_INIT;
+        return std::move(slot.Response);
     }
 
-    curl_easy_setopt(mHandle, CURLOPT_WRITEFUNCTION, WriteToBuf);
-    curl_easy_setopt(mHandle, CURLOPT_WRITEDATA, &mData);
+    slot.Response.Code = curl_easy_perform(slot.Handle);
+    if (slot.Response.Code == CURLE_OK)
+        curl_easy_getinfo(slot.Handle, CURLINFO_RESPONSE_CODE, &slot.Response.HttpStatus);
 
-    curl_easy_setopt(mHandle, CURLOPT_XFERINFOFUNCTION, OnProgress);
-    curl_easy_setopt(mHandle, CURLOPT_XFERINFODATA,     this);
-    curl_easy_setopt(mHandle, CURLOPT_NOPROGRESS,       0L);
-
-    curl_easy_setopt(mHandle, CURLOPT_FOLLOWLOCATION, 1L);
-    
-    mFailReason = FailReason::None;
+    return std::move(slot.Response);
 }
 
-NetClient::~NetClient() {
-    if (mHeaderList != nullptr)
-        curl_slist_free_all(mHeaderList);
-    curl_easy_cleanup(mHandle);
-}
+std::vector<HttpResponse> NetClient::FetchMany(const std::vector<HttpRequest> &requests) {
+    std::vector<HttpResponse> results(requests.size());
+    if (requests.empty()) return results;
 
-bool NetClient::Fail() {
-    return mFailReason != FailReason::None;
-}
+    const size_t kMaxConcurrency = 8;
+    size_t hw = std::thread::hardware_concurrency();
+    if (hw == 0) hw = 4;
+    size_t workers = std::min({requests.size(), kMaxConcurrency, hw});
 
-void NetClient::AddToQueueAsync(const Url &url) {
-    mPendingDownloads.push_back(url);
-}
+    std::atomic<size_t> nextIndex {0};
+    std::vector<std::thread> threads;
+    threads.reserve(workers);
 
-void NetClient::StartDownloadAsync(const DownloadOptions &options) {
-    for (auto &url : mPendingDownloads) {
-        auto sharedData = std::make_shared<std::vector<unsigned char>>();
-        auto sharedCallbacks = std::make_shared<std::vector<std::function<void(const std::vector<unsigned char>&)>>>(mMemoryCallbacks);
-
-        std::thread thread([sharedData, sharedCallbacks, options, url, this]() -> void {
-            Transfer transfer;
-            CURL* handle = curl_easy_init();
-
-            curl_easy_setopt(handle, CURLOPT_URL, url.Resolve().c_str());
-            curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-
-            if (options.OutputFormat == DownloadOutputFormat::Memory) {
-                curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, WriteToBuf);
-                curl_easy_setopt(handle, CURLOPT_WRITEDATA, sharedData.get());
-            }
-
-            CURLcode res = curl_easy_perform(handle);
-            curl_easy_cleanup(handle);
-
-            if (options.OutputFormat == DownloadOutputFormat::Memory) {
-                for (auto& callback : *sharedCallbacks) {
-                    callback(*sharedData);
-                }
+    for (size_t w = 0; w < workers; w++) {
+        threads.emplace_back([&]() {
+            for (;;) {
+                size_t i = nextIndex.fetch_add(1, std::memory_order_relaxed);
+                if (i >= requests.size()) return;
+                results[i] = Fetch(requests[i]);
             }
         });
-        thread.detach();
     }
-}
 
-CURLcode NetClient::RequestSync(const std::string &url) {
-    mData.clear();
-    curl_easy_setopt(mHandle, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(mHandle, CURLOPT_WRITEFUNCTION, WriteToBuf);
-    curl_easy_setopt(mHandle, CURLOPT_WRITEDATA, &mData);
-    CURLcode code = curl_easy_perform(mHandle);
-    for (auto& callback : mMemoryCallbacks) {
-        callback(mData);
-    }
-    return code;
-}
-
-long NetClient::GetHttpCodeSync() const {
-    long http_code = 0;
-    curl_easy_getinfo(mHandle, CURLINFO_RESPONSE_CODE, &http_code);
-    return http_code;
-}
-
-void NetClient::SetTimeoutSync(long timeout) {
-    curl_easy_setopt(mHandle, CURLOPT_TIMEOUT, timeout);
-}
-
-void NetClient::OnDownloadProgress(std::function<void(const DownloadProgress&)> callback) {
-    mProgressCallbacks.push_back(std::move(callback));
-}
-
-void NetClient::OnWriteToMemoryFinished(std::function<void(const std::vector<unsigned char>&)> callback) {
-    mMemoryCallbacks.push_back(std::move(callback));
-}
-
-void NetClient::OnFileDownloaded(std::function<void(const std::filesystem::path&)> callback) {
-    mFileCallbacks.push_back(std::move(callback));
-}
-
-void NetClient::SetHeader(const std::string &name, const std::string &value) {
-    curl_slist_free_all(mHeaderList);
-
-    mHeaderList = curl_slist_append(mHeaderList, std::string(name + ": " + value).c_str());
-    curl_easy_setopt(mHandle, CURLOPT_HTTPHEADER, mHeaderList);
-}
-
-void NetClient::SetUserAgent(const std::string &userAgent) {
-    curl_easy_setopt(mHandle, CURLOPT_USERAGENT, userAgent.c_str());
-}
-
-std::vector<unsigned char> NetClient::GetData() {
-    return mData;
+    for (auto &t : threads) t.join();
+    return results;
 }

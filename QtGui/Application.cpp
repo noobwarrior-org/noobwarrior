@@ -242,54 +242,16 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(false);
 
-    auto transfers = std::make_shared<std::vector<std::shared_ptr<Transfer>>>();;
-
-    connect(dialog, &QWidget::destroyed, [transfers]() {
-        for (auto &t : *transfers) {
-            if (t && t->Canceled) t->Canceled->store(true);
-        }
+    connect(dialog, &QWidget::destroyed, []() {
     });
 
     dialog->show();
 
     QPointer<LoadingDialog> dialogPtr(dialog);
 
-    auto install_callback = std::make_shared<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>>(
-        [=](EngineInstallState state, CURLcode code, size_t size, size_t totalSize) -> void {
-            double sizeMb = static_cast<double>(size) / (1024 * 1024);
-            double totalSizeMb = static_cast<double>(totalSize) / (1024 * 1024);
-
-            // This callback is actually running on another thread, so lets use this QTimer thing to make it run on the main thread.
-            QTimer::singleShot(0, dialogPtr.data(), [=]() {
-                if (!dialogPtr) return;
-
-                switch (state) {
-                default: break;
-                case EngineInstallState::RetrievingIndex:
-                    dialogPtr->SetText("Retrieving index...");
-                    dialogPtr->SetProgress(-1);
-                    break;
-                case EngineInstallState::DownloadingFiles:
-                    dialogPtr->SetText(QString("Downloading Roblox %1 %2 (%3 MB/%4 MB)").arg(QString::fromUtf8(EngineSideAsString(client.Side)), QString::fromStdString(client.Version), QString::number(sizeMb, 'f', 1), QString::number(totalSizeMb, 'f', 1)));
-                    if (totalSizeMb > 0) // pls dont ever divide by 0
-                        dialogPtr->SetProgress(sizeMb / totalSizeMb);
-                    break;
-                case EngineInstallState::ExtractingFiles:
-                    dialogPtr->SetText("Extracting files...");
-                    dialogPtr->SetProgress(-1);
-                    break;
-                }
-
-                if (state == EngineInstallState::Failed || state == EngineInstallState::Success) {
-                    if (state == EngineInstallState::Failed) QMessageBox::critical(nullptr, "Failed To Download Client", "An error has occurred!");
-                    dialogPtr->close();
-                    callback(state == EngineInstallState::Success);
-                }
-            });
-        }
-    );
-
-    mCore->DownloadAndInstallEngine(client, transfers, install_callback);
+    mCore->DownloadAndInstallEngine(client, []() {
+        
+    });
 }
 
 void Application::LaunchEngine(EngineStartParameters params) {

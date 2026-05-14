@@ -24,6 +24,7 @@
 // Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
 #include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <unordered_map>
@@ -215,8 +216,31 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     std::vector<unsigned char> data;
     std::string hash;
-    std::string contentDispositionVal;
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
+    
+    if (res == SqlDb::Response::NotFound || res == SqlDb::Response::MissingBlob || (res == SqlDb::Response::Success && data.empty())) {
+        std::string rbxUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
+        if (ver > 0) rbxUrl += "&version=" + std::to_string(ver);
+
+        HttpRequest rbxReq;
+        rbxReq.Url = rbxUrl;
+        rbxReq.UserAgent = "Roblox/WinINet";
+        if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
+            rbxReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+
+        NetClient netClient;
+        HttpResponse rbxRes = netClient.Fetch(rbxReq);
+        if (rbxRes.Code == CURLE_OK && rbxRes.HttpStatus == 200 && !rbxRes.Body.empty()) {
+            Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", id, ver, rbxRes.Body.size());
+            data = std::move(rbxRes.Body);
+            res = SqlDb::Response::Success;
+        } else {
+            Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", id, ver,
+                (int)rbxRes.Code, rbxRes.HttpStatus);
+        }
+    }
+
+    std::string contentDispositionVal;
     evbuffer* buf = evbuffer_new();
     switch (res) {
     case SqlDb::Response::Success:

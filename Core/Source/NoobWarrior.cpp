@@ -31,6 +31,7 @@
 #include <NoobWarrior/Paths.h>
 
 #include <event.h>
+#include <event2/thread.h>
 #include <sqlite3.h>
 
 #include <openssl/ssl.h>
@@ -50,6 +51,7 @@ extern char** environ;
 
 #include <utility>
 #include <istream>
+#include <thread>
 
 using namespace NoobWarrior;
 
@@ -89,6 +91,12 @@ Core::Core(Init init) :
 
     if (mInit.AutocreateStandardUserDataDirectories)
         CreateStandardUserDataDirectories();
+    
+#if defined(_WIN32)
+    evthread_use_windows_threads();
+#elif defined(__unix__) || defined(__APPLE__)
+    evthread_use_pthreads();
+#endif
 
     mEventBase = event_base_new();
 
@@ -292,17 +300,17 @@ static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *use
 void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback) {
     std::thread([=]() {
         NetClient client;
-        client.SetTimeoutSync(10L);
+        HttpRequest req;
+        req.Url = "http://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
+        req.TimeoutSeconds = 10;
+        HttpResponse response = client.Fetch(req);
 
-        std::string url = "http://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
-        CURLcode res = client.RequestSync(url);
-
-        if (res != CURLE_OK) {
+        if (response.Code != CURLE_OK) {
             callback(ServerEmulatorConnectFailReason::TimedOut, {});
             return;
         }
 
-        if (client.GetHttpCodeSync() == 404) {
+        if (response.HttpStatus == 404) {
             callback(ServerEmulatorConnectFailReason::EndpointNotFound, {});
             return;
         }
@@ -310,7 +318,7 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
         std::vector<EngineStartParameters> paramsList;
         nlohmann::json json;
         try {
-            json = nlohmann::json::parse(client.GetData()); // however you expose mData
+            json = nlohmann::json::parse(response.Body);
         } catch (nlohmann::json::exception &e) {
             callback(ServerEmulatorConnectFailReason::JsonFailed, {});
             return;

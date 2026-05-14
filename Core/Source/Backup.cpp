@@ -300,12 +300,13 @@ Backup::Response Backup::StartProcess(Process* proc) {
     if (!asset_download_url.has_value())
         return Backup::Response::UrlNotSet;
 
-    NetClient client(proc->Core->GetRbxKeychain()->GetActiveAccount());
-    if (client.Fail())
-        return Backup::Response::Failed;
-    client.OnWriteToMemoryFinished([](const std::vector<unsigned char> &data) {
-        
-    });
-    client.RequestSync(asset_download_url.value());
+    HttpRequest req;
+    req.Url = asset_download_url.value();
+    if (auto *acc = proc->Core->GetRbxKeychain()->GetActiveAccount()) {
+        req.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+        req.UserAgent = "Roblox/WinINet";
+    }
+    NetClient client;
+    client.Fetch(req);
     return Backup::Response::Ok;
 }

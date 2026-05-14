@@ -51,10 +51,7 @@ void OnlineSidebar::InitWidgets() {
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
             NetClient client;
-            client.RequestSync(server["url"].get<std::string>() + "/autodiscover");
-            client.OnWriteToMemoryFinished([](const std::vector<unsigned char> &data) -> void {
-
-            });
+            client.Fetch({.Url = server["url"].get<std::string>() + "/autodiscover"});
             std::string name = server.contains("name") ? server["name"].get<std::string>() : "Loading...";
             QStandardItem *serverRow = new QStandardItem(QIcon(":/images/silk/server.png"), QString::fromStdString(name));
 

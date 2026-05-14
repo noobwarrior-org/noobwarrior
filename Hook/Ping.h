@@ -43,24 +43,10 @@ struct ProcessInfo {
     int64_t PlaceId {0};   // 0 = absent
 };
 
-/* Detects side from the current process executable name. */
 ProcessSide DetectSide();
-
-/* Best-effort scan of gameserver.json next to the running exe for server-side params.
- * Sets info.Port / info.PlaceId on success. No-op if file missing or malformed. */
 void ReadGameServerJson(ProcessInfo *info);
-
-/* Build a complete ProcessInfo for the current process (PID, side, version, server params if any). */
 ProcessInfo CollectProcessInfo();
-
-/* POSTs a JSON Hello to http://127.0.0.1:8080/v1/process-ping. Returns true on send. */
 bool SendHello(const ProcessInfo &info);
-
-/* POSTs a JSON Goodbye. Designed to be safe to call from DllMain DLL_PROCESS_DETACH. */
 bool SendGoodbye(int pid);
-
-/* POSTs a JSON Heartbeat carrying the full ProcessInfo. Used by the lifecycle watchdog so
- * the emulator can reap instances whose process died without sending Goodbye. Carrying the
- * full info means the emulator can re-register us from scratch if it was restarted. */
 bool SendHeartbeat(const ProcessInfo &info);
 }

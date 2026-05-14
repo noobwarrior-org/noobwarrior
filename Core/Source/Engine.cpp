@@ -86,7 +86,7 @@ static std::string ReadPeProductVersion(const std::filesystem::path &path) {
 
     std::vector<char> buffer(size);
     if (!GetFileVersionInfoA(pathStr.c_str(), handle, size, buffer.data())) return "";
-    
+
     const char* paths[] = {
         "\\StringFileInfo\\040904E4\\ProductVersion",
         "\\StringFileInfo\\000004B0\\ProductVersion",
@@ -223,14 +223,13 @@ bool Core::IsEngineInManifest(const Engine &engine) {
     return ok;
 }
 
-void Core::DownloadAndInstallEngine(const Engine &engine, std::shared_ptr<std::vector<std::shared_ptr<Transfer>>> &transfers, std::shared_ptr<std::function<void(EngineInstallState, CURLcode, size_t, size_t)>> callback) {
+void Core::DownloadAndInstallEngine(const Engine &engine, std::function<void()> callback) {
     nlohmann::json index;
 
     bool foundEngine = false;
 
     if (!foundEngine) {
         Out("Download", "Failed to find a client");
-        (*callback)(EngineInstallState::Failed, CURLE_OK, 0, 0);
     }
 }
 
