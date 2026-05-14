@@ -34,36 +34,31 @@ namespace Backup {
 enum class Response {
     Failed,
     Ok, // Not a success yet, we are just getting started.
+    Cancelled,
     UrlNotSet,
     AccountRequired,
-    UnsupportedItemType
+    DestinationInvalid,
+    UnsupportedItemType,
+    HttpFailed,
+    NotFound,
+    Unauthorized
 };
 
 enum class State {
     Failed,
     Success,
-    Finalizing,
+    Started,
+    ScrapingMetadata,
+    DiscoveringChildren,
     DownloadingFile,
     ParsingFile,
-    CompressingFile,
-    ScrapingMetadata,
     AddingToDatabase,
+    Finalizing,
 };
 
 enum class ItemSource {
     OnlineItem,
     LocalFile
-};
-
-enum class OnlineItemType {
-    Asset,
-    Badge,
-    Bundle,
-    DevProduct,
-    Group,
-    Pass,
-    Universe,
-    User
 };
 
 // A node representation of an item on the Roblox platform.
@@ -72,7 +67,7 @@ public:
     ItemDescriptor();
     ~ItemDescriptor();
 
-    OnlineItemType Type;
+    ItemType Type;
     int64_t Id;
     int Version;
 
@@ -103,7 +98,7 @@ struct ProcessOptions {
     std::string ProviderUrl { "https://www.roblox.com" };
     
     ItemSource TargetType;
-    OnlineItemType TargetItemType;
+    ItemType TargetItemType;
     int64_t TargetId;
 
     DestinationType DestinationType;
@@ -119,19 +114,21 @@ struct ProcessOptions {
     std::function<void(State, std::string, size_t, size_t)> Callback;
 };
 
-struct Process {
-    Core*           Core { nullptr };
-    ItemDescriptor* Root { nullptr };
-    ProcessOptions* Options { nullptr };
+class Process {
+public:
+    Process(Core* core, const ProcessOptions options);
+    ~Process();
 
-    DestinationType DestinationType;
-    Destination Destination;
+    Response Start();
+private:
+    Core*           mCore { nullptr };
+    ItemDescriptor* mRoot { nullptr };
+    ProcessOptions mOptions {};
+
+    DestinationType mDestinationType;
+    Destination mDestination;
 
     double Progress;
 };
-
-Process* AllocateProcess(NoobWarrior::Core* core, ProcessOptions);
-void DestroyProcess(Process* proc);
-Response StartProcess(Process* proc);
 }
 }

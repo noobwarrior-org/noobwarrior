@@ -19,5 +19,6 @@ node_modules/
 build-msvc-x64/
 build-msvc-x86/
 # Is it over bros? They're taking my job.
+# Edit: We're not using it anymore
 .claude/
 CLAUDE.md

@@ -32,7 +32,7 @@ using namespace NoobWarrior::Backup;
 BackupDialog::BackupDialog(QWidget *parent) : QDialog(parent),
     mChoseItemSource(false),
     mSource(ItemSource::OnlineItem),
-    mItemType(OnlineItemType::Universe),
+    mItemType(ItemType::Universe),
     mFrameLayout(nullptr)
 {
     setWindowTitle(tr("Backup from Roblox"));
@@ -69,14 +69,14 @@ void BackupDialog::InitWidgets() {
     mItemTypeCaption = new QLabel("Select which type of item you'd like to back up.\nIt is important to understand that a Place and a Universe are not the same thing.\nUniverses are the entire game, while places are just individual levels.\nIt is also important to know that an Asset can be one of many types, like audios or decals.");
 
     mItemTypeDropdown = new QComboBox();
-    mItemTypeDropdown->addItem("Universe (Game)", static_cast<int>(OnlineItemType::Universe));
-    mItemTypeDropdown->addItem("Model/Place/Asset", static_cast<int>(OnlineItemType::Asset));
-    mItemTypeDropdown->addItem("User", static_cast<int>(OnlineItemType::User));
-    mItemTypeDropdown->addItem("Group", static_cast<int>(OnlineItemType::Group));
-    mItemTypeDropdown->addItem("Bundle", static_cast<int>(OnlineItemType::Bundle));
+    mItemTypeDropdown->addItem("Universe (Game)", static_cast<int>(ItemType::Universe));
+    mItemTypeDropdown->addItem("Model/Place/Asset", static_cast<int>(ItemType::Asset));
+    mItemTypeDropdown->addItem("User", static_cast<int>(ItemType::User));
+    mItemTypeDropdown->addItem("Group", static_cast<int>(ItemType::Group));
+    mItemTypeDropdown->addItem("Bundle", static_cast<int>(ItemType::Bundle));
 
     connect(mItemTypeDropdown, &QComboBox::currentIndexChanged, [this](int index) {
-        mItemType = static_cast<OnlineItemType>(mItemTypeDropdown->itemData(index).toInt());
+        mItemType = static_cast<ItemType>(mItemTypeDropdown->itemData(index).toInt());
         UpdateWidgets();
     });
 
@@ -126,11 +126,11 @@ void BackupDialog::UpdateWidgets() {
     mFrame->setVisible(mChoseItemSource || mSource == ItemSource::LocalFile);
 
     if (mSource == ItemSource::OnlineItem) {
-        if (mItemType == OnlineItemType::Universe) {
+        if (mItemType == ItemType::Universe) {
             
-        } else if (mItemType == OnlineItemType::Asset) {
+        } else if (mItemType == ItemType::Asset) {
 
-        } else if (mItemType == OnlineItemType::User) {
+        } else if (mItemType == ItemType::User) {
 
         }
     } else if (mSource == ItemSource::LocalFile) {

@@ -23,6 +23,7 @@
 // Started on: 9/2/2025
 // Description:
 #include <NoobWarrior/Backup.h>
+#include <NoobWarrior/EmuDb/ItemType.h>
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -52,7 +53,7 @@ private:
     bool mChoseItemSource;
 
     Backup::ItemSource mSource;
-    Backup::OnlineItemType mItemType;
+    ItemType mItemType;
 
     QVBoxLayout* mMainLayout;
     QVBoxLayout* mFrameLayout;

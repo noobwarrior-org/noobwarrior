@@ -34,12 +34,11 @@ ItemDescriptorModel::ItemDescriptorModel(ItemDescriptor* desc) :
 ItemDescriptorModel::ItemDescriptorModel() :
     mIsUsingAlreadyAllocatedDesc(false)
 {
-    mDescriptor = ItemDescriptor_New();
+    
 }
 
 ItemDescriptorModel::~ItemDescriptorModel() {
-    if (!mIsUsingAlreadyAllocatedDesc)
-        ItemDescriptor_Destroy(mDescriptor);
+
 }
 
 QModelIndex ItemDescriptorModel::index(int row, int column, const QModelIndex &parent) const {

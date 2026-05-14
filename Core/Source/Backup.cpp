@@ -223,8 +223,8 @@ cleanup:
     return ret;
 }
 
-static void PopulateItemDescriptors() {
-    
+static void Walk(Backup::ItemDescriptor descriptor) {
+
 }
 
 Backup::ItemDescriptor::ItemDescriptor() {
@@ -269,39 +269,29 @@ void Backup::ItemDescriptor::RemoveChild(ItemDescriptor *child) {
     }
 }
 
-Backup::Process* Backup::AllocateProcess(Core* core, ProcessOptions options) {
-    auto optsMem = new ProcessOptions(options);
-    auto proc = new Process();
-    proc->Core = core;
-    proc->Options = optsMem;
+Backup::Process::Process(Core* core, const ProcessOptions options) {
+    mCore = core;
+    mOptions = options;
 
     ItemDescriptor* root = new ItemDescriptor();
-    proc->Root = root;
-
-    return proc;
+    mRoot = root;
 }
 
-void Backup::DestroyProcess(Process* proc) {
-    if (proc->Root != nullptr) {
-        NOOBWARRIOR_FREE_PTR(proc->Root)
+Backup::Process::~Process() {
+    if (mRoot != nullptr) {
+        NOOBWARRIOR_FREE_PTR(mRoot)
     }
-    
-    if (proc->Options != nullptr) {
-        NOOBWARRIOR_FREE_PTR(proc->Options)
-    }
-
-    NOOBWARRIOR_FREE_PTR(proc)
 }
 
-Backup::Response Backup::StartProcess(Process* proc) {
-    std::optional<std::string> asset_download_url = proc->Core->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_download");
+Backup::Response Backup::Process::Start() {
+    std::optional<std::string> asset_download_url = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_download");
 
     if (!asset_download_url.has_value())
         return Backup::Response::UrlNotSet;
 
     HttpRequest req;
     req.Url = asset_download_url.value();
-    if (auto *acc = proc->Core->GetRbxKeychain()->GetActiveAccount()) {
+    if (auto *acc = mCore->GetRbxKeychain()->GetActiveAccount()) {
         req.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
         req.UserAgent = "Roblox/WinINet";
     }
