@@ -53,10 +53,12 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* ipStr = evhttp_find_header(&headers, "ip");
     const char* portStr = evhttp_find_header(&headers, "port");
     const char* localStr = evhttp_find_header(&headers, "local");
+    const char* placeIdStr = evhttp_find_header(&headers, "placeId");
 
     std::string ipCppStr = ipStr == nullptr ? "localhost" : ipStr;
     int port = portStr == nullptr ? 53640 : strtol(portStr, nullptr, 10);
     std::string localCppStr = localStr == nullptr ? "{}" : localStr;
+    int64_t placeId = placeIdStr == nullptr || *placeIdStr == '\0' ? 1818 : strtoll(placeIdStr, nullptr, 10);
 
     nlohmann::json joinScript = nlohmann::json::object();
     joinScript["ClientPort"] = 0;
@@ -82,7 +84,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     joinScript["CharacterAppearance"] = "";
     joinScript["ClientTicket"] = "2022-03-26T05:13:05.7649319Z;dj09X5iTmYtOPwh0hbEC8yvSO1t99oB3Yh5qD/sinDFszq3hPPaL6hH16TvtCen6cABIycyDv3tghW7k8W+xuqW0/xWvs0XJeiIWstmChYnORzM1yCAVnAh3puyxgaiIbg41WJSMALRSh1hoRiVFOXw4BKjSKk7DrTTcL9nOG1V5YwVnmAJKY7/m0yZ81xE99QL8UVdKz2ycK8l8JFvfkMvgpqLNBv0APRNykGDauEhAx283vARJFF0D9UuSV69q6htLJ1CN2kXL0Saxtt/kRdoP3p3Nhj2VgycZnGEo2NaG25vwc/KzOYEFUV0QdQPC8Vs2iFuq8oK+fXRc3v6dnQ==;BO8oP7rzmnIky5ethym6yRECd6H14ojfHP3nHxSzfTs=;XsuKZL4TBjh8STukr1AgkmDSo5LGgQKQbvymZYi/80TYPM5/MXNr5HKoF3MOT3Nfm0MrubracyAtg5O3slIKBg==;6";
     joinScript["GameId"] = "29fd9df4-4c59-4d8c-8cee-8f187b09709b";
-    joinScript["PlaceId"] = 1818;
+    joinScript["PlaceId"] = placeId;
     joinScript["BaseUrl"] = "http://assetgame.roblox.com/";
     joinScript["ChatStyle"] = "ClassicAndBubble";
     joinScript["CreatorId"] = 4372130;

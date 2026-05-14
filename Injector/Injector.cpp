@@ -244,6 +244,7 @@ Args:
     std::wstring ipStr;
     std::wstring portStr;
     std::wstring localStr;
+    std::wstring placeIdStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -263,9 +264,13 @@ Args:
         if (wcscmp(argv[i], L"--local") == 0) {
             localStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--placeid") == 0) {
+            placeIdStr = argv[i + 1];
+        }
     }
 
-    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\n", filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str());
+    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\n", filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str(), placeIdStr.c_str());
 
     std::wstring wargs;
 
@@ -282,9 +287,10 @@ Args:
 
     wargs += filePathStr;
     if (fileName.compare("RCCService.exe") == 0) {
-        wargs += L" -console -verbose -placeid:1818 -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"";
+        std::wstring rccPlaceId = placeIdStr.empty() ? L"1818" : placeIdStr;
+        wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}\" -t \"1\"", ipStr, portStr, localStr);
+        wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');

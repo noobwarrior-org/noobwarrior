@@ -353,6 +353,10 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
                 Out("ConnectToServerEmulator", "WARNING! Invalid engine type found in JSON object from endpoint /v1/running-game-servers. Skipping...");
                 continue;
             }
+            
+            if (gameServerArray.contains("PlaceId") && gameServerArray["PlaceId"].is_number_integer()) {
+                params.PlaceId = gameServerArray["PlaceId"].get<int64_t>();
+            }
 
             params.Engine.Side = EngineSide::Client;
             paramsList.push_back(params);

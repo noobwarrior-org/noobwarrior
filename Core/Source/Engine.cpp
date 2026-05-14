@@ -267,6 +267,10 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back("--port");
         args.push_back(std::to_string(params.Port.value()));
     }
+    if (params.PlaceId.has_value()) {
+        args.push_back("--placeid");
+        args.push_back(std::to_string(params.PlaceId.value()));
+    }
 
     std::string argsStr;
     for (int i = 0; i < args.size(); i++) {
