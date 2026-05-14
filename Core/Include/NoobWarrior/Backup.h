@@ -67,28 +67,31 @@ enum class OnlineItemType {
 };
 
 // A node representation of an item on the Roblox platform.
-struct ItemDescriptor {
+class ItemDescriptor {
+public:
+    ItemDescriptor();
+    ~ItemDescriptor();
+
     OnlineItemType Type;
     int64_t Id;
     int Version;
 
-    ItemDescriptor* Parent { nullptr };
+    ItemDescriptor* GetParent();
+    std::vector<ItemDescriptor*> GetChildren();
 
-    uint64_t ChildrenSize;
-    ItemDescriptor** Children;
+    std::string GetName();
+    std::vector<unsigned char>& GetIconData();
+    
+    void AddChild(ItemDescriptor* child);
+    void RemoveChild(ItemDescriptor* child);
+private:
+    ItemDescriptor* Parent { nullptr };
+    std::vector<ItemDescriptor*> Children;
 
     // These will be populated when they are discovered through API scraping.
-    char* Name;
-
-    uint64_t IconSize;
-    unsigned char* IconData;
+    std::string Name;
+    std::vector<unsigned char> IconData;
 };
-
-ItemDescriptor* ItemDescriptor_New();
-void ItemDescriptor_Destroy(ItemDescriptor*);
-void ItemDescriptor_AddChild(ItemDescriptor* parent, ItemDescriptor* child);
-void ItemDescriptor_RemoveChild(ItemDescriptor* parent, ItemDescriptor* child);
-ItemDescriptor** ItemDescriptor_GetChildren(ItemDescriptor* parent, int* size = nullptr);
 
 typedef void* Destination;
 enum class DestinationType {

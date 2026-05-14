@@ -227,46 +227,46 @@ static void PopulateItemDescriptors() {
     
 }
 
-Backup::ItemDescriptor* Backup::ItemDescriptor_New() {
-    ItemDescriptor *desc = new ItemDescriptor();
-    desc->Children = (ItemDescriptor**) malloc(sizeof(uintptr_t));
-    return desc;
+Backup::ItemDescriptor::ItemDescriptor() {
+
 }
 
-void Backup::ItemDescriptor_Destroy(ItemDescriptor* desc) {
-    for (int i = 0; i < desc->ChildrenSize; i++) {
-        ItemDescriptor* child = desc->Children[i];
-        ItemDescriptor_Destroy(child);
+Backup::ItemDescriptor::~ItemDescriptor() {
+    for (int i = 0; i < this->Children.size(); i++) {
+        ItemDescriptor* child = this->Children[i];
+        delete child;
     }
-    delete desc;
+    delete this;
 }
 
-void Backup::ItemDescriptor_AddChild(ItemDescriptor* parent, ItemDescriptor* child) {
-    if (child->Parent == parent) // same parent, useless
+Backup::ItemDescriptor* Backup::ItemDescriptor::GetParent() {
+    return this->Parent;
+}
+
+std::vector<Backup::ItemDescriptor*> Backup::ItemDescriptor::GetChildren() {
+    return this->Children;
+}
+
+void Backup::ItemDescriptor::AddChild(ItemDescriptor* child) {
+    if (child->Parent == this) // same parent, useless
         return;
 
     if (child->Parent != nullptr)
-        ItemDescriptor_RemoveChild(child->Parent, child);
+        child->Parent->RemoveChild(child);
 
-    parent->ChildrenSize++;
-    realloc(parent->Children, sizeof(uintptr_t) * parent->ChildrenSize);
-    parent->Children[parent->ChildrenSize - 1] = child;
-    child->Parent = parent;
+    this->Children.emplace_back(child);
+    child->Parent = this;
 }
 
-void Backup::ItemDescriptor_RemoveChild(ItemDescriptor *parent, ItemDescriptor *child) {
-    if (child->Parent != parent)
+void Backup::ItemDescriptor::RemoveChild(ItemDescriptor *child) {
+    if (child->Parent != this)
         return;
 
-    parent->ChildrenSize--;
-    realloc(parent->Children, sizeof(uintptr_t) * parent->ChildrenSize);
-    child->Parent = nullptr;
-}
-
-Backup::ItemDescriptor** Backup::ItemDescriptor_GetChildren(ItemDescriptor* parent, int* size) {
-    if (size != nullptr)
-        *size = parent->ChildrenSize;
-    return parent->Children;
+    auto it = std::find(this->Children.begin(), this->Children.end(), child);
+    if (it != this->Children.end()) {
+        this->Children.erase(it);
+        child->Parent = nullptr;
+    }
 }
 
 Backup::Process* Backup::AllocateProcess(Core* core, ProcessOptions options) {
@@ -275,7 +275,7 @@ Backup::Process* Backup::AllocateProcess(Core* core, ProcessOptions options) {
     proc->Core = core;
     proc->Options = optsMem;
 
-    ItemDescriptor* root = ItemDescriptor_New();
+    ItemDescriptor* root = new ItemDescriptor();
     proc->Root = root;
 
     return proc;
@@ -283,8 +283,7 @@ Backup::Process* Backup::AllocateProcess(Core* core, ProcessOptions options) {
 
 void Backup::DestroyProcess(Process* proc) {
     if (proc->Root != nullptr) {
-        ItemDescriptor_Destroy(proc->Root);
-        proc->Root = nullptr;
+        NOOBWARRIOR_FREE_PTR(proc->Root)
     }
     
     if (proc->Options != nullptr) {
