@@ -38,13 +38,13 @@ struct HttpRequest {
     std::vector<std::pair<std::string, std::string>> Headers;
     std::string Cookie;          // raw cookie header value, e.g. ".ROBLOSECURITY=xxx;"
     std::string UserAgent;
-    long TimeoutSeconds {30};
-    bool FollowRedirects {true};
+    long TimeoutSeconds { 30 };
+    bool FollowRedirects { true };
 };
 
 struct HttpResponse {
-    CURLcode Code {CURLE_OK};    // network-level result
-    long HttpStatus {0};         // HTTP response code, 0 if Code != CURLE_OK
+    CURLcode Code { CURLE_OK };    // network-level result
+    long HttpStatus { 0 };         // HTTP response code, 0 if Code != CURLE_OK
     std::vector<unsigned char> Body;
 };
 

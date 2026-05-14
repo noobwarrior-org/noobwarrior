@@ -41,6 +41,7 @@ namespace NoobWarrior {
 class BackupDialog : public QDialog {
 public:
     BackupDialog(QWidget *parent = nullptr);
+protected:
     void InitWidgets();
     void UpdateWidgets();
 
@@ -49,6 +50,7 @@ public:
     void InitLocalFileWidgets();
 
     void StartBackup();
+    EmuDb* GetDatabase();
 private:
     bool mChoseItemSource;
 

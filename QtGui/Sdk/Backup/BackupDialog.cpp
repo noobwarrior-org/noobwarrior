@@ -23,6 +23,9 @@
 // Started on: 11/3/2025
 // Description:
 #include "BackupDialog.h"
+#include "Application.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
+#include "NoobWarrior/Backup.h"
 
 #include <cassert>
 
@@ -167,5 +170,25 @@ void BackupDialog::InitLocalFileWidgets() {
 }
 
 void BackupDialog::StartBackup() {
+    Out("BackupDialog", "Started backup");
+    Backup::Process* proc = new Backup::Process(gApp->GetCore(), {
+        .TargetSource = ItemSource::OnlineItem,
+        .TargetItemType = ItemType::Universe,
+        .TargetId = mIdField->text().toLongLong(),
+        .DestinationType = DestinationType::Database,
+        .Destination = GetDatabase(),
+        .Callback = [](Backup::State state, std::string msg, double progress) {
+            Out("BackupDialog", "Backup state {}: {}", static_cast<int>(state), msg);
+        }
+    });
+    proc->Start();
+}
 
+EmuDb* BackupDialog::GetDatabase() {
+    auto *sdk = dynamic_cast<Sdk*>(parent());
+    if (sdk != nullptr) {
+        auto* proj = dynamic_cast<EmuDbProject*>(sdk->GetFocusedProject());
+        if (proj != nullptr) return proj->GetDb();
+    }
+    return nullptr;
 }

@@ -80,8 +80,8 @@ protected:
     virtual void OnStart() = 0;
     virtual void OnPause() = 0;
     virtual void OnCancel(BackgroundTaskCancelReason reason) = 0;
-private:
     BackgroundTasks* mParent;
+private:
     QString mTitle;
     QString mCaption;
     double mProgress;

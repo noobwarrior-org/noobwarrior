@@ -33,15 +33,15 @@ BackgroundTask::BackgroundTask(BackgroundTasks* parent) : mParent(parent), mProg
 }
 
 void BackgroundTask::Start() {
-
+    OnStart();
 }
 
 void BackgroundTask::Pause() {
-
+    OnPause();
 }
 
 void BackgroundTask::Cancel(BackgroundTaskCancelReason reason) {
-
+    OnCancel(reason);
 }
 
 void BackgroundTask::SetTitle(const QString &title) {

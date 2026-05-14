@@ -21,30 +21,36 @@
 // File: ItemDescriptorModel.h
 // Started by: Hattozo
 // Started on: 12/28/2025
-// Description: Qt model that works with ItemDescriptor
+// Description: Qt model that exposes a Backup::ItemDescriptor tree to a QTreeView.
 #pragma once
 #include <NoobWarrior/Backup.h>
 #include <QAbstractItemModel>
-
-using namespace NoobWarrior::Backup;
 
 namespace NoobWarrior {
 class ItemDescriptorModel : public QAbstractItemModel {
     Q_OBJECT
 public:
-    ItemDescriptorModel(ItemDescriptor* desc);
-    ItemDescriptorModel();
-    ~ItemDescriptorModel();
+    explicit ItemDescriptorModel(Backup::ItemDescriptor *desc, QObject *parent = nullptr);
+    explicit ItemDescriptorModel(QObject *parent = nullptr);
+
+    ~ItemDescriptorModel() override;
+
+    void SetRoot(Backup::ItemDescriptor *desc, bool takeOwnership);
+
+    Backup::ItemDescriptor *GetRoot() const { return mDescriptor; }
+    Backup::ItemDescriptor *DescriptorAt(const QModelIndex &index) const;
 
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override;
     QModelIndex parent(const QModelIndex &child) const override;
-
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+
+    enum Column { ColumnName = 0, ColumnType = 1, ColumnId = 2, ColumnCount = 3 };
+
 private:
-    ItemDescriptor* mDescriptor;
-    bool mIsUsingAlreadyAllocatedDesc;
+    Backup::ItemDescriptor *mDescriptor;
+    bool mOwnsDescriptor;
 };
 }

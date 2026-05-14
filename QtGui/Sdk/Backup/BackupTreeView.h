@@ -21,14 +21,21 @@
 // File: BackupTreeView.h
 // Started by: Hattozo
 // Started on: 12/28/2025
-// Description:
+// Description: Preconfigured QTreeView for displaying an ItemDescriptorModel tree.
 #pragma once
+#include "ItemDescriptorModel.h"
 #include <QTreeView>
 
 namespace NoobWarrior {
 class BackupTreeView : public QTreeView {
     Q_OBJECT
 public:
-    BackupTreeView();
+    explicit BackupTreeView(QWidget *parent = nullptr);
+    
+    void SetDescriptor(Backup::ItemDescriptor *desc);
+
+    ItemDescriptorModel *GetModel() const { return mModel; }
+private:
+    ItemDescriptorModel *mModel;
 };
 }

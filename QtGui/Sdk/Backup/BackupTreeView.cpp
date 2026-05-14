@@ -21,11 +21,29 @@
 // File: BackupTreeView.cpp
 // Started by: Hattozo
 // Started on: 12/28/2025
-// Description:
+// Description: Preconfigured QTreeView for displaying an ItemDescriptorModel tree.
 #include "BackupTreeView.h"
+
+#include <QHeaderView>
 
 using namespace NoobWarrior;
 
-BackupTreeView::BackupTreeView() {
-    
+BackupTreeView::BackupTreeView(QWidget *parent) : QTreeView(parent) {
+    mModel = new ItemDescriptorModel(this);
+    setModel(mModel);
+
+    setAlternatingRowColors(true);
+    setUniformRowHeights(true);
+    setSelectionBehavior(QAbstractItemView::SelectRows);
+    setSelectionMode(QAbstractItemView::SingleSelection);
+    setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+    header()->setSectionResizeMode(ItemDescriptorModel::ColumnName, QHeaderView::Stretch);
+    header()->setSectionResizeMode(ItemDescriptorModel::ColumnType, QHeaderView::ResizeToContents);
+    header()->setSectionResizeMode(ItemDescriptorModel::ColumnId,   QHeaderView::ResizeToContents);
+}
+
+void BackupTreeView::SetDescriptor(Backup::ItemDescriptor *desc) {
+    mModel->SetRoot(desc, false);
+    expandAll();
 }

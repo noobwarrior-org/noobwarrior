@@ -49,8 +49,12 @@ RegistryResponse Registry::Open() {
     sol::table plugins_tbl = mLua->create_table();
     SetKeyValueIfNotSet("plugins", plugins_tbl);
 
-    SetKeyValueIfNotSet("internet.roblox.asset_download", "https://assetdelivery.roblox.com/v1/asset/?id={}");
+    SetKeyValueIfNotSet("internet.roblox.asset_delivery", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
+    SetKeyValueIfNotSet("internet.roblox.badge_details", "https://badges.roblox.com/v1/badges/{}");
+    SetKeyValueIfNotSet("internet.roblox.universe_details", "https://games.roblox.com/v1/games?universeIds={}");
+    SetKeyValueIfNotSet("internet.roblox.universe_places", "https://develop.roblox.com/v1/universes/{}/places");
+    SetKeyValueIfNotSet("internet.roblox.universe_badges", "https://badges.roblox.com/v1/universes/{}/badges");
 
     SetKeyValueIfNotSet("user.id", 1000);
     SetKeyValueIfNotSet("user.name", "Player");
