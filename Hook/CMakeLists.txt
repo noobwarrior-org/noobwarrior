@@ -12,6 +12,8 @@ CPMAddPackage(
     URI "gh:ThirteenAG/Hooking.Patterns#460a47b"
 )
 
+CPMAddPackage("gh:nlohmann/json#v3.11.3")
+
 if (Hooking.Patterns_ADDED)
     add_library(patterns STATIC ${Hooking.Patterns_SOURCE_DIR}/Hooking.Patterns.cpp)
     set_property(TARGET patterns PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -24,6 +26,8 @@ endif()
 set(SOURCES
     Hook.cpp
     Hook.h
+    Ping.cpp
+    Ping.h
  "Patch/RemoveTrustCheck.cpp" "Patch/DoSomething1.cpp" "Patch/FixSettingsKeyMustBeDefined.cpp" "Patch/RemoveTLSVerification.cpp" "Patch/Patch.cpp" "Patch/Patches.h" "Patch/BypassPlaceIdVerification.cpp" "Patch/RemoveSignatureCheck.cpp" "Patch/BypassVersionOutOfDate.cpp" "Patch/DoSomething2.cpp")
 
 add_library(NoobWarrior.Hook SHARED ${SOURCES})
@@ -31,7 +35,7 @@ set_target_properties(NoobWarrior.Hook PROPERTIES
     PREFIX ""
     OUTPUT_NAME "noobhook"
 )
-target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 winhttp minhook patterns version -static -static-libgcc -static-libstdc++)
+target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 winhttp minhook patterns version nlohmann_json -static -static-libgcc -static-libstdc++)
 if (MSVC)
     target_link_libraries(NoobWarrior.Hook PRIVATE
         LIBCMT

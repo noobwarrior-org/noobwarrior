@@ -23,6 +23,7 @@
 // Started on: 3/16/2025
 // Description: Contains main entrypoint for noobWarrior Roblox hook
 #include "Hook.h"
+#include "Ping.h"
 #include "Patch/Patches.h"
 
 #include <winsock2.h>
@@ -37,6 +38,8 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <strsafe.h>
+
+#include <atomic>
 
 using namespace NoobHook;
 
@@ -254,13 +257,56 @@ static BOOL WINAPI MyWinHttpSendRequest(HINTERNET hRequest, LPCWSTR lpszHeaders,
     return pOrigWinHttpSendRequest(hRequest, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength, dwTotalLength, dwContext);
 }
 
-DWORD WINAPI Thread(LPVOID param) {
+static std::atomic<bool> gGoodbyeSent { false };
+static void EmitGoodbyeOnce() {
+    bool expected = false;
+    if (!gGoodbyeSent.compare_exchange_strong(expected, true))
+        return;
+    NoobHook::SendGoodbye(static_cast<int>(GetCurrentProcessId()));
+    Out("Exit", "Sent Goodbye ping");
+}
 
+static void (WINAPI* pOrigExitProcess)(UINT);
+static void WINAPI MyExitProcess(UINT exitCode) {
+    EmitGoodbyeOnce();
+    pOrigExitProcess(exitCode);
+}
+
+static void (WINAPI* pOrigRtlExitUserProcess)(NTSTATUS);
+static void WINAPI MyRtlExitUserProcess(NTSTATUS exitStatus) {
+    EmitGoodbyeOnce();
+    pOrigRtlExitUserProcess(exitStatus);
+}
+
+static NoobHook::ProcessInfo gProcessInfo;
+
+static DWORD WINAPI HeartbeatThread(LPVOID) {
+    while (!gGoodbyeSent.load()) {
+        Sleep(5000);
+        if (gGoodbyeSent.load()) break;
+        NoobHook::SendHeartbeat(gProcessInfo);
+    }
+    return 0;
+}
+
+DWORD WINAPI Thread(LPVOID param) {
     gFile = freopen("noobhook.log", "w", stdout);
     if (gFile == nullptr) {
 		MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
     }
 	Out("Main", "Initializing noobHook");
+
+    gProcessInfo = NoobHook::CollectProcessInfo();
+    Out("Main", "Process info: pid=%d side=%d version=%s port=%d placeId=%lld",
+        gProcessInfo.Pid, (int)gProcessInfo.Side, gProcessInfo.Version ? gProcessInfo.Version : "",
+        gProcessInfo.Port, (long long)gProcessInfo.PlaceId);
+    if (NoobHook::SendHello(gProcessInfo))
+        Out("Main", "Sent Hello ping to server emulator");
+    else
+        Out("Main", "Failed to send Hello ping (server emulator unreachable?)");
+
+    HANDLE hbThread = CreateThread(0, 0, HeartbeatThread, nullptr, 0, nullptr);
+    if (hbThread) CloseHandle(hbThread);
 
     Out("Main", "Initializing MinHook");
     MH_Initialize();
@@ -268,6 +314,8 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
     MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
     MH_CreateHookApi(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
+    MH_CreateHookApi(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
+    MH_CreateHookApi(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);
 
     Out("Main", "Patching...");
@@ -295,6 +343,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
         CloseHandle(hThread);
         break;
     case DLL_PROCESS_DETACH:
+        EmitGoodbyeOnce();
         MH_Uninitialize();
         if (lpReserved != nullptr)
             break;

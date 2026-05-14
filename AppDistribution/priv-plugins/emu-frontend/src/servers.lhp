@@ -6,8 +6,22 @@ include("header.lhp")
 <h1>Servers</h1>
 
 <?lua
-for _, server in ipairs(emu:GetGameServers()) do
-    
+local servers = emu:GetRunningGameServers()
+if #servers == 0 then
+    echo("<p>No game servers are currently running.</p>")
+else
+    echo("<ul>")
+    for _, server in ipairs(servers) do
+        echo(string.format(
+            "<li>PID %d &mdash; %s:%s &mdash; place %s &mdash; v%s</li>",
+            server.Pid,
+            server.Ip or "?",
+            tostring(server.Port or "?"),
+            tostring(server.PlaceId or "?"),
+            server.Version or "?"
+        ))
+    end
+    echo("</ul>")
 end
 ?>
 

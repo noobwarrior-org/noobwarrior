@@ -1,0 +1,210 @@
+/*
+ * Copyright (C) 2026 Hattozo
+ *
+ * This file is part of noobWarrior.
+ *
+ * noobWarrior is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * noobWarrior is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with noobWarrior; if not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+// === noobWarrior ===
+// File: Ping.cpp
+// Started by: Hattozo
+// Started on: 5/13/2026
+// Description:
+#include "Ping.h"
+#include "Hook.h"
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <psapi.h>
+
+#include <nlohmann/json.hpp>
+
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <fstream>
+#include <string>
+
+using namespace NoobHook;
+
+extern char* GetProductVersion();
+
+const char* SideAsString(ProcessSide side) {
+    switch (side) {
+    case ProcessSide::Server: return "Server";
+    case ProcessSide::Studio: return "Studio";
+    case ProcessSide::Client: return "Client";
+    default:                  return "Unknown";
+    }
+}
+
+std::string CurrentExeName() {
+    char path[MAX_PATH] = {0};
+    DWORD n = GetModuleFileNameA(nullptr, path, MAX_PATH);
+    if (n == 0) return "";
+    std::string s(path, n);
+    auto pos = s.find_last_of("\\/");
+    return pos == std::string::npos ? s : s.substr(pos + 1);
+}
+
+std::string CurrentExeDir() {
+    char path[MAX_PATH] = {0};
+    DWORD n = GetModuleFileNameA(nullptr, path, MAX_PATH);
+    if (n == 0) return "";
+    std::string s(path, n);
+    auto pos = s.find_last_of("\\/");
+    return pos == std::string::npos ? "." : s.substr(0, pos);
+}
+bool ExtractNumber(const std::string &body, const std::string &key, int64_t *out) {
+    std::string needle = "\"" + key + "\"";
+    size_t k = body.find(needle);
+    if (k == std::string::npos) return false;
+    size_t colon = body.find(':', k + needle.size());
+    if (colon == std::string::npos) return false;
+    size_t i = colon + 1;
+    while (i < body.size() && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r' || body[i] == '"'))
+        i++;
+    if (i >= body.size()) return false;
+    char *end = nullptr;
+    long long v = strtoll(body.c_str() + i, &end, 10);
+    if (end == body.c_str() + i) return false;
+    *out = static_cast<int64_t>(v);
+    return true;
+}
+
+bool PostJson(const char *path, const std::string &body, int timeoutMs) {
+    WSADATA wsaData;
+    bool wsaInited = WSAStartup(MAKEWORD(2, 2), &wsaData) == 0;
+
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) {
+        if (wsaInited) WSACleanup();
+        return false;
+    }
+
+    DWORD tv = static_cast<DWORD>(timeoutMs);
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+
+    sockaddr_in addr {};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (connect(s, (sockaddr*)&addr, sizeof(addr)) != 0) {
+        closesocket(s);
+        if (wsaInited) WSACleanup();
+        return false;
+    }
+
+    char request[1024];
+    int n = _snprintf_s(request, sizeof(request), _TRUNCATE,
+        "POST %s HTTP/1.1\r\n"
+        "Host: 127.0.0.1:8080\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "Connection: close\r\n\r\n",
+        path, static_cast<int>(body.size()));
+
+    bool ok = send(s, request, n, 0) > 0 && send(s, body.data(), (int)body.size(), 0) > 0;
+    if (ok) {
+        // Drain a little of the response so the server's reply isn't RST'd, but don't block forever.
+        char throwaway[256];
+        recv(s, throwaway, sizeof(throwaway), 0);
+    }
+
+    closesocket(s);
+    if (wsaInited) WSACleanup();
+    return ok;
+}
+
+ProcessSide NoobHook::DetectSide() {
+    std::string exe = CurrentExeName();
+    if (exe == "RobloxPlayerBeta.exe") return ProcessSide::Client;
+    if (exe == "RCCService.exe")       return ProcessSide::Server;
+    if (exe == "RobloxStudioBeta.exe") return ProcessSide::Studio;
+    return ProcessSide::Unknown;
+}
+
+void NoobHook::ReadGameServerJson(ProcessInfo *info) {
+    std::string path = CurrentExeDir() + "\\gameserver.json";
+    std::ifstream f(path, std::ios::binary);
+    if (!f.is_open()) return;
+    std::string body((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+
+    int64_t v = 0;
+    if (ExtractNumber(body, "PlaceId", &v))       info->PlaceId = v;
+    if (ExtractNumber(body, "PreferredPort", &v)) info->Port = static_cast<int>(v);
+}
+
+static char gNormalizedVersion[64] = {0};
+static void NormalizeVersion(const char *raw) {
+    if (!raw) { gNormalizedVersion[0] = '\0'; return; }
+    size_t w = 0;
+    for (size_t i = 0; raw[i] != '\0' && w < sizeof(gNormalizedVersion) - 1; i++) {
+        if (raw[i] == ' ') continue;
+        if (raw[i] == ',') gNormalizedVersion[w++] = '.';
+        else               gNormalizedVersion[w++] = raw[i];
+    }
+    gNormalizedVersion[w] = '\0';
+}
+
+ProcessInfo NoobHook::CollectProcessInfo() {
+    ProcessInfo info;
+    info.Pid = static_cast<int>(GetCurrentProcessId());
+    info.Side = DetectSide();
+    NormalizeVersion(GetProductVersion());
+    info.Version = gNormalizedVersion;
+    if (info.Side == ProcessSide::Server)
+        ReadGameServerJson(&info);
+    return info;
+}
+
+bool NoobHook::SendHello(const ProcessInfo &info) {
+    nlohmann::json body = {
+        {"Event",   "Hello"},
+        {"Pid",     info.Pid},
+        {"Side",    SideAsString(info.Side)},
+        {"Version", info.Version ? info.Version : ""},
+    };
+    if (info.Side == ProcessSide::Server) {
+        body["Port"] = info.Port;
+        body["PlaceId"] = info.PlaceId;
+    }
+    return PostJson("/v1/process-ping", body.dump(), 1500);
+}
+
+bool NoobHook::SendGoodbye(int pid) {
+    nlohmann::json body = {
+        {"Event", "Goodbye"},
+        {"Pid",   pid},
+    };
+    return PostJson("/v1/process-ping", body.dump(), 500);
+}
+
+bool NoobHook::SendHeartbeat(const ProcessInfo &info) {
+    nlohmann::json body = {
+        {"Event",   "Heartbeat"},
+        {"Pid",     info.Pid},
+        {"Side",    SideAsString(info.Side)},
+        {"Version", info.Version ? info.Version : ""},
+    };
+    if (info.Side == ProcessSide::Server) {
+        body["Port"] = info.Port;
+        body["PlaceId"] = info.PlaceId;
+    }
+    return PostJson("/v1/process-ping", body.dump(), 1500);
+}

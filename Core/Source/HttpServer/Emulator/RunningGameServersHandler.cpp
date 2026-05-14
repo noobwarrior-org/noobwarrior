@@ -62,13 +62,16 @@ void RunningGameServersHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     nlohmann::json json = nlohmann::json::array();
-    for (auto &gameServer : mEmu->GetGameServers()) {
+    for (const auto &server : mEmu->GetRunningGameServers()) {
         nlohmann::json obj = nlohmann::json::object();
-        obj["Ip"] = gameServer.Ip.empty() && ip_found ? std::string(ip_str) : gameServer.Ip;
-        if (gameServer.Port.has_value()) obj["Port"] = gameServer.Port.value();
-        if (gameServer.PlaceId.has_value()) obj["PlaceId"] = gameServer.PlaceId.value();
-        obj["EngineType"] = EngineTypeAsString(gameServer.Engine.Type);
-        obj["EngineVersion"] = gameServer.Engine.Version;
+        obj["Pid"] = server.Pid;
+        obj["Ip"] = server.Ip.empty() && ip_found ? std::string(ip_str) : server.Ip;
+        if (server.Port.has_value()) obj["Port"] = server.Port.value();
+        if (server.PlaceId.has_value()) obj["PlaceId"] = server.PlaceId.value();
+        obj["EngineType"] = EngineTypeAsString(EngineType::Roblox);
+        obj["EngineVersion"] = server.Version;
+        obj["FirstSeen"] = server.FirstSeen;
+        obj["LastSeen"] = server.LastSeen;
         json.push_back(obj);
     }
 

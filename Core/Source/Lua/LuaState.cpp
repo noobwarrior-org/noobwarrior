@@ -351,9 +351,37 @@ int LuaState::Open() {
     });
 
     auto srvEmuType = new_usertype<ServerEmulator>("ServerEmulator", sol::no_constructor, sol::base_classes, sol::bases<HttpServer>());
-    srvEmuType["GetGameServers"] = [this](ServerEmulator &emu) {
-        std::vector<EngineStartParameters> params = emu.GetGameServers();
+    srvEmuType["GetRunningInstances"] = [this](ServerEmulator &emu) {
         sol::table tbl = create_table();
+        int idx = 1;
+        for (const auto &inst : emu.GetRunningInstances()) {
+            sol::table row = create_table();
+            row["Pid"] = inst.Pid;
+            row["Side"] = EngineSideAsString(inst.Side);
+            row["Version"] = inst.Version;
+            row["Ip"] = inst.Ip;
+            if (inst.Port.has_value()) row["Port"] = inst.Port.value();
+            if (inst.PlaceId.has_value()) row["PlaceId"] = inst.PlaceId.value();
+            row["FirstSeen"] = static_cast<int64_t>(inst.FirstSeen);
+            row["LastSeen"] = static_cast<int64_t>(inst.LastSeen);
+            tbl[idx++] = row;
+        }
+        return tbl;
+    };
+    srvEmuType["GetRunningGameServers"] = [this](ServerEmulator &emu) {
+        sol::table tbl = create_table();
+        int idx = 1;
+        for (const auto &inst : emu.GetRunningGameServers()) {
+            sol::table row = create_table();
+            row["Pid"] = inst.Pid;
+            row["Version"] = inst.Version;
+            row["Ip"] = inst.Ip;
+            if (inst.Port.has_value()) row["Port"] = inst.Port.value();
+            if (inst.PlaceId.has_value()) row["PlaceId"] = inst.PlaceId.value();
+            row["FirstSeen"] = static_cast<int64_t>(inst.FirstSeen);
+            row["LastSeen"] = static_cast<int64_t>(inst.LastSeen);
+            tbl[idx++] = row;
+        }
         return tbl;
     };
 

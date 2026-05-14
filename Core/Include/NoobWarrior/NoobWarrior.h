@@ -186,6 +186,8 @@ public:
     void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
+    bool WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params);
+    std::filesystem::path FindEngineExecutable(const std::filesystem::path &engineDir);
     EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
     void AutocreateCert();
 private:

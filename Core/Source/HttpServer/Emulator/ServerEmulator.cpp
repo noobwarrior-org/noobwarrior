@@ -28,6 +28,9 @@
 
 #include "NoobWarrior/HttpServer/Emulator/RequestAuthHandler.h"
 
+#include <algorithm>
+#include <ctime>
+
 using namespace NoobWarrior;
 using json = nlohmann::json;
 
@@ -111,34 +114,75 @@ void ServerEmulator::SetMode(Mode mode) {
 ServerEmulator::Mode ServerEmulator::GetMode() {
 }
 
-void ServerEmulator::AddTemporaryProxy(const std::string &ip, uint16_t port) {
-    mTemporaryProxies.emplace_back( ip, port );
+void ServerEmulator::SweepStaleInstancesLocked() {
+    time_t now = std::time(nullptr);
+    auto it = std::remove_if(mInstances.begin(), mInstances.end(),
+        [&](const RunningInstance &inst) {
+            bool stale = inst.LastSeen > 0 && (now - inst.LastSeen) > kStaleInstanceThresholdSecs;
+            if (stale)
+                Out(mLogName, "Reaping stale instance pid={} side={} (last seen {}s ago)",
+                    inst.Pid, EngineSideAsString(inst.Side), static_cast<long long>(now - inst.LastSeen));
+            return stale;
+        });
+    mInstances.erase(it, mInstances.end());
 }
 
-void ServerEmulator::RemoveTemporaryProxy(const std::string &ip, uint16_t port) {
-    for (int i = 0; i < mTemporaryProxies.size(); i++) {
-        std::pair<std::string, uint16_t> ipAndPort = mTemporaryProxies.at(i);
-        if (ipAndPort.first == ip && ipAndPort.second == port) {
-            mTemporaryProxies.erase(mTemporaryProxies.begin() + i);
+void ServerEmulator::RegisterInstance(const RunningInstance &instance) {
+    std::lock_guard lock(mInstancesMutex);
+    SweepStaleInstancesLocked();
+    time_t now = std::time(nullptr);
+    for (auto &existing : mInstances) {
+        if (existing.Pid == instance.Pid) {
+            existing = instance;
+            existing.LastSeen = now;
+            return;
         }
+    }
+    RunningInstance copy = instance;
+    if (copy.FirstSeen == 0) copy.FirstSeen = now;
+    copy.LastSeen = now;
+    mInstances.push_back(copy);
+    Out(mLogName, "Registered instance pid={} side={} version={}",
+        copy.Pid, EngineSideAsString(copy.Side), copy.Version);
+}
+
+void ServerEmulator::UnregisterInstance(int pid) {
+    std::lock_guard lock(mInstancesMutex);
+    SweepStaleInstancesLocked();
+    auto it = std::find_if(mInstances.begin(), mInstances.end(),
+        [pid](const RunningInstance &i) { return i.Pid == pid; });
+    if (it != mInstances.end()) {
+        Out(mLogName, "Unregistered instance pid={} side={}", it->Pid, EngineSideAsString(it->Side));
+        mInstances.erase(it);
     }
 }
 
-void ServerEmulator::AddGameServer(const EngineStartParameters &params) {
-    mGameServers.emplace_back(params);
+bool ServerEmulator::TouchInstance(int pid) {
+    std::lock_guard lock(mInstancesMutex);
+    SweepStaleInstancesLocked();
+    auto it = std::find_if(mInstances.begin(), mInstances.end(),
+        [pid](const RunningInstance &i) { return i.Pid == pid; });
+    if (it == mInstances.end())
+        return false;
+    it->LastSeen = std::time(nullptr);
+    return true;
 }
 
-void ServerEmulator::RemoveGameServer(const std::string &ip, uint16_t port) {
-    for (int i = 0; i < mGameServers.size(); i++) {
-        EngineStartParameters gameServer = mGameServers.at(i);
-        if (gameServer.Ip == ip && gameServer.Port == port) {
-            mGameServers.erase(mGameServers.begin() + i);
-        }
+std::vector<RunningInstance> ServerEmulator::GetRunningInstances() const {
+    std::lock_guard lock(mInstancesMutex);
+    const_cast<ServerEmulator*>(this)->SweepStaleInstancesLocked();
+    return mInstances;
+}
+
+std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
+    std::lock_guard lock(mInstancesMutex);
+    const_cast<ServerEmulator*>(this)->SweepStaleInstancesLocked();
+    std::vector<RunningInstance> servers;
+    for (const auto &inst : mInstances) {
+        if (inst.Side == EngineSide::Server)
+            servers.push_back(inst);
     }
-}
-
-std::vector<EngineStartParameters> &ServerEmulator::GetGameServers() {
-    return mGameServers;
+    return servers;
 }
 
 void ServerEmulator::SetCurrentEngine(const Engine &engine) {

@@ -339,6 +339,7 @@ void Application::LaunchEngine(EngineStartParameters params) {
     };
 
     if (!mCore->IsEngineInManifest(params.Engine)) {
+        Out("LaunchEngine", "Engine not in manifest!");
         DownloadAndInstallEngine(params.Engine, callback);
     } else callback(true);
 }

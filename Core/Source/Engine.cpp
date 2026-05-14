@@ -221,6 +221,9 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     }
     Out("Inject", "Launching process \"{}\"", argsStr);
 #if defined(_WIN32)
+    // Fire and forget: the injector exits as soon as it's done injecting, and the actual
+    // Roblox process reports its own lifecycle via /v1/process-ping. Blocking here used to
+    // freeze the caller for the full injection round-trip for no good reason.
     PROCESS_INFORMATION pi {};
     STARTUPINFOA si = {};
     si.cb = sizeof(si);
@@ -230,19 +233,10 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         return EngineLaunchResponse::FailedToCreateProcess;
     }
 
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    DWORD exitCode;
-    if (!GetExitCodeProcess(pi.hProcess, &exitCode)) {
-        DWORD err = GetLastError();
-        Out("Inject", "Failed to get exit code for injector process: {} ({})", err, LastErrorStr(err));
-        return EngineLaunchResponse::Failed;
-    }
-
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    return static_cast<EngineLaunchResponse>(exitCode);
+    return EngineLaunchResponse::Success;
 #elif defined(__unix__) || defined(__APPLE__)
     // where wine comes in
     pid_t pid = 0;
@@ -275,68 +269,85 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 #endif
 }
 
+bool Core::WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params) {
+    int64_t placeId = params.PlaceId.value_or(0);
+    uint16_t port = params.Port.value_or(53640);
+
+    nlohmann::json settings = {
+        {"Type", "Avatar"},
+        {"PlaceId", placeId},
+        {"CreatorId", 1},
+        {"CreatorType", "User"},
+        {"GameId", "1"},
+        {"MachineAddress", "http://127.0.0.1"},
+        {"GsmInterval", 5},
+        {"MaxPlayers", 50},
+        {"MaxGameInstances", 51},
+        {"ApiKey", ""},
+        {"PreferredPlayerCapacity", 50},
+        {"DataCenterId", "0"},
+        {"PlaceVisitAccessKey", ""},
+        {"UniverseId", placeId},
+        {"PlaceFetchUrl", "http://www.roblox.com/asset/?id=" + std::to_string(placeId)},
+        {"MatchmakingContextId", 1},
+        {"PlaceVersion", 1},
+        {"BaseUrl", "http://www.roblox.com"},
+        {"JobId", "Test"},
+        {"script", "print('Initializing NetworkServer.')"},
+        {"PreferredPort", port},
+    };
+
+    nlohmann::json gameServer = {
+        {"Mode", "GameServer"},
+        {"GameId", placeId},
+        {"Arguments", nlohmann::json::object()},
+        {"Settings", settings},
+    };
+
+    std::ofstream stream(engineDir / "gameserver.json");
+    if (!stream.is_open()) {
+        Out("LaunchEngine", "Failed to open gameserver.json for writing in {}", engineDir.string());
+        return false;
+    }
+    stream << gameServer << std::endl;
+    return true;
+}
+
+std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &engineDir) {
+    static const std::set<std::string> knownExes = {
+        "RobloxPlayerBeta.exe",
+        "RCCService.exe",
+        "RobloxStudioBeta.exe",
+    };
+    for (const auto &entry : std::filesystem::directory_iterator(engineDir)) {
+        if (knownExes.contains(entry.path().filename().string()))
+            return entry.path();
+    }
+    return {};
+}
+
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
+//
+// Lifecycle of a launched process is *not* tracked here — noobHook POSTs to
+// /v1/process-ping on attach (Hello) and detach (Goodbye), and the ServerEmulator
+// maintains its running-instance list off those events. So this function only has
+// to set up the config, spawn the injector, and return.
 EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
-    if (params.Port.has_value()) {
-        if (params.Engine.Side == EngineSide::Client) {
-            mServerEmulator->AddTemporaryProxy(params.Ip, *params.Port);
-        } else if (params.Engine.Side == EngineSide::Server) {
-            mServerEmulator->AddGameServer(params);
-        }
+    if (!IsEngineInManifest(params.Engine))
+        return EngineLaunchResponse::NotInstalled;
+
+    const std::filesystem::path engineDir = GetEngineDirectory(params.Engine);
+
+    if (params.Engine.Side == EngineSide::Server) {
+        if (!WriteGameServerConfig(engineDir, params))
+            return EngineLaunchResponse::Failed;
     }
 
-    bool installed = IsEngineInManifest(params.Engine);
-    if (!installed) return EngineLaunchResponse::NotInstalled;
-    const std::filesystem::path dir = GetEngineDirectory(params.Engine);
-
-    if (params.PlaceId.has_value()) {
-        nlohmann::json gameServerJson = nlohmann::json::object();
-        gameServerJson["Mode"] = "GameServer";
-        gameServerJson["GameId"] = 13058;
-        gameServerJson["Arguments"] = nlohmann::json::object();
-        
-        nlohmann::json settingsJson = nlohmann::json::object();
-        settingsJson["Type"] = "Avatar";
-        settingsJson["PlaceId"] = 1818;
-        settingsJson["CreatorId"] = 1;
-        settingsJson["CreatorType"] = "User";
-        settingsJson["GameId"] = "1";
-        settingsJson["MachineAddress"] = "http://127.0.0.1";
-        settingsJson["GsmInterval"] = 5;
-        settingsJson["MaxPlayers"] = 50;
-        settingsJson["MaxGameInstances"] = 51;
-        settingsJson["ApiKey"] = "";
-        settingsJson["PreferredPlayerCapacity"] = 50;
-        settingsJson["DataCenterId"] = "0";
-        settingsJson["PlaceVisitAccessKey"] = "";
-        settingsJson["UniverseId"] = 13058;
-        settingsJson["PlaceFetchUrl"] = "http://www.roblox.com/asset/?id=" + std::to_string(params.PlaceId.value());
-        settingsJson["MatchmakingContextId"] = 1;
-        settingsJson["PlaceVersion"] = 1;
-        settingsJson["BaseUrl"] = "http://www.roblox.com";
-        settingsJson["JobId"] = "Test";
-        settingsJson["script"] = "print('Initializing NetworkServer.')";
-        settingsJson["PreferredPort"] = params.Port.value_or(53640);
-
-        gameServerJson["Settings"] = settingsJson;
-
-        std::ofstream gameServerStream(dir / "gameserver.json");
-        gameServerStream << gameServerJson << std::endl;
-    }
-
-    std::filesystem::path exe;
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(dir)) {
-        std::string fn = entry.path().filename().string();
-        if (fn == "RobloxPlayerBeta.exe" || fn == "RCCService.exe" || fn == "RobloxStudioBeta.exe") {
-            exe = entry.path();
-            break;
-        }
-    }
-    if (!exe.empty()) {
-        mServerEmulator->SetCurrentEngine(params.Engine);
-        return LaunchProcessThroughInjector(params.Engine.Architecture, exe, params);
-    } else {
+    std::filesystem::path exe = FindEngineExecutable(engineDir);
+    if (exe.empty())
         return EngineLaunchResponse::NoValidExecutable;
-    }
+    
+    mServerEmulator->SetCurrentEngine(params.Engine);
+    return LaunchProcessThroughInjector(params.Engine.Architecture, exe, params);
 }

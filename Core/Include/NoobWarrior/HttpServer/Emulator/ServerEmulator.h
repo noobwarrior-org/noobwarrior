@@ -47,12 +47,22 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <mutex>
 #include <vector>
-#include <queue>
-#include <utility>
 
 namespace NoobWarrior {
 class Core;
+struct RunningInstance {
+    int Pid {0};
+    EngineSide Side {};
+    std::string Version {};
+    std::string Ip {};
+    std::optional<uint16_t> Port {std::nullopt};
+    std::optional<int64_t> PlaceId {std::nullopt};
+    time_t FirstSeen {0};
+    time_t LastSeen {0};
+};
+
 class ServerEmulator : public HttpServer {
 public:
     enum class Mode {
@@ -69,12 +79,15 @@ public:
     void SetMode(Mode mode);
     Mode GetMode();
 
-    void AddTemporaryProxy(const std::string &ip, uint16_t port);
-    void RemoveTemporaryProxy(const std::string &ip, uint16_t port);
-
-    void AddGameServer(const EngineStartParameters &params);
-    void RemoveGameServer(const std::string &ip, uint16_t port);
-    std::vector<EngineStartParameters> &GetGameServers();
+    /* Lifecycle tracking driven by /v1/process-ping.
+     * Hello/Goodbye are the primary signals, but processes can die without firing Goodbye
+     * (TerminateProcess, crashes, network blips). Heartbeats from noobHook bump LastSeen;
+     * SweepStaleInstances drops rows that haven't been heard from in a while. */
+    void RegisterInstance(const RunningInstance &instance);
+    void UnregisterInstance(int pid);
+    bool TouchInstance(int pid); // returns false if the PID isn't tracked
+    std::vector<RunningInstance> GetRunningInstances() const;
+    std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
 
     void SetCurrentEngine(const Engine &engine);
     std::optional<Engine> GetCurrentEngine();
@@ -101,7 +114,11 @@ private:
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
 
-    std::vector<std::pair<std::string, uint16_t>> mTemporaryProxies;
-    std::vector<EngineStartParameters> mGameServers;
+    void SweepStaleInstancesLocked();
+
+    static constexpr int kStaleInstanceThresholdSecs = 30;
+
+    mutable std::mutex mInstancesMutex;
+    std::vector<RunningInstance> mInstances;
 };
 }
