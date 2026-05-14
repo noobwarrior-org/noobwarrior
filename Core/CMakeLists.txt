@@ -134,6 +134,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/ServerEmulator.cpp
     Source/HttpServer/Emulator/ProcessPingHandler.cpp
     Source/HttpServer/Emulator/CreateAccountHandler.cpp
+    Source/HttpServer/Emulator/LoginHandler.cpp
+    Source/HttpServer/Emulator/LogoutHandler.cpp
     Source/HttpServer/Emulator/RunningGameServersHandler.cpp
     Source/HttpServer/Emulator/AssetHandler.cpp
     Source/HttpServer/Emulator/AssetThumbnailJsonHandler.cpp

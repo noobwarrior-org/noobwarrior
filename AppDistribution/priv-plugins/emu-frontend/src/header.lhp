@@ -34,11 +34,12 @@ end
                 </div>
                 <div class="navbar-right">
                 <?lua
-                    if _COOKIE[".LOGINSESSION"] then
+                    if _SESSION.User then
                         AddNavbarButton("/control-panel", "Control Panel")
                         AddNavbarButton("/messages", "Messages")
                         AddNavbarButton("/settings", "Settings")
-                        AddNavbarButton("/users/86121841/profile", "Hattozo")
+                        AddNavbarButton(string.format("/users/%d/profile", _SESSION.User.Id), _SESSION.User.DisplayName or _SESSION.User.Name)
+                        AddNavbarButton("/v1/logout", "Logout")
                     else
                         AddNavbarButton("/login", "Login")
                     end

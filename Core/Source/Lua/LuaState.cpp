@@ -411,6 +411,12 @@ int LuaState::Open() {
     coreLib.set_function("GetVersion", []() {
         return NOOBWARRIOR_VERSION;
     });
+    coreLib.set_function("GetEmuDbManager", [this]() {
+        return mCore->GetEmuDbManager();
+    });
+    coreLib.set_function("GetMasterDatabase", [this]() {
+        return mCore->GetEmuDbManager()->GetMasterDatabase();
+    });
     set("core", coreLib);
 
     Out("Lua", "Initialized Lua");

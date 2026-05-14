@@ -29,6 +29,8 @@
 
 #include "ProcessPingHandler.h"
 #include "CreateAccountHandler.h"
+#include "LoginHandler.h"
+#include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
 #include "NegotiateHandler.h"
@@ -83,6 +85,8 @@ private:
     //////////////// Handlers ////////////////
     ProcessPingHandler mProcessPingHandler;
     CreateAccountHandler mCreateAccountHandler;
+    LoginHandler mLoginHandler;
+    LogoutHandler mLogoutHandler;
     RunningGameServersHandler mRunningGameServersHandler;
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;

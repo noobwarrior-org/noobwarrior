@@ -1,5 +1,5 @@
 <?lua
-if _COOKIE[".LOGINSESSION"] == nil then
+if _SESSION.User == nil then
     include("login-required.lhp")
     return
 end

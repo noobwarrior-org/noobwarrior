@@ -24,9 +24,17 @@
 // Description:
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
+#include <cstdlib>
 #include <sstream>
 
 using namespace NoobWarrior;
+
+static std::string DecodeFormComponent(const std::string &raw) {
+    char *decoded = evhttp_uridecode(raw.c_str(), 1, nullptr);
+    std::string out = decoded ? decoded : "";
+    if (decoded) free(decoded);
+    return out;
+}
 
 std::map<std::string, std::string> Handler::GetPostFormParameters(evhttp_request *req) {
     std::map<std::string, std::string> params;
@@ -46,7 +54,7 @@ std::map<std::string, std::string> Handler::GetPostFormParameters(evhttp_request
             if (equal_pos != std::string::npos) {
                 std::string key = param.substr(0, equal_pos);
                 std::string val = param.substr(equal_pos + 1, std::string::npos);
-                params[key] = val;
+                params[DecodeFormComponent(key)] = DecodeFormComponent(val);
             }
         }
 

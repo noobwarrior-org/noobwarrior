@@ -91,31 +91,35 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         lhpEnv["echo"] = [output](std::string msg) -> void {
             *output += msg;
         };
-
-        lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) -> void {
-            UrlContext ctx = {
-                .Cwd = path.GetDirectory(),
-                .DefaultProtocolType = path.GetProtocol(),
-                .DefaultHostName = path.GetHostName()
-            };
-
-            lua_State* L = state;
-            Url includeUrl(fileLocation, ctx);
-
-            std::string includeOutput;
-            RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, true);
-            if (res != RenderResponse::Success) {
-                luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
-                return;
-            }
-            *output += includeOutput;
-        };
     }
+    
+    sol::object prevInclude = lhpEnv["include"];
+    lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) -> void {
+        UrlContext ctx = {
+            .Cwd = path.GetDirectory(),
+            .DefaultProtocolType = path.GetProtocol(),
+            .DefaultHostName = path.GetHostName()
+        };
+
+        lua_State* L = state;
+        Url includeUrl(fileLocation, ctx);
+
+        std::string includeOutput;
+        RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, true);
+        if (res != RenderResponse::Success) {
+            luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
+            return;
+        }
+        *output += includeOutput;
+    };
+
+    auto restoreInclude = [&]() { lhpEnv["include"] = prevInclude; };
 
     sol::load_result bytecode = mLua->load(luaBuffer);
     if (!bytecode.valid()) {
         sol::error err = bytecode;
         Out("Lhp", "(Compile Failure) {}", err.what());
+        restoreInclude();
         return RenderResponse::LuaError;
     }
 
@@ -125,8 +129,10 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     if (!res.valid()) {
         sol::error err = res;
         Out("Lhp", "(Render Failure) {}", err.what());
+        restoreInclude();
         return RenderResponse::LuaError;
     }
+    restoreInclude();
     return RenderResponse::Success;
 }
 

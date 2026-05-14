@@ -90,6 +90,17 @@ function http_base.AttachToServer(srv, params)
         end
 
         if params.Sitemap[uri_without_params] then
+            local session_tbl = {}
+            if params.ResolveSession then
+                -- The caller gets a chance to populate _SESSION (e.g. look up the logged-in user
+                -- from a cookie token) and to do per-request side effects like bumping a "last used"
+                -- timestamp. Errors here shouldn't kill the request.
+                local ok, err = pcall(params.ResolveSession, cookies_tbl, session_tbl, req)
+                if not ok then
+                    print("ResolveSession failed:", err)
+                end
+            end
+
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
                 local output = lhp.RenderFile(params.Sitemap[uri_without_params], {
@@ -98,7 +109,7 @@ function http_base.AttachToServer(srv, params)
                     ["_POST"] = post_tbl,
                     ["_FILES"] = {},
                     ["_COOKIE"] = cookies_tbl,
-                    ["_SESSION"] = {},
+                    ["_SESSION"] = session_tbl,
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
                     ["header"] = function(header, replace, response_code)

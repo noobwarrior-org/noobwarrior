@@ -34,6 +34,8 @@ using json = nlohmann::json;
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mProcessPingHandler(this),
     mCreateAccountHandler(this),
+    mLoginHandler(this),
+    mLogoutHandler(this),
     mRunningGameServersHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
@@ -58,6 +60,8 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/v1/process-ping", &mProcessPingHandler);
     SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
+    SetRequestHandler("/v1/login", &mLoginHandler);
+    SetRequestHandler("/v1/logout", &mLogoutHandler);
     SetRequestHandler("/v1/running-game-servers", &mRunningGameServersHandler);
 
     SetRequestHandler("/Asset", &mAssetHandler);

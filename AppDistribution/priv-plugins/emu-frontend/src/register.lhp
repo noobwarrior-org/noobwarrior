@@ -13,7 +13,7 @@ include("header.lhp")
     <input type="password" placeholder="Enter Password" name="password" required>
 
     <label>
-        <input type="checkbox" name="remember"> I am 13 years or older
+        <input type="checkbox" name="iam13"> I am 13 years or older
     </label>
 
     <input type="submit" value="Create Account">

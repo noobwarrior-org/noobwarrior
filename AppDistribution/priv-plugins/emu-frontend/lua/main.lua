@@ -30,6 +30,36 @@ local sitemap = {
     ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp"
 }
 
+-- Resolves the .LOGINSESSION cookie to a user record so LHP pages can read _SESSION.User
+-- without re-querying the database themselves. Also bumps LastUsedTimestamp on each hit so
+-- "remember me" sessions stay alive while in use.
+local function ResolveSession(cookies, session, req)
+    local token = cookies[".LOGINSESSION"]
+    if token == nil or token == "" or token == "deleted" then return end
+
+    local db = core.GetMasterDatabase()
+    if db == nil then return end
+
+    local rows = db:QueryTyped(
+        "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
+        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId " ..
+        "WHERE s.Token = ?;",
+        token
+    )
+    if rows == nil or rows[1] == nil then return end
+
+    local row = rows[1]
+    session.Token = token
+    session.User = {
+        Id = row.Id,
+        Name = row.Name,
+        DisplayName = row.DisplayName,
+    }
+
+    db:QueryTyped("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;", token)
+end
+
 http_base.AttachToServer(emu, {
-    Sitemap = sitemap
+    Sitemap = sitemap,
+    ResolveSession = ResolveSession,
 })
