@@ -32,10 +32,27 @@ PlaceInfoCardWidget::PlaceInfoCardWidget(QWidget *parent) : QFrame(parent) {
 }
 
 void PlaceInfoCardWidget::Refresh(EmuDb* db, int64_t id) {
-    db->PrepareStatement("SELECT Name, Description FROM Asset WHERE Id = ?;");
+    mNoPlaceLabel->setVisible(db == nullptr);
+    mNoPlaceDescriptionLabel->setVisible(db == nullptr);
 
-    mNoPlaceLabel->setVisible(false);
-    mNoPlaceDescriptionLabel->setVisible(false);
+    mThumbnailLabel->setVisible(db != nullptr);
+    mTitleLabel->setVisible(db != nullptr);
+    mCreatorLabel->setVisible(db != nullptr);
+    mDescriptionLabel->setVisible(db != nullptr);
+
+    if (db != nullptr) {
+        Statement placeInfoStmt = db->PrepareStatement("SELECT Name, Description FROM Asset WHERE Id = ?;");
+        placeInfoStmt.Bind(1, id);
+        if (placeInfoStmt.Step() != SQLITE_ROW) {
+            mTitleLabel->setText("No place found");
+            mDescriptionLabel->setText("This universe does not contain a place.");
+            return;
+        }
+        std::string name = placeInfoStmt.GetStringFromColumnIndex(0);
+        std::string desc = placeInfoStmt.GetStringFromColumnIndex(1);
+        mTitleLabel->setText(QString::fromStdString(name));
+        mDescriptionLabel->setText(QString::fromStdString(desc));
+    }
 }
 
 void PlaceInfoCardWidget::InitWidgets() {
@@ -72,10 +89,7 @@ void PlaceInfoCardWidget::InitWidgets() {
     mDescriptionLabel->setFont(descFont);
     mNoPlaceDescriptionLabel->setFont(descFont);
 
-    mThumbnailLabel->setVisible(false);
-    mTitleLabel->setVisible(false);
-    mCreatorLabel->setVisible(false);
-    mDescriptionLabel->setVisible(false);
+    Refresh(nullptr, 0);
 
     mLayout->addWidget(mNoPlaceLabel);
     mLayout->addWidget(mNoPlaceDescriptionLabel);
