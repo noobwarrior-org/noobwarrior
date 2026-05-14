@@ -84,8 +84,8 @@ LoginHandler::LoginHandler(ServerEmulator* emu) : mEmu(emu) {
 void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::map<std::string, std::string> params = GetPostFormParameters(req);
 
-    auto userIt = params.find("uname");
-    auto passIt = params.find("psw");
+    auto userIt = params.find("username");
+    auto passIt = params.find("password");
     auto rememberIt = params.find("remember");
 
     if (userIt == params.end() || passIt == params.end()) {
@@ -171,7 +171,7 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
     masterDb->MarkDirty();
     Out("LoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
-    
+
     std::string cookie = std::format(".LOGINSESSION={}; Path=/; HttpOnly; SameSite=Lax", token);
     if (rememberIt != params.end())
         cookie += "; Max-Age=2592000";
