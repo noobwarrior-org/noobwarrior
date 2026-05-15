@@ -24,10 +24,13 @@
 // Description:
 #include "BackupDialog.h"
 #include "Application.h"
+#include "BackupTask.h"
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "NoobWarrior/Backup.h"
 
 #include <cassert>
+
+#include <QMessageBox>
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::Backup;
@@ -91,10 +94,12 @@ void BackupDialog::InitWidgets() {
     mFrame->setFrameStyle(QFrame::Panel);
     mFrameLayout = new QVBoxLayout(mFrame);
 
+    mTreeView = new BackupTreeView();
+
     mButtons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(mButtons, &QDialogButtonBox::accepted, [this]() {
         StartBackup();
-        close();
+        // close();
     });
     connect(mButtons, &QDialogButtonBox::rejected, [this]() {
         close();
@@ -107,6 +112,7 @@ void BackupDialog::InitWidgets() {
     mMainLayout->addWidget(mIdCaption);
     mMainLayout->addWidget(mIdField);
     mMainLayout->addWidget(mFrame);
+    mMainLayout->addWidget(mTreeView);
     mMainLayout->addWidget(mButtons);
 
     // defaults
@@ -170,18 +176,29 @@ void BackupDialog::InitLocalFileWidgets() {
 }
 
 void BackupDialog::StartBackup() {
+    EmuDb *db = GetDatabase();
+    if (db == nullptr) {
+        QMessageBox::critical(this, "Cannot Backup", "Your SDK window needs to be tabbed into a database project.");
+        return;
+    }
     Out("BackupDialog", "Started backup");
-    Backup::Process* proc = new Backup::Process(gApp->GetCore(), {
-        .TargetSource = ItemSource::OnlineItem,
-        .TargetItemType = ItemType::Universe,
-        .TargetId = mIdField->text().toLongLong(),
-        .DestinationType = DestinationType::Database,
-        .Destination = GetDatabase(),
-        .Callback = [](Backup::State state, std::string msg, double progress) {
-            Out("BackupDialog", "Backup state {}: {}", static_cast<int>(state), msg);
-        }
-    });
-    proc->Start();
+
+    ProcessOptions opts;
+    opts.TargetSource = ItemSource::OnlineItem;
+    opts.TargetItemType = ItemType::Universe;
+    opts.TargetId = mIdField->text().toLongLong();
+    opts.DestinationType = DestinationType::Database;
+    opts.Destination = db;
+    opts.Callback = [](Backup::State state, std::string msg, double progress) {
+        Out("BackupDialog", "Backup state {}: {}", static_cast<int>(state), msg);
+    };
+
+    auto *sdk = dynamic_cast<Sdk*>(parent());
+    if (sdk != nullptr) {
+        auto *task = new BackupTask(gApp->GetCore(), std::move(opts));
+        task->Register(sdk->GetBackgroundTasks());
+        task->Start();
+    }
 }
 
 EmuDb* BackupDialog::GetDatabase() {

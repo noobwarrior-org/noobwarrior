@@ -24,9 +24,33 @@
 // Description:
 #pragma once
 #include "Sdk/BackgroundTask/BackgroundTask.h"
+#include "BackupTreeView.h"
+#include <NoobWarrior/Backup.h>
 
 namespace NoobWarrior {
+class BackupTaskItemWidget : public BackgroundTaskItemWidget {
+    Q_OBJECT
+public:
+    BackupTaskItemWidget(QWidget *parent = nullptr);
+    BackupTreeView* GetTreeView();
+private:
+    BackupTreeView *mTreeView;
+};
+
 class BackupTask : public BackgroundTask {
-    BackupTask();
+public:
+    BackupTask(Core* core, Backup::ProcessOptions options);
+    ~BackupTask();
+
+    void Register(BackgroundTasks* parent) override;
+    void OnStart() override;
+    void OnPause() override;
+    void OnCancel(BackgroundTaskCancelReason reason) override;
+
+    BackgroundTaskItemWidget* CreateItemWidget(QWidget *parent = nullptr) override;
+private:
+    Core* mCore;
+    Backup::ProcessOptions mOptions;
+    Backup::Process* mProc;
 };
 }

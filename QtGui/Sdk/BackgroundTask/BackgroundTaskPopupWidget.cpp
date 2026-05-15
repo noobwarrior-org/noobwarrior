@@ -26,13 +26,28 @@
 
 using namespace NoobWarrior;
 
-BackgroundTaskPopupWidget::BackgroundTaskPopupWidget(QWidget *parent) : QDockWidget(parent) {
+BackgroundTaskPopupWidget::BackgroundTaskPopupWidget(QWidget *parent) : QWidget(parent) {
+    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
     InitWidgets();
 }
 
 void BackgroundTaskPopupWidget::InitWidgets() {
-    mScrollArea = new QScrollArea(this);
-    mWidget = new QWidget(mScrollArea);
+    auto *outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    setLayout(outerLayout);
 
-    
+    mScrollArea = new QScrollArea(this);
+    mWidget = new QWidget();
+    mLayout = new QVBoxLayout(mWidget);
+    mLayout->setAlignment(Qt::AlignTop);
+    mWidget->setLayout(mLayout);
+    mScrollArea->setWidget(mWidget);
+    mScrollArea->setWidgetResizable(true);
+
+    outerLayout->addWidget(mScrollArea);
+    resize(QSize(300, 400));
+}
+
+void BackgroundTaskPopupWidget::AddTaskWidget(QWidget* w) {
+    mLayout->addWidget(w);
 }

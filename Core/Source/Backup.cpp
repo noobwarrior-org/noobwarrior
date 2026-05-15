@@ -241,14 +241,13 @@ Backup::ItemDescriptor::~ItemDescriptor() {
         ItemDescriptor* child = this->Children[i];
         delete child;
     }
-    delete this;
 }
 
 Backup::ItemDescriptor* Backup::ItemDescriptor::GetParent() const {
     return this->Parent;
 }
 
-std::vector<Backup::ItemDescriptor*> Backup::ItemDescriptor::GetChildren() const {
+const std::vector<Backup::ItemDescriptor*>& Backup::ItemDescriptor::GetChildren() const {
     return this->Children;
 }
 
@@ -294,15 +293,20 @@ Backup::Process::~Process() {
 
 Backup::Response Backup::Process::Start() {
     mOptions.Callback(Backup::State::Started, "Started backup process", 0);
-    mOptions.Callback(Backup::State::Populating, "Populating root item descriptor...", 0);
     PopulateItemDescriptor(mRoot);
     return Backup::Response::Ok;
+}
+
+Backup::ItemDescriptor* Backup::Process::GetRoot() {
+    return mRoot;
 }
 
 void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor) {
     mOptions.Callback(Backup::State::Populating, "Populating item descriptor ID " + std::to_string(descriptor->Id), mProgress);
     auto asset_delivery = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_delivery")
         .value_or("https://assetdelivery.roblox.com/v1/asset/?id={}");
+    auto asset_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details")
+        .value_or("https://economy.roblox.com/v2/assets/{}/details");
     auto badge_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.badge_details")
         .value_or("https://badges.roblox.com/v1/badges/{}");
     auto universe_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.universe_details")
@@ -316,18 +320,42 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
 
     NetClient client;
     if (descriptor->Type == ItemType::Universe) {
+        HttpRequest detailsReq = CreateRbxReq(mCore);
+        detailsReq.Url = std::vformat(universe_details, std::make_format_args(idStr));
+        HttpResponse detailsRes = client.Fetch(detailsReq);
+        if (detailsRes.Code != CURLE_OK) {
+            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to retrieve universe details for ID " + idStr, mProgress);
+            return;
+        }
+        try {
+            mOptions.Callback(Backup::State::ParsingJson, "Attempting to parse details JSON for universe " + idStr, mProgress);
+            nlohmann::json json = nlohmann::json::parse(detailsRes.Body);
+            if (!json.contains("data")) {
+                mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse details JSON for universe " + idStr + " because array \"data\" is not included.", mProgress);
+                return;
+            }
+            for (auto& [index, array] : json["data"].items()) {
+                if (array["name"].is_string())
+                    descriptor->Name = array["name"].get<std::string>();
+                if (array["name"].is_string())
+                    descriptor->Description = array["description"].get<std::string>();
+            }
+        } catch (nlohmann::json::exception &ex) {
+            mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse details JSON for universe " + idStr, mProgress);
+        }
+
         HttpRequest placesReq = CreateRbxReq(mCore);
         placesReq.Url = std::vformat(universe_places, std::make_format_args(idStr));
         HttpResponse placesRes = client.Fetch(placesReq);
         if (placesRes.Code != CURLE_OK) {
-            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to download details for universe " + idStr, mProgress);
+            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to download places JSON for universe " + idStr, mProgress);
             return;
         }
         try {
-            mOptions.Callback(Backup::State::ParsingJson, "Attempting to parse place JSON body", mProgress);
+            mOptions.Callback(Backup::State::ParsingJson, "Attempting to parse places JSON for universe " + idStr, mProgress);
             nlohmann::json json = nlohmann::json::parse(placesRes.Body);
             if (!json.contains("data")) {
-                mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse JSON details for universe " + idStr + " because array \"data\" is not included.", mProgress);
+                mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse places JSON for universe " + idStr + " because array \"data\" is not included.", mProgress);
                 return;
             }
             for (auto& [index, array] : json["data"].items()) {
@@ -342,7 +370,7 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
                 }
             }
         } catch (nlohmann::json::exception &ex) {
-            mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse JSON details for universe " + idStr, mProgress);
+            mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse places JSON for universe " + idStr, mProgress);
         }
 
         HttpRequest badgesReq = CreateRbxReq(mCore);
@@ -374,13 +402,34 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
             mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse badges JSON for universe " + idStr, mProgress);
         }
     } else if (descriptor->Type == ItemType::Asset) {
-        
+        HttpRequest assetReq = CreateRbxReq(mCore);
+        assetReq.Url = std::vformat(asset_details, std::make_format_args(idStr));
+        HttpResponse assetRes = client.Fetch(assetReq);
+        if (assetRes.Code != CURLE_OK) {
+            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to retrieve asset details for ID " + idStr, mProgress);
+            return;
+        }
+        try {
+            mOptions.Callback(Backup::State::ParsingJson, "Attempting to parse asset JSON body", mProgress);
+            nlohmann::json json = nlohmann::json::parse(assetRes.Body);
+            if (json["Name"].is_string()) {
+                std::string name = json["Name"].get<std::string>();
+                descriptor->Name = name;
+            }
+
+            if (json["Description"].is_string()) {
+                std::string desc = json["Description"].get<std::string>();
+                descriptor->Description = desc;
+            }
+        } catch (nlohmann::json::exception &ex) {
+            mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse asset JSON " + idStr, mProgress);
+        }
     } else if (descriptor->Type == ItemType::Badge) {
         HttpRequest badgeReq = CreateRbxReq(mCore);
         badgeReq.Url = std::vformat(badge_details, std::make_format_args(idStr));
         HttpResponse badgeRes = client.Fetch(badgeReq);
         if (badgeRes.Code != CURLE_OK) {
-            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to retrieve badge " + idStr, mProgress);
+            mOptions.Callback(Backup::State::DownloadingFailed, "Failed to retrieve badge details for ID " + idStr, mProgress);
             return;
         }
         try {
@@ -394,6 +443,16 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
                 childDesc->Version = 0;
                 descriptor->AddChild(childDesc);
                 PopulateItemDescriptor(childDesc);
+            }
+
+            if (json["name"].is_string()) {
+                std::string name = json["name"].get<std::string>();
+                descriptor->Name = name;
+            }
+
+            if (json["description"].is_string()) {
+                std::string desc = json["description"].get<std::string>();
+                descriptor->Description = desc;
             }
         } catch (nlohmann::json::exception &ex) {
             mOptions.Callback(Backup::State::ParsingJsonFailed, "Failed to parse badge JSON " + idStr, mProgress);

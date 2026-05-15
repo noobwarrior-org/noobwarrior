@@ -37,6 +37,8 @@
 #include <QFileDialog>
 #include <QSizePolicy>
 
+#include "BackupTreeView.h"
+
 namespace NoobWarrior {
 class BackupDialog : public QDialog {
 public:
@@ -81,6 +83,8 @@ private:
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Local File Widgets
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    BackupTreeView* mTreeView;
 
     QDialogButtonBox* mButtons;
 };

@@ -438,6 +438,10 @@ void Core::AutocreateCert() {
     Out("AutocreateCert", "Generated key.pem and cert.pem");
 }
 
+Backup::Process* Core::CreateBackupProcess(const Backup::ProcessOptions options) {
+    return new Backup::Process(this, options);
+}
+
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {
 #if defined(_WIN32)
     std::vector<char> buf;

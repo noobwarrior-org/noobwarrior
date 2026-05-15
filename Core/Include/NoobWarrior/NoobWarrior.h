@@ -44,6 +44,7 @@
 #include "Keychain/RbxKeychain.h"
 #include "Url.h"
 #include "FileSystem/VirtualFileSystem.h"
+#include "Backup.h"
 
 #include <event.h>
 #include <lua.hpp>
@@ -182,6 +183,8 @@ public:
      * This response should be passed to LaunchEngine, which will promptly start the game.
      */
     void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
+    
+    Backup::Process* CreateBackupProcess(const Backup::ProcessOptions options);
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
     bool WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params);

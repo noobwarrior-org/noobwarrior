@@ -62,6 +62,7 @@ public:
     Project* GetFocusedProject();
 
     ItemBrowserWidget *GetItemBrowser();
+    BackgroundTasks *GetBackgroundTasks();
 protected:
     void closeEvent(QCloseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;

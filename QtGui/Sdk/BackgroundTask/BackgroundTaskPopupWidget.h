@@ -26,16 +26,19 @@
 #include <QDockWidget>
 #include <QScrollArea>
 #include <QWidget>
+#include <QVBoxlayout>
 
 namespace NoobWarrior {
-class BackgroundTaskPopupWidget : public QDockWidget {
+class BackgroundTaskPopupWidget : public QWidget {
     Q_OBJECT
     friend class BackgroundTasks;
 public:
     BackgroundTaskPopupWidget(QWidget *parent = nullptr);
     void InitWidgets();
+    void AddTaskWidget(QWidget* w);
 private:
     QScrollArea* mScrollArea;
     QWidget* mWidget;
+    QVBoxLayout *mLayout;
 };
 }

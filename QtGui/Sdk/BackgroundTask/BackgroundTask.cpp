@@ -25,10 +25,17 @@
 #include "BackgroundTask.h"
 #include "BackgroundTaskStatusBarWidget.h"
 #include "BackgroundTaskPopupWidget.h"
+#include "BackgroundTaskItemWidget.h"
+
+#include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
 
-BackgroundTask::BackgroundTask(BackgroundTasks* parent) : mParent(parent), mProgress(-1) {
+BackgroundTask::BackgroundTask() : mParent(nullptr), mProgress(-1) {
+}
+
+void BackgroundTask::Register(BackgroundTasks* parent) {
+    mParent = parent;
     mParent->AddTask(this);
 }
 
@@ -71,6 +78,14 @@ double BackgroundTask::GetProgress() {
     return mProgress;
 }
 
+BackgroundTaskItemWidget* BackgroundTask::CreateItemWidget(QWidget *parent) {
+    return new BackgroundTaskItemWidget(parent);
+}
+
+BackgroundTaskItemWidget* BackgroundTask::GetItemWidget() {
+    return mItemWidget;
+}
+
 BackgroundTasks::BackgroundTasks(BackgroundTaskStatusBarWidget *statusBarWidget, BackgroundTaskPopupWidget *popupWidget) :
     mStatusBarWidget(statusBarWidget),
     mPopupWidget(popupWidget)
@@ -80,6 +95,13 @@ void BackgroundTasks::AddTask(BackgroundTask* task) {
     if (std::find(mTasks.begin(), mTasks.end(), task) != mTasks.end())
         return;
     mTasks.push_back(task);
+
+    if (mPopupWidget != nullptr) {
+        Out("AddTask", "Created widget!");
+        auto *w = task->CreateItemWidget(mPopupWidget->mWidget);
+        task->mItemWidget = w;
+        mPopupWidget->AddTaskWidget(w);
+    }
     UpdateTask(mTasks.back(), task->GetProgress(), task->GetTitle(), task->GetCaption());
 }
 
@@ -102,13 +124,15 @@ void BackgroundTasks::UpdateTask(BackgroundTask *task, double progress, const QS
                     mStatusBarWidget->mProgressBar.setValue(static_cast<int>(progress * 100));
                 }
             }
-            return;
+            break;
         }
     }
     if (mStatusBarWidget != nullptr) {
         mStatusBarWidget->mLabel.setVisible(!mTasks.empty());
         mStatusBarWidget->mProgressBar.setVisible(!mTasks.empty());
     }
+    if (task->mItemWidget)
+        task->mItemWidget->OnUpdate(progress, newTitle, newCaption);
 }
 
 void BackgroundTasks::SetStatusBarWidget(BackgroundTaskStatusBarWidget *statusBarWidget) {

@@ -24,6 +24,8 @@
 // Description: A background task is a process that the Database Editor is running.
 // Its main purpose is to display to the user that a process is ongoing, and exactly what it is doing.
 #pragma once
+#include "BackgroundTaskItemWidget.h"
+
 #include <QString>
 #include <vector>
 
@@ -62,9 +64,11 @@ private:
 };
 
 class BackgroundTask {
+    friend class BackgroundTasks;
 public:
-    BackgroundTask(BackgroundTasks* parent);
+    BackgroundTask();
 
+    virtual void Register(BackgroundTasks* parent);
     void Start();
     void Pause();
     void Cancel(BackgroundTaskCancelReason reason = BackgroundTaskCancelReason::Failed);
@@ -76,11 +80,15 @@ public:
     virtual QString GetTitle();
     virtual QString GetCaption();
     virtual double GetProgress();
+
+    virtual BackgroundTaskItemWidget* CreateItemWidget(QWidget *parent = nullptr);
+    BackgroundTaskItemWidget* GetItemWidget();
 protected:
     virtual void OnStart() = 0;
     virtual void OnPause() = 0;
     virtual void OnCancel(BackgroundTaskCancelReason reason) = 0;
     BackgroundTasks* mParent;
+    BackgroundTaskItemWidget* mItemWidget { nullptr };
 private:
     QString mTitle;
     QString mCaption;

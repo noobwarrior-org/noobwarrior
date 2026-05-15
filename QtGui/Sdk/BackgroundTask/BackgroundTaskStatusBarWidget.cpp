@@ -55,6 +55,12 @@ void BackgroundTaskStatusBarWidget::SetPopupWidget(BackgroundTaskPopupWidget *wi
 }
 
 void BackgroundTaskStatusBarWidget::mouseReleaseEvent(QMouseEvent *event) {
-    if (mPopupWidget != nullptr)
+    if (mPopupWidget != nullptr) {
         mPopupWidget->isVisible() ? mPopupWidget->hide() : mPopupWidget->show();
+        if (mPopupWidget->isVisible()) {
+            QPoint globalPos = mapToGlobal(event->pos());
+            globalPos -= QPoint(mPopupWidget->width(), mPopupWidget->height());
+            mPopupWidget->move(globalPos);
+        } 
+    }
 }

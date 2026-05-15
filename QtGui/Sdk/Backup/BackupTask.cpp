@@ -23,3 +23,54 @@
 // Started on: 12/28/2025
 // Description:
 #include "BackupTask.h"
+#include "Application.h"
+
+using namespace NoobWarrior;
+using namespace NoobWarrior::Backup;
+
+BackupTaskItemWidget::BackupTaskItemWidget(QWidget *parent) : BackgroundTaskItemWidget(parent) {
+    mTreeView = new BackupTreeView(this);
+    mLayout->addWidget(mTreeView);
+}
+
+BackupTreeView* BackupTaskItemWidget::GetTreeView() {
+    return mTreeView;
+}
+
+BackupTask::BackupTask(Core *core, Backup::ProcessOptions options) :
+    mCore(core),
+    mOptions(std::move(options)),
+    mProc(nullptr)
+{
+}
+
+BackupTask::~BackupTask() {
+
+}
+
+void BackupTask::Register(BackgroundTasks* parent) {
+    BackgroundTask::Register(parent);
+    SetTitle("Backup");
+    SetCaption("Queued");
+    SetProgress(0.0);
+}
+
+void BackupTask::OnStart() {
+    mProc = gApp->GetCore()->CreateBackupProcess(mOptions);
+    mProc->Start();
+
+    if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
+        w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+}
+
+void BackupTask::OnPause() {
+
+}
+
+void BackupTask::OnCancel(BackgroundTaskCancelReason reason) {
+
+}
+
+BackgroundTaskItemWidget* BackupTask::CreateItemWidget(QWidget *parent) {
+    return new BackupTaskItemWidget(parent);
+}

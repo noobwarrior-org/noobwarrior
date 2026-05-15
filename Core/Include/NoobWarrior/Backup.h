@@ -52,6 +52,7 @@ enum class State {
     Populating,
     Downloading,
     DownloadingFailed,
+    Ratelimited,
     ParsingJson,
     ParsingJsonFailed,
     ParsingFile,
@@ -72,18 +73,18 @@ public:
     ItemDescriptor();
     ~ItemDescriptor();
 
-    ItemType Type;
-    int64_t Id;
-    int Version;
+    ItemType Type {};
+    int64_t Id {};
+    int Version {};
 
-    Roblox::AssetType AssetType;
+    Roblox::AssetType AssetType {};
 
     std::string Name;
     std::string Description;
     std::vector<unsigned char> IconData;
 
     ItemDescriptor* GetParent() const;
-    std::vector<ItemDescriptor*> GetChildren() const;
+    const std::vector<ItemDescriptor*>& GetChildren() const;
     
     void AddChild(ItemDescriptor* child);
     void RemoveChild(ItemDescriptor* child);
@@ -124,6 +125,7 @@ public:
     ~Process();
 
     Response Start();
+    ItemDescriptor* GetRoot();
 private:
     void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor);
 

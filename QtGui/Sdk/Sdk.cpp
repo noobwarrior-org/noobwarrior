@@ -305,6 +305,10 @@ ItemBrowserWidget *Sdk::GetItemBrowser() {
     return mItemBrowser;
 }
 
+BackgroundTasks *Sdk::GetBackgroundTasks() {
+    return &mBackgroundTasks;
+}
+
 void Sdk::InitMenus() {
     mNewProjectAction = new QAction(QIcon(":/images/silk/page_white_add.png"), "New Project");
     mOpenProjectAction = new QAction(QIcon(":/images/silk/page_white_edit.png"), "Open Project");
@@ -434,8 +438,6 @@ void Sdk::InitStatusBarWidgets() {
 
     mBackgroundTaskStatusBarWidget = new BackgroundTaskStatusBarWidget();
     statusBar()->addPermanentWidget(mBackgroundTaskStatusBarWidget);
-
-    mBackgroundTaskPopupWidget->move(mBackgroundTaskStatusBarWidget->pos());
 
     mBackgroundTasks.SetStatusBarWidget(mBackgroundTaskStatusBarWidget);
     mBackgroundTasks.SetPopupWidget(mBackgroundTaskPopupWidget);
