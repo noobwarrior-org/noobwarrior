@@ -97,7 +97,6 @@ void BackgroundTasks::AddTask(BackgroundTask* task) {
     mTasks.push_back(task);
 
     if (mPopupWidget != nullptr) {
-        Out("AddTask", "Created widget!");
         auto *w = task->CreateItemWidget(mPopupWidget->mWidget);
         task->mItemWidget = w;
         mPopupWidget->AddTaskWidget(w);

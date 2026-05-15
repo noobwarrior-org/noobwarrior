@@ -128,6 +128,7 @@ public:
     ItemDescriptor* GetRoot();
 private:
     void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor);
+    void DownloadItemDescriptorRecursively(Backup::ItemDescriptor* descriptor);
 
     Core*           mCore { nullptr };
     ItemDescriptor* mRoot { nullptr };

@@ -293,7 +293,8 @@ Backup::Process::~Process() {
 
 Backup::Response Backup::Process::Start() {
     mOptions.Callback(Backup::State::Started, "Started backup process", 0);
-    PopulateItemDescriptor(mRoot);
+    PopulateItemDescriptor(mRoot); // Phase 1: Populate the Item Descriptor with more Item Descriptors!!!
+    DownloadItemDescriptorRecursively(mRoot); // Phase 2: Download them all!!!!!
     return Backup::Response::Ok;
 }
 
@@ -465,4 +466,8 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
     default:
         break;
     }*/
+}
+
+void Backup::Process::DownloadItemDescriptorRecursively(Backup::ItemDescriptor* descriptor) {
+    
 }

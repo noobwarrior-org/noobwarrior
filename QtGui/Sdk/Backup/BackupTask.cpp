@@ -50,9 +50,13 @@ BackupTask::~BackupTask() {
 
 void BackupTask::Register(BackgroundTasks* parent) {
     BackgroundTask::Register(parent);
-    SetTitle("Backup");
+    SetTitle("Importing from Roblox...");
     SetCaption("Queued");
     SetProgress(0.0);
+    mOptions.Callback = [this](Backup::State state, std::string msg, double progress) {
+        SetCaption(QString::fromStdString(msg));
+        SetProgress(progress);
+    };
 }
 
 void BackupTask::OnStart() {
