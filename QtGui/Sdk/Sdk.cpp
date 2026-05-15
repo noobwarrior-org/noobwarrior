@@ -424,11 +424,16 @@ void Sdk::InitMenus() {
             );
             if (res == QMessageBox::Yes) {
                 AuthTokenDialog dialog(this);
-                dialog.exec();
+                int code = dialog.exec();
+
+                if (code == QDialog::Accepted)
+                    goto launchdialog;
             }
+        } else {
+launchdialog:
+            BackupDialog backupDialog(this);
+            backupDialog.exec();
         }
-        BackupDialog backupDialog(this);
-        backupDialog.exec();
     });
 }
 
