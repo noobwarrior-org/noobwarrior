@@ -40,6 +40,7 @@ struct HttpRequest {
     std::string UserAgent;
     long TimeoutSeconds { 30 };
     bool FollowRedirects { true };
+    bool IgnoreTLSVerification { false };
 };
 
 struct HttpResponse {

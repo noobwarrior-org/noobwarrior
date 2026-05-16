@@ -41,7 +41,6 @@ void DirectConnectDialog::InitWidgets() {
     mLayout->addWidget(lol);
 
     mIpInput = new QLineEdit();
-    mIpInput->setPlaceholderText("localhost:8080");
     mLayout->addWidget(mIpInput);
 
     mButtonBox = new QDialogButtonBox();
@@ -57,7 +56,7 @@ void DirectConnectDialog::InitWidgets() {
             return;
         }
         QString ipAddress = list.at(0);
-        uint16_t port = 8080;
+        uint16_t port = 53640;
         if (list.size() > 1) {
             QString portStr = list.at(1);
             if (portStr.toUInt() > 65535) {

@@ -101,7 +101,7 @@ protected:
 
     std::vector<std::unique_ptr<std::tuple<Handler*, void*>>> HandlerUserdata;
 
-    bool mHandlersSetUp {false};
+    bool mHandlersSetUp { false };
 
     struct StoredHandler {
         std::optional<std::string> uri;

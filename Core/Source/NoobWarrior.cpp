@@ -300,8 +300,9 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
     std::thread([=]() {
         NetClient client;
         HttpRequest req;
-        req.Url = "http://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
+        req.Url = "https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
         req.TimeoutSeconds = 10;
+        req.IgnoreTLSVerification = true; // Because players will be logging into server emulators with self-signed certificates most of the time.
         HttpResponse response = client.Fetch(req);
 
         if (response.Code != CURLE_OK) {

@@ -66,6 +66,11 @@ static bool ConfigureHandle(PreparedHandle &slot, const HttpRequest &req) {
     curl_easy_setopt(slot.Handle, CURLOPT_WRITEFUNCTION, WriteToBuf);
     curl_easy_setopt(slot.Handle, CURLOPT_WRITEDATA, &slot.Response.Body);
 
+    if (req.IgnoreTLSVerification) {
+        curl_easy_setopt(slot.Handle, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(slot.Handle, CURLOPT_SSL_VERIFYPEER, 0L);
+    }
+
     curl_easy_setopt(slot.Handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
 
     if (!req.Cookie.empty())
