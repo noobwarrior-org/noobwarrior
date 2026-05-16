@@ -127,6 +127,25 @@ void Keychain::AddAccount(Account &acc) {
     Accounts.push_back(acc);
 }
 
+void Keychain::RemoveAccount(int index) {
+    // Determine where the active account lives before the erase shifts indices.
+    int activeIdx = -1;
+    for (int i = 0; i < static_cast<int>(Accounts.size()); i++) {
+        if (&Accounts[i] == ActiveAccount) {
+            activeIdx = i;
+            break;
+        }
+    }
+
+    Accounts.erase(Accounts.begin() + index);
+
+    if (activeIdx == index)
+        ActiveAccount = nullptr;
+    else if (activeIdx > index)
+        ActiveAccount = &Accounts[activeIdx - 1];
+    // activeIdx < index: pointer unaffected
+}
+
 void Keychain::SetActiveAccount(Account *acc) {
     ActiveAccount = acc;
 }

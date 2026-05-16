@@ -74,6 +74,8 @@ public:
 
     void AddAccount(Account&);
 
+    void RemoveAccount(int index);
+
     void SetActiveAccount(Account *acc);
 
     Account* GetActiveAccount();

@@ -27,6 +27,8 @@
 #include "../Dialog/AuthTokenDialog.h"
 #include "NoobWarrior/Keychain/RbxKeychain.h"
 
+#include <QMessageBox>
+
 using namespace NoobWarrior;
 
 AccountPage::AccountPage(QWidget *parent) : SettingsPage(parent) {
@@ -79,6 +81,26 @@ void AccountPage::InitWidgets() {
         });
         connect(action2, &QAction::triggered, this, []() {
 
+        });
+        connect(action3, &QAction::triggered, this, [this]() {
+            QItemSelectionModel *selectionModel = ListView->selectionModel();
+            QModelIndexList selectedIndexes = selectionModel->selectedIndexes();
+            if (selectedIndexes.empty()) return;
+            QStandardItem *primaryItem = ListModel->itemFromIndex(selectedIndexes.at(0));
+            if (primaryItem->data().isNull()) return;
+
+            RbxKeychain *auth = gApp->GetCore()->GetRbxKeychain();
+            int idx = primaryItem->data().toInt();
+            Account &acc = auth->GetAccounts().at(idx);
+            QString name = !acc.Name.empty() ? QString::fromStdString(acc.Name) : "this account";
+
+            auto reply = QMessageBox::question(this, "Delete Account",
+                QString("Are you sure you want to delete %1?").arg(name),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                auth->RemoveAccount(idx);
+                Refresh();
+            }
         });
 
         menu.exec(ListView->mapToGlobal(pos));
