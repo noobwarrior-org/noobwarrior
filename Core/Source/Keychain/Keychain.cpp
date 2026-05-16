@@ -70,15 +70,22 @@ AuthResponse Keychain::ReadFromKeychain() {
     try {
         nlohmann::json accountsJson = nlohmann::json::parse(jsonStr);
         for (auto &accJson : accountsJson) {
-            Account acc = AccJsonToStruct(accJson);
-            Accounts.push_back(acc);
-
-            std::optional<std::string> active_account_thing = mRegistry->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
-            if (active_account_thing.has_value() && active_account_thing.value().compare(acc.Name) == 0)
-                ActiveAccount = &Accounts.back();
+            Accounts.push_back(AccJsonToStruct(accJson));
         }
     } catch (nlohmann::json::exception) {
         return AuthResponse::InvalidJson;
+    }
+
+    // Resolve the active account after all push_backs are done so the vector
+    // is no longer growing and every &Accounts[i] is stable.
+    auto activeName = mRegistry->GetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()));
+    if (activeName.has_value()) {
+        for (auto &acc : Accounts) {
+            if (acc.Name == activeName.value()) {
+                ActiveAccount = &acc;
+                break;
+            }
+        }
     }
     return AuthResponse::Success;
 }
