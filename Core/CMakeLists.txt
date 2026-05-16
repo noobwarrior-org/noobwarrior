@@ -170,6 +170,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     event_core
     event_extra
     event_openssl
+    event_pthreads
     libzip::zip
     pugixml-static
 )
