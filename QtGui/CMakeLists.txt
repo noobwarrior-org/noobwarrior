@@ -13,7 +13,7 @@ set(SOURCES
     Settings/PluginPage.cpp
     Settings/InstallationPage.cpp
     Settings/AccountPage.cpp
-    Settings/HttpServerPage.cpp
+    Settings/ServerEmulatorPage.cpp
     Dialog/AssetDownloaderDialog.cpp
     Dialog/AboutDialog.cpp
     Dialog/AuthBaseDialog.cpp

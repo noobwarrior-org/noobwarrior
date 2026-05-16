@@ -33,7 +33,7 @@
 #include <qdialogbuttonbox.h>
 
 #include "GeneralPage.h"
-#include "HttpServerPage.h"
+#include "ServerEmulatorPage.h"
 #include "InstallationPage.h"
 #include "AccountPage.h"
 #include "SettingsPage.h"
@@ -95,7 +95,7 @@ void SettingsDialog::InitWidgets() {
 
 void SettingsDialog::InitPages() {
     AddPage(new GeneralPage());
-    AddPage(new HttpServerPage());
+    AddPage(new ServerEmulatorPage());
     AddPage(new InstallationPage());
     AddPage(new AccountPage());
 }

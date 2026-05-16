@@ -269,16 +269,15 @@ void Core::CreateStandardUserDataDirectories() {
 }
 
 int Core::StartServerEmulator() {
-    mServerEmulator->StartSecure(8081);
-    return mServerEmulator->Start(8080);
+    return mServerEmulator->StartSecure(mRegistry->GetKeyValue<uint16_t>("emu.port").value_or(53640));
 }
 
 int Core::StopServerEmulator() {
-    mServerEmulator->StopSecure();
-    return mServerEmulator->Stop();
+    return mServerEmulator->StopSecure();
 }
 
 void Core::RestartServerEmulator() {
+    Out("Core", "Restarting server emulator!");
     /* Can't actually do a hard-reset by deleting it from memory and allocating
        a new one because that would ruin the state set by the Lua plugins */
     StopServerEmulator();
