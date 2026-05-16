@@ -170,7 +170,6 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     event_core
     event_extra
     event_openssl
-    event_pthreads
     libzip::zip
     pugixml-static
 )
@@ -192,6 +191,7 @@ elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
 
     target_link_libraries(NoobWarrior.Core
         PRIVATE
+            event_pthreads
             ${COREFOUNDATION_LIBRARY}
             ${SECURITY_LIBRARY})
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
@@ -203,6 +203,7 @@ elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
 
     target_link_libraries(NoobWarrior.Core
         PRIVATE
+            event_pthreads
             PkgConfig::GLIB2
             PkgConfig::LIBSECRET)
 else()
