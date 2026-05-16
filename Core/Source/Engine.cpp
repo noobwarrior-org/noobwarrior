@@ -307,6 +307,9 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         wine_exe_str = mRegistry->GetKeyValue<std::string>("wine.exe").value_or("wine");
         wine_is_absolute = std::filesystem::path(wine_exe_str).is_absolute();
     }
+    if (wine_exe_str.empty()) {
+        return EngineLaunchResponse::WineMissing;
+    }
     
     std::string winePrefix = mRegistry->GetKeyValue<std::string>("wine.prefix").value_or("");
     if (winePrefix.empty())

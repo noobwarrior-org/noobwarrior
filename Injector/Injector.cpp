@@ -48,7 +48,8 @@ enum class EngineLaunchResponse {
     InjectThreadTimedOut,
     InjectCouldNotGetReturnValueOfLoadLibrary,
     InjectFailedToLoadLibrary,
-    InjectFailedToResumeProcess
+    InjectFailedToResumeProcess,
+    WineMissing
 };
 
 static std::string LastErrorStr(DWORD err = GetLastError()) {

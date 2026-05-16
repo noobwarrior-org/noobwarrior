@@ -121,7 +121,8 @@ enum class EngineLaunchResponse {
     InjectThreadTimedOut,
     InjectCouldNotGetReturnValueOfLoadLibrary,
     InjectFailedToLoadLibrary,
-    InjectFailedToResumeProcess
+    InjectFailedToResumeProcess,
+    WineMissing
 };
 
 std::string GetEngineVersion(const Engine &engine);

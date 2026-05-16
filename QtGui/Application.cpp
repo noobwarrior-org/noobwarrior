@@ -286,6 +286,7 @@ void Application::LaunchEngine(EngineStartParameters params) {
             case EngineLaunchResponse::InjectCouldNotGetReturnValueOfLoadLibrary: errMsg = "Could not get the return value of the LoadLibrary API call."; break;
             case EngineLaunchResponse::InjectFailedToLoadLibrary: errMsg = "Failed to load the DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
             case EngineLaunchResponse::InjectFailedToResumeProcess: errMsg = "Failed to resume Roblox process after injecting DLL."; break;
+            case EngineLaunchResponse::WineMissing: errMsg = "A Wine installation could not be found on your system. Please install it. If you have installed it, go to the Settings menu and configure your Wine path."; break;
             }
             QMessageBox::critical(dialog, "Cannot Launch Engine", errMsg);
             dialog->close();
