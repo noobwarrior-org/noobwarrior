@@ -33,9 +33,7 @@
 #include <zipconf.h>
 
 #include <filesystem>
-#include <thread>
 #include <set>
-#include <codecvt>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -294,33 +292,56 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 
     return EngineLaunchResponse::Success;
 #elif defined(__unix__) || defined(__APPLE__)
-    // where wine comes in
     pid_t pid = 0;
-    std::filesystem::path wine_path = GetUserDataDir() / NW_PATH_WINE;
-    std::filesystem::path wine_root = GetUserDataDir() / NW_PATH_WINE_ROOT;
-    std::filesystem::path wine_prefix = GetUserDataDir() / NW_PATH_WINE_PREFIX;
-    std::filesystem::path wine_exe = wine_root / "bin" / "wine";
+    std::filesystem::path wine_root   = GetUserDataDir() / NW_PATH_WINE_ROOT;
+    std::filesystem::path wine_prefix_dir = GetUserDataDir() / NW_PATH_WINE_PREFIX;
+    std::filesystem::path bundled_wine = wine_root / "bin" / "wine";
 
-    std::string wineprefix_env = "WINEPREFIX=" + wine_prefix.generic_string();
+    // Use bundled wine if it exists, or use system wine (assuming they installed it through their pkg manager)
+    std::string wine_exe_str;
+    bool wine_is_absolute;
+    if (std::filesystem::exists(bundled_wine)) {
+        wine_exe_str = bundled_wine.string();
+        wine_is_absolute = true;
+    } else {
+        wine_exe_str = mRegistry->GetKeyValue<std::string>("wine.exe").value_or("wine");
+        wine_is_absolute = std::filesystem::path(wine_exe_str).is_absolute();
+    }
+    
+    std::string winePrefix = mRegistry->GetKeyValue<std::string>("wine.prefix").value_or("");
+    if (winePrefix.empty())
+        winePrefix = wine_prefix_dir.generic_string();
+    std::string wineprefix_env = "WINEPREFIX=" + winePrefix;
 
     std::vector<char*> argv_ptrs;
-    argv_ptrs.push_back((char*)wine_exe.c_str());
-    for (auto& arg : args) {
+    argv_ptrs.push_back(wine_exe_str.data());
+    for (auto& arg : args)
         argv_ptrs.push_back(arg.data());
-    }
     argv_ptrs.push_back(nullptr);
 
-    char* wine_environ[] = {(char*)wineprefix_env.c_str(), NULL};
-
-    // Launch the process
-    int status = posix_spawn(&pid, wine_exe.c_str(), NULL, NULL, argv_ptrs.data(), wine_environ);
-
-    if (status == 0) {
-        std::cout << "Launched process with PID: " << pid << std::endl;
-        // waitpid(pid, &status, 0);
-    } else {
-        perror("posix_spawn failed");
+    std::vector<std::string> env_strings;
+    for (char** ep = environ; ep && *ep; ep++) {
+        if (strncmp(*ep, "WINEPREFIX=", 11) != 0)
+            env_strings.push_back(*ep);
     }
+    env_strings.push_back(wineprefix_env);
+    std::vector<char*> env_ptrs;
+    for (auto& s : env_strings)
+        env_ptrs.push_back(s.data());
+    env_ptrs.push_back(nullptr);
+
+    Out("Inject", "Launching via Wine ({}): {}", wine_exe_str, argsStr);
+    int status;
+    if (wine_is_absolute)
+        status = posix_spawn(&pid, wine_exe_str.c_str(), nullptr, nullptr, argv_ptrs.data(), env_ptrs.data());
+    else
+        status = posix_spawnp(&pid, wine_exe_str.c_str(), nullptr, nullptr, argv_ptrs.data(), env_ptrs.data());
+
+    if (status != 0) {
+        Out("Inject", "posix_spawn failed: {}", strerror(status));
+        return EngineLaunchResponse::FailedToCreateProcess;
+    }
+    Out("Inject", "Launched Wine process with PID {}", pid);
     return EngineLaunchResponse::Success;
 #endif
 }
