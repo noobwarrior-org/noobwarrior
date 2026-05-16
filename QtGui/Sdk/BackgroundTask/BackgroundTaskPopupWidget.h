@@ -26,7 +26,7 @@
 #include <QDockWidget>
 #include <QScrollArea>
 #include <QWidget>
-#include <QVBoxlayout>
+#include <QVBoxLayout>
 
 namespace NoobWarrior {
 class BackgroundTaskPopupWidget : public QWidget {
