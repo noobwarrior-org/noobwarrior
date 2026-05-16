@@ -25,9 +25,12 @@
 #pragma once
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
+
 #include <cstdint>
 #include <string>
 #include <functional>
+#include <utility>
+#include <map>
 
 namespace NoobWarrior {
 class Core;
@@ -127,7 +130,7 @@ public:
     Response Start();
     ItemDescriptor* GetRoot();
 private:
-    void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor);
+    void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems);
     void DownloadItemDescriptorRecursively(Backup::ItemDescriptor* descriptor);
 
     Core*           mCore { nullptr };

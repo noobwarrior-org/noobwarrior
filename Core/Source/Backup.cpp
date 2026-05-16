@@ -34,6 +34,7 @@
 #include <iostream>
 #include <filesystem>
 #include <sstream>
+#include <utility>
 
 using namespace NoobWarrior;
 using json = nlohmann::json;
@@ -293,7 +294,8 @@ Backup::Process::~Process() {
 
 Backup::Response Backup::Process::Start() {
     mOptions.Callback(Backup::State::Started, "Started backup process", 0);
-    PopulateItemDescriptor(mRoot); // Phase 1: Populate the Item Descriptor with more Item Descriptors!!!
+    std::map<std::pair<ItemType, int64_t>, bool> discoveredItems;
+    PopulateItemDescriptor(mRoot, discoveredItems); // Phase 1: Populate the Item Descriptor with more Item Descriptors!!!
     DownloadItemDescriptorRecursively(mRoot); // Phase 2: Download them all!!!!!
     return Backup::Response::Ok;
 }
@@ -302,7 +304,9 @@ Backup::ItemDescriptor* Backup::Process::GetRoot() {
     return mRoot;
 }
 
-void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor) {
+void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems) {
+    discoveredItems[{ descriptor->Type, descriptor->Id }] = true;
+    
     NetClient client;
     auto FetchJson = [&](
         const std::string& url,
@@ -329,12 +333,15 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
     };
 
     auto MakeChild = [&](ItemType type, int64_t id) -> ItemDescriptor* {
+        if (discoveredItems.contains({ type, id })) {
+            return nullptr;
+        }
         auto* child = new ItemDescriptor();
-        child->Type    = type;
-        child->Id      = id;
+        child->Type = type;
+        child->Id = id;
         child->Version = 0;
         descriptor->AddChild(child);
-        PopulateItemDescriptor(child);
+        PopulateItemDescriptor(child, discoveredItems);
         return child;
     };
 
