@@ -357,8 +357,17 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
             && json.contains("data"))
         {
             for (auto& entry : json["data"]) {
-                if (entry["name"].is_string())        descriptor->Name        = entry["name"];
-                if (entry["description"].is_string()) descriptor->Description = entry["description"];
+                if (entry["name"].is_string())
+                    descriptor->Name = entry["name"];
+                if (entry["description"].is_string())
+                    descriptor->Description = entry["description"];
+                if (entry["creator"].is_array()) {
+                    if (entry["creator"]["type"] == "User") {
+                        MakeChild(ItemType::User, entry["creator"]["id"]);
+                    } else if (entry["creator"]["type"] == "Group") {
+                        MakeChild(ItemType::Group, entry["creator"]["id"]);
+                    }
+                }
             }
         }
 
@@ -368,7 +377,7 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
         {
             for (auto& entry : json["data"])
                 if (entry["id"].is_number())
-                    MakeChild(ItemType::Asset, entry["id"].get<int64_t>());
+                    MakeChild(ItemType::Asset, entry["id"]);
         }
 
         if (FetchJson(std::vformat(universe_badges, std::make_format_args(idStr)),
@@ -377,9 +386,8 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
         {
             for (auto& entry : json["data"])
                 if (entry["id"].is_number())
-                    MakeChild(ItemType::Badge, entry["id"].get<int64_t>());
+                    MakeChild(ItemType::Badge, entry["id"]);
         }
-
     } else if (descriptor->Type == ItemType::Asset) {
         auto asset_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details")
             .value_or("https://economy.roblox.com/v2/assets/{}/details");
@@ -390,7 +398,6 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
             if (json["Name"].is_string())        descriptor->Name        = json["Name"];
             if (json["Description"].is_string()) descriptor->Description = json["Description"];
         }
-
     } else if (descriptor->Type == ItemType::Badge) {
         auto badge_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.badge_details")
             .value_or("https://badges.roblox.com/v1/badges/{}");
@@ -398,10 +405,36 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor)
         if (FetchJson(std::vformat(badge_details, std::make_format_args(idStr)),
                     "badge " + idStr, json))
         {
-            if (json["name"].is_string())        descriptor->Name        = json["name"];
-            if (json["description"].is_string()) descriptor->Description = json["description"];
+            if (json["name"].is_string())
+                descriptor->Name = json["name"];
+            if (json["description"].is_string())
+                descriptor->Description = json["description"];
             if (json["iconImageId"].is_number())
-                MakeChild(ItemType::Asset, json["iconImageId"].get<int64_t>());
+                MakeChild(ItemType::Asset, json["iconImageId"]);
+        }
+    } else if (descriptor->Type == ItemType::User) {
+        auto user_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.user_details")
+            .value_or("https://users.roblox.com/v1/users/{}");
+
+        if (FetchJson(std::vformat(user_details, std::make_format_args(idStr)),
+                    "user " + idStr, json))
+        {
+            if (json["name"].is_string())
+                descriptor->Name = json["name"];
+            if (json["description"].is_string())
+                descriptor->Description = json["description"];
+        }
+    } else if (descriptor->Type == ItemType::Group) {
+        auto group_details = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.group_details")
+            .value_or("https://groups.roblox.com/v1/groups/{}");
+
+        if (FetchJson(std::vformat(group_details, std::make_format_args(idStr)),
+                    "group " + idStr, json))
+        {
+            if (json["name"].is_string())
+                descriptor->Name = json["name"];
+            if (json["description"].is_string())
+                descriptor->Description = json["description"];
         }
     }
 }

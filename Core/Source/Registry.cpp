@@ -55,6 +55,8 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.universe_details", "https://games.roblox.com/v1/games?universeIds={}");
     SetKeyValueIfNotSet("internet.roblox.universe_places", "https://develop.roblox.com/v1/universes/{}/places");
     SetKeyValueIfNotSet("internet.roblox.universe_badges", "https://badges.roblox.com/v1/universes/{}/badges");
+    SetKeyValueIfNotSet("internet.roblox.user_details", "https://users.roblox.com/v1/users/{}");
+    SetKeyValueIfNotSet("internet.roblox.group_details", "https://groups.roblox.com/v1/groups/{}");
 
     SetKeyValueIfNotSet("user.id", 1000);
     SetKeyValueIfNotSet("user.name", "Player");
