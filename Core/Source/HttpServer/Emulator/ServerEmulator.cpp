@@ -57,9 +57,8 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
 
 ServerEmulator::~ServerEmulator() {}
 
-int ServerEmulator::Start(uint16_t port) {
-    int res = HttpServer::Start(port);
-    if (!res) goto finish;
+void ServerEmulator::SetupHandlers() {
+    HttpServer::SetupHandlers();
 
     SetRequestHandler("/v1/process-ping", &mProcessPingHandler);
     SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
@@ -100,8 +99,10 @@ int ServerEmulator::Start(uint16_t port) {
 
     SetRequestHandler("/Thumbs/GameIcon.ashx", &mGameIconHandler);
     SetRequestHandler("/Thumbs/gameicon.ashx", &mGameIconHandler);
-finish:
-    return res;
+}
+
+int ServerEmulator::Start(uint16_t port) {
+    return HttpServer::Start(port);
 }
 
 int ServerEmulator::Stop() {

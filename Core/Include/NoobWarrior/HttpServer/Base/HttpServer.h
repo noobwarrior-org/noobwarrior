@@ -32,6 +32,8 @@
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <vector>
 #include <memory>
 #include <tuple>
@@ -77,7 +79,9 @@ public:
 
     Core *GetCore();
     OverlayFileSystem* GetVfs();
+
 protected:
+    virtual void SetupHandlers();
     bool mRunning;
 
     // This is used in logging.
@@ -92,10 +96,19 @@ protected:
     bool mRunningSecure;
 
     //////////////// Handlers ////////////////
-    std::unique_ptr<RootHandler> mRootHandler;
-    std::unique_ptr<TestHandler> mTestHandler;
+    RootHandler mRootHandler;
+    TestHandler mTestHandler;
 
     std::vector<std::unique_ptr<std::tuple<Handler*, void*>>> HandlerUserdata;
+
+    bool mHandlersSetUp {false};
+
+    struct StoredHandler {
+        std::optional<std::string> uri;
+        std::tuple<Handler*, void*>* raw;
+    };
+    std::vector<StoredHandler> mStoredHandlers;
+    void ApplyHandlersToServer(evhttp *server);
 
     ////////////// Signals ////////////////
     LuaSignal mPreStartSignal;

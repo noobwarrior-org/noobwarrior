@@ -70,7 +70,10 @@ HttpServer::HttpServer(Core *core, std::string logName) :
 
     mSslCtx(nullptr),
     mServerSecure(nullptr),
-    mRunningSecure(false)
+    mRunningSecure(false),
+    
+    mRootHandler(this),
+    mTestHandler()
 {}
 
 HttpServer::~HttpServer() {
@@ -86,6 +89,21 @@ static void CFuncToObjectFuncHandler(struct evhttp_request *req, void *userdata)
     handler->OnRequest(req, data);
 }
 
+void HttpServer::SetupHandlers() {
+    SetRequestHandler(nullptr, &mRootHandler);
+    SetRequestHandler("/test", &mTestHandler);
+}
+
+void HttpServer::ApplyHandlersToServer(evhttp *server) {
+    for (const auto &entry : mStoredHandlers) {
+        if (entry.uri) {
+            evhttp_set_cb(server, entry.uri->c_str(), CFuncToObjectFuncHandler, entry.raw);
+        } else {
+            evhttp_set_gencb(server, CFuncToObjectFuncHandler, entry.raw);
+        }
+    }
+}
+
 int HttpServer::Start(uint16_t port) {
     if (mRunning)
         return 0;
@@ -94,11 +112,12 @@ int HttpServer::Start(uint16_t port) {
     mServer = evhttp_new(mCore->GetEventBase());
     evhttp_bind_socket(mServer, "0.0.0.0", port);
 
-    mRootHandler = std::make_unique<RootHandler>(this);
-    mTestHandler = std::make_unique<TestHandler>();
-    
-    SetRequestHandler(nullptr, mRootHandler.get());
-    SetRequestHandler("/test", mTestHandler.get());
+    if (!mHandlersSetUp) {
+        SetupHandlers();
+        mHandlersSetUp = true;
+    } else {
+        ApplyHandlersToServer(mServer);
+    }
 
     Out(mLogName, "Started HTTP server on port {}", port);
     mRunning = true;
@@ -116,7 +135,11 @@ int HttpServer::Stop() {
 
     evhttp_free(mServer);
     mServer = nullptr;
-    HandlerUserdata.clear();
+    if (!mRunningSecure) {
+        HandlerUserdata.clear();
+        mStoredHandlers.clear();
+        mHandlersSetUp = false;
+    }
     mPostStopSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     return 1;
 }
@@ -168,6 +191,13 @@ int HttpServer::StartSecure(uint16_t port) {
     evhttp_bind_socket(mServerSecure, "0.0.0.0", port);
     evhttp_set_bevcb(mServerSecure, bevcb, mSslCtx);
 
+    if (!mHandlersSetUp) {
+        SetupHandlers();
+        mHandlersSetUp = true;
+    } else {
+        ApplyHandlersToServer(mServerSecure);
+    }
+
     Out(mLogName, "Started HTTPS server on port {}", port);
     mRunningSecure = true;
     mPostStartSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
@@ -194,17 +224,21 @@ int HttpServer::StopSecure() {
 
     evhttp_free(mServerSecure);
     mServerSecure = nullptr;
-    HandlerUserdata.clear();
+    if (!mRunning) {
+        HandlerUserdata.clear();
+        mStoredHandlers.clear();
+        mHandlersSetUp = false;
+    }
     mPostStopSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
     return 1;
 }
 
 void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
-    // pass a std pair containing our handler object and user data so that it knows what the object is.
-    // allocate it on heap too so that we still have it even when this function is done, because this request handler listener will be called later.
+    // allocate on heap so the pointer remains valid when libevent fires the callback later
     auto handler_userdata_pair = std::make_unique<std::tuple<Handler*, void*>>(handler, userdata);
     auto *raw = handler_userdata_pair.get();
     HandlerUserdata.push_back(std::move(handler_userdata_pair));
+    mStoredHandlers.push_back({uri ? std::optional<std::string>(uri) : std::nullopt, raw});
     if (uri != nullptr) {
         if (mServer != nullptr)
             evhttp_set_cb(mServer, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));

@@ -114,6 +114,7 @@ private:
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
 
+    void SetupHandlers() override;
     void SweepStaleInstancesLocked();
 
     static constexpr int kStaleInstanceThresholdSecs = 30;
