@@ -35,7 +35,7 @@ set_target_properties(NoobWarrior.Hook PROPERTIES
     PREFIX ""
     OUTPUT_NAME "noobhook"
 )
-target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 winhttp minhook patterns version nlohmann_json -static -static-libgcc -static-libstdc++)
+target_link_libraries(NoobWarrior.Hook PRIVATE wsock32 ws2_32 winhttp minhook patterns version nlohmann_json)
 if (MSVC)
     target_link_libraries(NoobWarrior.Hook PRIVATE
         LIBCMT
@@ -51,4 +51,5 @@ if (MSVC)
     set_property(TARGET NoobWarrior.Hook PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     target_compile_features(NoobWarrior.Hook PUBLIC cxx_std_23) # doesnt work on msvc because it retarded
+    target_link_libraries(NoobWarrior.Hook PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
