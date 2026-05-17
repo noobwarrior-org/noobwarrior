@@ -5,6 +5,7 @@ cmake-build-release/
 vcpkg_installed/
 .cache/
 .vs/
+.vscode/
 .idea/
 .kdev4/
 .DS_Store
