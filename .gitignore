@@ -19,3 +19,5 @@ AndroidApp/local.properties
 node_modules/
 build-msvc-x64/
 build-msvc-x86/
+AGENTS.md
+CLAUDE.md

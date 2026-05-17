@@ -29,6 +29,8 @@
 
 namespace NoobHook {
 extern FILE* gFile;
+extern uint16_t gEmuHttpsPort;
+extern uint16_t gEmuHttpPort;
 void Out(const char* category, const char* format, ...);
 void WriteMemory(uintptr_t address, const void* data, size_t size);
 }

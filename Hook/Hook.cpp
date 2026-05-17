@@ -44,6 +44,8 @@
 using namespace NoobHook;
 
 FILE* NoobHook::gFile = nullptr;
+uint16_t NoobHook::gEmuHttpsPort = 53640;
+uint16_t NoobHook::gEmuHttpPort = 8080;
 
 enum RobloxVersion {
     VER_UNKNOWN,
@@ -217,7 +219,7 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
         if (port == 80 || port == 443) { // check if its HTTP/HTTPS
             // if it is then redirect to our server emulator
             addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(port == 80 ? 8080 : 8081);
+            addrCopy.sin_port = htons(port == 80 ? gEmuHttpPort : gEmuHttpsPort);
             return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
         }
     }
@@ -230,7 +232,7 @@ static HINTERNET WINAPI MyInternetConnectW(HINTERNET hInternet, LPCWSTR lpszServ
 
     if (nServerPort == 80 || nServerPort == 443) {
         return pOrigInternetConnectW(hInternet, L"127.0.0.1",
-            nServerPort == 80 ? 8080 : 8081,
+            nServerPort == 80 ? gEmuHttpPort : gEmuHttpsPort,
             lpszUserName, lpszPassword, dwService, dwFlags, dwContext);
     }
     return pOrigInternetConnectW(hInternet, lpszServerName, nServerPort, lpszUserName, lpszPassword, dwService, dwFlags, dwContext);
@@ -242,7 +244,7 @@ static HINTERNET WINAPI MyWinHttpConnect(HINTERNET hSession, LPCWSTR pswzServerN
 
     if (nServerPort == 80 || nServerPort == 443) {
         return pOrigWinHttpConnect(hSession, L"127.0.0.1",
-            nServerPort == 80 ? 8080 : 8081, dwReserved);
+            nServerPort == 80 ? gEmuHttpPort : gEmuHttpsPort, dwReserved);
     }
     return pOrigWinHttpConnect(hSession, pswzServerName, nServerPort, dwReserved);
 }
@@ -295,6 +297,13 @@ DWORD WINAPI Thread(LPVOID param) {
 		MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
     }
 	Out("Main", "Initializing noobHook");
+
+    char portBuf[16];
+    if (GetEnvironmentVariableA("NOOBHOOK_HTTP_PORT", portBuf, sizeof(portBuf)) > 0)
+        gEmuHttpPort = static_cast<uint16_t>(atoi(portBuf));
+    if (GetEnvironmentVariableA("NOOBHOOK_HTTPS_PORT", portBuf, sizeof(portBuf)) > 0)
+        gEmuHttpsPort = static_cast<uint16_t>(atoi(portBuf));
+    Out("Main", "Emulator ports: HTTP=%d HTTPS=%d", gEmuHttpPort, gEmuHttpsPort);
 
     gProcessInfo = NoobHook::CollectProcessInfo();
     Out("Main", "Process info: pid=%d side=%d version=%s port=%d placeId=%lld",

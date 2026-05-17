@@ -246,6 +246,8 @@ Args:
     std::wstring portStr;
     std::wstring localStr;
     std::wstring placeIdStr;
+    std::wstring emuHttpStr;
+    std::wstring emuHttpsStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -269,9 +271,19 @@ Args:
         if (wcscmp(argv[i], L"--placeid") == 0) {
             placeIdStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--emuhttp") == 0) {
+            emuHttpStr = argv[i + 1];
+        }
+
+        if (wcscmp(argv[i], L"--emuhttps") == 0) {
+            emuHttpsStr = argv[i + 1];
+        }
     }
 
-    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\n", filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str(), placeIdStr.c_str());
+    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\n",
+        filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str(), placeIdStr.c_str(),
+        emuHttpStr.c_str(), emuHttpsStr.c_str());
 
     std::wstring wargs;
 
@@ -298,6 +310,11 @@ Args:
 
     std::vector<wchar_t> filedir_vec(fileDirStr.begin(), fileDirStr.end());
     filedir_vec.push_back(L'\0');
+
+    if (!emuHttpStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_HTTP_PORT", emuHttpStr.c_str());
+    if (!emuHttpsStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_HTTPS_PORT", emuHttpsStr.c_str());
 
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};
