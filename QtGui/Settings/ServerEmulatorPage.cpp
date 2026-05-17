@@ -84,13 +84,11 @@ void ServerEmulatorPage::Deserialize(Registry* reg) {
 void ServerEmulatorPage::Serialize(Registry* reg) {
     uint16_t oldHttpsPort = reg->GetKeyValue<uint16_t>("emu.port_https").value_or(53640);
     reg->SetKeyValue<uint16_t>("emu.port_https", mHttpsPortInput->text().toUShort());
-    if (oldHttpsPort != mHttpsPortInput->text().toUShort()) {
-        gApp->GetCore()->RestartServerEmulator();
-    }
 
     uint16_t oldHttpPort = reg->GetKeyValue<uint16_t>("emu.port_http").value_or(8080);
     reg->SetKeyValue<uint16_t>("emu.port_http", mHttpPortInput->text().toUShort());
-    if (oldHttpPort != mHttpPortInput->text().toUShort()) {
+
+    if (oldHttpsPort != mHttpsPortInput->text().toUShort() || oldHttpPort != mHttpPortInput->text().toUShort()) {
         gApp->GetCore()->RestartServerEmulator();
     }
 
