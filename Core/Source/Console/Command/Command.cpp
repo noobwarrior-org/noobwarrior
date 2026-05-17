@@ -22,3 +22,17 @@
 // Started by: Hattozo
 // Started on: 5/9/2026
 // Description:
+#include <NoobWarrior/Console/Command/Command.h>
+#include <NoobWarrior/Console/Console.h>
+
+using namespace NoobWarrior;
+
+CommandContext::CommandContext(Console* console) :
+    mConsole(console)
+{
+}
+
+void CommandContext::Reply(const std::string& str) {
+    if (mConsole != nullptr)
+        *mConsole->GetOutputStream() << str << std::endl;
+}

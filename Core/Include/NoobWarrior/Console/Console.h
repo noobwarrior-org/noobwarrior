@@ -26,18 +26,34 @@
 #include <NoobWarrior/Console/Command/Command.h>
 
 #include <string>
-#include <sstream>
 #include <unordered_map>
+#include <sstream>
+#include <ostream>
+#include <istream>
+#include <memory>
 
 namespace NoobWarrior {
+class Core;
 class Console {
 public:
-    Console();
-    void RegisterCommand(const std::string &name, Command& cmd);
+    Console(Core* core, std::ostream* out = nullptr, std::istream* in = nullptr);
+    ~Console();
 
-    std::istringstream Input;
-    std::ostringstream Output;
+    int Exec();
+
+    void Stop();
+    void RegisterCommand(const std::string &name, std::unique_ptr<Command> command);
+
+    std::ostream* GetOutputStream();
+    std::istream* GetInputStream();
 protected:
-    std::unordered_map<std::string, Command> mCommands;
+    std::unordered_map<std::string, std::unique_ptr<Command>> mCommands;
+private:
+    bool mRunning;
+    Core* mCore;
+    std::ostream* mOut;
+    std::istream* mIn;
+    bool mOwningInStream;
+    bool mOwningOutStream;
 };
 }

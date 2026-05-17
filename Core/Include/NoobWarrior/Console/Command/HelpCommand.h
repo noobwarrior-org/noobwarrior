@@ -18,29 +18,18 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Command.h
+// File: HelpCommand.h
 // Started by: Hattozo
-// Started on: 5/9/2026
+// Started on: 5/16/2026
 // Description:
 #pragma once
-#include <vector>
-#include <string>
+#include <NoobWarrior/Console/Command/Command.h>
 
 namespace NoobWarrior {
-class Console;
-struct CommandContext {
-    CommandContext(Console* console);
-
-    void Reply(const std::string& str);
-    std::vector<std::string> Args;
-private:
-    Console* mConsole;
-};
-
-class Command {
+class HelpCommand : public Command {
 public:
-    Command() = default;
-    virtual ~Command() = default;
-    virtual int Main(CommandContext& ctx) = 0;
+    HelpCommand() = default;
+    ~HelpCommand() override = default;
+    int Main(CommandContext& ctx) override;
 };
 }

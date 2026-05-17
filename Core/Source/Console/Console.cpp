@@ -23,14 +23,71 @@
 // Started on: 5/9/2026
 // Description:
 #include <NoobWarrior/Console/Console.h>
+#include <NoobWarrior/Console/Command/HelpCommand.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <sstream>
 
 using namespace NoobWarrior;
 
-Console::Console() {
+Console::Console(Core* core, std::ostream* out, std::istream* in) :
+    mRunning(true),
+    mCore(core)
+{
+    mOut = out;
+    mIn = in;
+    if (mOut == nullptr) {
+        mOut = new std::ostringstream();
+        mOwningOutStream = true;
+    }
+    if (mIn == nullptr) {
+        mIn = new std::istringstream();
+        mOwningInStream = true;
+    }
 
+    RegisterCommand("help", std::make_unique<HelpCommand>());
 }
 
-void Console::RegisterCommand(const std::string &name, Command& cmd) {
+Console::~Console() {
+    if (mOwningOutStream) {
+        NOOBWARRIOR_FREE_PTR(mOut)
+    }
+    if (mOwningInStream) {
+        NOOBWARRIOR_FREE_PTR(mIn)
+    }
+}
+
+int Console::Exec() {
+    *mOut << "\x1b[33mnoobWarrior v"
+            NOOBWARRIOR_VERSION
+            " \x1b[35mShell\n\x1b[36mType \"help\" for commands. Type \"about\" to see credits. Type \"exit\" to quit.\x1b[0m\n";
+    while (mRunning) {
+        *mOut << "> ";
+        std::string input;
+
+        std::getline(*mIn, input);
+
+        CommandContext ctx(this);
+        std::string cmdName = input.substr(0, input.find_first_of(' '));
+        if (mCommands.contains(cmdName))
+            mCommands[cmdName]->Main(ctx);
+        else
+            *mOut << "Command " << cmdName << " not found" << std::endl;
+    }
+    return 0;
+}
+
+void Console::Stop() {
+    mRunning = false;
+}
+
+void Console::RegisterCommand(const std::string &name, std::unique_ptr<Command> cmd) {
     mCommands[name] = std::move(cmd);
+}
+
+std::ostream* Console::GetOutputStream() {
+    return mOut;
+}
+
+std::istream* Console::GetInputStream() {
+    return mIn;
 }

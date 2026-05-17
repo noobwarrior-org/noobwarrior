@@ -18,6 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 #define NOOBWARRIOR_NOSHELL_HINT 1
+#include <NoobWarrior/Console/Console.h>
 #include <NoobWarrior/Shell.h>
 
 #include <cstring>
@@ -31,8 +32,12 @@ int main(int argc, char* argv[]) {
     }
     if (startShell) {
         puts("\x1b[34mDon't want the CLI to open a shell? Start the program with the --no-shell flag.\x1b[0m");
-        NoobWarrior::Core core;
-        ret = NoobWarrior::Shell::Open(&core, stdout);
+        NoobWarrior::Init init {};
+        init.ArgCount = argc;
+        init.ArgVec = argv;
+        NoobWarrior::Core core(init);
+        NoobWarrior::Console console(&core, &std::cout, &std::cin);
+        ret = console.Exec();
     }
     return ret;
 }

@@ -99,6 +99,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/noobwarrior_c.cpp
     Source/Console/Console.cpp
     Source/Console/Command/Command.cpp
+    Source/Console/Command/HelpCommand.cpp
     Source/SqlDb/SqlDb.cpp
     Source/SqlDb/Statement.cpp
     Source/EmuDb/EmuDb.cpp
