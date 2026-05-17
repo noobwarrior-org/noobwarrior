@@ -129,6 +129,9 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.port", 53640);
     SetKeyComment("emu.port", "The port that the server emulator should listen on.");
 
+    SetKeyValueIfNotSet("emu.backup_mode", false);
+    SetKeyComment("emu.backup_mode", "If enabled, makes the server emulator automatically back up assets retrieved from Roblox into a database of your choice.");
+
     sol::table proxies_tbl = mLua->create_table();
     SetKeyValueIfNotSet("emu.proxies", proxies_tbl);
     SetKeyComment("emu.proxies", "Any proxies in this list will be used as a fallback reverse proxy for API requests in case yours fail.");

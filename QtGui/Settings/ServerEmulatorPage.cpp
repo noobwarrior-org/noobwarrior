@@ -41,6 +41,21 @@ void ServerEmulatorPage::InitWidgets() {
     mPortInput->setValidator(new QIntValidator(0, 65535, this));
     mForm->addRow("Port", mPortInput);
 
+    QFrame* line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    mForm->addRow(line);
+
+    mBackupModeInput = new QCheckBox();
+    mForm->addRow("Backup Mode", mBackupModeInput);
+
+    mBackupDbDropdown = new QComboBox();
+    mForm->addRow("Backup to Database", mBackupDbDropdown);
+
+    auto *backupModeInfo = new QLabel("When turned on, Backup Mode makes the server emulator automatically back up assets retrieved from Roblox into a database of your choice.");
+    backupModeInfo->setWordWrap(true);
+    mForm->addRow(backupModeInfo);
+
     Layout->addLayout(mForm);
 }
 
@@ -58,6 +73,7 @@ const QIcon ServerEmulatorPage::GetIcon() {
 
 void ServerEmulatorPage::Deserialize(Registry* reg) {
     mPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port").value_or(53640)));
+    mBackupModeInput->setChecked(reg->GetKeyValue<bool>("emu.backup_mode").value_or(false));
 }
 
 void ServerEmulatorPage::Serialize(Registry* reg) {
@@ -66,4 +82,6 @@ void ServerEmulatorPage::Serialize(Registry* reg) {
     if (oldPort != mPortInput->text().toUShort()) {
         gApp->GetCore()->RestartServerEmulator();
     }
+
+    reg->SetKeyValue<bool>("emu.backup_mode", mBackupModeInput->isChecked());
 }

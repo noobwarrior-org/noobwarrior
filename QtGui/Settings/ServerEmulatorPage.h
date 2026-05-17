@@ -28,6 +28,8 @@
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QIntValidator>
+#include <QCheckBox>
+#include <QComboBox>
 
 namespace NoobWarrior {
 class ServerEmulatorPage : public SettingsPage {
@@ -43,5 +45,7 @@ protected:
 private:
     QFormLayout* mForm;
     QLineEdit* mPortInput;
+    QCheckBox* mBackupModeInput;
+    QComboBox* mBackupDbDropdown;
 };
 }
