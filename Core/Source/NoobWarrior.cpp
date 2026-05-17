@@ -269,10 +269,12 @@ void Core::CreateStandardUserDataDirectories() {
 }
 
 int Core::StartServerEmulator() {
-    return mServerEmulator->StartSecure(mRegistry->GetKeyValue<uint16_t>("emu.port").value_or(53640));
+    mServerEmulator->Start(mRegistry->GetKeyValue<uint16_t>("emu.http_port").value_or(8080));
+    return mServerEmulator->StartSecure(mRegistry->GetKeyValue<uint16_t>("emu.https_port").value_or(53640));
 }
 
 int Core::StopServerEmulator() {
+    mServerEmulator->Stop();
     return mServerEmulator->StopSecure();
 }
 

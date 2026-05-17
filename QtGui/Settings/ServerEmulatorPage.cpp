@@ -37,9 +37,13 @@ ServerEmulatorPage::ServerEmulatorPage(QWidget *parent) : SettingsPage(parent) {
 void ServerEmulatorPage::InitWidgets() {
     mForm = new QFormLayout();
 
-    mPortInput = new QLineEdit();
-    mPortInput->setValidator(new QIntValidator(0, 65535, this));
-    mForm->addRow("Port", mPortInput);
+    mHttpsPortInput = new QLineEdit();
+    mHttpsPortInput->setValidator(new QIntValidator(0, 65535, this));
+    mForm->addRow("HTTPS Port", mHttpsPortInput);
+
+    mHttpPortInput = new QLineEdit();
+    mHttpPortInput->setValidator(new QIntValidator(0, 65535, this));
+    mForm->addRow("HTTP Port", mHttpPortInput);
 
     QFrame* line = new QFrame();
     line->setFrameShape(QFrame::HLine);
@@ -72,14 +76,21 @@ const QIcon ServerEmulatorPage::GetIcon() {
 }
 
 void ServerEmulatorPage::Deserialize(Registry* reg) {
-    mPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port").value_or(53640)));
+    mHttpsPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port_https").value_or(53640)));
+    mHttpPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port_http").value_or(8080)));
     mBackupModeInput->setChecked(reg->GetKeyValue<bool>("emu.backup_mode").value_or(false));
 }
 
 void ServerEmulatorPage::Serialize(Registry* reg) {
-    uint16_t oldPort = reg->GetKeyValue<uint16_t>("emu.port").value_or(53640);
-    reg->SetKeyValue<uint16_t>("emu.port", mPortInput->text().toUShort());
-    if (oldPort != mPortInput->text().toUShort()) {
+    uint16_t oldHttpsPort = reg->GetKeyValue<uint16_t>("emu.port_https").value_or(53640);
+    reg->SetKeyValue<uint16_t>("emu.port_https", mHttpsPortInput->text().toUShort());
+    if (oldHttpsPort != mHttpsPortInput->text().toUShort()) {
+        gApp->GetCore()->RestartServerEmulator();
+    }
+
+    uint16_t oldHttpPort = reg->GetKeyValue<uint16_t>("emu.port_http").value_or(8080);
+    reg->SetKeyValue<uint16_t>("emu.port_http", mHttpPortInput->text().toUShort());
+    if (oldHttpPort != mHttpPortInput->text().toUShort()) {
         gApp->GetCore()->RestartServerEmulator();
     }
 

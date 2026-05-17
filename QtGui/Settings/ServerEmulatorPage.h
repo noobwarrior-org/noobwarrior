@@ -44,7 +44,8 @@ protected:
     void InitWidgets();
 private:
     QFormLayout* mForm;
-    QLineEdit* mPortInput;
+    QLineEdit* mHttpsPortInput;
+    QLineEdit* mHttpPortInput;
     QCheckBox* mBackupModeInput;
     QComboBox* mBackupDbDropdown;
 };
