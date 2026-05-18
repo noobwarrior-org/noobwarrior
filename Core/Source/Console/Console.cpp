@@ -24,6 +24,8 @@
 // Description:
 #include <NoobWarrior/Console/Console.h>
 #include <NoobWarrior/Console/Command/HelpCommand.h>
+#include <NoobWarrior/Console/Command/ExitCommand.h>
+#include <NoobWarrior/Console/Command/StudioCommand.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <sstream>
 
@@ -44,7 +46,14 @@ Console::Console(Core* core, std::ostream* out, std::istream* in) :
         mOwningInStream = true;
     }
 
-    RegisterCommand("help", std::make_unique<HelpCommand>());
+    RegisterCommand("help", std::make_unique<HelpCommand>(), "Gives a list of all available commands.");
+    RegisterAlias("help", "cmds");
+
+    RegisterCommand("exit", std::make_unique<ExitCommand>(), "Stops the console.");
+    RegisterAlias("exit", "quit");
+
+    RegisterCommand("studio", std::make_unique<StudioCommand>(), "Launches Roblox Studio.");
+    RegisterAlias("studio", "launch-studio");
 }
 
 Console::~Console() {
@@ -70,6 +79,8 @@ int Console::Exec() {
         std::string cmdName = input.substr(0, input.find_first_of(' '));
         if (mCommands.contains(cmdName))
             mCommands[cmdName]->Main(ctx);
+        else if (mAliases.contains(cmdName) && mCommands.contains(mAliases[cmdName]))
+            mCommands[mAliases[cmdName]]->Main(ctx);
         else
             *mOut << "Command " << cmdName << " not found" << std::endl;
     }
@@ -80,8 +91,29 @@ void Console::Stop() {
     mRunning = false;
 }
 
-void Console::RegisterCommand(const std::string &name, std::unique_ptr<Command> cmd) {
+void Console::RegisterCommand(const std::string &name, std::unique_ptr<Command> cmd, const std::string &desc) {
     mCommands[name] = std::move(cmd);
+    mDescriptions[name] = !desc.empty() ? desc : "No description available.";
+}
+
+void Console::RegisterAlias(const std::string &name, const std::string &alias) {
+    mAliases[alias] = name;
+}
+
+Core* Console::GetCore() {
+    return mCore;
+}
+
+const std::unordered_map<std::string, std::unique_ptr<Command>>& Console::GetCommands() const {
+    return mCommands;
+}
+
+const std::unordered_map<std::string, std::string>& Console::GetAliases() const {
+    return mAliases;
+}
+
+const std::unordered_map<std::string, std::string>& Console::GetDescriptions() const {
+    return mDescriptions;
 }
 
 std::ostream* Console::GetOutputStream() {

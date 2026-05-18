@@ -36,3 +36,11 @@ void CommandContext::Reply(const std::string& str) {
     if (mConsole != nullptr)
         *mConsole->GetOutputStream() << str << std::endl;
 }
+
+Console* CommandContext::GetConsole() {
+    return mConsole;
+}
+
+Core* CommandContext::GetCore() {
+    return mConsole->GetCore();
+}

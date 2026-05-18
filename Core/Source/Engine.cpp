@@ -150,8 +150,18 @@ std::vector<Engine> Core::GetInstalledEngines() {
     if (!std::filesystem::exists(enginesDir))
         return engines;
 
+    // Collect entries sorted by last_write_time ascending so older (earlier-installed)
+    // engines are preferred when PickBestMatch falls back to side-only matching.
+    std::vector<std::filesystem::directory_entry> entries;
     for (const auto &entry : std::filesystem::directory_iterator(enginesDir)) {
-        if (!entry.is_directory()) continue;
+        if (entry.is_directory())
+            entries.push_back(entry);
+    }
+    std::sort(entries.begin(), entries.end(), [](const auto &a, const auto &b) {
+        return a.last_write_time() < b.last_write_time();
+    });
+
+    for (const auto &entry : entries) {
         if (auto engine = InspectEngineDirectory(entry.path())) {
             Out("Engine", "Detected engine in \"{}\": side={} arch={} version=\"{}\"",
                 entry.path().filename().string(),

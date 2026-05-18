@@ -42,12 +42,21 @@ public:
     int Exec();
 
     void Stop();
-    void RegisterCommand(const std::string &name, std::unique_ptr<Command> command);
+    void RegisterCommand(const std::string &name, std::unique_ptr<Command> command, const std::string &desc = "");
+    void RegisterAlias(const std::string &name, const std::string &alias);
+
+    Core* GetCore();
+
+    const std::unordered_map<std::string, std::unique_ptr<Command>>& GetCommands() const;
+    const std::unordered_map<std::string, std::string>& GetAliases() const;
+    const std::unordered_map<std::string, std::string>& GetDescriptions() const;
 
     std::ostream* GetOutputStream();
     std::istream* GetInputStream();
 protected:
     std::unordered_map<std::string, std::unique_ptr<Command>> mCommands;
+    std::unordered_map<std::string, std::string> mAliases;
+    std::unordered_map<std::string, std::string> mDescriptions;
 private:
     bool mRunning;
     Core* mCore;

@@ -23,10 +23,25 @@
 // Started on: 5/16/2026
 // Description:
 #include <NoobWarrior/Console/Command/HelpCommand.h>
+#include <NoobWarrior/Console/Console.h>
+#include <algorithm>
 
 using namespace NoobWarrior;
 
 int HelpCommand::Main(CommandContext& ctx) {
-    ctx.Reply("Hello!");
+    const auto& cmds = ctx.GetConsole()->GetCommands();
+
+    std::vector<std::string> cmdNames;
+    for (auto &[cmdName, cmd] : cmds) {
+        cmdNames.push_back(cmdName);
+    }
+    std::stable_sort(cmdNames.begin(), cmdNames.end());
+
+    const auto& descs = ctx.GetConsole()->GetDescriptions();
+
+    ctx.Reply("\x1b[32mCommands:");
+    for (auto &cmdName : cmdNames) {
+        ctx.Reply("\x1b[35m" + cmdName + " - \x1b[36m" + (descs.contains(cmdName) ? descs.at(cmdName) : "No description available.") + "\x1b[0m");
+    }
     return 0;
 }

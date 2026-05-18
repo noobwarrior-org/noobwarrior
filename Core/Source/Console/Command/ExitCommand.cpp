@@ -18,32 +18,16 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Command.h
+// File: ExitCommand.cpp
 // Started by: Hattozo
-// Started on: 5/9/2026
+// Started on: 5/17/2026
 // Description:
-#pragma once
-#include <vector>
-#include <string>
+#include <NoobWarrior/Console/Command/ExitCommand.h>
+#include <NoobWarrior/Console/Console.h>
 
-namespace NoobWarrior {
-class Console;
-class Core;
-struct CommandContext {
-    CommandContext(Console* console);
+using namespace NoobWarrior;
 
-    void Reply(const std::string& str);
-    Console* GetConsole();
-    Core* GetCore();
-    std::vector<std::string> Args;
-private:
-    Console* mConsole;
-};
-
-class Command {
-public:
-    Command() = default;
-    virtual ~Command() = default;
-    virtual int Main(CommandContext& ctx) = 0;
-};
+int ExitCommand::Main(CommandContext& ctx) {
+    ctx.GetConsole()->Stop();
+    return 0;
 }
