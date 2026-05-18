@@ -333,6 +333,24 @@ DWORD WINAPI Thread(LPVOID param) {
     Patches::RemoveTLSVerification();
     Patches::FixSettingsKeyMustBeDefined();
 
+    // LocalRcc -- only meaningful inside Studio (rsblox/local_rcc port).
+    // Pulled in as a sibling DLL because it overrides global new/delete to use
+    // Studio's rbxAllocate/rbxDeallocate exports, which don't exist in Player/RCCService.
+#if defined(_WIN64)
+    if (gProcessInfo.Side == NoobHook::ProcessSide::Studio) {
+        char dllDir[MAX_PATH] = {0};
+        DWORD n = GetModuleFileNameA(reinterpret_cast<HMODULE>(param), dllDir, MAX_PATH);
+        if (n > 0) {
+            char* slash = strrchr(dllDir, '\\');
+            if (slash) *slash = '\0';
+            std::string path = std::string(dllDir) + "\\noobhook_localrcc.dll";
+            Out("Main", "Studio detected -- loading %s", path.c_str());
+            if (LoadLibraryA(path.c_str()) == nullptr)
+                Out("Main", "Failed to load noobhook_localrcc.dll (err=%lu)", GetLastError());
+        }
+    }
+#endif
+
     Out("Main", "Done");
     //fclose(file);
 

@@ -49,6 +49,10 @@ if (MSVC)
     )
 
     set_property(TARGET NoobWarrior.Hook PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+    # LocalRcc -- Studio-only sibling DLL ported from rsblox/local_rcc.
+    # Loaded at runtime by Hook.cpp when DetectSide() == Studio.
+    add_subdirectory(LocalRcc)
 else()
     target_compile_features(NoobWarrior.Hook PUBLIC cxx_std_23) # doesnt work on msvc because it retarded
     target_link_libraries(NoobWarrior.Hook PRIVATE -static -static-libgcc -static-libstdc++)
