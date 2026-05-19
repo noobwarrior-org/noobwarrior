@@ -43,6 +43,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
+    mClientSettingsV2Handler(this),
     mNegotiateHandler(),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
@@ -76,6 +77,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/asset-thumbnail/json", &mAssetThumbnailJsonHandler);
 
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
+    SetRequestHandler("/v2/settings/application/PCStudioApp", &mClientSettingsV2Handler);
 
     SetRequestHandler("/Login/Negotiate.ashx", &mNegotiateHandler);
     SetRequestHandler("/login/negotiate.ashx", &mNegotiateHandler);

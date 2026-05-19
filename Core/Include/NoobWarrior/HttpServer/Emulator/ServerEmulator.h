@@ -33,6 +33,7 @@
 #include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
+#include "ClientSettingsV2Handler.h"
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
 #include "JoinScriptJsonHandler.h"
@@ -105,6 +106,7 @@ private:
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
+    ClientSettingsV2Handler mClientSettingsV2Handler;
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
