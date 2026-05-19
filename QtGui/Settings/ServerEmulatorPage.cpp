@@ -50,13 +50,13 @@ void ServerEmulatorPage::InitWidgets() {
     line->setFrameShadow(QFrame::Sunken);
     mForm->addRow(line);
 
-    mBackupModeInput = new QCheckBox();
-    mForm->addRow("Backup Mode", mBackupModeInput);
+    mAssetGrabInput = new QCheckBox();
+    mForm->addRow("Asset Grab Mode", mAssetGrabInput);
 
-    mBackupDbDropdown = new QComboBox();
-    mForm->addRow("Backup to Database", mBackupDbDropdown);
+    mSaveDbDropdown = new QComboBox();
+    mForm->addRow("Save to Database", mSaveDbDropdown);
 
-    auto *backupModeInfo = new QLabel("When turned on, Backup Mode makes the server emulator automatically back up assets retrieved from Roblox into a database of your choice.");
+    auto *backupModeInfo = new QLabel("When enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice.");
     backupModeInfo->setWordWrap(true);
     mForm->addRow(backupModeInfo);
 
@@ -76,21 +76,21 @@ const QIcon ServerEmulatorPage::GetIcon() {
 }
 
 void ServerEmulatorPage::Deserialize(Registry* reg) {
-    mHttpsPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port_https").value_or(53640)));
-    mHttpPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.port_http").value_or(8080)));
-    mBackupModeInput->setChecked(reg->GetKeyValue<bool>("emu.backup_mode").value_or(false));
+    mHttpsPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.https_port").value_or(53640)));
+    mHttpPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.http_port").value_or(8080)));
+    mAssetGrabInput->setChecked(reg->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false));
 }
 
 void ServerEmulatorPage::Serialize(Registry* reg) {
-    uint16_t oldHttpsPort = reg->GetKeyValue<uint16_t>("emu.port_https").value_or(53640);
-    reg->SetKeyValue<uint16_t>("emu.port_https", mHttpsPortInput->text().toUShort());
+    uint16_t oldHttpsPort = reg->GetKeyValue<uint16_t>("emu.https_port").value_or(53640);
+    reg->SetKeyValue<uint16_t>("emu.https_port", mHttpsPortInput->text().toUShort());
 
-    uint16_t oldHttpPort = reg->GetKeyValue<uint16_t>("emu.port_http").value_or(8080);
-    reg->SetKeyValue<uint16_t>("emu.port_http", mHttpPortInput->text().toUShort());
+    uint16_t oldHttpPort = reg->GetKeyValue<uint16_t>("emu.http_port").value_or(8080);
+    reg->SetKeyValue<uint16_t>("emu.http_port", mHttpPortInput->text().toUShort());
 
     if (oldHttpsPort != mHttpsPortInput->text().toUShort() || oldHttpPort != mHttpPortInput->text().toUShort()) {
         gApp->GetCore()->RestartServerEmulator();
     }
 
-    reg->SetKeyValue<bool>("emu.backup_mode", mBackupModeInput->isChecked());
+    reg->SetKeyValue<bool>("emu.asset_grab_mode", mAssetGrabInput->isChecked());
 }

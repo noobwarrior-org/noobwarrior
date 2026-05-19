@@ -126,14 +126,14 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
-    SetKeyValueIfNotSet("emu.port_http", 8080);
-    SetKeyComment("emu.port_http", "The port that the HTTP server emulator should listen on.");
+    SetKeyValueIfNotSet("emu.http_port", 8080);
+    SetKeyComment("emu.http_port", "The port that the HTTP server emulator should listen on.");
 
-    SetKeyValueIfNotSet("emu.port_https", 53640);
-    SetKeyComment("emu.port_https", "The port that the HTTPS server emulator should listen on.");
+    SetKeyValueIfNotSet("emu.https_port", 53640);
+    SetKeyComment("emu.https_port", "The port that the HTTPS server emulator should listen on.");
 
-    SetKeyValueIfNotSet("emu.backup_mode", false);
-    SetKeyComment("emu.backup_mode", "If enabled, makes the server emulator automatically back up assets retrieved from Roblox into a database of your choice.");
+    SetKeyValueIfNotSet("emu.asset_grab_mode", false);
+    SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice.");
 
     sol::table proxies_tbl = mLua->create_table();
     SetKeyValueIfNotSet("emu.proxies", proxies_tbl);

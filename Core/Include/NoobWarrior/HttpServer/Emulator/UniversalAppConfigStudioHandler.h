@@ -18,35 +18,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulatorPage.h
+// File: UniversalAppConfigStudioHandler.h
 // Started by: Hattozo
-// Started on: 7/24/2025
-// Description:
+// Started on: 5/18/2026
+// Description: Returns a JSON object containing universal app configuration for Studio
 #pragma once
-#include "SettingsPage.h"
-
-#include <QFormLayout>
-#include <QLineEdit>
-#include <QIntValidator>
-#include <QCheckBox>
-#include <QComboBox>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class ServerEmulatorPage : public SettingsPage {
+class UniversalAppConfigStudioHandler : public Handler {
 public:
-    ServerEmulatorPage(QWidget *parent = nullptr);
-    const QString GetTitle() override;
-    const QString GetDescription() override;
-    const QIcon GetIcon() override;
-    void Deserialize(Registry* reg) override;
-    void Serialize(Registry* reg) override;
-protected:
-    void InitWidgets();
-private:
-    QFormLayout* mForm;
-    QLineEdit* mHttpsPortInput;
-    QLineEdit* mHttpPortInput;
-    QCheckBox* mAssetGrabInput;
-    QComboBox* mSaveDbDropdown;
+    UniversalAppConfigStudioHandler();
+    void OnRequest(evhttp_request *req, void *userdata) override;
 };
 }

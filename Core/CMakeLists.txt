@@ -136,6 +136,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Base/TestHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
     Source/HttpServer/Emulator/ProcessPingHandler.cpp
+    Source/HttpServer/Emulator/StaticJsonHandler.cpp
     Source/HttpServer/Emulator/CreateAccountHandler.cpp
     Source/HttpServer/Emulator/LoginHandler.cpp
     Source/HttpServer/Emulator/LogoutHandler.cpp
@@ -147,6 +148,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/NegotiateHandler.cpp
     Source/HttpServer/Emulator/PlaceLauncherHandler.cpp
     Source/HttpServer/Emulator/JoinScriptJsonHandler.cpp
+    Source/HttpServer/Emulator/UniversalAppConfigStudioHandler.cpp
     Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
     Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp
     Source/HttpServer/Emulator/CurrentUserHandler.cpp

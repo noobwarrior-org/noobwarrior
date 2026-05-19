@@ -279,8 +279,8 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back(std::to_string(params.PlaceId.value()));
     }
 
-    uint16_t emuHttpPort  = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.port_http").value_or(8080));
-    uint16_t emuHttpsPort = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.port_https").value_or(53640));
+    uint16_t emuHttpPort  = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.http_port").value_or(8080));
+    uint16_t emuHttpsPort = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.https_port").value_or(53640));
     args.push_back("--emuhttp");
     args.push_back(std::to_string(emuHttpPort));
     args.push_back("--emuhttps");

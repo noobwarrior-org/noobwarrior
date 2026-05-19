@@ -44,6 +44,7 @@
 #include "AssetHandler.h"
 #include "AssetThumbnailJsonHandler.h"
 #include "GameIconHandler.h"
+#include "UniversalAppConfigStudioHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -107,6 +108,7 @@ private:
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
+    UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
     AuthenticatedUserHandler mAuthenticatedUserHandler;
     CurrentUserHandler mCurrentUserHandler;

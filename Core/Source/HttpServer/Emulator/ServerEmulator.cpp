@@ -46,6 +46,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mNegotiateHandler(),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
+    mUniversalAppConfigStudioHandler(),
     mMySettingsJsonHandler(),
     mAuthenticatedUserHandler(),
     mCurrentUserHandler(),
@@ -84,6 +85,8 @@ void ServerEmulator::SetupHandlers() {
 
     SetRequestHandler("/Game/Join.ashx", &mJoinScriptJsonHandler);
     SetRequestHandler("/game/join.ashx", &mJoinScriptJsonHandler);
+
+    SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 
     SetRequestHandler("/my/settings/json", &mMySettingsJsonHandler);
 

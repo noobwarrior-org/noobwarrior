@@ -18,35 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulatorPage.h
+// File: StaticJsonHandler.h
 // Started by: Hattozo
-// Started on: 7/24/2025
+// Started on: 5/18/2026
 // Description:
 #pragma once
-#include "SettingsPage.h"
-
-#include <QFormLayout>
-#include <QLineEdit>
-#include <QIntValidator>
-#include <QCheckBox>
-#include <QComboBox>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class ServerEmulatorPage : public SettingsPage {
+class StaticJsonHandler : public Handler {
 public:
-    ServerEmulatorPage(QWidget *parent = nullptr);
-    const QString GetTitle() override;
-    const QString GetDescription() override;
-    const QIcon GetIcon() override;
-    void Deserialize(Registry* reg) override;
-    void Serialize(Registry* reg) override;
-protected:
-    void InitWidgets();
+    StaticJsonHandler(const std::string &jsonStr);
+    void OnRequest(evhttp_request *req, void *userdata) override;
 private:
-    QFormLayout* mForm;
-    QLineEdit* mHttpsPortInput;
-    QLineEdit* mHttpPortInput;
-    QCheckBox* mAssetGrabInput;
-    QComboBox* mSaveDbDropdown;
+    std::string mJsonStr;
 };
 }
