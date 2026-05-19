@@ -327,11 +327,7 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);
 
-    Out("Main", "Patching...");
-    Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
-    Patches::RemoveSignatureCheck();
-    Patches::RemoveTLSVerification();
-    Patches::FixSettingsKeyMustBeDefined();
+    Out("Main", "Patches applied in DllMain");
 
     // LocalRcc -- only meaningful inside Studio (rsblox/local_rcc port).
     // Pulled in as a sibling DLL because it overrides global new/delete to use
@@ -361,6 +357,11 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     HANDLE hThread = NULL;
     switch (reason) {
     case DLL_PROCESS_ATTACH:
+        Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+        Patches::RemoveSignatureCheck();
+        Patches::RemoveTLSVerification();
+        Patches::FixSettingsKeyMustBeDefined();
+
         DisableThreadLibraryCalls(hModule);
 
         hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
