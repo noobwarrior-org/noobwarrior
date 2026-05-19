@@ -200,6 +200,99 @@ static void* DeserializeItemHook(void* self, void* result, void* inBitstream, in
     return gOrigDeserialize(self, result, inBitstream, itemType);
 }
 
+// Forward decl -- ScanAny lives further down with the rest of the scan helpers.
+static void* ScanAny(const char* label, std::initializer_list<const char*> patterns);
+
+// -----------------------------------------------------------------------------
+// Studio web stack rewrite (port of studio-offline, committed 2024-03-08)
+//
+// Studio constructs URLs and runs its own trust checks before any socket is
+// opened. If those reject our local emulator, the connect()-level redirect in
+// noobhook.dll never gets a chance to fire and Studio errors with
+// "Studio is unable to connect."
+//
+// These three hooks force URL construction to "http://localhost" and make the
+// trust checks accept it; from there the existing socket-layer hook routes
+// port 80 to gEmuHttpPort.
+//
+// Source: studio-offline @ E:\Programs\WeirdRobloxShit\studio-offline-...
+// Patterns confirmed to match Studio 0.574 (one hit each).
+// -----------------------------------------------------------------------------
+
+namespace offline {
+    using from_components_fn = void  (*)(void* res16, void* schema, void* host, void* path, void* query, void* fragment);
+    using trust_check_fn     = uint64_t* (*)(const char* url, char a2, char a3);
+    using not_trusted_fn     = char* (*)(void* a1, void* a2);
+}
+
+static offline::from_components_fn gFromComponents     = nullptr;
+static offline::from_components_fn gOrigFromComponents = nullptr;
+static offline::trust_check_fn     gTrustCheck         = nullptr;
+static offline::trust_check_fn     gOrigTrustCheck     = nullptr;
+static offline::not_trusted_fn     gNotTrusted         = nullptr;
+static offline::not_trusted_fn     gOrigNotTrusted     = nullptr;
+
+// `schema` and `host` are pointers to std::string-shaped things laid out as
+// {data ptr @ +0, length @ +8}. Studio-offline relies on the original strings
+// being heap-allocated (long enough to break SSO); short literals like "http"
+// would normally be SSO. In practice the call sites here pass strings whose
+// data pointer at +0 IS what gets used downstream -- the layout assumption
+// holds for these specific call paths in 0.574.
+static void FromComponentsHook(void* res16, void* schema, void* host,
+                               void* path, void* query, void* fragment) {
+    static const char* kHost   = "localhost";
+    static const char* kScheme = "http";
+
+    *reinterpret_cast<const char**>(host) = kHost;
+    *reinterpret_cast<size_t*>(reinterpret_cast<uint8_t*>(host) + 8) = std::strlen(kHost);
+
+    *reinterpret_cast<const char**>(schema) = kScheme;
+    *reinterpret_cast<size_t*>(reinterpret_cast<uint8_t*>(schema) + 8) = std::strlen(kScheme);
+
+    gOrigFromComponents(res16, schema, host, path, query, fragment);
+}
+
+static uint64_t* TrustCheckHook(const char* url, char a2, char a3) {
+    if (url && a3 == 0 && std::strstr(url, "http://localhost")) {
+        // Original trust check accepts roblox.com; pretend that's what we got.
+        return gOrigTrustCheck("http://roblox.com", a2, a3);
+    }
+    return gOrigTrustCheck(url, a2, a3);
+}
+
+static char* NotTrustedHook(void* /*a1*/, void* /*a2*/) {
+    // Caller treats this as a small status string ("1" == ok). Static buffer
+    // so the pointer survives return (original code returned a stack array,
+    // which was UB; we keep the value, drop the UB).
+    static char kOne[2] = { '1', '\0' };
+    return kOne;
+}
+
+static bool InstallOfflineHooks() {
+    gFromComponents = reinterpret_cast<offline::from_components_fn>(ScanAny("offline.fromComponents", {
+        "48 89 5C 24 18 4C 89 4C 24 20 48 89 4C 24 08 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 60",
+    }));
+    gTrustCheck = reinterpret_cast<offline::trust_check_fn>(ScanAny("offline.trustCheck", {
+        "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 56 41 57 48 8D AC 24 10 FF FF FF 48 81 EC F0 01 00 00 45",
+    }));
+    gNotTrusted = reinterpret_cast<offline::not_trusted_fn>(ScanAny("offline.httpReqNotTrusted", {
+        "48 89 74 24 10 57 48 83 EC 40 48 8B FA 48 8B F1 E8",
+    }));
+
+    // All three are independent -- install whichever matched. Missing one just
+    // means that codepath stays unhooked (Studio may still mostly work).
+    auto install = [](const char* label, void* target, void* detour, void** orig) {
+        if (!target) return;
+        MH_STATUS st = MH_CreateHook(target, detour, orig);
+        if (st != MH_OK) Log("offline", "MH_CreateHook(%s) failed: %d", label, (int)st);
+        else             Log("offline", "Hooked %s", label);
+    };
+    install("FromComponents", (void*)gFromComponents, (void*)&FromComponentsHook, (void**)&gOrigFromComponents);
+    install("TrustCheck",     (void*)gTrustCheck,     (void*)&TrustCheckHook,     (void**)&gOrigTrustCheck);
+    install("NotTrusted",     (void*)gNotTrusted,     (void*)&NotTrustedHook,     (void**)&gOrigNotTrusted);
+    return gFromComponents || gTrustCheck || gNotTrusted;
+}
+
 // -----------------------------------------------------------------------------
 // Patch: NetworkSchema::typeForProperty
 // Force ProtectedString columns to serialize as ProtectedStringBytecode.
@@ -244,32 +337,40 @@ static bool ScanForAddresses() {
     // Target: Roblox Studio 0.574 (May 2023). Patterns lifted from the
     // local_rcc fork's 2023M / 2023 modes, with the original "latest" patterns
     // kept as fallbacks so the same DLL still loads on adjacent builds.
+    //
+    // CRITICAL: Hooking.Patterns wildcards are SINGLE `?` (one char = one
+    // wildcard byte). Two `??` parse as TWO wildcards and silently mis-match.
 
     // ---- LuaVM::compile -----------------------------------------------------
     // 2023M (May-Jun 2023) adds a trailing C3 (ret) right after the prologue;
-    // older Studios have the same prologue without the ret.
+    // older Studios have the same prologue without the ret. The C3 disambiguates
+    // from another function with the identical 22-byte prologue (verified: plain
+    // pattern hits twice in 0.574, with-C3 hits once at the right address).
     void* compileAddr = ScanAny("compile", {
         "33 C0 48 C7 41 18 0F 00 00 00 48 89 01 48 89 41 10 88 01 48 8B C1 C3",  // 2023M
-        "33 C0 48 C7 41 18 0F 00 00 00 48 89 01 48 89 41 10 88 01 48 8B C1",     // pre-2023M
+        "33 C0 48 C7 41 18 0F 00 00 00 48 89 01 48 89 41 10 88 01 48 8B C1",     // pre-2023M (ambiguous)
     });
     if (!compileAddr) return false;
     gCompile = reinterpret_cast<types::compile_fn>(compileAddr);
 
     // ---- Replicator::deserializeItem ---------------------------------------
-    // 2023 prologue first, 2022 (Aug-Dec) prologue as fallback.
+    // Confirmed against 0.574: May 2023 Studio uses the 2022-style prologue,
+    // not the "2023" prologue the fork named (the fork's labeling is by
+    // codepath used, not by calendar year). Try 2022 first; keep 2023 as
+    // forward fallback.
     void* deserAddr = ScanAny("deserializeItem", {
-        "48 89 5C 24 ?? 48 89 74 24 ?? 48 89 54 24 ?? 55 57 41 56 48 8B EC 48 83 EC 40 49 8B F8",                  // 2023
-        "48 89 5C 24 08 48 89 54 24 10 55 56 57 41 56 41 57 48 8D 6C 24 C9 48 81 EC C0 00 00 00 4D 8B F0",         // 2022
+        "48 89 5C 24 08 48 89 54 24 10 55 56 57 41 56 41 57 48 8D 6C 24 C9 48 81 EC C0 00 00 00 4D 8B F0",  // 2022 (0.574)
+        "48 89 5C 24 ? 48 89 74 24 ? 48 89 54 24 ? 55 57 41 56 48 8B EC 48 83 EC 40 49 8B F8",              // 2023+
     });
     if (!deserAddr) return false;
     gDeserializeItem = reinterpret_cast<types::deserialize_item_fn>(deserAddr);
 
     // ---- NetworkSchema::generateSchemaDefinitionPacket ---------------------
-    // The immediate we patch lives at +4 (the `06` byte in `mov byte ptr [rsp+disp], 6`).
+    // We patch the immediate at +4 (the `06` byte in `mov byte ptr [rsp+disp], 6`).
     // 2023 ends in `48 3B 15` (cmp r/m64, [rip+disp32]); 2022 ends in `48 8D 05` (lea).
     void* schemaAddr = ScanAny("typeForProperty", {
-        "C6 44 24 ?? 06 EB ?? 48 3B 15",  // 2023
-        "C6 44 24 ?? 06 EB ?? 48 8D 05",  // 2022
+        "C6 44 24 ? 06 EB ? 48 3B 15",  // 2023 (matches 0.574)
+        "C6 44 24 ? 06 EB ? 48 8D 05",  // 2022
     });
     if (!schemaAddr) return false;
     gTypeForPropertyImm = reinterpret_cast<uintptr_t>(schemaAddr) + 4;
@@ -305,6 +406,13 @@ static DWORD WINAPI WorkerThread(LPVOID) {
         return 1;
     }
 
+    // Install Studio-offline-style web-stack hooks FIRST. Without these the
+    // login/initial-connect screen errors before LocalRcc's local_rcc hooks
+    // ever get exercised. If none of the three patterns match, log and keep
+    // going -- the rest of LocalRcc is still useful.
+    if (!InstallOfflineHooks())
+        Log("main", "No studio-offline patterns matched (connection bypass disabled)");
+
     MH_STATUS st;
     st = MH_CreateHook(reinterpret_cast<LPVOID>(gCompile),
                        reinterpret_cast<LPVOID>(&CompileHook),
@@ -318,7 +426,7 @@ static DWORD WINAPI WorkerThread(LPVOID) {
 
     st = MH_EnableHook(MH_ALL_HOOKS);
     if (st != MH_OK) { Log("main", "EnableHook failed: %d", (int)st); return 1; }
-    Log("main", "Hooked LuaVM::compile and RBX::Network::Replicator::deserializeItem");
+    Log("main", "Enabled all hooks (compile, deserializeItem, + any offline hooks)");
 
     PatchTypeForProperty();
     Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
