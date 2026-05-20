@@ -73,6 +73,16 @@ static bool ConfigureHandle(PreparedHandle &slot, const HttpRequest &req) {
 
     curl_easy_setopt(slot.Handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
 
+    if (req.Method == "POST") {
+        curl_easy_setopt(slot.Handle, CURLOPT_POST, 1L);
+        curl_easy_setopt(slot.Handle, CURLOPT_POSTFIELDS, req.PostBody.c_str());
+        curl_easy_setopt(slot.Handle, CURLOPT_POSTFIELDSIZE, static_cast<long>(req.PostBody.size()));
+        if (!req.ContentType.empty()) {
+            std::string ctHeader = "Content-Type: " + req.ContentType;
+            slot.HeaderList = curl_slist_append(slot.HeaderList, ctHeader.c_str());
+        }
+    }
+
     if (!req.Cookie.empty())
         curl_easy_setopt(slot.Handle, CURLOPT_COOKIE, req.Cookie.c_str());
     if (!req.UserAgent.empty())

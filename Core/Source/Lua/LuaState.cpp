@@ -33,6 +33,7 @@
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
 #include <NoobWarrior/FileSystem/ZipFileSystem.h>
+#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <lua.hpp>
@@ -44,6 +45,12 @@
 #include "files/json.lua.inc.cpp"
 
 using namespace NoobWarrior;
+
+struct LuaNetClient {
+    NetClient client;
+    std::vector<std::pair<std::string, std::string>> defaultHeaders;
+    long timeout = 30;
+};
 
 static int printBS(lua_State *L) {
     int nargs = lua_gettop(L);
@@ -183,7 +190,7 @@ int LuaState::Open() {
             luaL_error(L, "error setting value for key \"%s\": key cannot end with a period", key.c_str());
             return;
         }
-        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg->GetGlobalName(), key), sol::script_pass_on_error);
+        sol::protected_function_result res = safe_script(std::format("return rawget_path({}, '{}')", reg->GetGlobalName(), key), sol::script_pass_on_error);
         if (!res.valid()) {
             luaL_error(L, "error setting value for key \"%s\": failed to run script", key.c_str());
             return;
@@ -198,6 +205,10 @@ int LuaState::Open() {
             return;
         }
         (*this)["__REG_BUF"] = sol::lua_nil;
+    };
+    regLib["SetKeyComment"] = [this](std::string key, std::string comment) {
+        Registry* reg = mCore->GetRegistry();
+        reg->SetKeyComment(key.c_str(), comment.c_str());
     };
     set("reg", regLib);
 
@@ -306,6 +317,8 @@ int LuaState::Open() {
     };
     srvType["Start"] = &HttpServer::Start;
     srvType["Stop"] = &HttpServer::Stop;
+    srvType["StartSecure"] = &HttpServer::StartSecure;
+    srvType["StopSecure"] = &HttpServer::StopSecure;
     srvType["GetVfs"] = &HttpServer::GetVfs;
     srvType["MountVolume"] = [](sol::this_state state, sol::this_environment tenv, HttpServer& self, std::string root, std::string realPath) -> void {
         lua_State* L = state;
@@ -383,6 +396,69 @@ int LuaState::Open() {
             tbl[idx++] = row;
         }
         return tbl;
+    };
+
+    auto netClientType = new_usertype<LuaNetClient>("NetClient", sol::no_constructor);
+    netClientType["new"] = []() { return std::make_unique<LuaNetClient>(); };
+    netClientType["SetTimeout"] = [](LuaNetClient &c, long secs) { c.timeout = secs; };
+    netClientType["SetHeader"] = [](LuaNetClient &c, std::string name, std::string value) {
+        c.defaultHeaders.push_back({std::move(name), std::move(value)});
+    };
+    auto buildResponse = [this](const HttpResponse &res) -> sol::table {
+        sol::table tbl = create_table();
+        tbl["Ok"] = (res.Code == CURLE_OK);
+        tbl["Status"] = static_cast<int>(res.HttpStatus);
+        tbl["Body"] = std::string(res.Body.begin(), res.Body.end());
+        if (res.Code != CURLE_OK)
+            tbl["Error"] = std::string(curl_easy_strerror(res.Code));
+        return tbl;
+    };
+    netClientType["Get"] = [buildResponse](LuaNetClient &c, std::string url) -> sol::table {
+        HttpRequest req;
+        req.Url = std::move(url);
+        req.Method = "GET";
+        req.TimeoutSeconds = c.timeout;
+        req.Headers = c.defaultHeaders;
+        return buildResponse(c.client.Fetch(req));
+    };
+    netClientType["Post"] = [buildResponse](LuaNetClient &c, std::string url, std::string body, std::string contentType) -> sol::table {
+        HttpRequest req;
+        req.Url = std::move(url);
+        req.Method = "POST";
+        req.PostBody = std::move(body);
+        req.ContentType = std::move(contentType);
+        req.TimeoutSeconds = c.timeout;
+        req.Headers = c.defaultHeaders;
+        return buildResponse(c.client.Fetch(req));
+    };
+    netClientType["PostJson"] = [this, buildResponse](LuaNetClient &c, std::string url, sol::table tbl) -> sol::table {
+        sol::protected_function jsonEncode = (*this)["json"]["encode"];
+        std::string body;
+        auto encRes = jsonEncode(tbl);
+        if (encRes.valid()) body = encRes.get<std::string>();
+        HttpRequest req;
+        req.Url = std::move(url);
+        req.Method = "POST";
+        req.PostBody = std::move(body);
+        req.ContentType = "application/json";
+        req.TimeoutSeconds = c.timeout;
+        req.Headers = c.defaultHeaders;
+        return buildResponse(c.client.Fetch(req));
+    };
+    netClientType["Request"] = [buildResponse](LuaNetClient &c, sol::table params) -> sol::table {
+        HttpRequest req;
+        req.Url = params.get_or<std::string>("Url", "");
+        req.Method = params.get_or<std::string>("Method", "GET");
+        req.PostBody = params.get_or<std::string>("Body", "");
+        req.ContentType = params.get_or<std::string>("ContentType", "");
+        req.TimeoutSeconds = c.timeout;
+        req.Headers = c.defaultHeaders;
+        sol::optional<sol::table> extraHeaders = params["Headers"];
+        if (extraHeaders) {
+            for (const auto &kv : *extraHeaders)
+                req.Headers.push_back({kv.first.as<std::string>(), kv.second.as<std::string>()});
+        }
+        return buildResponse(c.client.Fetch(req));
     };
 
     sol::table lhpLib = create_table();

@@ -35,6 +35,9 @@
 namespace NoobWarrior {
 struct HttpRequest {
     std::string Url;
+    std::string Method { "GET" };
+    std::string PostBody;
+    std::string ContentType;
     std::vector<std::pair<std::string, std::string>> Headers;
     std::string Cookie;          // raw cookie header value, e.g. ".ROBLOSECURITY=xxx;"
     std::string UserAgent;

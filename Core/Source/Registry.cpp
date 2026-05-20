@@ -98,8 +98,8 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("user.appearance.scale.proportion", 0);
     SetKeyValueIfNotSet("user.appearance.scale.width", 0);
 
-    SetKeyValueIfNotSet("emu.branding.title", "noobWarrior");
-    SetKeyValueIfNotSet("emu.branding.logo", "/img/icon1024.png");
+    SetKeyValueIfNotSet("emu.branding.title", "noobWarrior Server Emulator");
+    SetKeyValueIfNotSet("emu.branding.icon", "/img/icon1024.png");
     SetKeyValueIfNotSet("emu.branding.tagline", "My noobWarrior server");
     SetKeyComment("emu.branding", "The branding that people will see when they connect to your website.");
 
