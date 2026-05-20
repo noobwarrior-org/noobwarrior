@@ -292,10 +292,6 @@ static DWORD WINAPI HeartbeatThread(LPVOID) {
 }
 
 DWORD WINAPI Thread(LPVOID param) {
-    gFile = freopen("noobhook.log", "w", stdout);
-    if (gFile == nullptr) {
-		MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
-    }
 	Out("Main", "Initializing noobHook");
 
     char portBuf[16];
@@ -327,8 +323,6 @@ DWORD WINAPI Thread(LPVOID param) {
     MH_CreateHookApi(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);
 
-    Out("Main", "Patches applied in DllMain");
-
     // LocalRcc -- only meaningful inside Studio (rsblox/local_rcc port).
     // Pulled in as a sibling DLL because it overrides global new/delete to use
     // Studio's rbxAllocate/rbxDeallocate exports, which don't exist in Player/RCCService.
@@ -357,10 +351,36 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     HANDLE hThread = NULL;
     switch (reason) {
     case DLL_PROCESS_ATTACH:
+        gFile = freopen("noobhook.log", "w", stdout);
+        if (gFile == nullptr) {
+            MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
+        }
+
+        AddVectoredExceptionHandler(0, [](EXCEPTION_POINTERS* ep) -> LONG {
+            if (ep->ExceptionRecord->ExceptionCode == 0xC0000005) {
+                void* stack[16];
+                USHORT frames = CaptureStackBackTrace(0, 16, stack, nullptr);
+
+                char buf[2048] = {};
+                int offset = sprintf_s(buf, "Crash at: 0x%p\n\nCall stack:\n",
+                    ep->ExceptionRecord->ExceptionAddress);
+
+                for (USHORT i = 0; i < frames; i++) {
+                    offset += sprintf_s(buf + offset, sizeof(buf) - offset,
+                        "[%d] 0x%p\n", i, stack[i]);
+                }
+
+                MessageBoxA(nullptr, buf, "Crash", MB_OK);
+            }
+            return EXCEPTION_CONTINUE_SEARCH;
+        });
+
+        Out("DllMain", "Applying patches...");
         Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
         Patches::RemoveSignatureCheck();
         Patches::RemoveTLSVerification();
         Patches::FixSettingsKeyMustBeDefined();
+        //Patches::FixStudioUnableToConnect();
 
         DisableThreadLibraryCalls(hModule);
 

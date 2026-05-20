@@ -35,4 +35,5 @@ void DoSomething2();
 void BypassVersionOutOfDate();
 void BypassPlaceIdVerification();
 void FixSettingsKeyMustBeDefined();
+void FixStudioUnableToConnect();
 }
