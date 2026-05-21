@@ -61,3 +61,7 @@ void LuaSignal::LuaFire(sol::variadic_args args) {
         listener.Function(args);
     }
 }
+
+void LuaSignal::DisconnectAll() {
+    mListeners.clear();
+}

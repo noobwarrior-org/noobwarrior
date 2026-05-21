@@ -65,8 +65,8 @@ public:
     }
 
     void LuaFire(sol::variadic_args args);
-
     LuaSignalListener Connect(sol::this_environment tenv, sol::protected_function func);
+    void DisconnectAll();
 protected:
     std::vector<LuaSignalListener> mListeners;
 };

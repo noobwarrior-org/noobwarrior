@@ -152,7 +152,12 @@ Core::~Core() {
 
     RegistryReturnCode = mRegistry->Close();
     NOOBWARRIOR_FREE_PTR(mRegistry)
-    
+
+    // release any Lua refs held by signals owned directly by Core before the Lua state is torn down.
+    // without this, ~LuaSignal runs during member destruction (after mLuaState is gone) and
+    // sol::protected_function's destructor calls lua_unref on a dead state.
+    mConsoleAddedSignal.DisconnectAll();
+
     NOOBWARRIOR_FREE_PTR(mLuaState)
 
     Out("Core", "Freeing event base");
