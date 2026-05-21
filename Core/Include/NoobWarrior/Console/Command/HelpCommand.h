@@ -30,6 +30,6 @@ class HelpCommand : public Command {
 public:
     HelpCommand() = default;
     ~HelpCommand() override = default;
-    int Main(CommandContext& ctx) override;
+    void Main(CommandContext& ctx) override;
 };
 }

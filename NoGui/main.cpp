@@ -35,6 +35,8 @@ int main(int argc, char* argv[]) {
         NoobWarrior::Init init {};
         init.ArgCount = argc;
         init.ArgVec = argv;
+        init.Portable = false;
+        init.InstallDataRelativePath = "";
         NoobWarrior::Core core(init);
         NoobWarrior::Console console(&core, &std::cout, &std::cin);
         ret = console.Exec();

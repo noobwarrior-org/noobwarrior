@@ -444,6 +444,10 @@ Backup::Process* Core::CreateBackupProcess(const Backup::ProcessOptions options)
     return new Backup::Process(this, options);
 }
 
+LuaSignal* Core::GetConsoleAddedSignal() {
+    return &mConsoleAddedSignal;
+}
+
 std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {
 #if defined(_WIN32)
     std::vector<char> buf;

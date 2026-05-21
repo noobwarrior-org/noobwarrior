@@ -44,6 +44,6 @@ class Command {
 public:
     Command() = default;
     virtual ~Command() = default;
-    virtual int Main(CommandContext& ctx) = 0;
+    virtual void Main(CommandContext& ctx) = 0;
 };
 }

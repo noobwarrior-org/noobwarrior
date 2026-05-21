@@ -27,7 +27,7 @@
 
 using namespace NoobWarrior;
 
-int StudioCommand::Main(CommandContext& ctx) {
+void StudioCommand::Main(CommandContext& ctx) {
     ctx.Reply("Launching Roblox Studio...");
     ctx.GetCore()->LaunchEngine({
         .Engine = {
@@ -43,5 +43,4 @@ int StudioCommand::Main(CommandContext& ctx) {
         .Port = std::nullopt,
         .PlaceId = std::nullopt
     });
-    return 0;
 }

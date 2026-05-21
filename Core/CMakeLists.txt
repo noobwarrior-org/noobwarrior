@@ -101,6 +101,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Console/Command/Command.cpp
     Source/Console/Command/HelpCommand.cpp
     Source/Console/Command/ExitCommand.cpp
+    Source/Console/Command/FuncCommand.cpp
     Source/Console/Command/StudioCommand.cpp
     Source/SqlDb/SqlDb.cpp
     Source/SqlDb/Statement.cpp

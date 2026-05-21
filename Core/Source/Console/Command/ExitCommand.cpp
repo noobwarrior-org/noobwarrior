@@ -27,7 +27,6 @@
 
 using namespace NoobWarrior;
 
-int ExitCommand::Main(CommandContext& ctx) {
+void ExitCommand::Main(CommandContext& ctx) {
     ctx.GetConsole()->Stop();
-    return 0;
 }

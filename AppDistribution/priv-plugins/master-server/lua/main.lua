@@ -23,6 +23,12 @@ reg.SetKeyComment("master.branding", "The branding that people will see when the
 reg.SetKeyValueIfNotSet("master.workshop.max_upload_mb", 4096);
 reg.SetKeyComment("master.workshop.max_upload_mb", "Maximum size in megabytes of a single .nwdb file uploaded to the workshop.");
 
+core.ConsoleAdded:Connect(function(console)
+    console:RegisterCommand("master", function(ctx)
+        ctx:Reply("Hello from master server!")
+    end, "Master server commands.")
+end)
+
 master_db = SqlDb.new(":memory:", "MasterDb")
 master_db:Query([[CREATE TABLE contacts (
 	contact_id INTEGER PRIMARY KEY,

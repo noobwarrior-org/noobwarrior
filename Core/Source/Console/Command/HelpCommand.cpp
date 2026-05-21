@@ -28,7 +28,7 @@
 
 using namespace NoobWarrior;
 
-int HelpCommand::Main(CommandContext& ctx) {
+void HelpCommand::Main(CommandContext& ctx) {
     const auto& cmds = ctx.GetConsole()->GetCommands();
 
     std::vector<std::string> cmdNames;
@@ -43,5 +43,4 @@ int HelpCommand::Main(CommandContext& ctx) {
     for (auto &cmdName : cmdNames) {
         ctx.Reply("\x1b[35m" + cmdName + " - \x1b[36m" + (descs.contains(cmdName) ? descs.at(cmdName) : "No description available.") + "\x1b[0m");
     }
-    return 0;
 }

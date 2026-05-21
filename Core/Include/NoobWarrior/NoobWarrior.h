@@ -45,6 +45,9 @@
 #include "Url.h"
 #include "FileSystem/VirtualFileSystem.h"
 #include "Backup.h"
+#include "Console/Console.h"
+#include "Console/Command/Command.h"
+#include "Lua/LuaSignal.h"
 
 #include <event.h>
 #include <lua.hpp>
@@ -185,6 +188,8 @@ public:
     void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
     
     Backup::Process* CreateBackupProcess(const Backup::ProcessOptions options);
+
+    LuaSignal* GetConsoleAddedSignal();
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
     bool WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params);
@@ -208,5 +213,7 @@ private:
     EmuKeychain*                    mEmuKeychain;
     RbxKeychain*                    mRbxKeychain;
     std::vector<RccServiceManager*> mRccServiceManagers;
+
+    LuaSignal                       mConsoleAddedSignal;
 };
 }

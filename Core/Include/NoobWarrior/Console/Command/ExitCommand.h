@@ -30,6 +30,6 @@ class ExitCommand : public Command {
 public:
     ExitCommand() = default;
     ~ExitCommand() override = default;
-    int Main(CommandContext& ctx) override;
+    void Main(CommandContext& ctx) override;
 };
 }

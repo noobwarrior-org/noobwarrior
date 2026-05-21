@@ -54,6 +54,8 @@ Console::Console(Core* core, std::ostream* out, std::istream* in) :
 
     RegisterCommand("studio", std::make_unique<StudioCommand>(), "Launches Roblox Studio.");
     RegisterAlias("studio", "launch-studio");
+
+    mCore->GetConsoleAddedSignal()->Fire(this);
 }
 
 Console::~Console() {

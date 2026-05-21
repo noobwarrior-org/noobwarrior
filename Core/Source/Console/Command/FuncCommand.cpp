@@ -18,18 +18,20 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: StudioCommand.h
+// File: FuncCommand.cpp
 // Started by: Hattozo
-// Started on: 5/17/2026
+// Started on: 5/20/2026
 // Description:
-#pragma once
-#include <NoobWarrior/Console/Command/Command.h>
+#include <NoobWarrior/Console/Command/FuncCommand.h>
+#include <NoobWarrior/Console/Console.h>
 
-namespace NoobWarrior {
-class StudioCommand : public Command {
-public:
-    StudioCommand() = default;
-    ~StudioCommand() override = default;
-    void Main(CommandContext& ctx) override;
-};
+using namespace NoobWarrior;
+
+FuncCommand::FuncCommand(std::function<void(CommandContext& ctx)> func) :
+    mFunc(func)
+{
+}
+
+void FuncCommand::Main(CommandContext& ctx) {
+    mFunc(ctx);
 }

@@ -35,6 +35,8 @@
 #include <NoobWarrior/FileSystem/ZipFileSystem.h>
 #include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Console/Command/Command.h>
+#include <NoobWarrior/Console/Command/FuncCommand.h>
 
 #include <lua.hpp>
 #include <sol/sol.hpp>
@@ -398,11 +400,24 @@ int LuaState::Open() {
         return tbl;
     };
 
-    auto netClientType = new_usertype<LuaNetClient>("NetClient", sol::no_constructor);
-    netClientType["new"] = []() { return std::make_unique<LuaNetClient>(); };
-    netClientType["SetTimeout"] = [](LuaNetClient &c, long secs) { c.timeout = secs; };
-    netClientType["SetHeader"] = [](LuaNetClient &c, std::string name, std::string value) {
-        c.defaultHeaders.push_back({std::move(name), std::move(value)});
+    auto cmdCtxType = new_usertype<CommandContext>("CommandContext", sol::no_constructor);
+    cmdCtxType["Reply"] = [](CommandContext& ctx, std::string msg) {
+        ctx.Reply(msg);
+    };
+    cmdCtxType["Args"] = sol::property([](CommandContext& ctx) {
+        return ctx.Args;
+    });
+
+    auto consoleType = new_usertype<Console>("Console");
+    consoleType["RegisterCommand"] = [](Console& console, std::string name, sol::protected_function func, std::string desc) {
+        auto cmd = std::make_unique<FuncCommand>(func);
+        console.RegisterCommand(name, std::move(cmd), desc);
+    };
+
+    auto netClientType = new_usertype<LuaNetClient>("NetClient");
+    netClientType["SetTimeout"] = [](LuaNetClient& cli, long secs) { cli.timeout = secs; };
+    netClientType["SetHeader"] = [](LuaNetClient& cli, std::string name, std::string value) {
+        cli.defaultHeaders.push_back({std::move(name), std::move(value)});
     };
     auto buildResponse = [this](const HttpResponse &res) -> sol::table {
         sol::table tbl = create_table();
@@ -515,6 +530,14 @@ int LuaState::Open() {
     coreLib.set_function("GetVersion", []() {
         return NOOBWARRIOR_VERSION;
     });
+    /* TODO: Should we even expose this in the API
+    coreLib.set_function("GetInstallationDir", [this]() {
+        return mCore->GetInstallationDir();
+    });
+    coreLib.set_function("GetUserDataDir", [this]() {
+        return mCore->GetUserDataDir();
+    }); */
+    coreLib["ConsoleAdded"] = mCore->GetConsoleAddedSignal();
     coreLib.set_function("GetEmuDbManager", [this]() {
         return mCore->GetEmuDbManager();
     });
