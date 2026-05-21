@@ -1,0 +1,17 @@
+<?lua
+local username = _POST["username"]
+local password = _POST["password"]
+
+if username == nil or username:match("^%s*$") or password == nil or password:match("^%s*$") then
+    echo("Cannot contain blank username or password")
+    return
+end
+
+local masterDb = core.GetMasterDatabase()
+local sqlRows = masterDb:QueryTyped("SELECT Id, PasswordHash FROM User WHERE Name = ? COLLATE NOCASE;", username)
+if not sqlRows[1] then
+    echo("Invalid username or password")
+    return
+end
+
+echo("WIP")

@@ -77,6 +77,7 @@ local function match_sitemap(sitemap, uri)
     for pattern, entry in pairs(sitemap) do
         if pattern:find(":[%a_]") then
             local names = {}
+            -- WTF
             local lua_pattern = "^"
                 .. pattern
                     :gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")

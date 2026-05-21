@@ -53,7 +53,10 @@ local sitemap = {
     ["/register"] = "plugin://master-server@noobwarrior.org/src/register.lhp",
     ["/workshop"] = "plugin://master-server@noobwarrior.org/src/workshop.lhp",
     ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp",
-    ["/profile"] = "plugin://master-server@noobwarrior.org/src/profile.lhp"
+    ["/profile"] = "plugin://master-server@noobwarrior.org/src/profile.lhp",
+
+    -- API
+    ["/v1/login"] = "plugin://master-server@noobwarrior.org/src/api/login.lhp"
 }
 
 master = http_base.CreateServer({
