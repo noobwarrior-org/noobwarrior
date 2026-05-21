@@ -10,6 +10,22 @@ print("hello from base.lua")
 _G.HTTP_BASE_VER = "0.1"
 local http_base = {}
 
+local SESSION_COOKIE = "NWSESSID"
+local session_store = {} -- { [id] = { data = {}, last_used = number } }
+local _session_id_counter = 0
+math.randomseed(os.time())
+
+local function generate_session_id()
+    _session_id_counter = _session_id_counter + 1
+    local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local id = ""
+    for i = 1, 40 do
+        local r = math.random(1, #chars)
+        id = id .. string.sub(chars, r, r)
+    end
+    return id .. tostring(_session_id_counter)
+end
+
 local file_extension_map = {
     ["txt"] = "text/plain",
     ["css"] = "text/css",
@@ -91,13 +107,32 @@ function http_base.AttachToServer(srv, params)
 
         if params.Sitemap[uri_without_params] then
             local session_tbl = {}
-            if params.ResolveSession then
-                -- The caller gets a chance to populate _SESSION (e.g. look up the logged-in user
-                -- from a cookie token) and to do per-request side effects like bumping a "last used"
-                -- timestamp. Errors here shouldn't kill the request.
-                local ok, err = pcall(params.ResolveSession, cookies_tbl, session_tbl, req)
-                if not ok then
-                    print("ResolveSession failed:", err)
+            local session_id = nil
+            local session_started = false
+
+            local function session_start()
+                if session_started then return end
+                session_started = true
+                local sid = cookies_tbl[SESSION_COOKIE]
+                if sid and session_store[sid] then
+                    session_id = sid
+                    session_store[sid].last_used = os.time()
+                    for k, v in pairs(session_store[sid].data) do
+                        session_tbl[k] = v
+                    end
+                else
+                    session_id = generate_session_id()
+                    session_store[session_id] = { data = {}, last_used = os.time() }
+                    req:AddHeader("Set-Cookie", string.format("%s=%s; Path=/; HttpOnly", SESSION_COOKIE, session_id))
+                end
+            end
+
+            local function session_destroy()
+                if session_id then
+                    session_store[session_id] = nil
+                    req:AddHeader("Set-Cookie", string.format("%s=deleted; Max-Age=0; Path=/; HttpOnly", SESSION_COOKIE))
+                    session_id = nil
+                    for k in pairs(session_tbl) do session_tbl[k] = nil end
                 end
             end
 
@@ -112,13 +147,15 @@ function http_base.AttachToServer(srv, params)
                     ["_SESSION"] = session_tbl,
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
+                    ["session_start"] = session_start,
+                    ["session_destroy"] = session_destroy,
                     ["header"] = function(header, replace, response_code)
                         local key, value = string.match(header, "([^:]+):%s*(.*)")
                         req:AddHeader(key, value)
                     end,
                     ["setcookie"] = function(name, value, expires, path, domain, secure, httponly)
                         assert(name ~= nil, "Parameter #1 \"name\" cannot be nil")
-                        
+
                         expires = expires or 0
                         path = path or ""
                         domain = domain or ""
@@ -147,6 +184,15 @@ function http_base.AttachToServer(srv, params)
                 })
                 req:SendReply(200, nil, output)
             end)
+
+            -- persist any _SESSION mutations back to the store
+            if session_id and session_store[session_id] then
+                session_store[session_id].data = {}
+                for k, v in pairs(session_tbl) do
+                    session_store[session_id].data[k] = v
+                end
+            end
+
             if not success then
                 req:SendError(500, "LHP Error: Failed to render page \""..params.Sitemap[uri_without_params].."\"<br>"..err)
             end
