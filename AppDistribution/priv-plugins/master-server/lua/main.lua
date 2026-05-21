@@ -51,6 +51,7 @@ local sitemap = {
     ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
     ["/login"] = "plugin://master-server@noobwarrior.org/src/login.lhp",
     ["/register"] = "plugin://master-server@noobwarrior.org/src/register.lhp",
+    ["/workshop"] = "plugin://master-server@noobwarrior.org/src/workshop.lhp",
     ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp"
 }
 

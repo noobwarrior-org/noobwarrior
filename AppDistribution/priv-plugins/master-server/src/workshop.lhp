@@ -1,0 +1,17 @@
+<?lua
+pageTitle = "Workshop"
+include("header.lhp")
+?>
+
+<div class="workshop-topbar">
+    <div class="workshop-banner">
+        <br>
+        <h1>Workshop</h1>
+        <p>The ultimate place to share your creations</p>
+        <br>
+    </div>
+</div>
+
+<br>
+
+<?lua include("footer.lhp") ?>
