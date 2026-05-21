@@ -489,7 +489,7 @@ int LuaState::Open() {
 
         std::string output;
         Lhp::RenderResponse res = mLhp.Render(globalsEnv, input, &output);
-        if (res != Lhp::RenderResponse::Success) {
+        if (res != Lhp::RenderResponse::Success && res != Lhp::RenderResponse::ExitCalled) {
             luaL_error(L, "failed to render page using lhp");
         }
         return output;
@@ -504,22 +504,20 @@ int LuaState::Open() {
             }
         }
         
-        // In each LuaScript (yes we create objects for each script that autoruns) we include a "script" variable
-        // in their personalized environment that contains a self-reference to the script that is currently being ran.
-        // Basically it's like Roblox's "script" global.
-        sol::userdata data = env["script"];
-        LuaScript& script = data.as<LuaScript>();
-
         UrlContext ctx {};
-        ctx.DefaultProtocolType = script.GetUrl().GetProtocol();
-        ctx.DefaultHostName = script.GetUrl().GetHostName();
-        ctx.Cwd = script.GetUrl().GetCwd();
+        sol::object scriptObj = env["script"];
+        if (scriptObj.get_type() == sol::type::userdata) {
+            LuaScript& script = scriptObj.as<LuaScript&>();
+            ctx.DefaultProtocolType = script.GetUrl().GetProtocol();
+            ctx.DefaultHostName = script.GetUrl().GetHostName();
+            ctx.Cwd = script.GetUrl().GetCwd();
+        }
 
         Url url(fileLocation, ctx);
 
         std::string output;
         Lhp::RenderResponse res = mLhp.Render(globalsEnv, url, &output);
-        if (res != Lhp::RenderResponse::Success) {
+        if (res != Lhp::RenderResponse::Success && res != Lhp::RenderResponse::ExitCalled) {
             luaL_error(L, "failed to render page using lhp");
         }
         return output;

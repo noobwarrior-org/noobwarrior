@@ -106,6 +106,11 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
 
         std::string includeOutput;
         RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, true);
+        if (res == RenderResponse::ExitCalled) {
+            *output += includeOutput;
+            luaL_error(L, "__LHP_EXIT__");
+            return;
+        }
         if (res != RenderResponse::Success) {
             luaL_error(L, "include() failed to render '%s'", fileLocation.c_str());
             return;
@@ -114,6 +119,18 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     };
 
     auto restoreInclude = [&]() { lhpEnv["include"] = prevInclude; };
+
+    lhpEnv["exit"] = [output](sol::this_state state , std::string msg) {
+        *output += msg;
+        lua_State* L = state;
+        luaL_error(L, "__LHP_EXIT__");
+    };
+
+    lhpEnv["die"] = [output](sol::this_state state, std::string msg) {
+        *output += msg;
+        lua_State* L = state;
+        luaL_error(L, "__LHP_EXIT__");
+    };
 
     sol::load_result bytecode = mLua->load(luaBuffer);
     if (!bytecode.valid()) {
@@ -128,6 +145,10 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     sol::protected_function_result res = func();
     if (!res.valid()) {
         sol::error err = res;
+        if (std::string_view(err.what()).find("__LHP_EXIT__") != std::string_view::npos) {
+            restoreInclude();
+            return RenderResponse::ExitCalled;
+        }
         Out("Lhp", "(Render Failure) {}", err.what());
         restoreInclude();
         return RenderResponse::LuaError;

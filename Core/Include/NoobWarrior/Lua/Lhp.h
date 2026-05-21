@@ -37,7 +37,8 @@ public:
         Success,
         SyntaxError,
         UrlFailed,
-        LuaError
+        LuaError,
+        ExitCalled
     };
 
     Lhp(LuaState* lua);

@@ -173,8 +173,10 @@ function http_base.AttachToServer(srv, params)
             })
 
             req:AddHeader("Content-Type", "text/html")
-            local success, err = pcall(function()
-                local output = lhp.RenderFile(sitemap_entry, {
+            local response_code = 200
+
+            local success, result = pcall(function()
+                return lhp.RenderFile(sitemap_entry, {
                     ["_SERVER"] = {},
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
@@ -185,9 +187,19 @@ function http_base.AttachToServer(srv, params)
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
                     ["session_destroy"] = session_destroy,
-                    ["header"] = function(header, replace, response_code)
-                        local key, value = string.match(header, "([^:]+):%s*(.*)")
-                        req:AddHeader(key, value)
+                    ["header"] = function(h, replace, rc)
+                        local status = string.match(h, "^HTTP/%S+ (%d+)")
+                        if status then
+                            response_code = tonumber(status)
+                        else
+                            local key, value = string.match(h, "([^:]+):%s*(.*)")
+                            if key and value then req:AddHeader(key, value) end
+                        end
+                        if rc ~= nil then response_code = rc end
+                    end,
+                    ["http_response_code"] = function(code)
+                        if code ~= nil then response_code = code end
+                        return response_code
                     end,
                     ["setcookie"] = function(name, value, expires, path, domain, secure, httponly)
                         assert(name ~= nil, "Parameter #1 \"name\" cannot be nil")
@@ -218,7 +230,6 @@ function http_base.AttachToServer(srv, params)
                         req:AddHeader("Set-Cookie", cookieHeader)
                     end
                 })
-                req:SendReply(200, nil, output)
             end)
 
             -- persist any _SESSION mutations back to the store
@@ -229,8 +240,10 @@ function http_base.AttachToServer(srv, params)
                 end
             end
 
-            if not success then
-                req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.."\"<br>"..err)
+            if success then
+                req:SendReply(response_code, nil, result)
+            else
+                req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.."\"<br>"..result)
             end
         else
             local vfs = srv:GetVfs()
