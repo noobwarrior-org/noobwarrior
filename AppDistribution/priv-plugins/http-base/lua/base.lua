@@ -110,7 +110,7 @@ function http_base.AttachToServer(srv, params)
             local session_id = nil
             local session_started = false
 
-            local function session_start()
+            local function do_session_start()
                 if session_started then return end
                 session_started = true
                 local sid = cookies_tbl[SESSION_COOKIE]
@@ -118,7 +118,7 @@ function http_base.AttachToServer(srv, params)
                     session_id = sid
                     session_store[sid].last_used = os.time()
                     for k, v in pairs(session_store[sid].data) do
-                        session_tbl[k] = v
+                        rawset(session_tbl, k, v)
                     end
                 else
                     session_id = generate_session_id()
@@ -136,6 +136,12 @@ function http_base.AttachToServer(srv, params)
                 end
             end
 
+            local session_proxy = setmetatable({}, {
+                __index    = function(_, k) do_session_start(); return session_tbl[k] end,
+                __newindex = function(_, k, v) do_session_start(); session_tbl[k] = v end,
+                __pairs    = function(_) do_session_start(); return pairs(session_tbl) end,
+            })
+
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
                 local output = lhp.RenderFile(params.Sitemap[uri_without_params], {
@@ -144,10 +150,9 @@ function http_base.AttachToServer(srv, params)
                     ["_POST"] = post_tbl,
                     ["_FILES"] = {},
                     ["_COOKIE"] = cookies_tbl,
-                    ["_SESSION"] = session_tbl,
+                    ["_SESSION"] = session_proxy,
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
-                    ["session_start"] = session_start,
                     ["session_destroy"] = session_destroy,
                     ["header"] = function(header, replace, response_code)
                         local key, value = string.match(header, "([^:]+):%s*(.*)")
