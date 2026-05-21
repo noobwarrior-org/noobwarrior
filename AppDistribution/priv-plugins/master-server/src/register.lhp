@@ -1,0 +1,22 @@
+<?lua
+pageTitle = "Register"
+include("header.lhp")
+?>
+
+<h1>Register</h1>
+
+<form action="/v1/create-account" method="post">
+    <label for="username"><b>Username</b></label>
+    <input type="text" placeholder="Enter Username" name="username" required>
+
+    <label for="password"><b>Password</b></label>
+    <input type="password" placeholder="Enter Password" name="password" required>
+
+    <label>
+        <input type="checkbox" name="iam13"> I am 13 years or older
+    </label>
+
+    <input type="submit" value="Create Account">
+</form>
+
+<?lua include("footer.lhp") ?>

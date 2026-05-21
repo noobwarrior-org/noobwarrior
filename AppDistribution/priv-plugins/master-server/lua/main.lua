@@ -49,6 +49,8 @@ local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 local sitemap = {
     ["/"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
     ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
+    ["/login"] = "plugin://master-server@noobwarrior.org/src/login.lhp",
+    ["/register"] = "plugin://master-server@noobwarrior.org/src/register.lhp",
     ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp"
 }
 
