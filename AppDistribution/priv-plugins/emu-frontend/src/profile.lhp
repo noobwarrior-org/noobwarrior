@@ -1,0 +1,8 @@
+<?lua
+pageTitle = "Login"
+include("header.lhp")
+?>
+
+<h1><?lua echo(_PARAMS["userId"] ~= nil and _PARAMS["userId"] or "No user inputted") ?></h1>
+
+<?lua include("footer.lhp") ?>

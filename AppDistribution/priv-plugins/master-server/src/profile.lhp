@@ -1,0 +1,6 @@
+<?lua
+pageTitle = "Profile"
+include("header.lhp")
+?>
+
+<?lua include("footer.lhp") ?>

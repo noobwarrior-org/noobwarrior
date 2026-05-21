@@ -70,6 +70,34 @@ function http_base.ReadFileBinary(vfs, localUrl)
     return fullData
 end
 
+local function match_sitemap(sitemap, uri)
+    if sitemap[uri] then
+        return sitemap[uri], {}
+    end
+    for pattern, entry in pairs(sitemap) do
+        if pattern:find(":[%a_]") then
+            local names = {}
+            local lua_pattern = "^"
+                .. pattern
+                    :gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")
+                    :gsub(":([%a_][%w_]*)", function(name)
+                        names[#names + 1] = name
+                        return "([^/]+)"
+                    end)
+                .. "$"
+            local captures = { uri:match(lua_pattern) }
+            if #captures > 0 then
+                local params = {}
+                for i, val in ipairs(captures) do
+                    params[names[i]] = val
+                end
+                return entry, params
+            end
+        end
+    end
+    return nil, {}
+end
+
 function http_base.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}
@@ -105,7 +133,8 @@ function http_base.AttachToServer(srv, params)
             end
         end
 
-        if params.Sitemap[uri_without_params] then
+        local sitemap_entry, url_params = match_sitemap(params.Sitemap, uri_without_params)
+        if sitemap_entry then
             local session_tbl = {}
             local session_id = nil
             local session_started = false
@@ -144,12 +173,13 @@ function http_base.AttachToServer(srv, params)
 
             req:AddHeader("Content-Type", "text/html")
             local success, err = pcall(function()
-                local output = lhp.RenderFile(params.Sitemap[uri_without_params], {
+                local output = lhp.RenderFile(sitemap_entry, {
                     ["_SERVER"] = {},
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
                     ["_FILES"] = {},
                     ["_COOKIE"] = cookies_tbl,
+                    ["_PARAMS"] = url_params,
                     ["_SESSION"] = session_proxy,
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
@@ -199,7 +229,7 @@ function http_base.AttachToServer(srv, params)
             end
 
             if not success then
-                req:SendError(500, "LHP Error: Failed to render page \""..params.Sitemap[uri_without_params].."\"<br>"..err)
+                req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.."\"<br>"..err)
             end
         else
             local vfs = srv:GetVfs()

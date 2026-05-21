@@ -27,7 +27,8 @@ local sitemap = {
     ["/login"] = "plugin://emu-frontend@noobwarrior.org/src/login.lhp",
     ["/register"] = "plugin://emu-frontend@noobwarrior.org/src/register.lhp",
     ["/servers"] = "plugin://emu-frontend@noobwarrior.org/src/servers.lhp",
-    ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp"
+    ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp",
+    ["/users/:userId/profile"] = "plugin://emu-frontend@noobwarrior.org/src/profile.lhp"
 }
 
 http_base.AttachToServer(emu, {
