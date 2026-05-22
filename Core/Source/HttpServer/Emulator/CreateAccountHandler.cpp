@@ -29,8 +29,9 @@
 
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
-
-#include <argon2.h>
+#include <openssl/kdf.h>
+#include <openssl/params.h>
+#include <openssl/core_names.h>
 
 #define HASH_LENGTH 32
 #define SALT_LENGTH 16
@@ -105,10 +106,26 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
 	}
 
     unsigned char hash[HASH_LENGTH];
-    int argon2Result = argon2id_hash_raw(2, 1<<16, 1, password.data(), password.size(), salt, SALT_LENGTH, hash, HASH_LENGTH);
-    if (argon2Result != ARGON2_OK) {
-        evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
-        return;
+    {
+        uint32_t t_cost = 2, m_cost = 1u << 16, lanes = 1, threads = 1;
+        EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "ARGON2ID", nullptr);
+        EVP_KDF_CTX *kctx = kdf ? EVP_KDF_CTX_new(kdf) : nullptr;
+        EVP_KDF_free(kdf);
+        OSSL_PARAM params[] = {
+            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(password.data()), password.size()),
+            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, salt, SALT_LENGTH),
+            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &t_cost),
+            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m_cost),
+            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
+            OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, &threads),
+            OSSL_PARAM_END
+        };
+        bool ok = kctx && EVP_KDF_derive(kctx, hash, HASH_LENGTH, params) > 0;
+        EVP_KDF_CTX_free(kctx);
+        if (!ok) {
+            evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
+            return;
+        }
     }
     std::string hashStr;
 	for (int i = 0; i < HASH_LENGTH; i++) {

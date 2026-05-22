@@ -3,6 +3,25 @@ pageTitle = "Login"
 include("header.lhp")
 ?>
 
-<h1><?lua echo(_PARAMS["userId"] ~= nil and _PARAMS["userId"] or "No user inputted") ?></h1>
+<?lua
+local id = _PARAMS["userId"]
+id = tonumber(id)
+if id == nil then
+    http_response_code(400)
+    die("Invalid id")
+end
+
+local masterDb = core.GetMasterDatabase()
+local userRows = masterDb:QueryTyped("SELECT Name FROM User WHERE Id = ?;", id)
+if userRows == nil then
+    die("No user found!")
+end
+local userRow = userRows[1]
+local name = userRow["Name"]
+?>
+
+<div class="">
+    <h1><?lua echo(name) ?></h1>
+</div>
 
 <?lua include("footer.lhp") ?>
