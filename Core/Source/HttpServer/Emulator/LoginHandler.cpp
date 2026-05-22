@@ -28,10 +28,14 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <openssl/crypto.h>
-#include <openssl/evp.h>
 #include <openssl/rand.h>
 
+#include <argon2.h>
+
 #include <charconv>
+
+#define HASH_LENGTH 32
+#define SALT_LENGTH 16
 
 using namespace NoobWarrior;
 
@@ -53,27 +57,6 @@ static bool FromHex(const std::string &hex, std::vector<unsigned char> &out) {
         if (ec != std::errc() || ptr != hex.data() + i + 2) return false;
         out.push_back(static_cast<unsigned char>(byte));
     }
-    return true;
-}
-
-// Splits "pbkdf2_sha256$<iters>$<saltHex>$<hashHex>" into its parts.
-static bool ParseStoredHash(const std::string &stored, int &iters,
-                            std::vector<unsigned char> &salt,
-                            std::vector<unsigned char> &hash) {
-    constexpr std::string_view prefix = "pbkdf2_sha256$";
-    if (!stored.starts_with(prefix)) return false;
-
-    size_t a = prefix.size();
-    size_t b = stored.find('$', a);
-    if (b == std::string::npos) return false;
-    size_t c = stored.find('$', b + 1);
-    if (c == std::string::npos) return false;
-
-    auto [ptr, ec] = std::from_chars(stored.data() + a, stored.data() + b, iters);
-    if (ec != std::errc() || ptr != stored.data() + b) return false;
-
-    if (!FromHex(stored.substr(b + 1, c - (b + 1)), salt)) return false;
-    if (!FromHex(stored.substr(c + 1), hash)) return false;
     return true;
 }
 
@@ -108,7 +91,7 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     Statement lookupStmt = masterDb->PrepareStatement(
-        "SELECT Id, PasswordHash FROM User WHERE Name = ? COLLATE NOCASE;"
+        "SELECT Id, PasswordHash, PasswordSalt FROM User WHERE Name = ? COLLATE NOCASE;"
     );
     lookupStmt.Bind(1, username);
     if (lookupStmt.Step() != SQLITE_ROW) {
@@ -118,26 +101,24 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     int64_t userId = lookupStmt.GetInt64FromColumnIndex(0);
     std::string storedHash = lookupStmt.GetStringFromColumnIndex(1);
+    std::string storedSalt = lookupStmt.GetStringFromColumnIndex(2);
 
-    int iters = 0;
     std::vector<unsigned char> salt;
-    std::vector<unsigned char> expected;
-    if (!ParseStoredHash(storedHash, iters, salt, expected) || expected.empty()) {
-        Out("LoginHandler", "Stored hash for user \"{}\" is malformed or uses an unsupported scheme", username);
+    if (!FromHex(storedSalt, salt) || salt.size() != SALT_LENGTH) {
+        Out("LoginHandler", "Stored salt for user \"{}\" is malformed", username);
         evhttp_send_error(req, HTTP_FORBIDDEN, "Invalid username or password");
         return;
     }
 
-    std::vector<unsigned char> derived(expected.size());
-    if (PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
-                          salt.data(), static_cast<int>(salt.size()),
-                          iters, EVP_sha256(),
-                          static_cast<int>(derived.size()), derived.data()) != 1) {
+    unsigned char hash[HASH_LENGTH];
+    if (argon2id_hash_raw(2, 1<<16, 1, password.data(), password.size(), salt.data(), SALT_LENGTH, hash, HASH_LENGTH) != ARGON2_OK) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to verify password");
         return;
     }
 
-    if (CRYPTO_memcmp(derived.data(), expected.data(), expected.size()) != 0) {
+    std::string computedHash = ToHex(hash, HASH_LENGTH);
+    if (computedHash.size() != storedHash.size() ||
+        CRYPTO_memcmp(computedHash.data(), storedHash.data(), computedHash.size()) != 0) {
         evhttp_send_error(req, HTTP_FORBIDDEN, "Invalid username or password");
         return;
     }

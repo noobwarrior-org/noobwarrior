@@ -16,6 +16,25 @@ else()
 endif()
 
 CPMAddPackage(
+    URI "gh:P-H-C/phc-winner-argon2#f57e61e"
+    DOWNLOAD_ONLY YES
+)
+
+if (phc-winner-argon2_ADDED)
+    FILE(GLOB argon2_sources
+        ${phc-winner-argon2_SOURCE_DIR}/src/*.c
+        ${phc-winner-argon2_SOURCE_DIR}/src/blake2/*.c
+    )
+    add_library(argon2 STATIC ${argon2_sources})
+    target_include_directories(argon2
+        PUBLIC
+        $<BUILD_INTERFACE:${phc-winner-argon2_SOURCE_DIR}/include>
+    )
+else()
+    message(FATAL_ERROR "Could not add argon2")
+endif()
+
+CPMAddPackage(
     URI "gh:facebook/zstd#48c0ed7"
     OPTIONS "ZSTD_BUILD_STATIC ON"
 )
@@ -168,6 +187,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto
     zlibstatic
+    argon2
     libzstd_static
     libcurl
     sqlite3

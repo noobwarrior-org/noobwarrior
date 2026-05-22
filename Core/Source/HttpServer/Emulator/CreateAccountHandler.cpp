@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: CreateAccountHandler.h
+// File: CreateAccountHandler.cpp
 // Started by: Hattozo
 // Started on: 5/1/2026
 // Description:
@@ -27,18 +27,15 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
 
-#include <openssl/evp.h>
+#include <openssl/ssl.h>
 #include <openssl/rand.h>
 
-using namespace NoobWarrior;
+#include <argon2.h>
 
-static std::string ToHex(const unsigned char *bytes, size_t len) {
-    std::string out;
-    out.reserve(len * 2);
-    for (size_t i = 0; i < len; i++)
-        out += std::format("{:02x}", bytes[i]);
-    return out;
-}
+#define HASH_LENGTH 32
+#define SALT_LENGTH 16
+
+using namespace NoobWarrior;
 
 CreateAccountHandler::CreateAccountHandler(ServerEmulator* emu) : mEmu(emu) {
 
@@ -67,8 +64,19 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_BADREQUEST, "Password cannot be empty");
         return;
     }
-
+    if (username.size() > 20) {
+        evhttp_send_error(req, HTTP_BADREQUEST, "Username cannot be longer than 20 characters");
+        return;
+    }
+    if (password.size() > 128) {
+        evhttp_send_error(req, HTTP_BADREQUEST, "Password cannot be longer than 128 characters");
+        return;
+    }
     if (iam13It == params.end()) {
+        evhttp_send_error(req, HTTP_BADREQUEST, "13+ box not ticked");
+        return;
+    }
+    if (iam13It->second != "on") {
         evhttp_send_error(req, HTTP_BADREQUEST, "You must confirm you are 13 years or older");
         return;
     }
@@ -82,39 +90,38 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
     Statement checkUserStmt = masterDb->PrepareStatement("SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE;");
     checkUserStmt.Bind(1, username);
     if (checkUserStmt.Step() == SQLITE_ROW) {
-        evhttp_send_error(req, HTTP_FORBIDDEN, "Username already exists!");
+        evhttp_send_error(req, 409, "Username already exists!");
         return;
     }
 
-    unsigned char salt[16];
+    unsigned char salt[SALT_LENGTH];
     if (RAND_bytes(salt, sizeof(salt)) != 1) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to generate password salt");
         return;
     }
+    std::string saltStr;
+	for (int i = 0; i < SALT_LENGTH; i++) {
+		saltStr += std::format("{:02x}", salt[i]);
+	}
 
-    constexpr int iterations = 100000;
-    constexpr int keyLen = 32;
-    unsigned char derived[keyLen];
-    if (PKCS5_PBKDF2_HMAC(password.data(), static_cast<int>(password.size()),
-                          salt, sizeof(salt), iterations, EVP_sha256(),
-                          keyLen, derived) != 1) {
+    unsigned char hash[HASH_LENGTH];
+    int argon2Result = argon2id_hash_raw(2, 1<<16, 1, password.data(), password.size(), salt, SALT_LENGTH, hash, HASH_LENGTH);
+    if (argon2Result != ARGON2_OK) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
         return;
     }
-    
-    std::string passwordHash = std::format(
-        "pbkdf2_sha256${}${}${}",
-        iterations,
-        ToHex(salt, sizeof(salt)),
-        ToHex(derived, keyLen)
-    );
+    std::string hashStr;
+	for (int i = 0; i < HASH_LENGTH; i++) {
+		hashStr += std::format("{:02x}", hash[i]);
+	}
 
     Statement createUserStmt = masterDb->PrepareStatement(
-        "INSERT INTO User (Name, DisplayName, PasswordHash, JoinDate) VALUES (?, ?, ?, unixepoch());"
+        "INSERT INTO User (Name, DisplayName, PasswordHash, PasswordSalt, JoinDate) VALUES (?, ?, ?, ?, unixepoch());"
     );
     createUserStmt.Bind(1, username);
     createUserStmt.Bind(2, username);
-    createUserStmt.Bind(3, passwordHash);
+    createUserStmt.Bind(3, hashStr);
+    createUserStmt.Bind(4, saltStr);
     if (createUserStmt.Step() != SQLITE_DONE) {
         Out("CreateAccountHandler", "Failed to insert new user \"{}\": {}", username, masterDb->GetLastErrorMsg());
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create account");
