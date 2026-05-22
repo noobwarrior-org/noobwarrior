@@ -59,9 +59,11 @@ static int printBS(lua_State *L) {
 
     std::string msg;
     for (int i = 1; i <= nargs; i++) {
-        const char *str = lua_tolstring(L, i, NULL);
-        msg += str;
-        lua_pop(L, 1);
+        size_t len = 0;
+        const char *str = luaL_tolstring(L, i, &len);
+        if (i > 1) msg += '\t';
+        msg.append(str, len);
+        lua_pop(L, 1);  // pop the string pushed by luaL_tolstring
     }
     Out("Lua", msg);
     return 0;
