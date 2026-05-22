@@ -94,7 +94,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     }
     
     sol::object prevInclude = lhpEnv["include"];
-    lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) -> void {
+    lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) mutable -> void {
         UrlContext ctx = {
             .Cwd = path.GetDirectory(),
             .DefaultProtocolType = path.GetProtocol(),
@@ -104,8 +104,18 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         lua_State* L = state;
         Url includeUrl(fileLocation, ctx);
 
+        // The recursive Render call overwrites die/exit in the shared lhpEnv with lambdas
+        // that capture &includeOutput. Save and restore them so that after the include
+        // returns, die/exit in the parent file don't hold a dangling pointer.
+        sol::object savedDie = lhpEnv["die"];
+        sol::object savedExit = lhpEnv["exit"];
+
         std::string includeOutput;
         RenderResponse res = Render(lhpEnv, includeUrl, &includeOutput, true);
+
+        lhpEnv["die"] = savedDie;
+        lhpEnv["exit"] = savedExit;
+
         if (res == RenderResponse::ExitCalled) {
             *output += includeOutput;
             luaL_error(L, "__LHP_EXIT__");
