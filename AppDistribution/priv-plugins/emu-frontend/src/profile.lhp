@@ -1,9 +1,4 @@
 <?lua
-pageTitle = "Login"
-include("header.lhp")
-?>
-
-<?lua
 local id = _PARAMS["userId"]
 id = tonumber(id)
 if id == nil then
@@ -29,6 +24,11 @@ local joindate = userRow["JoinDate"]
 if bio == nil or bio == "" then
     bio = "This user has not set their bio. That's pretty lame."
 end
+?>
+
+<?lua
+pageTitle = name
+include("header.lhp")
 ?>
 
 <style>
