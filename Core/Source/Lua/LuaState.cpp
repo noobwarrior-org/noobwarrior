@@ -300,7 +300,10 @@ int LuaState::Open() {
         for (SqlRow& row : rows) {
             sol::table rowTbl = create_table();
             for (SqlColumn& col : row) {
-                rowTbl.set(col.first, col.second);
+                // Don't put this value in if it's null (std::monostate is supposed to represent a null value btw)
+                if (!std::holds_alternative<std::monostate>(col.second)) {
+                    rowTbl.set(col.first, col.second);
+                }
             }
             rowsTbl.add(rowTbl);
         }
