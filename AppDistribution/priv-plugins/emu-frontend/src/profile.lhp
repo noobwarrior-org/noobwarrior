@@ -26,19 +26,22 @@ local displayname = userRow["DisplayName"] or name
 local bio = userRow["Bio"]
 local joindate = userRow["JoinDate"]
 
-print("Bio", bio) -- TODO: FIX THIS BUG WHERE SOL RETURNS "STD MONOSTATE" OBJECT INSTEAD OF "NIL"
 if bio == nil or bio == "" then
-    bio = "Hello. I have nothing in my bio because I AM A LOSER!!!!!!!"
+    bio = "This user has not set their bio. That's pretty lame."
 end
 ?>
 
 <style>
+table {
+    background-color: #454545;
+}
 table, th, td {
-  border:1px solid black;
+    border: 1px solid #202020;
+    border-collapse: collapse;
 }
 </style>
 
-<table>
+<table style="width: 420px;">
     <tr>
         <th colspan="2" style="font-size: 16pt;"><?lua echo(displayname) ?>'s Profile</th>
     </tr>
@@ -52,7 +55,10 @@ table, th, td {
         <th colspan="2">Bio</th>
     </tr>
     <tr>
-        <td colspan="2">Hello. I have nothing in my bio because I AM A LOSER!!!!!!!<?lua echo(bio) ?></td>
+        <td colspan="2" style="text-align: center;"><?lua echo(bio) ?></td>
+    </tr>
+    <tr>
+        <th colspan="2">Information</th>
     </tr>
     <tr>
         <td>Username</td>
