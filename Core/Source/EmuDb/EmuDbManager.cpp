@@ -123,6 +123,7 @@ EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
         if (exists)
             return db;
     }
+    return nullptr;
 }
 
 SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
