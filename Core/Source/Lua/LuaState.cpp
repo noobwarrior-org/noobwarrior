@@ -116,6 +116,20 @@ int LuaState::Open() {
     LOADLIBRARY(json_lua, "json")
 #undef LOADLIBRARY
 
+    // First we start with enums
+    new_enum("ItemType",
+        "Asset", ItemType::Asset,
+        "Badge", ItemType::Badge,
+        "Bundle", ItemType::Bundle,
+        "DevProduct", ItemType::DevProduct,
+        "Group", ItemType::Group,
+        "Outfit", ItemType::Outfit,
+        "Pass", ItemType::Pass,
+        "Set", ItemType::Set,
+        "Universe", ItemType::Universe,
+        "User", ItemType::User
+    );
+
     auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
     scriptType["new"] = [this](std::string src) {
         return std::make_unique<LuaScript>(this, this->globals(), src);
@@ -315,6 +329,7 @@ int LuaState::Open() {
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
     emuDbMgrType["GetMasterDatabase"] = &EmuDbManager::GetMasterDatabase;
     emuDbMgrType["GetMountedDatabases"] = &EmuDbManager::GetMountedDatabases;
+    emuDbMgrType["GetFirstDbWhereItemExists"] = &EmuDbManager::GetFirstDbWhereItemExists;
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this](std::string logName) {
