@@ -6,8 +6,12 @@ if id == nil then
     die("Invalid id")
 end
 
-local masterDb = core.GetMasterDatabase()
-local userRows = masterDb:QueryTyped("SELECT Name, DisplayName, Bio, JoinDate FROM User WHERE Id = ?;", id)
+local db = core.GetEmuDbManager():GetFirstDbWhereItemExists(ItemType.User, id)
+if db == nil then
+    http_response_code(404)
+    die("No user found!")
+end
+local userRows = db:QueryTyped("SELECT Name, DisplayName, Bio, JoinDate FROM User WHERE Id = ?;", id)
 if userRows == nil then
     http_response_code(404)
     die("No user found!")
