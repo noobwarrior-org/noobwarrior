@@ -46,11 +46,11 @@ public:
     bool Mount(EmuDb* database, unsigned int priority);
     bool Unmount(EmuDb* database);
 
-    EmuDb *GetMasterDatabase();
+    EmuDb* GetMasterDatabase();
     std::vector<EmuDb*> GetMountedDatabases();
 
-    bool GetUserFromToken(User *user, const std::string &token);
-
+    EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
+    
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 private:
     Core* mCore;

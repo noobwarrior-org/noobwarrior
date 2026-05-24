@@ -117,9 +117,12 @@ std::vector<EmuDb*> EmuDbManager::GetMountedDatabases() {
     return mMountedDatabases;
 }
 
-bool EmuDbManager::GetUserFromToken(User *user, const std::string &token) {
-    *user = User {};
-    return true;
+EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        bool exists = db->DoesItemExist(type, id);
+        if (exists)
+            return db;
+    }
 }
 
 SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
