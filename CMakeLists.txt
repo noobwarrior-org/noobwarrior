@@ -18,7 +18,7 @@ option(NOOBWARRIOR_TARGET_CORE "Add target noobWarrior Core" ON)
 option(NOOBWARRIOR_TARGET_UNITTEST "Add target noobWarrior UnitTest" ON)
 option(NOOBWARRIOR_TARGET_NOGUI "Add target noobWarrior NoGui" ON)
 option(NOOBWARRIOR_TARGET_QTGUI "Add target noobWarrior QtGui" ON)
-option(NOOBWARRIOR_TARGET_GAMELAUNCHER "Add target noobWarrior GameLauncher" OFF)
+option(NOOBWARRIOR_TARGET_TENFOOT "Add target noobWarrior Tenfoot" ON)
 
 # If you are on a Unix OS, these targets must be compiled using a cross-compiler that can build a Windows PE file.
 option(NOOBWARRIOR_TARGET_HOOK "Add target noobWarrior Hook" ON)
@@ -43,8 +43,8 @@ if (NOOBWARRIOR_TARGET_QTGUI)
     add_subdirectory(QtGui)
 endif()
 
-if (NOOBWARRIOR_TARGET_GAMELAUNCHER)
-    add_subdirectory(GameLauncher)
+if (NOOBWARRIOR_TARGET_TENFOOT)
+    add_subdirectory(Tenfoot)
 endif()
 
 if (NOOBWARRIOR_TARGET_HOOK)
