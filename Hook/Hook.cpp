@@ -361,6 +361,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
         Patches::RemoveSignatureCheck();
         Patches::RemoveTLSVerification();
         Patches::FixSettingsKeyMustBeDefined();
+        Patches::FixInsertObjects();
         //Patches::FixStudioUnableToConnect();
 
         DisableThreadLibraryCalls(hModule);

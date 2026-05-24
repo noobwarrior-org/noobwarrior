@@ -36,4 +36,5 @@ void BypassVersionOutOfDate();
 void BypassPlaceIdVerification();
 void FixSettingsKeyMustBeDefined();
 void FixStudioUnableToConnect();
+void FixInsertObjects();
 }
