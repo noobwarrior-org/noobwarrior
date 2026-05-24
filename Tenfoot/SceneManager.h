@@ -18,25 +18,28 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Tenfoot.h
+// File: SceneManager.h
 // Started by: Hattozo
 // Started on: 6/17/2025
 // Description:
 #pragma once
-#include <cstdint>
-
-#include "SceneManager.h"
+#include "Scene.h"
+#include <blend2d/blend2d.h>
 
 namespace NoobWarrior {
-class Tenfoot {
+class SceneManager {
 public:
-    Tenfoot();
+    SceneManager();
+    void RedrawImage(int width, int height, int64_t ticks);
+    void SetScene(Scene& scene);
 
-    int Run();
+    int GetWidth();
+    int GetHeight();
+    int GetStride();
+    void *GetPixelData();
 private:
-    bool Running;
-    int Width, Height;
-    int64_t mTicks;
-    SceneManager Menu;
+    BLImage Image;
+    BLContext Context;
+    BLImageData ImageData;
 };
 }

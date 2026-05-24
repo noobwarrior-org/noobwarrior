@@ -12,7 +12,9 @@ CPMAddPackage(
 add_executable(NoobWarrior.Tenfoot)
 target_sources(NoobWarrior.Tenfoot PRIVATE
     Tenfoot.cpp
-    Menu2D.cpp
+    SceneManager.cpp
+    Scene.cpp
+    Node.cpp
 )
 target_link_libraries(NoobWarrior.Tenfoot NoobWarrior.Core SDL3::SDL3 blend2d::blend2d)
 set_target_properties(NoobWarrior.Tenfoot PROPERTIES OUTPUT_NAME "noobwarrior-tenfoot")

@@ -18,27 +18,8 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Menu2D.h
+// File: Node.cpp
 // Started by: Hattozo
-// Started on: 6/17/2025
+// Started on: 5/23/2026
 // Description:
-#pragma once
-
-#include <blend2d/blend2d.h>
-
-namespace NoobWarrior {
-class Menu2D {
-public:
-    Menu2D();
-    void RedrawImage(int width, int height, int64_t ticks);
-
-    int GetWidth();
-    int GetHeight();
-    int GetStride();
-    void *GetPixelData();
-private:
-    BLImage Image;
-    BLContext Context;
-    BLImageData ImageData;
-};
-}
+#include "Node.h"

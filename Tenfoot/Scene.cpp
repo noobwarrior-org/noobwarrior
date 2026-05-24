@@ -18,25 +18,9 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Tenfoot.h
+// File: Scene.cpp
 // Started by: Hattozo
-// Started on: 6/17/2025
+// Started on: 5/23/2026
 // Description:
-#pragma once
-#include <cstdint>
+#include "Scene.h"
 
-#include "SceneManager.h"
-
-namespace NoobWarrior {
-class Tenfoot {
-public:
-    Tenfoot();
-
-    int Run();
-private:
-    bool Running;
-    int Width, Height;
-    int64_t mTicks;
-    SceneManager Menu;
-};
-}

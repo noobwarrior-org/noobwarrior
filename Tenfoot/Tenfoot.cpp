@@ -28,13 +28,17 @@
 #include <SDL3/SDL_render.h>
 #include <blend2d/blend2d.h>
 
-#include <cstdio>
+#include <ctime>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
 
 using namespace NoobWarrior;
 
 Tenfoot::Tenfoot() :
     Running(true),
-    Width(1280), Height(720)
+    Width(1280), Height(720),
+    mTicks(0)
 {}
 
 int Tenfoot::Run() {
@@ -46,6 +50,8 @@ int Tenfoot::Run() {
     SDL_Renderer *renderer;
 
     SDL_CreateWindowAndRenderer("noobWarrior", Width, Height, SDL_WINDOW_RESIZABLE, &window, &renderer);
+
+    std::chrono::time_point<std::chrono::system_clock> t = std::chrono::system_clock::now();
 
     SDL_Event event;
     while (Running) {
@@ -73,6 +79,8 @@ int Tenfoot::Run() {
             break;
         default: break;
         }
+        t += std::chrono::milliseconds(16);
+        std::this_thread::sleep_until(t);
     }
     return 0;
 }

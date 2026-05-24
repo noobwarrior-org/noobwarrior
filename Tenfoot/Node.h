@@ -18,25 +18,15 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Tenfoot.h
+// File: Node.h
 // Started by: Hattozo
-// Started on: 6/17/2025
+// Started on: 5/23/2026
 // Description:
 #pragma once
-#include <cstdint>
-
-#include "SceneManager.h"
 
 namespace NoobWarrior {
-class Tenfoot {
+class Node {
 public:
-    Tenfoot();
-
-    int Run();
-private:
-    bool Running;
-    int Width, Height;
-    int64_t mTicks;
-    SceneManager Menu;
+    Node();
 };
 }

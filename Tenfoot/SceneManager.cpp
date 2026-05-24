@@ -18,20 +18,22 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: Menu2D.cpp
+// File: SceneManager.cpp
 // Started by: Hattozo
 // Started on: 6/17/2025
 // Description:
-#include "Menu2D.h"
+#include "SceneManager.h"
 
 #include <NoobWarrior/Log.h>
 
-NoobWarrior::Menu2D::Menu2D() :
+using namespace NoobWarrior;
+
+SceneManager::SceneManager() :
     Image(1280, 720, BL_FORMAT_PRGB32),
     Context(Image)
 {}
 
-void NoobWarrior::Menu2D::RedrawImage(int width, int height, int64_t ticks) {
+void SceneManager::RedrawImage(int width, int height, int64_t ticks) {
     Context.clear_all();
     // Image.create(width, height, BL_FORMAT_PRGB32);
 
@@ -56,18 +58,18 @@ void NoobWarrior::Menu2D::RedrawImage(int width, int height, int64_t ticks) {
     Image.get_data(&ImageData);
 }
 
-int NoobWarrior::Menu2D::GetWidth() {
+int SceneManager::GetWidth() {
     return Image.width();
 }
 
-int NoobWarrior::Menu2D::GetHeight() {
+int SceneManager::GetHeight() {
     return Image.height();
 }
 
-int NoobWarrior::Menu2D::GetStride() {
+int SceneManager::GetStride() {
     return ImageData.stride;
 }
 
-void* NoobWarrior::Menu2D::GetPixelData() {
+void* SceneManager::GetPixelData() {
     return ImageData.pixel_data;
 }
