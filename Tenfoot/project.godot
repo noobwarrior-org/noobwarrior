@@ -11,8 +11,15 @@ config_version=5
 [application]
 
 config/name="Tenfoot"
+run/main_scene="uid://dh24qk31p32wk"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=3
 
 [physics]
 
