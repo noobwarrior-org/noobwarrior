@@ -184,7 +184,7 @@ bool NoobHook::SendHello(const ProcessInfo &info) {
         body["Port"] = info.Port;
         body["PlaceId"] = info.PlaceId;
     }
-    return PostJson("/v1/process-ping", body.dump(), 1500);
+    return PostJson("/v1/process-ping", body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), 1500);
 }
 
 bool NoobHook::SendGoodbye(int pid) {
@@ -192,7 +192,7 @@ bool NoobHook::SendGoodbye(int pid) {
         {"Event", "Goodbye"},
         {"Pid",   pid},
     };
-    return PostJson("/v1/process-ping", body.dump(), 500);
+    return PostJson("/v1/process-ping", body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), 500);
 }
 
 bool NoobHook::SendHeartbeat(const ProcessInfo &info) {
@@ -206,5 +206,5 @@ bool NoobHook::SendHeartbeat(const ProcessInfo &info) {
         body["Port"] = info.Port;
         body["PlaceId"] = info.PlaceId;
     }
-    return PostJson("/v1/process-ping", body.dump(), 1500);
+    return PostJson("/v1/process-ping", body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), 1500);
 }

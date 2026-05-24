@@ -27,22 +27,33 @@
 #include <windows.h>
 
 void NoobHook::Patches::RemoveTLSVerification() {
-    auto disableVerifyPeer = hook::pattern("6A 01 6A 40 FF B7 48 01 00 00");
-    if (!disableVerifyPeer.count_hint(1).empty()) {
-        //MessageBoxA(0, "Found CURL SSL verify peer pattern!", "noobHook", 0);
-        Out("RemoveTLSVerification", "Found pattern for CURL SSL verify peer check");
-        uintptr_t* address = disableVerifyPeer.get(0).get<uintptr_t>(1);
-        const uint8_t bytes[] = { 0x00 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+    auto x64VerifyPeer = hook::pattern("41 B8 01 00 00 00 BA 40 00 00 00");
+    if (x64VerifyPeer.size() > 0) {
+        Out("RemoveTLSVerification", "Patching x64 CURLOPT_SSL_VERIFYPEER");
+        x64VerifyPeer.for_each_result([](hook::pattern_match match) {
+            const uint8_t patch[] = { 0x00 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(2)), patch, sizeof(patch));
+        });
+    } else {
+        auto x86VerifyPeer = hook::pattern("6A 01 6A 40 FF B7 48 01 00 00");
+        if (!x86VerifyPeer.count_hint(1).empty()) {
+            Out("RemoveTLSVerification", "Patching x86 CURLOPT_SSL_VERIFYPEER");
+            const uint8_t patch[] = { 0x00 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x86VerifyPeer.get(0).get<uint8_t>(1)), patch, sizeof(patch));
+        }
     }
 
-    // This pattern does not exist on RCCService for some reason
-    auto disableVerifyHost = hook::pattern("6A 02 6A 51 FF B7 48 01 00 00");
-    if (!disableVerifyHost.count_hint(1).empty()) {
-        //MessageBoxA(0, "Found CURL SSL verify host pattern!", "noobHook", 0);
-        Out("RemoveTLSVerification", "Found pattern for CURL SSL verify host check");
-        uintptr_t* address = disableVerifyHost.get(0).get<uintptr_t>(1);
-        const uint8_t bytes[] = { 0x00 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+    auto x64VerifyHostGuard = hook::pattern("F6 85 50 0A 00 00 02 74 1B BA 51 00 00 00");
+    if (!x64VerifyHostGuard.count_hint(1).empty()) {
+        Out("RemoveTLSVerification", "Patching x64 CURLOPT_SSL_VERIFYHOST guard (je->jmp)");
+        const uint8_t patch[] = { 0xEB };
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x64VerifyHostGuard.get(0).get<uint8_t>(7)), patch, sizeof(patch));
+    }
+
+    auto x86VerifyHost = hook::pattern("6A 02 6A 51 FF B7 48 01 00 00");
+    if (!x86VerifyHost.count_hint(1).empty()) {
+        Out("RemoveTLSVerification", "Patching x86 CURLOPT_SSL_VERIFYHOST");
+        const uint8_t patch[] = { 0x00 };
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x86VerifyHost.get(0).get<uint8_t>(1)), patch, sizeof(patch));
     }
 }

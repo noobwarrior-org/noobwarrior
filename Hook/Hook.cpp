@@ -80,36 +80,35 @@ DWORD StrLength(PCHAR str) {
     return length;
 }
 
+static char gVersionStringBuf[128] = {0};
+
 char *GetProductVersion() {
     char exePathBuf[1024];
     GetModuleFileNameEx(GetCurrentProcess(), NULL, exePathBuf, sizeof(exePathBuf));
 
     DWORD handle = 0;
     DWORD fileVersionSize = GetFileVersionInfoSizeA(exePathBuf, &handle);
-
-    LPBYTE buffer = nullptr;
-    UINT bufferLength = 0;
-
-    if (fileVersionSize == 0) {
-        return (char*)'\0';
-    }
+    if (fileVersionSize == 0)
+        return nullptr;
 
     char *versionInfo = new char[fileVersionSize];
+    LPBYTE buffer = nullptr;
+    UINT bufferLength = 0;
+    bool found = false;
+
     if (!GetFileVersionInfoA(exePathBuf, handle, fileVersionSize, versionInfo))
-        goto failed;
-    
-    if (VerQueryValueA(versionInfo, "\\StringFileInfo\\040904E4\\ProductVersion", (LPVOID*)&buffer, &bufferLength)) {
-        delete[] versionInfo;
-        return reinterpret_cast<char*>(buffer);
+        goto cleanup;
+
+    if (VerQueryValueA(versionInfo, "\\StringFileInfo\\040904E4\\ProductVersion", (LPVOID*)&buffer, &bufferLength) ||
+        VerQueryValueA(versionInfo, "\\StringFileInfo\\000004B0\\ProductVersion", (LPVOID*)&buffer, &bufferLength)) {
+        // Copy into a static buffer before freeing versionInfo — buffer points inside it.
+        strncpy_s(gVersionStringBuf, sizeof(gVersionStringBuf), reinterpret_cast<char*>(buffer), _TRUNCATE);
+        found = true;
     }
 
-    if (VerQueryValueA(versionInfo, "\\StringFileInfo\\000004B0\\ProductVersion", (LPVOID*)&buffer, &bufferLength)) {
-        delete[] versionInfo;
-        return reinterpret_cast<char*>(buffer);
-    }
-failed:
+cleanup:
     delete[] versionInfo;
-    return (char*)'\0';
+    return found ? gVersionStringBuf : nullptr;
 }
 
 RobloxVersion GetRobloxVersion() {
