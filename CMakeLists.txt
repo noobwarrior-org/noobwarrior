@@ -43,10 +43,6 @@ if (NOOBWARRIOR_TARGET_QTGUI)
     add_subdirectory(QtGui)
 endif()
 
-if (NOOBWARRIOR_TARGET_TENFOOT)
-    add_subdirectory(Tenfoot)
-endif()
-
 if (NOOBWARRIOR_TARGET_HOOK)
     add_subdirectory(Hook)
 endif()

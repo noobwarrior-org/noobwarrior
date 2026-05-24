@@ -22,3 +22,4 @@ build-msvc-x86/
 AGENTS.md
 CLAUDE.md
 .claude/
+.godot/
