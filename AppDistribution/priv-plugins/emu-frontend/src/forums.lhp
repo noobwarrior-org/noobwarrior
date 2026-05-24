@@ -1,0 +1,60 @@
+<?lua
+pageTitle = "Forums"
+include("header.lhp")
+?>
+
+<style>
+table {
+    background-color: #454545;
+}
+table, th, td {
+    border: 1px solid #202020;
+    border-collapse: collapse;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+</style>
+
+<table style="width: 100%">
+    <tr>
+        <th colspan="2">Forum</th>
+        <th>Threads</th>
+        <th>Posts</th>
+        <th>Last Post</th>
+    </tr>
+    <?lua
+    local db = core.GetMasterDatabase()
+    local categoryRows = db:Query("SELECT Id, Name, Description FROM ForumCategory ORDER BY SortOrder DESC;")
+    if categoryRows ~= nil then
+        for _, categoryRow in ipairs(categoryRows) do
+            local categoryId = categoryRow.Id
+            if categoryRow.Name ~= nil then
+                echo("<tr><td colspan=\"5\">"..categoryRow.Name.."</td></tr>")
+                local forumRows = db:QueryTyped("SELECT Id, Name, Description FROM Forum WHERE CategoryId = ?;", categoryId)
+                for _, forumRow in ipairs(forumRows) do
+                    local forumThreads = db:QueryTyped("SELECT COUNT(t.Id) AS ThreadCount FROM ForumThread t WHERE ForumId = ?;", forumRow.Id)
+                    local forumPosts = db:QueryTyped([[
+                    SELECT COUNT(p.Id) AS PostCount
+                    FROM ForumPost p
+                    JOIN ForumThread t ON p.ThreadId = t.Id
+                    WHERE t.ForumId = ?;
+                    ]], forumRow.Id)
+                    echo(string.format([[
+                    <tr>
+                        <td><img src="/img/folder.png" /></td>
+                        <td>%s<br>%s</td>
+                        <td>%s</td>
+                        <td>%s</td>
+                        <td>Today @ 5:54 PM<br>by Hattozo</td>
+                    </tr>
+                    ]], forumRow.Name, forumRow.Description, forumThreads[1]["ThreadCount"], forumPosts[1]["PostCount"]))
+                end
+            end
+        end
+    end
+    ?>
+</table>
+
+<?lua include("footer.lhp") ?>
