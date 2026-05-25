@@ -238,9 +238,17 @@ static offline::not_trusted_fn     gOrigNotTrusted     = nullptr;
 // would normally be SSO. In practice the call sites here pass strings whose
 // data pointer at +0 IS what gets used downstream -- the layout assumption
 // holds for these specific call paths in 0.574.
+//
+// The host includes ":8080" so the URL stays self-contained: WebView2 spawns
+// its own subprocesses for navigation and those don't inherit Hook.cpp's
+// connect() redirect (port 80 -> emulator). Embedding the emulator's HTTP
+// port in the host means WebView2 (and any other consumer) lands on the
+// emulator directly without needing per-process injection or a port-80 bind.
+// Hook.cpp's redirect is still useful for code paths that bypass
+// FromComponents and connect to localhost:80 by other means.
 static void FromComponentsHook(void* res16, void* schema, void* host,
                                void* path, void* query, void* fragment) {
-    static const char* kHost   = "localhost";
+    static const char* kHost   = "localhost:8080";
     static const char* kScheme = "http";
 
     *reinterpret_cast<const char**>(host) = kHost;

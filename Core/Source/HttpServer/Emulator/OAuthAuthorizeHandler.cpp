@@ -51,15 +51,23 @@ void OAuthAuthorizeHandler::OnRequest(evhttp_request *req, void *userdata) {
         }
         evhttp_uri_free(parsed);
     }
-
-    std::string location = "roblox-studio-auth:/?code=a";
+    
+    std::string target = "roblox-studio-auth:/?code=a";
     if (!state.empty()) {
-        location += "&state=";
-        location += state;
+        target += "&state=";
+        target += state;
     }
 
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Location", location.c_str());
+    std::string html =
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>noobWarrior auth</title></head>"
+        "<body style=\"background:#212529;color:#eee;font-family:sans-serif;text-align:center;padding-top:40px;\">"
+        "<p>Logging in...</p>"
+        "<script>window.location.href=\"" + target + "\";</script>"
+        "</body></html>";
+
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/html; charset=utf-8");
     evbuffer *reply = evbuffer_new();
-    evhttp_send_reply(req, 302, "Found", reply);
+    evbuffer_add(reply, html.data(), html.size());
+    evhttp_send_reply(req, 200, "OK", reply);
     evbuffer_free(reply);
 }

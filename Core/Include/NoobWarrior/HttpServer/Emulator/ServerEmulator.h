@@ -123,6 +123,7 @@ private:
     OAuthAuthorizeHandler mOAuthAuthorizeHandler;
     StaticJsonHandler mOAuthTokenHandler;
     StaticJsonHandler mOAuthUserinfoHandler;
+    StaticJsonHandler mStudioLoginHandler;
 
     void SetupHandlers() override;
     void SweepStaleInstancesLocked();

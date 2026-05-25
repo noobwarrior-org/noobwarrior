@@ -40,24 +40,22 @@ void NoobHook::Patches::FixStudioUnableToConnect() {
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(pattern.get(0).get<uint8_t>(0)), bytes, sizeof(bytes));
     }*/
 
-    // After the OAuth metadata fetch now succeeds, AuthTokenManager validates fine
-    // but LoginManager::authenticateOnStartup still returns false with 'NoCookieFound'
-    // (no saved cookie on first run) which triggers an OAuth WebView2 dialog. The
-    // WebView2 process doesn't share our connect() hook so it can't reach the
-    // emulator on port 8080 — navigation to http://localhost/oauth/v1/authorize
-    // fails ('Embedded Web Browser fail to load') and Studio shows the
-    // "Launch Failed" external-login prompt.
+    // The login-skip branch patches (cookieJne1/2 + authJe1/2) inside
+    // LoginManager::authenticateOnStartup (VA 0x1408B9A50) flip individual
+    // conditional jumps but the function still hits exitStage("NoCookieFound")
+    // through downstream validation that expects an actual user. The right fix
+    // for the "Launch Failed / Login via Browser" dialog is to make Studio's
+    // WebView2 navigation to http://localhost/oauth/v1/authorize succeed — the
+    // OAuth handlers in ServerEmulator already serve a 302 to roblox-studio-auth:/
+    // with a fake code, which Studio will exchange for the synthetic tokens in
+    // OAuthTokenHandler/UserinfoHandler.
     //
-    // Patch authenticateOnStartup to return TRUE immediately — Studio treats itself
-    // as already authenticated and skips both the cookie check and the OAuth dialog.
-    // Studio's later HTTP calls (/v1/users/authenticated etc.) are served by the
-    // emulator with a synthetic user identity.
-    auto authOnStartup = hook::pattern("48 89 74 24 18 55 57 41 56 48 8D 6C 24 B9 48 81 EC 90 00 00 00 48 8B F9 E8");
-    if (!authOnStartup.count_hint(1).empty()) {
-        Out("FixStudioUnableToConnect", "Patching LoginManager::authenticateOnStartup -> return true");
-        const uint8_t bytes[] = { 0xB8, 0x01, 0x00, 0x00, 0x00, 0xC3 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(authOnStartup.get(0).get<uint8_t>(0)), bytes, sizeof(bytes));
-    }
+    // The WebView2 subprocess does NOT inherit Hook.cpp's connect() redirect,
+    // so it tries http://localhost:80 and the request never reaches our emulator
+    // on port 8080. Either:
+    //   (a) bind the emulator HTTP listener to port 80 too (admin required), or
+    //   (b) replicate studio-offline's URL-construction hook (FromComponents)
+    //       so Studio rewrites the URL BEFORE handing it off to WebView2.
 
     /*
 

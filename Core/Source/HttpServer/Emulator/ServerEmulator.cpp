@@ -57,7 +57,14 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mOAuthDiscoveryHandler(R"({"issuer":"https://apis.roblox.com","authorization_endpoint":"https://apis.roblox.com/oauth/v1/authorize","device_authorization_endpoint":"https://apis.roblox.com/oauth/v1/device/authorize","token_endpoint":"https://apis.roblox.com/oauth/v1/token","introspection_endpoint":"https://apis.roblox.com/oauth/v1/token/introspect","revocation_endpoint":"https://apis.roblox.com/oauth/v1/token/revoke","userinfo_endpoint":"https://apis.roblox.com/oauth/v1/userinfo","jwks_uri":"https://apis.roblox.com/oauth/v1/certs","registration_endpoint":"https://create.roblox.com/settings/api","service_documentation":"https://create.roblox.com/docs/cloud/auth/oauth2-overview","scopes_supported":["openid","profile","email","phone","address","offline_access"],"response_types_supported":["code"],"response_modes_supported":["query"],"token_endpoint_auth_methods_supported":["none","client_secret_post","client_secret_basic"],"grant_types_supported":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:device_code"],"code_challenge_methods_supported":["S256"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["ES256"],"claims_supported":["sub","name","nickname","preferred_username","created_at","profile","picture"],"claims_parameter_supported":false,"request_parameter_supported":false,"request_uri_parameter_supported":false})"),
     mOAuthAuthorizeHandler(),
     mOAuthTokenHandler(R"({"access_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.","refresh_token":"noobwarrior_refresh","token_type":"Bearer","expires_in":2592000,"id_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsIm5hbWUiOiJIYXR0b3pvIiwibmlja25hbWUiOiJIYXR0b3pvIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiSGF0dG96byIsImNyZWF0ZWRfYXQiOjEsInByb2ZpbGUiOiJodHRwczovL3d3dy5yb2Jsb3guY29tL3VzZXJzLzg2MTIxODQxL3Byb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.","scope":"openid profile"})"),
-    mOAuthUserinfoHandler(R"({"sub":"86121841","name":"Hattozo","nickname":"Hattozo","preferred_username":"Hattozo","created_at":1,"profile":"https://www.roblox.com/users/86121841/profile","picture":"http://localhost/headshots/default.png","age_bracket":"Age13OrOver","premium":false,"roles":[],"internal_user":false})")
+    mOAuthUserinfoHandler(R"({"sub":"86121841","name":"Hattozo","nickname":"Hattozo","preferred_username":"Hattozo","created_at":1,"profile":"https://www.roblox.com/users/86121841/profile","picture":"http://localhost/headshots/default.png","age_bracket":"Age13OrOver","premium":false,"roles":[],"internal_user":false})"),
+    // Studio 0.574's AccountInfoRequest parses this exact shape. Field validation
+    // strings live next to "/studio-login/v1/login" in the binary
+    // (InvalidUserId / InvalidUsername / InvalidAgeBracket / InvalidRoles /
+    //  InvalidIsInternalValue / InvalidJsonDocument). AgeBracket is the integer
+    // enum index — 0 means "Age13OrOver" (also valid: 1 = AgeUnder13, 2 = Age13PlusPlus).
+    // Sending the string fails validation with "Invalid user info: AgeBracket".
+    mStudioLoginHandler(R"({"success":true,"user":{"UserId":86121841,"Username":"Hattozo","DisplayName":"Hattozo","AgeBracket":0,"Roles":[],"Email":{"value":"hattozo@noobwarrior.local","isVerified":true},"IsBanned":false,"isInternal":false}})")
 {
 }
 
@@ -113,6 +120,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/oauth/v1/authorize", &mOAuthAuthorizeHandler);
     SetRequestHandler("/oauth/v1/token", &mOAuthTokenHandler);
     SetRequestHandler("/oauth/v1/userinfo", &mOAuthUserinfoHandler);
+    SetRequestHandler("/studio-login/v1/login", &mStudioLoginHandler);
 }
 
 int ServerEmulator::Start(uint16_t port) {
