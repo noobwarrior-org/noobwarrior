@@ -40,28 +40,24 @@ void NoobHook::Patches::FixStudioUnableToConnect() {
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(pattern.get(0).get<uint8_t>(0)), bytes, sizeof(bytes));
     }*/
 
-    // Notes for future work — the dialog is triggered by AuthTokenManager::fetchMetadata()
-    // failing with TlsVerificationFail when requesting
-    // https://apis.roblox.com/oauth/.well-known/openid-configuration. The Hook redirects
-    // this to 127.0.0.1:53640 where the emulator serves the discovery JSON, but libcurl
-    // rejects the emulator's self-signed cert (CN=localhost; cert isn't a trusted root;
-    // hostname doesn't match apis.roblox.com). The 169 conditional VERIFYPEER wrapper
-    // patches don't cover this call site because fetchMetadata never calls setopt for
-    // VERIFYPEER / VERIFYHOST — it relies on libcurl's defaults (VERIFYPEER=1, VERIFYHOST=2).
+    // After the OAuth metadata fetch now succeeds, AuthTokenManager validates fine
+    // but LoginManager::authenticateOnStartup still returns false with 'NoCookieFound'
+    // (no saved cookie on first run) which triggers an OAuth WebView2 dialog. The
+    // WebView2 process doesn't share our connect() hook so it can't reach the
+    // emulator on port 8080 — navigation to http://localhost/oauth/v1/authorize
+    // fails ('Embedded Web Browser fail to load') and Studio shows the
+    // "Launch Failed" external-login prompt.
     //
-    // Possible fixes (any one of):
-    //  - Install noobWarrior's cert.pem as a Trusted Root (Cert:\LocalMachine\Root) AND
-    //    regenerate cert.pem with CN=apis.roblox.com + SAN for *.roblox.com so VERIFYHOST
-    //    also passes.
-    //  - Find X509_verify_cert (statically linked OpenSSL) and patch its prologue to
-    //    `mov eax, 1; ret` to force all certificate verifications to succeed.
-    //  - Find AuthTokenManager::fetchMetadata in .text near VA 0x1408BA000-0x1408BAB00
-    //    (4 LEA refs to "AuthTokenManagerFetchMetadata") and patch its prologue to fake
-    //    a successful fetch with hardcoded metadata pointing at the local emulator.
-    //  - MinHook curl_easy_setopt inside Studio to clamp VERIFYPEER / VERIFYHOST to 0.
-    // Picking the right approach needs a live debugger (x64dbg) — static analysis alone
-    // can't reliably locate fetchMetadata's prologue or the OpenSSL helpers in the
-    // 60MB stripped binary.
+    // Patch authenticateOnStartup to return TRUE immediately — Studio treats itself
+    // as already authenticated and skips both the cookie check and the OAuth dialog.
+    // Studio's later HTTP calls (/v1/users/authenticated etc.) are served by the
+    // emulator with a synthetic user identity.
+    auto authOnStartup = hook::pattern("48 89 74 24 18 55 57 41 56 48 8D 6C 24 B9 48 81 EC 90 00 00 00 48 8B F9 E8");
+    if (!authOnStartup.count_hint(1).empty()) {
+        Out("FixStudioUnableToConnect", "Patching LoginManager::authenticateOnStartup -> return true");
+        const uint8_t bytes[] = { 0xB8, 0x01, 0x00, 0x00, 0x00, 0xC3 };
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(authOnStartup.get(0).get<uint8_t>(0)), bytes, sizeof(bytes));
+    }
 
     /*
 
