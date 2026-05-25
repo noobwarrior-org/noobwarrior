@@ -58,7 +58,7 @@ public:
     inline int Bind(int pos, int val) { return sqlite3_bind_int(mStmt, pos, val); }
     inline int Bind(int pos, bool val) { return sqlite3_bind_int(mStmt, pos, val); }
     inline int Bind(int pos, int64_t val) { return sqlite3_bind_int64(mStmt, pos, val); }
-    inline int Bind(int pos, std::vector<unsigned char> val) { return sqlite3_bind_blob64(mStmt, pos, val.data(), val.size(), nullptr); }
+    inline int Bind(int pos, const std::vector<unsigned char>& val) { return sqlite3_bind_blob64(mStmt, pos, val.data(), val.size(), SQLITE_TRANSIENT); }
     inline int Bind(int pos, double val) { return sqlite3_bind_double(mStmt, pos, val); }
     inline int Bind(int pos) { return sqlite3_bind_null(mStmt, pos); }
 
