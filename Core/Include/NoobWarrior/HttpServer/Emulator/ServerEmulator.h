@@ -46,6 +46,7 @@
 #include "AssetThumbnailJsonHandler.h"
 #include "GameIconHandler.h"
 #include "UniversalAppConfigStudioHandler.h"
+#include "StaticJsonHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -117,6 +118,7 @@ private:
     RequestAuthHandler mRequestAuthHandler;
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
+    StaticJsonHandler mOAuthDiscoveryHandler;
 
     void SetupHandlers() override;
     void SweepStaleInstancesLocked();

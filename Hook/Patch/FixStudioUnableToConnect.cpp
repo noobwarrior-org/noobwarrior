@@ -26,13 +26,44 @@
 #include <windows.h>
 
 void NoobHook::Patches::FixStudioUnableToConnect() {
-    /*auto pattern = hook::pattern("80 3D E5 82 6A 05 00 74 4F");
+    // NOP the call to getDiscoveryConfiguration (Studio 0.574 x64).
+    // That function throws when the OAuth metadata fetch fails, causing the
+    // "Studio is unable to connect" dialog. The success path after the call
+    // reads [rsp+208h], which is initialized before this call site (confirmed
+    // by an earlier shortcut EB 4D that also bypasses the call and reaches the
+    // same success continuation). NOP-ing the call makes execution fall through
+    // to the existing 90 EB 09 bytes, which jump directly to that success path.
+    /*auto pattern = hook::pattern("E8 12 7F 29 01 90 EB 09 33 F6");
     if (!pattern.count_hint(1).empty()) {
-        Out("FixStudioUnableToConnect", "Found pattern!");
-        uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0xEB, 0x4F };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
-    }
+        Out("FixStudioUnableToConnect", "Patching getDiscoveryConfiguration call site");
+        const uint8_t bytes[] = { 0x90, 0x90, 0x90, 0x90, 0x90 };
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(pattern.get(0).get<uint8_t>(0)), bytes, sizeof(bytes));
+    }*/
+
+    // Notes for future work — the dialog is triggered by AuthTokenManager::fetchMetadata()
+    // failing with TlsVerificationFail when requesting
+    // https://apis.roblox.com/oauth/.well-known/openid-configuration. The Hook redirects
+    // this to 127.0.0.1:53640 where the emulator serves the discovery JSON, but libcurl
+    // rejects the emulator's self-signed cert (CN=localhost; cert isn't a trusted root;
+    // hostname doesn't match apis.roblox.com). The 169 conditional VERIFYPEER wrapper
+    // patches don't cover this call site because fetchMetadata never calls setopt for
+    // VERIFYPEER / VERIFYHOST — it relies on libcurl's defaults (VERIFYPEER=1, VERIFYHOST=2).
+    //
+    // Possible fixes (any one of):
+    //  - Install noobWarrior's cert.pem as a Trusted Root (Cert:\LocalMachine\Root) AND
+    //    regenerate cert.pem with CN=apis.roblox.com + SAN for *.roblox.com so VERIFYHOST
+    //    also passes.
+    //  - Find X509_verify_cert (statically linked OpenSSL) and patch its prologue to
+    //    `mov eax, 1; ret` to force all certificate verifications to succeed.
+    //  - Find AuthTokenManager::fetchMetadata in .text near VA 0x1408BA000-0x1408BAB00
+    //    (4 LEA refs to "AuthTokenManagerFetchMetadata") and patch its prologue to fake
+    //    a successful fetch with hardcoded metadata pointing at the local emulator.
+    //  - MinHook curl_easy_setopt inside Studio to clamp VERIFYPEER / VERIFYHOST to 0.
+    // Picking the right approach needs a live debugger (x64dbg) — static analysis alone
+    // can't reliably locate fetchMetadata's prologue or the OpenSSL helpers in the
+    // 60MB stripped binary.
+
+    /*
 
     auto pattern2 = hook::pattern("E9 C3 8D 16 00");
     if (!pattern2.count_hint(1).empty()) {

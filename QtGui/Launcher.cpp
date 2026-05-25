@@ -74,10 +74,10 @@ static void LaunchOfflineStudio(Launcher &launcher) {
             .Architecture = EngineArchitecture::x86_64,
             .Type = EngineType::Roblox,
             .Side = EngineSide::Studio,
-            .Hash = "ef266da340bc4058",
-            .Version = "0.463.0.417004"
-            // .Hash = "c2e4d104afaf449c",
-            // .Version = "0.574.0.5740446"
+            // .Hash = "ef266da340bc4058",
+            // .Version = "0.463.0.417004"
+            .Hash = "c2e4d104afaf449c",
+            .Version = "0.574.0.5740446"
         },
         .Ip = "",
         .Port = std::nullopt,

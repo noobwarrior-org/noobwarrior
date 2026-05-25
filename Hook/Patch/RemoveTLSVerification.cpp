@@ -43,11 +43,13 @@ void NoobHook::Patches::RemoveTLSVerification() {
         }
     }
 
-    auto x64VerifyHostGuard = hook::pattern("F6 85 50 0A 00 00 02 74 1B BA 51 00 00 00");
+    // The VerifyHost guard uses REX.B (41) + MOD/RM 86 (R14-relative), not F6 85 (RBP-relative).
+    // Old pattern "F6 85 50 0A 00 00 02 74 1B BA 51 00 00 00" never matched; correct it here.
+    auto x64VerifyHostGuard = hook::pattern("41 F6 86 50 0A 00 00 02 74 1B BA 51 00 00 00");
     if (!x64VerifyHostGuard.count_hint(1).empty()) {
         Out("RemoveTLSVerification", "Patching x64 CURLOPT_SSL_VERIFYHOST guard (je->jmp)");
         const uint8_t patch[] = { 0xEB };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x64VerifyHostGuard.get(0).get<uint8_t>(7)), patch, sizeof(patch));
+        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x64VerifyHostGuard.get(0).get<uint8_t>(8)), patch, sizeof(patch));
     }
 
     auto x86VerifyHost = hook::pattern("6A 02 6A 51 FF B7 48 01 00 00");
@@ -55,5 +57,64 @@ void NoobHook::Patches::RemoveTLSVerification() {
         Out("RemoveTLSVerification", "Patching x86 CURLOPT_SSL_VERIFYHOST");
         const uint8_t patch[] = { 0x00 };
         NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x86VerifyHost.get(0).get<uint8_t>(1)), patch, sizeof(patch));
+    }
+
+    // 169 conditional VERIFYPEER wrappers throughout the binary (3 variants by register/jump-delta).
+    // Each tests a flags bit; if clear, skips curl_easy_setopt — leaving VERIFYPEER at default 1.
+    // XOR r8d,r8d + NOP NOP forces the 3rd arg to 0 and removes the conditional so setopt always runs.
+    // Variant DL/JE+10 (29 sites): F6 C2 01 74 0A BA 40 00 00 00
+    /*auto tlsWrapperDL = hook::pattern("F6 C2 01 74 0A BA 40 00 00 00");
+    if (tlsWrapperDL.size() > 0) {
+        Out("RemoveTLSVerification", "Patching {} VERIFYPEER conditional wrappers (DL)", tlsWrapperDL.size());
+        tlsWrapperDL.for_each_result([](hook::pattern_match match) {
+            const uint8_t p[] = { 0x45, 0x33, 0xC0, 0x90, 0x90 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(0)), p, sizeof(p));
+        });
+    }*/
+    // Variant BL/JE+13 (86 sites): F6 C3 01 74 0D BA 40 00 00 00
+    /*auto tlsWrapperBL = hook::pattern("F6 C3 01 74 0D BA 40 00 00 00");
+    if (tlsWrapperBL.size() > 0) {
+        Out("RemoveTLSVerification", "Patching {} VERIFYPEER conditional wrappers (BL)", tlsWrapperBL.size());
+        tlsWrapperBL.for_each_result([](hook::pattern_match match) {
+            const uint8_t p[] = { 0x45, 0x33, 0xC0, 0x90, 0x90 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(0)), p, sizeof(p));
+        });
+    }*/
+    // Variant BH/JE+13 (54 sites): F6 C7 01 74 0D BA 40 00 00 00
+    /*auto tlsWrapperBH = hook::pattern("F6 C7 01 74 0D BA 40 00 00 00");
+    if (tlsWrapperBH.size() > 0) {
+        Out("RemoveTLSVerification", "Patching {} VERIFYPEER conditional wrappers (BH)", tlsWrapperBH.size());
+        tlsWrapperBH.for_each_result([](hook::pattern_match match) {
+            const uint8_t p[] = { 0x45, 0x33, 0xC0, 0x90, 0x90 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(0)), p, sizeof(p));
+        });
+    }*/
+
+    // Per https://github.com/rbxcdn/RBXGuides Studio 0.463 SSL guide — the compiler
+    // emits `mov edx, 0x40/0x51` (the CURLOPT enum) and then computes the value via
+    // `lea r8d, [rdx - 0x3F]` (= 1 for VERIFYPEER) or `lea r8d, [rdx - 0x4F]` (= 2 for
+    // VERIFYHOST) just before calling curl_easy_setopt. Studio 0.574 uses the same
+    // codegen: 82 unconditional VERIFYPEER setopt sites and 1 VERIFYHOST setopt site.
+    // Replacing the 4-byte LEA with `xor r8d, r8d; nop` forces the value to 0
+    // (verification disabled) without changing the rest of the call sequence.
+
+    // VERIFYPEER: pattern `mov edx, 0x40; lea r8d, [rdx-0x3F]` -> patch the LEA
+    auto verifyPeerSetopt = hook::pattern("BA 40 00 00 00 44 8D 42 C1");
+    if (verifyPeerSetopt.size() > 0) {
+        Out("RemoveTLSVerification", "Patching %d VERIFYPEER setopt sites (lea->xor)", verifyPeerSetopt.size());
+        verifyPeerSetopt.for_each_result([](hook::pattern_match match) {
+            const uint8_t p[] = { 0x45, 0x31, 0xC0, 0x90 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), p, sizeof(p));
+        });
+    }
+
+    // VERIFYHOST: pattern `mov edx, 0x51; lea r8d, [rdx-0x4F]` -> patch the LEA
+    auto verifyHostSetopt = hook::pattern("BA 51 00 00 00 44 8D 42 B1");
+    if (verifyHostSetopt.size() > 0) {
+        Out("RemoveTLSVerification", "Patching %d VERIFYHOST setopt sites (lea->xor)", verifyHostSetopt.size());
+        verifyHostSetopt.for_each_result([](hook::pattern_match match) {
+            const uint8_t p[] = { 0x45, 0x31, 0xC0, 0x90 };
+            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), p, sizeof(p));
+        });
     }
 }

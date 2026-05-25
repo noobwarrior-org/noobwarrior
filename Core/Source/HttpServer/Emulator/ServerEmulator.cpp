@@ -53,7 +53,8 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mCurrentUserHandler(),
     mRequestAuthHandler(),
     mStudioEditHandler(),
-    mGameIconHandler(this, mCore->GetEmuDbManager())
+    mGameIconHandler(this, mCore->GetEmuDbManager()),
+    mOAuthDiscoveryHandler(R"({"issuer":"https://apis.roblox.com","authorization_endpoint":"https://apis.roblox.com/oauth/v1/authorize","device_authorization_endpoint":"https://apis.roblox.com/oauth/v1/device/authorize","token_endpoint":"https://apis.roblox.com/oauth/v1/token","userinfo_endpoint":"https://apis.roblox.com/oauth/v1/userinfo","jwks_uri":"https://apis.roblox.com/oauth/v1/certs","registration_endpoint":"https://create.roblox.com/settings/api","scopes_supported":["openid","profile","email","phone","address","offline_access"],"response_types_supported":["code"],"response_modes_supported":["query"],"token_endpoint_auth_methods_supported":["none","client_secret_post","client_secret_basic"],"grant_types_supported":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:device_code"],"code_challenge_methods_supported":["S256"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["ES256"],"claims_supported":["sub","name","nickname","preferred_username","created_at","profile","picture"],"claims_parameter_supported":false,"request_parameter_supported":false,"request_uri_parameter_supported":false})")
 {
 }
 
@@ -104,6 +105,8 @@ void ServerEmulator::SetupHandlers() {
 
     SetRequestHandler("/Thumbs/GameIcon.ashx", &mGameIconHandler);
     SetRequestHandler("/Thumbs/gameicon.ashx", &mGameIconHandler);
+
+    SetRequestHandler("/oauth/.well-known/openid-configuration", &mOAuthDiscoveryHandler);
 }
 
 int ServerEmulator::Start(uint16_t port) {
