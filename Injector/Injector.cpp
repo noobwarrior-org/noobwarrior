@@ -248,6 +248,7 @@ Args:
     std::wstring placeIdStr;
     std::wstring emuHttpStr;
     std::wstring emuHttpsStr;
+    std::wstring sideStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -279,11 +280,15 @@ Args:
         if (wcscmp(argv[i], L"--emuhttps") == 0) {
             emuHttpsStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--side") == 0) {
+            sideStr = argv[i + 1];
+        }
     }
 
-    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\n",
+    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
         filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str(), placeIdStr.c_str(),
-        emuHttpStr.c_str(), emuHttpsStr.c_str());
+        emuHttpStr.c_str(), emuHttpsStr.c_str(), sideStr.c_str());
 
     std::wstring wargs;
 
@@ -315,6 +320,8 @@ Args:
         SetEnvironmentVariableW(L"NOOBHOOK_HTTP_PORT", emuHttpStr.c_str());
     if (!emuHttpsStr.empty())
         SetEnvironmentVariableW(L"NOOBHOOK_HTTPS_PORT", emuHttpsStr.c_str());
+    if (!sideStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_SIDE", sideStr.c_str());
 
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};

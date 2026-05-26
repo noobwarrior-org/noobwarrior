@@ -279,6 +279,13 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back(std::to_string(params.PlaceId.value()));
     }
 
+    EngineSide launchSide = params.LaunchSide.value_or(params.Engine.Side);
+    const char* sideStr = launchSide == EngineSide::Client ? "client"
+                        : launchSide == EngineSide::Server ? "server"
+                        : "studio";
+    args.push_back("--side");
+    args.push_back(sideStr);
+
     uint16_t emuHttpPort  = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.http_port").value_or(8080));
     uint16_t emuHttpsPort = static_cast<uint16_t>(mRegistry->GetKeyValue<int>("emu.https_port").value_or(53640));
     args.push_back("--emuhttp");

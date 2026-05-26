@@ -94,6 +94,7 @@ struct EngineStartParameters {
     std::string Ip {};
     std::optional<uint16_t> Port { std::nullopt };
     std::optional<int64_t> PlaceId { std::nullopt };
+    std::optional<EngineSide> LaunchSide {};
 };
 
 enum class EngineInstallState {

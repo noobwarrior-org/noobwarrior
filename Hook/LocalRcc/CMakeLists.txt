@@ -12,15 +12,11 @@ endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# All dependencies we add below must use the static MSVC runtime to match
-# noobhook.dll (which the user has carefully wired to MultiThreaded[Debug]).
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# ---- Luau (compiler + bytecode utils) ---------------------------------------
-# Pinned tag with stable Luau::CompileOptions + BytecodeEncoder API.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
 CPMAddPackage(
-    URI "gh:luau-lang/luau#0.673"
+    URI "gh:luau-lang/luau#0.575"
     OPTIONS
         "LUAU_BUILD_CLI OFF"
         "LUAU_BUILD_TESTS OFF"

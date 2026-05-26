@@ -39,7 +39,6 @@
 #include <vector>
 
 #include <Luau/BytecodeBuilder.h>
-#include <Luau/BytecodeUtils.h>
 #include <Luau/Compiler.h>
 
 #include <Hooking.Patterns.h>
@@ -135,15 +134,13 @@ static std::string CompileHook(const std::string& source, int target, int option
     Log("compile", "LuaVM::compile(source=%zu bytes, target=%d, options=%d)",
         source.size(), target, options);
 
+    // Luau 0.575 changed the BytecodeEncoder interface: the framework now
+    // walks instructions itself and calls encodeOp() per opcode byte, so the
+    // encoder no longer needs to know about getOpLength or AUX-instruction
+    // layout. Transform stays identical (op * 227, matching rsblox/local_rcc).
     class BytecodeEncoderClient : public Luau::BytecodeEncoder {
-        void encode(uint32_t* data, size_t count) override {
-            for (size_t i = 0; i < count; ) {
-                uint8_t op = LUAU_INSN_OP(data[i]);
-                int oplen = Luau::getOpLength(LuauOpcode(op));
-                uint8_t openc = uint8_t(op * 227);
-                data[i] = openc | (data[i] & ~0xff);
-                i += oplen;
-            }
+        uint8_t encodeOp(uint8_t op) override {
+            return uint8_t(op * 227);
         }
     };
 
@@ -395,6 +392,19 @@ static bool ScanForAddresses() {
 // DLL entrypoint
 // -----------------------------------------------------------------------------
 
+// Read by both code paths below. noobhook (via the Injector) sets NOOBHOOK_SIDE to
+// the launch role: "client", "server", or "studio". Only "server" means this Studio
+// is acting as a team-test host, so only then do we install the rsblox/local_rcc
+// replication machinery. "studio" (regular Play Solo) and anything else -- including
+// the variable being unset -- means vanilla script handling. Defaulting to the safe
+// (solo) path is deliberate: an old or side-less injector, or LocalRcc loaded by
+// hand, all stay out of the way of in-process script execution.
+static bool IsTeamTestMode() {
+    char buf[16] = {0};
+    DWORD n = GetEnvironmentVariableA("NOOBHOOK_SIDE", buf, sizeof(buf));
+    return n > 0 && n < sizeof(buf) && _stricmp(buf, "server") == 0;
+}
+
 static DWORD WINAPI WorkerThread(LPVOID) {
     gLog = freopen("noobhook_localrcc.log", "w", stderr);
     Log("main", "LocalRcc starting (rsblox/local_rcc port)");
@@ -404,40 +414,57 @@ static DWORD WINAPI WorkerThread(LPVOID) {
         return 1;
     }
 
-    if (!ScanForAddresses()) {
-        Log("main", "Pattern scan failed -- LocalRcc must be updated for this Studio build");
-        return 1;
-    }
-
     if (MH_Initialize() != MH_OK && MH_Initialize() != MH_ERROR_ALREADY_INITIALIZED) {
         Log("main", "MH_Initialize failed");
         return 1;
     }
 
-    // Install Studio-offline-style web-stack hooks FIRST. Without these the
-    // login/initial-connect screen errors before LocalRcc's local_rcc hooks
-    // ever get exercised. If none of the three patterns match, log and keep
-    // going -- the rest of LocalRcc is still useful.
+    const bool teamTest = IsTeamTestMode();
+    Log("main", "Launch mode: %s", teamTest
+        ? "teamtest -- local_rcc replication ON"
+        : "solo -- vanilla script handling (connection hooks only)");
+
+    // Studio-offline web-stack hooks are needed in BOTH modes -- they're what let
+    // Studio reach the local emulator at all. Install them first, unconditionally.
+    // If none of the three patterns match, log and keep going.
     if (!InstallOfflineHooks())
         Log("main", "No studio-offline patterns matched (connection bypass disabled)");
 
-    MH_STATUS st;
-    st = MH_CreateHook(reinterpret_cast<LPVOID>(gCompile),
-                       reinterpret_cast<LPVOID>(&CompileHook),
-                       reinterpret_cast<LPVOID*>(&gOrigCompile));
-    if (st != MH_OK) { Log("main", "Hook(compile) failed: %d", (int)st); return 1; }
+    // The compile hook, deserializeItem hook and typeForProperty patch together make
+    // Studio serialize script Source as ProtectedStringBytecode and emit local_rcc's
+    // RSB1 wire format. That is only correct when replicating to an EXTERNAL client.
+    // In solo play those same scripts run in-process and are fed straight to
+    // luau_load, which knows nothing about the wire format -> "bytecode version
+    // mismatch". (NB: typeForProperty is the actual trigger -- it forces the bytecode
+    // channel; the compile hook only decides which bytes flow through it.) So install
+    // all three only for team test; solo falls back to vanilla source replication,
+    // where the client compiles each script locally.
+    if (teamTest) {
+        if (!ScanForAddresses()) {
+            Log("main", "Pattern scan failed -- LocalRcc must be updated for this Studio build");
+            return 1;
+        }
 
-    st = MH_CreateHook(reinterpret_cast<LPVOID>(gDeserializeItem),
-                       reinterpret_cast<LPVOID>(&DeserializeItemHook),
-                       reinterpret_cast<LPVOID*>(&gOrigDeserialize));
-    if (st != MH_OK) { Log("main", "Hook(deserializeItem) failed: %d", (int)st); return 1; }
+        MH_STATUS st = MH_CreateHook(reinterpret_cast<LPVOID>(gCompile),
+                                     reinterpret_cast<LPVOID>(&CompileHook),
+                                     reinterpret_cast<LPVOID*>(&gOrigCompile));
+        if (st != MH_OK) { Log("main", "Hook(compile) failed: %d", (int)st); return 1; }
 
-    st = MH_EnableHook(MH_ALL_HOOKS);
-    if (st != MH_OK) { Log("main", "EnableHook failed: %d", (int)st); return 1; }
-    Log("main", "Enabled all hooks (compile, deserializeItem, + any offline hooks)");
+        st = MH_CreateHook(reinterpret_cast<LPVOID>(gDeserializeItem),
+                           reinterpret_cast<LPVOID>(&DeserializeItemHook),
+                           reinterpret_cast<LPVOID*>(&gOrigDeserialize));
+        if (st != MH_OK) { Log("main", "Hook(deserializeItem) failed: %d", (int)st); return 1; }
+    }
 
-    PatchTypeForProperty();
-    Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
+    MH_STATUS est = MH_EnableHook(MH_ALL_HOOKS);
+    if (est != MH_OK) { Log("main", "EnableHook failed: %d", (int)est); return 1; }
+    Log("main", "Enabled hooks (offline%s)",
+        teamTest ? " + compile + deserializeItem" : " only");
+
+    if (teamTest) {
+        PatchTypeForProperty();
+        Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
+    }
 
     Log("main", "LocalRcc ready -- credits: 7ap & Epix @ https://github.com/rsblox");
     return 0;
