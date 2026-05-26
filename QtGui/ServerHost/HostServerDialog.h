@@ -31,6 +31,7 @@
 #include "PlaceInfoCardWidget.h"
 #include "ServerSettingsWidget.h"
 
+#include <QComboBox>
 #include <QDialog>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -54,6 +55,7 @@ private:
     UniverseDropdown* mUniverseDropdown;
     PlaceInfoCardWidget* mPlaceInfoCardWidget;
     ServerSettingsWidget* mServerSettingsWidget;
+    QComboBox* mEngineCombo;
     QDialogButtonBox* mButtonBox;
     QPushButton* mStartServer;
     QPushButton* mCloseButton;

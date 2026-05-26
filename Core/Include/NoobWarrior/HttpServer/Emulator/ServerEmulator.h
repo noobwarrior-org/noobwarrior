@@ -48,6 +48,7 @@
 #include "UniversalAppConfigStudioHandler.h"
 #include "StaticJsonHandler.h"
 #include "OAuthAuthorizeHandler.h"
+#include "StudioOpenPlaceHandler.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -124,6 +125,7 @@ private:
     StaticJsonHandler mOAuthTokenHandler;
     StaticJsonHandler mOAuthUserinfoHandler;
     StaticJsonHandler mStudioLoginHandler;
+    StudioOpenPlaceHandler mStudioOpenPlaceHandler;
 
     void SetupHandlers() override;
     void SweepStaleInstancesLocked();

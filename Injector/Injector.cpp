@@ -309,6 +309,14 @@ Args:
         wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
         wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
+    } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
+        std::wstring port = portStr.empty() ? L"53640" : portStr;
+        std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
+        wargs += std::format(
+            L" -task StartServer -port {} -placeId {} -universeId 1 -creatorId 1 -creatorType 0"
+            L" -placeVersion 1 -numTestServerPlayersUponStartup 0 -instanceId StudioServer"
+            L" -gameId Test -Console",
+            port, placeId);
     }
     std::vector<wchar_t> wargs_vec(wargs.begin(), wargs.end());
     wargs_vec.push_back(L'\0');
@@ -322,6 +330,12 @@ Args:
         SetEnvironmentVariableW(L"NOOBHOOK_HTTPS_PORT", emuHttpsStr.c_str());
     if (!sideStr.empty())
         SetEnvironmentVariableW(L"NOOBHOOK_SIDE", sideStr.c_str());
+    // Port/PlaceId env-var pair is read by NoobHook::ReadServerEnvFallback()
+    // when the host binary has no gameserver.json (Studio Team Test mode).
+    if (!portStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_PORT", portStr.c_str());
+    if (!placeIdStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_PLACEID", placeIdStr.c_str());
 
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};

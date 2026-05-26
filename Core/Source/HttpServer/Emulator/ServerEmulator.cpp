@@ -58,13 +58,8 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mOAuthAuthorizeHandler(),
     mOAuthTokenHandler(R"({"access_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.","refresh_token":"noobwarrior_refresh","token_type":"Bearer","expires_in":2592000,"id_token":"eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsIm5hbWUiOiJIYXR0b3pvIiwibmlja25hbWUiOiJIYXR0b3pvIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiSGF0dG96byIsImNyZWF0ZWRfYXQiOjEsInByb2ZpbGUiOiJodHRwczovL3d3dy5yb2Jsb3guY29tL3VzZXJzLzg2MTIxODQxL3Byb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.","scope":"openid profile"})"),
     mOAuthUserinfoHandler(R"({"sub":"86121841","name":"Hattozo","nickname":"Hattozo","preferred_username":"Hattozo","created_at":1,"profile":"https://www.roblox.com/users/86121841/profile","picture":"http://localhost/headshots/default.png","age_bracket":"Age13OrOver","premium":false,"roles":[],"internal_user":false})"),
-    // Studio 0.574's AccountInfoRequest parses this exact shape. Field validation
-    // strings live next to "/studio-login/v1/login" in the binary
-    // (InvalidUserId / InvalidUsername / InvalidAgeBracket / InvalidRoles /
-    //  InvalidIsInternalValue / InvalidJsonDocument). AgeBracket is the integer
-    // enum index — 0 means "Age13OrOver" (also valid: 1 = AgeUnder13, 2 = Age13PlusPlus).
-    // Sending the string fails validation with "Invalid user info: AgeBracket".
-    mStudioLoginHandler(R"({"success":true,"user":{"UserId":86121841,"Username":"Hattozo","DisplayName":"Hattozo","AgeBracket":0,"Roles":[],"Email":{"value":"hattozo@noobwarrior.local","isVerified":true},"IsBanned":false,"isInternal":false}})")
+    mStudioLoginHandler(R"({"success":true,"user":{"UserId":86121841,"Username":"Hattozo","DisplayName":"Hattozo","AgeBracket":0,"Roles":[],"Email":{"value":"hattozo@noobwarrior.local","isVerified":true},"IsBanned":false,"isInternal":false}})"),
+    mStudioOpenPlaceHandler(this)
 {
 }
 
@@ -121,6 +116,8 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/oauth/v1/token", &mOAuthTokenHandler);
     SetRequestHandler("/oauth/v1/userinfo", &mOAuthUserinfoHandler);
     SetRequestHandler("/studio-login/v1/login", &mStudioLoginHandler);
+
+    SetRequestHandler("/studio-open-place/v1/openplace", &mStudioOpenPlaceHandler);
 }
 
 int ServerEmulator::Start(uint16_t port) {

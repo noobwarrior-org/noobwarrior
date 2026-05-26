@@ -28,8 +28,14 @@
 #include "Sdk/Item/UniverseDropdown.h"
 #include "ServerSettingsWidget.h"
 
+#include <QLabel>
 #include <QMessageBox>
 #include <qsizepolicy.h>
+
+enum class HostEngineChoice {
+    Rcc2021,
+    Studio2023TeamTest,
+};
 
 using namespace NoobWarrior;
 
@@ -65,6 +71,15 @@ void HostServerDialog::InitWidgets() {
     mPlaceInfoCardWidget = new PlaceInfoCardWidget();
     mServerSettingsWidget = new ServerSettingsWidget();
 
+    auto* engineRow = new QHBoxLayout();
+    engineRow->addWidget(new QLabel("Host engine:"));
+    mEngineCombo = new QComboBox();
+    // userData on each item carries the HostEngineChoice enum so the click
+    // handler reads it directly without parsing the label text.
+    mEngineCombo->addItem("RCCService 2021 (0.463)",            static_cast<int>(HostEngineChoice::Rcc2021));
+    mEngineCombo->addItem("Studio 2023 Team Test (0.574)",      static_cast<int>(HostEngineChoice::Studio2023TeamTest));
+    engineRow->addWidget(mEngineCombo, 1);
+
     mButtonBox = new QDialogButtonBox();
 
     mStartServer = mButtonBox->addButton("Start Server", QDialogButtonBox::AcceptRole);
@@ -72,6 +87,7 @@ void HostServerDialog::InitWidgets() {
 
     mLayout->addWidget(mPlaceInfoCardWidget);
     mLayout->addWidget(mServerSettingsWidget);
+    mLayout->addLayout(engineRow);
     mLayout->addWidget(mButtonBox);
     mMainLayout->addLayout(mLayout);
 
@@ -102,16 +118,32 @@ void HostServerDialog::InitWidgets() {
             return;
         }
 
-        gApp->LaunchEngine({
-            .Engine = {
-                .Type = EngineType::Roblox,
-                .Side = EngineSide::Server,
-                .Hash = "07b64feec0bd47c1",
-                .Version = "0.463.0.417004"
-            },
-            .Port = 53640,
-            .PlaceId = placeId.value()
-        });
+        const auto choice = static_cast<HostEngineChoice>(mEngineCombo->currentData().toInt());
+        if (choice == HostEngineChoice::Rcc2021) {
+            gApp->LaunchEngine({
+                .Engine = {
+                    .Type = EngineType::Roblox,
+                    .Side = EngineSide::Server,
+                    .Hash = "07b64feec0bd47c1",
+                    .Version = "0.463.0.417004"
+                },
+                .Port = 53640,
+                .PlaceId = placeId.value()
+            });
+        } else {
+            gApp->LaunchEngine({
+                .Engine = {
+                    .Architecture = EngineArchitecture::x86_64,
+                    .Type = EngineType::Roblox,
+                    .Side = EngineSide::Studio,
+                    .Hash = "c2e4d104afaf449c",
+                    .Version = "0.574.0.5740446"
+                },
+                .Port = 53640,
+                .PlaceId = placeId.value(),
+                .LaunchSide = EngineSide::Server
+            });
+        }
         close();
     });
 

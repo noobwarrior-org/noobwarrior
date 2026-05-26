@@ -148,6 +148,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/ClientSettingsHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsV2Handler.cpp
     Source/HttpServer/Emulator/StudioEditHandler.cpp
+    Source/HttpServer/Emulator/StudioOpenPlaceHandler.cpp
     Source/HttpServer/Emulator/NegotiateHandler.cpp
     Source/HttpServer/Emulator/PlaceLauncherHandler.cpp
     Source/HttpServer/Emulator/JoinScriptJsonHandler.cpp

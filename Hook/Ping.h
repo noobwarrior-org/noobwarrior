@@ -45,6 +45,7 @@ struct ProcessInfo {
 
 ProcessSide DetectSide();
 void ReadGameServerJson(ProcessInfo *info);
+void ReadServerEnvFallback(ProcessInfo *info);
 ProcessInfo CollectProcessInfo();
 bool SendHello(const ProcessInfo &info);
 bool SendGoodbye(int pid);
