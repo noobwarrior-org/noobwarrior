@@ -36,7 +36,7 @@ if existing then
     die("Username already taken")
 end
 
-local result = argon2.HashPassword(password)
+local result = hash.HashPassword(password)
 if result == nil then
     http_response_code(500)
     die("Failed to hash password")

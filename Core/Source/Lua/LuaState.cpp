@@ -594,27 +594,27 @@ int LuaState::Open() {
     });
     set("lhp", lhpLib);
 
-    sol::table argon2Lib = create_table();
-    argon2Lib.set_function("GenerateToken", [](sol::this_state state) -> std::string {
+    sol::table hashLib = create_table();
+    hashLib.set_function("GenerateToken", [](sol::this_state state) -> std::string {
         lua_State* L = state;
         unsigned char tokenBytes[32];
         if (RAND_bytes(tokenBytes, sizeof(tokenBytes)) != 1) {
-            luaL_error(L, "argon2.GenerateToken: failed to generate token");
+            luaL_error(L, "failed to generate token");
             return "";
         }
         return HexEncode(tokenBytes, sizeof(tokenBytes));
     });
-    argon2Lib.set_function("HashPassword", [this](sol::this_state state, std::string password) -> sol::object {
+    hashLib.set_function("HashPassword", [this](sol::this_state state, std::string password) -> sol::object {
         lua_State* L = state;
         constexpr size_t SALT_LEN = 16, HASH_LEN = 32;
         unsigned char salt[SALT_LEN];
         if (RAND_bytes(salt, sizeof(salt)) != 1) {
-            luaL_error(L, "argon2.HashPassword: failed to generate salt");
+            luaL_error(L, "failed to generate salt");
             return sol::lua_nil;
         }
         unsigned char hash[HASH_LEN];
         if (!Argon2idHash(password, salt, SALT_LEN, hash, HASH_LEN)) {
-            luaL_error(L, "argon2.HashPassword: failed to hash password");
+            luaL_error(L, "failed to hash password");
             return sol::lua_nil;
         }
         sol::table result = this->create_table();
@@ -622,24 +622,24 @@ int LuaState::Open() {
         result["salt"] = HexEncode(salt, SALT_LEN);
         return result;
     });
-    argon2Lib.set_function("VerifyPassword", [](sol::this_state state, std::string password, std::string hashHex, std::string saltHex) -> bool {
+    hashLib.set_function("VerifyPassword", [](sol::this_state state, std::string password, std::string hashHex, std::string saltHex) -> bool {
         lua_State* L = state;
         constexpr size_t HASH_LEN = 32;
         std::vector<unsigned char> salt;
         if (!HexDecode(saltHex, salt) || salt.size() != 16) {
-            luaL_error(L, "argon2.VerifyPassword: malformed salt");
+            luaL_error(L, "malformed salt");
             return false;
         }
         unsigned char hash[HASH_LEN];
         if (!Argon2idHash(password, salt.data(), salt.size(), hash, HASH_LEN)) {
-            luaL_error(L, "argon2.VerifyPassword: failed to hash password");
+            luaL_error(L, "failed to hash password");
             return false;
         }
         std::string computed = HexEncode(hash, HASH_LEN);
         if (computed.size() != hashHex.size()) return false;
         return CRYPTO_memcmp(computed.data(), hashHex.data(), computed.size()) == 0;
     });
-    set("argon2", argon2Lib);
+    set("hash", hashLib);
 
     sol::table coreLib = create_table();
     coreLib.set_function("GetVersion", []() {

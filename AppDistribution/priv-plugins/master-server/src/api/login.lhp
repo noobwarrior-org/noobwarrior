@@ -24,12 +24,12 @@ if not sqlRows or not sqlRows[1] then
 end
 
 local row = sqlRows[1]
-if not argon2.VerifyPassword(password, row.PasswordHash, row.PasswordSalt) then
+if not hash.VerifyPassword(password, row.PasswordHash, row.PasswordSalt) then
     http_response_code(401)
     die("Invalid username or password")
 end
 
-local token = argon2.GenerateToken()
+local token = hash.GenerateToken()
 masterDb:QueryTyped(
     "INSERT INTO LoginSession (Token, UserId, Ip, Device) VALUES (?, ?, ?, ?);",
     token,
