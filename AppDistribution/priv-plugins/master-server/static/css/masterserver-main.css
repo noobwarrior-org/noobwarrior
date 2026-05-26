@@ -17,3 +17,10 @@
 .workshop-banner p {
     padding-left: 32px;
 }
+
+.workshop-submission-card {
+    width: 20%;
+    background-color: #101010;
+    color: white;
+    padding: 8px;
+}

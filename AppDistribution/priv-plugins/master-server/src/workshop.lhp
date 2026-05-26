@@ -12,9 +12,15 @@ include("header.lhp")
     </div>
     <ul class="navbar">
         <div class="navbar-left">
-            <li><a href="/workshop">Home</a></li>
-            <li><a href="/workshop?filter=databases">Databases</a></li>
-            <li><a href="/workshop?filter=plugins">Plugins</a></li>
+            <li><a href="/workshop">All</a></li>
+            <li><a href="/workshop?type=databases">Databases</a></li>
+            <li><a href="/workshop?type=plugins">Plugins</a></li>
+            <?lua
+            if _SESSION.User then
+                echo([[<li><a href="/workshop?type=submissions">Submissions</a></li>]])
+                echo([[<li><a href="/workshop?type=upload">Upload...</a></li>]])
+            end
+            ?>
         </div>
         <div class="navbar-right">
             <form action="/workshop" method="get">
@@ -26,5 +32,24 @@ include("header.lhp")
 </div>
 
 <br>
+
+<?lua
+local type = _GET["type"]
+
+if type == nil or type:match("^%s*$") or type == "databases" or type == "plugins" then
+    echo([[<h1>Most Popular Submissions</h1>]])
+    echo([[
+        <div class="workshop-submission-card">
+            <img src="https://i.pinimg.com/736x/7f/1e/06/7f1e069f7718a860470d8cfc2dcfd4ad.jpg" alt="Submission" style="width:100%">
+            <a>My Submission</a>
+            <p style="margin: 0; padding-top: 4px; line-height: 1;">Submitted by Hattozo</p>
+        </div>
+    ]])
+elseif type == "submissions" then
+    echo([[<h1>Submissions</h1>]])
+elseif type == "upload" then
+    echo([[<h1>Upload</h1>]])
+end
+?>
 
 <?lua include("footer.lhp") ?>
