@@ -1,17 +1,50 @@
 <?lua
 local username = _POST["username"]
 local password = _POST["password"]
+local remember = _POST["remember"]
 
-if username == nil or username:match("^%s*$") or password == nil or password:match("^%s*$") then
+if not username or username:match("^%s*$") or not password or password:match("^%s*$") then
     http_response_code(401)
     die("Cannot contain blank username or password")
 end
 
 local masterDb = core.GetMasterDatabase()
-local sqlRows = masterDb:QueryTyped("SELECT Id, PasswordHash FROM User WHERE Name = ? COLLATE NOCASE;", username)
+if masterDb == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local sqlRows = masterDb:QueryTyped(
+    "SELECT Id, PasswordHash, PasswordSalt FROM User WHERE Name = ? COLLATE NOCASE;",
+    username
+)
 if not sqlRows or not sqlRows[1] then
     http_response_code(401)
     die("Invalid username or password")
 end
 
-echo("WIP")
+local row = sqlRows[1]
+if not argon2.VerifyPassword(password, row.PasswordHash, row.PasswordSalt) then
+    http_response_code(401)
+    die("Invalid username or password")
+end
+
+local token = argon2.GenerateToken()
+masterDb:QueryTyped(
+    "INSERT INTO LoginSession (Token, UserId, Ip, Device) VALUES (?, ?, ?, ?);",
+    token,
+    row.Id,
+    _SERVER.REMOTE_ADDR or "",
+    _SERVER.HTTP_USER_AGENT or ""
+)
+masterDb:MarkDirty()
+
+local cookieVal = string.format(".LOGINSESSION=%s; Path=/; HttpOnly; SameSite=Lax", token)
+if remember then
+    cookieVal = cookieVal .. "; Max-Age=2592000"
+end
+header("Set-Cookie: " .. cookieVal)
+header("Location: /")
+http_response_code(302)
+die("")
+?>

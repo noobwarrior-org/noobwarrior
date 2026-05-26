@@ -1,0 +1,16 @@
+<?lua
+local token = _COOKIE[".LOGINSESSION"]
+
+if token then
+    local masterDb = core.GetMasterDatabase()
+    if masterDb ~= nil then
+        masterDb:QueryTyped("DELETE FROM LoginSession WHERE Token = ?;", token)
+        masterDb:MarkDirty()
+    end
+end
+
+header("Set-Cookie: .LOGINSESSION=deleted; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+header("Location: /")
+http_response_code(302)
+die("")
+?>

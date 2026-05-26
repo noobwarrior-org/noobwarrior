@@ -41,12 +41,61 @@
 #include <lua.hpp>
 #include <sol/sol.hpp>
 
+#include <openssl/rand.h>
+#include <openssl/kdf.h>
+#include <openssl/params.h>
+#include <openssl/core_names.h>
+#include <openssl/crypto.h>
+
+#include <charconv>
+
 #include "files/global_env_metatable.lua.inc.cpp"
 #include "files/rawget_path.lua.inc.cpp"
 #include "files/serpent.lua.inc.cpp"
 #include "files/json.lua.inc.cpp"
 
 using namespace NoobWarrior;
+
+static std::string HexEncode(const unsigned char *data, size_t len) {
+    std::string out;
+    out.reserve(len * 2);
+    for (size_t i = 0; i < len; i++)
+        out += std::format("{:02x}", data[i]);
+    return out;
+}
+
+static bool HexDecode(const std::string &hex, std::vector<unsigned char> &out) {
+    if (hex.size() % 2 != 0) return false;
+    out.clear();
+    out.reserve(hex.size() / 2);
+    for (size_t i = 0; i < hex.size(); i += 2) {
+        unsigned int byte = 0;
+        auto [ptr, ec] = std::from_chars(hex.data() + i, hex.data() + i + 2, byte, 16);
+        if (ec != std::errc() || ptr != hex.data() + i + 2) return false;
+        out.push_back(static_cast<unsigned char>(byte));
+    }
+    return true;
+}
+
+static bool Argon2idHash(const std::string &password, const unsigned char *salt, size_t saltLen,
+                          unsigned char *out, size_t outLen) {
+    uint32_t t_cost = 2, m_cost = 1u << 16, lanes = 1, threads = 1;
+    EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "ARGON2ID", nullptr);
+    EVP_KDF_CTX *kctx = kdf ? EVP_KDF_CTX_new(kdf) : nullptr;
+    EVP_KDF_free(kdf);
+    OSSL_PARAM params[] = {
+        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(password.data()), password.size()),
+        OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt), saltLen),
+        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &t_cost),
+        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m_cost),
+        OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
+        OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, &threads),
+        OSSL_PARAM_END
+    };
+    bool ok = kctx && EVP_KDF_derive(kctx, out, outLen, params) > 0;
+    EVP_KDF_CTX_free(kctx);
+    return ok;
+}
 
 struct LuaNetClient {
     NetClient client;
@@ -325,6 +374,7 @@ int LuaState::Open() {
     };
 
     auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::constructors<EmuDb(), EmuDb(const std::string&, bool)>(), sol::base_classes, sol::bases<SqlDb>());
+    emuDbType["MarkDirty"] = &EmuDb::MarkDirty;
 
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
     emuDbMgrType["GetMasterDatabase"] = &EmuDbManager::GetMasterDatabase;
@@ -543,6 +593,53 @@ int LuaState::Open() {
         return output;
     });
     set("lhp", lhpLib);
+
+    sol::table argon2Lib = create_table();
+    argon2Lib.set_function("GenerateToken", [](sol::this_state state) -> std::string {
+        lua_State* L = state;
+        unsigned char tokenBytes[32];
+        if (RAND_bytes(tokenBytes, sizeof(tokenBytes)) != 1) {
+            luaL_error(L, "argon2.GenerateToken: failed to generate token");
+            return "";
+        }
+        return HexEncode(tokenBytes, sizeof(tokenBytes));
+    });
+    argon2Lib.set_function("HashPassword", [this](sol::this_state state, std::string password) -> sol::object {
+        lua_State* L = state;
+        constexpr size_t SALT_LEN = 16, HASH_LEN = 32;
+        unsigned char salt[SALT_LEN];
+        if (RAND_bytes(salt, sizeof(salt)) != 1) {
+            luaL_error(L, "argon2.HashPassword: failed to generate salt");
+            return sol::lua_nil;
+        }
+        unsigned char hash[HASH_LEN];
+        if (!Argon2idHash(password, salt, SALT_LEN, hash, HASH_LEN)) {
+            luaL_error(L, "argon2.HashPassword: failed to hash password");
+            return sol::lua_nil;
+        }
+        sol::table result = this->create_table();
+        result["hash"] = HexEncode(hash, HASH_LEN);
+        result["salt"] = HexEncode(salt, SALT_LEN);
+        return result;
+    });
+    argon2Lib.set_function("VerifyPassword", [](sol::this_state state, std::string password, std::string hashHex, std::string saltHex) -> bool {
+        lua_State* L = state;
+        constexpr size_t HASH_LEN = 32;
+        std::vector<unsigned char> salt;
+        if (!HexDecode(saltHex, salt) || salt.size() != 16) {
+            luaL_error(L, "argon2.VerifyPassword: malformed salt");
+            return false;
+        }
+        unsigned char hash[HASH_LEN];
+        if (!Argon2idHash(password, salt.data(), salt.size(), hash, HASH_LEN)) {
+            luaL_error(L, "argon2.VerifyPassword: failed to hash password");
+            return false;
+        }
+        std::string computed = HexEncode(hash, HASH_LEN);
+        if (computed.size() != hashHex.size()) return false;
+        return CRYPTO_memcmp(computed.data(), hashHex.data(), computed.size()) == 0;
+    });
+    set("argon2", argon2Lib);
 
     sol::table coreLib = create_table();
     coreLib.set_function("GetVersion", []() {

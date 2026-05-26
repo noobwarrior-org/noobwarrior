@@ -1,0 +1,54 @@
+<?lua
+local username = _POST["username"]
+local password = _POST["password"]
+local iam13   = _POST["iam13"]
+
+if not username or username:match("^%s*$") then
+    http_response_code(400)
+    die("Username cannot be empty")
+end
+if not password or password:match("^%s*$") then
+    http_response_code(400)
+    die("Password cannot be empty")
+end
+if #username > 20 then
+    http_response_code(400)
+    die("Username cannot be longer than 20 characters")
+end
+if #password > 128 then
+    http_response_code(400)
+    die("Password cannot be longer than 128 characters")
+end
+if iam13 ~= "on" then
+    http_response_code(400)
+    die("You must confirm you are 13 years or older")
+end
+
+local masterDb = core.GetMasterDatabase()
+if masterDb == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local existing = masterDb:QueryTyped("SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE;", username)
+if existing then
+    http_response_code(409)
+    die("Username already taken")
+end
+
+local result = argon2.HashPassword(password)
+if result == nil then
+    http_response_code(500)
+    die("Failed to hash password")
+end
+
+masterDb:QueryTyped(
+    "INSERT INTO User (Name, DisplayName, PasswordHash, PasswordSalt, JoinDate) VALUES (?, ?, ?, ?, unixepoch());",
+    username, username, result.hash, result.salt
+)
+masterDb:MarkDirty()
+
+header("Location: /login")
+http_response_code(302)
+die("")
+?>

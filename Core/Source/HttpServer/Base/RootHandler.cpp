@@ -54,8 +54,23 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     reqTbl["PeerPort"] = peer_port;
     
     sol::table headersTbl = mServer->GetCore()->GetLuaState()->create_table();
-    headersTbl["Cookie"] = evhttp_find_header(headers, "Cookie");
+    headersTbl["Cookie"]     = evhttp_find_header(headers, "Cookie");
+    headersTbl["User-Agent"] = evhttp_find_header(headers, "User-Agent");
+    headersTbl["Host"]       = evhttp_find_header(headers, "Host");
     reqTbl["Headers"] = headersTbl;
+
+    evhttp_cmd_type method = evhttp_request_get_command(req);
+    const char* method_str = "GET";
+    switch (method) {
+    case EVHTTP_REQ_POST:    method_str = "POST";    break;
+    case EVHTTP_REQ_HEAD:    method_str = "HEAD";    break;
+    case EVHTTP_REQ_PUT:     method_str = "PUT";     break;
+    case EVHTTP_REQ_DELETE:  method_str = "DELETE";  break;
+    case EVHTTP_REQ_OPTIONS: method_str = "OPTIONS"; break;
+    case EVHTTP_REQ_PATCH:   method_str = "PATCH";   break;
+    default: break;
+    }
+    reqTbl["Method"] = method_str;
 
     reqTbl["AddHeader"] = [req](sol::table self, std::string key, std::string val) {
         evhttp_add_header(evhttp_request_get_output_headers(req), key.c_str(), val.c_str());
@@ -75,7 +90,6 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         evhttp_send_error(req, error, reason.c_str());
         sentReply = true;
     };
-    evhttp_cmd_type method = evhttp_request_get_command(req);
     if (method == EVHTTP_REQ_POST) {
         struct evbuffer *buf = evhttp_request_get_input_buffer(req);
         size_t len = evbuffer_get_length(buf);

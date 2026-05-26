@@ -56,7 +56,9 @@ local sitemap = {
     ["/profile"] = "plugin://master-server@noobwarrior.org/src/profile.lhp",
 
     -- API
-    ["/v1/login"] = "plugin://master-server@noobwarrior.org/src/api/login.lhp"
+    ["/v1/login"]          = "plugin://master-server@noobwarrior.org/src/api/login.lhp",
+    ["/v1/create-account"] = "plugin://master-server@noobwarrior.org/src/api/create_account.lhp",
+    ["/v1/logout"]         = "plugin://master-server@noobwarrior.org/src/api/logout.lhp"
 }
 
 master = http_base.CreateServer({

@@ -177,7 +177,16 @@ function http_base.AttachToServer(srv, params)
 
             local success, result = pcall(function()
                 return lhp.RenderFile(sitemap_entry, {
-                    ["_SERVER"] = {},
+                    ["_SERVER"] = {
+                        LHP_SELF = uri_without_params,
+                        SCRIPT_FILENAME = sitemap_entry,
+                        SERVER_NAME = req.Headers["Host"] or "",
+                        HTTP_HOST = req.Headers["Host"] or "",
+                        HTTP_USER_AGENT = req.Headers["User-Agent"] or "",
+                        REQUEST_METHOD = req.Method or "GET",
+                        REMOTE_ADDR = req.PeerIp or "",
+                        QUERY_STRING = uri_with_params_only,
+                    },
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
                     ["_FILES"] = {},

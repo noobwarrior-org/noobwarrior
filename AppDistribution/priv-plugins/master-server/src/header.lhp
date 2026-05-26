@@ -1,3 +1,36 @@
+<?lua
+startRenderTime = os.clock()
+local function AddNavbarButton(url, name)
+   echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if token then
+    local db = core.GetMasterDatabase()
+    if db == nil then return end
+
+    local rows = db:QueryTyped(
+        "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
+        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId " ..
+        "WHERE s.Token = ?;",
+        token
+    )
+    if rows == nil or rows[1] == nil then return end
+
+    local row = rows[1]
+    _SESSION.Token = token
+    _SESSION.User = {
+        Id = row.Id,
+        Name = row.Name,
+        DisplayName = row.DisplayName,
+    }
+
+    db:QueryTyped("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;", token)
+else
+    _SESSION.Token = nil
+    _SESSION.User = nil
+end
+?>
 <!DOCTYPE html>
 <html>
     <head>
@@ -13,6 +46,29 @@
                 <span style="float: right;"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64">noobWarrior</span>
             </div>
             <ul class="navbar">
-                <li><a href="/">Home</a></li>
+                <div class="navbar-left">
+                <?lua
+                    AddNavbarButton("/", "Home")
+                    AddNavbarButton("/servers", "Servers")
+                    AddNavbarButton("/workshop", "Workshop")
+                    AddNavbarButton("/catalog", "Catalog")
+                    AddNavbarButton("/forums", "Forums")
+                    AddNavbarButton("/groups", "Groups")
+                    AddNavbarButton("/help", "Help")
+                ?>
+                </div>
+                <div class="navbar-right">
+                <?lua
+                    if _SESSION.User then
+                        AddNavbarButton("/control-panel", "Control Panel")
+                        AddNavbarButton("/messages", "Messages")
+                        AddNavbarButton("/settings", "Settings")
+                        AddNavbarButton(string.format("/users/%d/profile", _SESSION.User.Id), _SESSION.User.DisplayName or _SESSION.User.Name)
+                        AddNavbarButton("/v1/logout", "Logout")
+                    else
+                        AddNavbarButton("/login", "Login")
+                    end
+                ?>
+                </div>
             </ul>
             <div class="content">
