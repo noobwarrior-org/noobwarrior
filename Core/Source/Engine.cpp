@@ -40,6 +40,8 @@
 #include <tlhelp32.h>
 #endif
 
+#include <climits>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
 #include <unordered_map>
@@ -85,26 +87,47 @@ static std::string ReadPeProductVersion(const std::filesystem::path &path) {
     std::vector<char> buffer(size);
     if (!GetFileVersionInfoA(pathStr.c_str(), handle, size, buffer.data())) return "";
 
-    const char* paths[] = {
-        "\\StringFileInfo\\040904E4\\ProductVersion",
-        "\\StringFileInfo\\000004B0\\ProductVersion",
-    };
-    for (const char* p : paths) {
-        void *value = nullptr;
-        UINT len = 0;
-        if (!VerQueryValueA(buffer.data(), p, &value, &len) || value == nullptr)
-            continue;
-        std::string raw(static_cast<const char*>(value), len);
-        while (!raw.empty() && raw.back() == '\0') raw.pop_back();
-
+    auto normalize = [](const char* raw, UINT len) -> std::string {
+        std::string s(raw, len);
+        while (!s.empty() && s.back() == '\0') s.pop_back();
         // "0, 463, 0, 417004" -> "0.463.0.417004"
         std::string out;
-        out.reserve(raw.size());
-        for (char c : raw) {
+        out.reserve(s.size());
+        for (char c : s) {
             if (c == ' ') continue;
             out += (c == ',') ? '.' : c;
         }
         return out;
+    };
+
+    struct LangCp { WORD lang; WORD cp; };
+    LangCp* translations = nullptr;
+    UINT translationsLen = 0;
+    if (VerQueryValueA(buffer.data(), "\\VarFileInfo\\Translation",
+                       reinterpret_cast<void**>(&translations), &translationsLen)) {
+        UINT count = translationsLen / sizeof(LangCp);
+        for (UINT i = 0; i < count; i++) {
+            char sub[64];
+            std::snprintf(sub, sizeof(sub),
+                          "\\StringFileInfo\\%04x%04x\\ProductVersion",
+                          translations[i].lang, translations[i].cp);
+            void* value = nullptr;
+            UINT len = 0;
+            if (VerQueryValueA(buffer.data(), sub, &value, &len) && value != nullptr)
+                return normalize(static_cast<const char*>(value), len);
+        }
+    }
+    
+    const char* fallbacks[] = {
+        "\\StringFileInfo\\040904B0\\ProductVersion",
+        "\\StringFileInfo\\040904E4\\ProductVersion",
+        "\\StringFileInfo\\000004B0\\ProductVersion",
+    };
+    for (const char* p : fallbacks) {
+        void *value = nullptr;
+        UINT len = 0;
+        if (VerQueryValueA(buffer.data(), p, &value, &len) && value != nullptr)
+            return normalize(static_cast<const char*>(value), len);
     }
     return "";
 #else
@@ -181,9 +204,23 @@ std::vector<Engine> Core::GetAllEngines() {
     return {};
 }
 
+static int ParseEraVersion(const std::string &version) {
+    if (version.empty()) return -1;
+    size_t firstDot = version.find('.');
+    if (firstDot == std::string::npos) return -1;
+    size_t secondDot = version.find('.', firstDot + 1);
+    std::string era = version.substr(firstDot + 1,
+        secondDot == std::string::npos ? std::string::npos : secondDot - firstDot - 1);
+    try { return std::stoi(era); } catch (...) { return -1; }
+}
+
 static std::optional<Engine> PickBestMatch(const std::vector<Engine> &installed, const Engine &want) {
     const Engine *exactMatch = nullptr;
+    const Engine *closestEra = nullptr;
+    int           closestDelta = INT_MAX;
     const Engine *sideOnlyFallback = nullptr;
+
+    const int wantEra = ParseEraVersion(want.Version);
 
     for (const auto &candidate : installed) {
         if (!want.Hash.empty() && candidate.Hash != want.Hash)
@@ -196,11 +233,22 @@ static std::optional<Engine> PickBestMatch(const std::vector<Engine> &installed,
             exactMatch = &candidate;
             break;
         }
+
+        const int candidateEra = ParseEraVersion(candidate.Version);
+        if (wantEra >= 0 && candidateEra >= 0) {
+            int delta = std::abs(wantEra - candidateEra);
+            if (delta < closestDelta) {
+                closestDelta = delta;
+                closestEra = &candidate;
+            }
+        }
+
         if (sideOnlyFallback == nullptr)
             sideOnlyFallback = &candidate;
     }
 
     if (exactMatch) return *exactMatch;
+    if (closestEra) return *closestEra;
     if (sideOnlyFallback) return *sideOnlyFallback;
     return std::nullopt;
 }
