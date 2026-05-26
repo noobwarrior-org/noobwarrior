@@ -10,6 +10,19 @@ include("header.lhp")
         <p>The ultimate place to share your creations</p>
         <br>
     </div>
+    <ul class="navbar">
+        <div class="navbar-left">
+            <li><a href="/workshop">Home</a></li>
+            <li><a href="/workshop?filter=databases">Databases</a></li>
+            <li><a href="/workshop?filter=plugins">Plugins</a></li>
+        </div>
+        <div class="navbar-right">
+            <form action="/workshop" method="get">
+                <input type="search" id="site-search" name="q" placeholder="Search..." value=<?lua echo(_GET["q"] and "\"" .. _GET["q"] .. "\"" or "") ?>>
+                <button type="submit">Search</button>
+            </form>
+        </div>
+    </ul>
 </div>
 
 <br>

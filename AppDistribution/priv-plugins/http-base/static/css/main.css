@@ -79,6 +79,11 @@ body {
     color: #aeadac;
 }
 
+.navbar input {
+    padding: 8px;
+    display: inline-block;
+}
+
 .navbar-left {
     display: flex;
     float: left;
