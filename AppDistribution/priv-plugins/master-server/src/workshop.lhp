@@ -18,7 +18,7 @@ include("header.lhp")
         </div>
         <div class="navbar-right">
             <form action="/workshop" method="get">
-                <input type="search" id="site-search" name="q" placeholder="Search..." value=<?lua echo(_GET["q"] and "\"" .. _GET["q"] .. "\"" or "") ?>>
+                <input type="search" id="site-search" name="q" placeholder="Search..." value=<?lua echo(_GET["q"] and "\"" .. _GET["q"] .. "\"" or "\"\"") ?>>
                 <button type="submit">Search</button>
             </form>
         </div>
