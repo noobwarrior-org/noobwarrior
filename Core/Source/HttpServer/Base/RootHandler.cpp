@@ -26,10 +26,65 @@
 #include <NoobWarrior/HttpServer/Base/RootHandler.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
+
 using namespace NoobWarrior;
 
+static std::string CollapseSlashes(const std::string &s) {
+    std::string out;
+    out.reserve(s.size());
+    bool prevSlash = false;
+    for (char c : s) {
+        if (c == '/') {
+            if (prevSlash) continue;
+            prevSlash = true;
+        } else {
+            prevSlash = false;
+        }
+        out += c;
+    }
+    return out;
+}
+
+static std::vector<std::string> SplitPath(const std::string &s) {
+    std::vector<std::string> segs;
+    size_t start = 0;
+    for (size_t i = 0; i <= s.size(); i++) {
+        if (i == s.size() || s[i] == '/') {
+            segs.push_back(s.substr(start, i - start));
+            start = i + 1;
+        }
+    }
+    return segs;
+}
+
+static bool MatchRoute(const std::string &pattern, const std::string &path,
+                       std::map<std::string, std::string> &params) {
+    if (pattern == path) return true;
+    if (pattern.find(':') == std::string::npos) return false;
+
+    std::vector<std::string> pp = SplitPath(pattern);
+    std::vector<std::string> tp = SplitPath(path);
+    if (pp.size() != tp.size()) return false;
+
+    std::map<std::string, std::string> captured;
+    for (size_t i = 0; i < pp.size(); i++) {
+        if (!pp[i].empty() && pp[i][0] == ':') {
+            if (tp[i].empty()) return false; // a :param must capture a non-empty segment
+            captured[pp[i].substr(1)] = tp[i];
+        } else if (pp[i] != tp[i]) {
+            return false;
+        }
+    }
+    params = std::move(captured);
+    return true;
+}
+
 RootHandler::RootHandler(HttpServer *server) : mServer(server) {
-    
+
 }
 
 void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
@@ -47,6 +102,48 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     
 
     Out("RootHandler", "{}:{} requested URI {}", peer_address, peer_port, uri);
+
+    std::string path = uri ? uri : "";
+    if (auto q = path.find('?'); q != std::string::npos)
+        path.resize(q);
+    path = CollapseSlashes(path);
+
+    for (const auto &entry : mServer->mStoredHandlers) {
+        if (!entry.uri) continue;
+        Handler *handler = std::get<0>(*entry.raw);
+        if (handler == this) continue;
+        std::map<std::string, std::string> params;
+        if (MatchRoute(*entry.uri, path, params)) {
+            mServer->mRouteParams = std::move(params);
+            handler->OnRequest(req, std::get<1>(*entry.raw));
+            return;
+        }
+    }
+    mServer->mRouteParams.clear();
+    
+    if (path.find("client-version") == std::string::npos) {
+        const char *p = path.c_str();
+        while (*p == '/') p++;
+        static const char *kApiPrefixes[] = {
+            "v1/", "v2/", "v1.0/", "v1.1/", "universal-app-configuration/",
+            "games-autocomplete/", "discovery-api/", "maintenance-status/",
+            "product-experimentation-platform/", "client/", "studio/", "timespent/",
+            "web/", "gamejoin/", "game-join/", "presence/", "contacts/", "account/",
+            "user-agreements/", "account-security-service/", "account-settings/",
+            "premiumfeatures/", "notifications/", "metrics/", "points/",
+        };
+        for (const char *prefix : kApiPrefixes) {
+            if (std::strncmp(p, prefix, std::strlen(prefix)) == 0) {
+                Out("RootHandler", "  -> benign {{}} API stub");
+                evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+                evbuffer* stub = evbuffer_new();
+                evbuffer_add(stub, "{}", 2);
+                evhttp_send_reply(req, HTTP_OK, nullptr, stub);
+                evbuffer_free(stub);
+                return;
+            }
+        }
+    }
 
     sol::table reqTbl = mServer->GetCore()->GetLuaState()->create_table();
     reqTbl["Uri"] = uri;

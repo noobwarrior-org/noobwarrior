@@ -37,6 +37,7 @@
 #include <vector>
 #include <memory>
 #include <tuple>
+#include <map>
 
 #include <evhttp.h>
 #include <openssl/ssl.h>
@@ -67,6 +68,9 @@ public:
 
     bool        IsRunning();
     void        SetRequestHandler(const char *uri, Handler *handler, void *userdata = nullptr);
+    
+    const std::map<std::string, std::string>& GetRouteParams() const;
+    std::string GetRouteParam(const std::string &name) const;
 
     VirtualFileSystem::Response MountVolume(const std::string &root, const Url &urlPath);
     VirtualFileSystem::Response UnmountVolume(const std::string &root, const Url &urlPath);
@@ -109,6 +113,9 @@ protected:
     };
     std::vector<StoredHandler> mStoredHandlers;
     void ApplyHandlersToServer(evhttp *server);
+
+    // Set by RootHandler when a :param route matches, read back via GetRouteParam(s).
+    std::map<std::string, std::string> mRouteParams;
 
     ////////////// Signals ////////////////
     LuaSignal mPreStartSignal;

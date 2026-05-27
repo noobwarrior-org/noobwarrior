@@ -478,6 +478,42 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
     return {};
 }
 
+static void MergeEmulatorCertIntoCaBundle(const std::filesystem::path &emuCertPath, const std::filesystem::path &engineDir) {
+    static constexpr const char *kMarker = "# noobWarrior emulator CA";
+    std::filesystem::path caBundle = engineDir / "ssl" / "cacert.pem";
+    if (!std::filesystem::exists(caBundle) || !std::filesystem::exists(emuCertPath))
+        return;
+
+    std::ifstream certIn(emuCertPath, std::ios::binary);
+    std::string certData((std::istreambuf_iterator<char>(certIn)), std::istreambuf_iterator<char>());
+    certIn.close();
+    if (certData.empty())
+        return;
+
+    std::ifstream bundleIn(caBundle, std::ios::binary);
+    std::string bundle((std::istreambuf_iterator<char>(bundleIn)), std::istreambuf_iterator<char>());
+    bundleIn.close();
+
+    if (size_t pos = bundle.find(kMarker); pos != std::string::npos)
+        bundle.erase(pos); // drop the previously-appended noobWarrior block
+
+    if (bundle.find(certData) != std::string::npos)
+        return; // already trusts this exact cert
+
+    std::ofstream out(caBundle, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        Out("LaunchEngine", "Could not open {} to merge emulator CA", caBundle.string());
+        return;
+    }
+    out << bundle;
+    if (!bundle.empty() && bundle.back() != '\n')
+        out << '\n';
+    out << kMarker << '\n' << certData;
+    if (!certData.empty() && certData.back() != '\n')
+        out << '\n';
+    Out("LaunchEngine", "Merged emulator CA into {}", caBundle.string());
+}
+
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
 //
@@ -490,6 +526,8 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
         return EngineLaunchResponse::NotInstalled;
 
     const std::filesystem::path engineDir = GetEngineDirectory(params.Engine);
+    
+    MergeEmulatorCertIntoCaBundle(GetUserDataDir() / NW_PATH_SSL / "cert.pem", engineDir);
 
     if (params.Engine.Side == EngineSide::Server) {
         if (!WriteGameServerConfig(engineDir, params))

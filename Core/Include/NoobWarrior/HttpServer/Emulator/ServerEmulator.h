@@ -37,6 +37,7 @@
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
 #include "JoinScriptJsonHandler.h"
+#include "GameJoinHandler.h"
 #include "MySettingsJsonHandler.h"
 #include "AuthenticatedUserHandler.h"
 #include "CurrentUserHandler.h"
@@ -110,9 +111,24 @@ private:
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
     ClientSettingsV2Handler mClientSettingsV2Handler;
+    StaticJsonHandler mClientSettingsV2DesktopHandler;
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
+    GameJoinHandler mGameJoinHandler;
+    StaticJsonHandler mAppBehaviorsHandler;
+    StaticJsonHandler mAvatarRulesHandler;
+    StaticJsonHandler mAvatarHandler;
+    StaticJsonHandler mAppLaunchInfoHandler;
+    StaticJsonHandler mRolesHandler;
+    StaticJsonHandler mLocalesHandler;
+    StaticJsonHandler mGamesHandler;
+    StaticJsonHandler mUserChannelHandler;
+    StaticJsonHandler mPlaceDetailsHandler;
+    StaticJsonHandler mOmniRecHandler;
+    StaticJsonHandler mGamesSortsHandler;
+    StaticJsonHandler mAvatarFetchHandler;
+    StaticJsonHandler mGamesListHandler;
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
     AuthenticatedUserHandler mAuthenticatedUserHandler;

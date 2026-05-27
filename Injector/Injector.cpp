@@ -249,6 +249,7 @@ Args:
     std::wstring emuHttpStr;
     std::wstring emuHttpsStr;
     std::wstring sideStr;
+    std::wstring schemeStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -284,6 +285,10 @@ Args:
         if (wcscmp(argv[i], L"--side") == 0) {
             sideStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--scheme") == 0) {
+            schemeStr = argv[i + 1];
+        }
     }
 
     printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
@@ -308,7 +313,12 @@ Args:
         std::wstring rccPlaceId = placeIdStr.empty() ? L"1818" : placeIdStr;
         wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
+        if (schemeStr == L"modern") {
+            std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
+            wargs += std::format(L" -play -a \"roblox://experiences/start?placeId={}\"", placeId);
+        } else {
+            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
+        }
     } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
         std::wstring port = portStr.empty() ? L"53640" : portStr;
         std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;

@@ -96,11 +96,8 @@ void HttpServer::SetupHandlers() {
 
 void HttpServer::ApplyHandlersToServer(evhttp *server) {
     for (const auto &entry : mStoredHandlers) {
-        if (entry.uri) {
-            evhttp_set_cb(server, entry.uri->c_str(), CFuncToObjectFuncHandler, entry.raw);
-        } else {
+        if (!entry.uri)
             evhttp_set_gencb(server, CFuncToObjectFuncHandler, entry.raw);
-        }
     }
 }
 
@@ -239,17 +236,21 @@ void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *user
     auto *raw = handler_userdata_pair.get();
     HandlerUserdata.push_back(std::move(handler_userdata_pair));
     mStoredHandlers.push_back({uri ? std::optional<std::string>(uri) : std::nullopt, raw});
-    if (uri != nullptr) {
-        if (mServer != nullptr)
-            evhttp_set_cb(mServer, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
-        if (mServerSecure != nullptr)
-            evhttp_set_cb(mServerSecure, uri, CFuncToObjectFuncHandler, static_cast<void*>(raw));
-    } else {
+    if (uri == nullptr) {
         if (mServer != nullptr)
             evhttp_set_gencb(mServer, CFuncToObjectFuncHandler, static_cast<void*>(raw));
         if (mServerSecure != nullptr)
             evhttp_set_gencb(mServerSecure, CFuncToObjectFuncHandler, static_cast<void*>(raw));
     }
+}
+
+const std::map<std::string, std::string>& HttpServer::GetRouteParams() const {
+    return mRouteParams;
+}
+
+std::string HttpServer::GetRouteParam(const std::string &name) const {
+    auto it = mRouteParams.find(name);
+    return it == mRouteParams.end() ? std::string() : it->second;
 }
 
 VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {

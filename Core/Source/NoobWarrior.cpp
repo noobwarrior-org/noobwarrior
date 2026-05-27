@@ -36,6 +36,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -395,13 +396,25 @@ void Core::AutocreateCert() {
     std::filesystem::path certPath = GetUserDataDir() / NW_PATH_SSL / "cert.pem";
     std::filesystem::path keyPath = GetUserDataDir() / NW_PATH_SSL / "key.pem";
 
-    time_t seconds = time(NULL);
-    auto issuedTime = mRegistry->GetKeyValue<time_t>("internal.cert_issued_time");
-    if (issuedTime.has_value() && seconds - issuedTime.value() < 31536000) {
-        Out("AutocreateCert", "It has been less than 1 year since the last certificate was generated, so a certificate will not be auto-generated.");
+    bool needsRegen = true;
+    if (std::filesystem::exists(certPath) && std::filesystem::exists(keyPath)) {
+#if defined(_WIN32)
+        FILE *existing = _wfopen(certPath.c_str(), L"rb");
+#else
+        FILE *existing = fopen(certPath.c_str(), "rb");
+#endif
+        if (existing) {
+            if (X509 *cert = PEM_read_X509(existing, nullptr, nullptr, nullptr)) {
+                needsRegen = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1) < 0;
+                X509_free(cert);
+            }
+            fclose(existing);
+        }
+    }
+    if (!needsRegen) {
+        Out("AutocreateCert", "Existing certificate has SANs, keeping it.");
         return;
     }
-    mRegistry->SetKeyValue("internal.cert_issued_time", seconds);
 
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
@@ -413,6 +426,7 @@ void Core::AutocreateCert() {
     EVP_PKEY_assign_RSA(pkey, rsa);
 
     x509 = X509_new();
+    X509_set_version(x509, 2); // X.509 v3 — required for extensions below
     ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
     X509_gmtime_adj(X509_get_notBefore(x509), 0);
     X509_gmtime_adj(X509_get_notAfter(x509), 315576000L); // 10 years
@@ -421,6 +435,23 @@ void Core::AutocreateCert() {
     X509_NAME *name = X509_get_subject_name(x509);
     X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char*)"localhost", -1, -1, 0);
     X509_set_issuer_name(x509, name);
+    
+    {
+        X509V3_CTX ctx;
+        X509V3_set_ctx_nodb(&ctx);
+        X509V3_set_ctx(&ctx, x509, x509, nullptr, nullptr, 0);
+        const char *san = "DNS:localhost,DNS:roblox.com,DNS:*.roblox.com,DNS:*.api.roblox.com,"
+                          "DNS:rbxcdn.com,DNS:*.rbxcdn.com,DNS:robloxlabs.com,DNS:*.robloxlabs.com,"
+                          "IP:127.0.0.1";
+        if (X509_EXTENSION *ext = X509V3_EXT_conf_nid(nullptr, &ctx, NID_subject_alt_name, san)) {
+            X509_add_ext(x509, ext, -1);
+            X509_EXTENSION_free(ext);
+        }
+        if (X509_EXTENSION *bc = X509V3_EXT_conf_nid(nullptr, &ctx, NID_basic_constraints, "critical,CA:TRUE")) {
+            X509_add_ext(x509, bc, -1);
+            X509_EXTENSION_free(bc);
+        }
+    }
 
     X509_sign(x509, pkey, EVP_sha256());
 

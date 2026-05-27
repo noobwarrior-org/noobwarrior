@@ -206,23 +206,49 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
     }
 }
 
-static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
-static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
+static bool RedirectConnectAddr(const char* api, SOCKET s, const sockaddr* name, sockaddr_in* out) {
+    if (name == nullptr || name->sa_family != AF_INET)
+        return false;
+
     int sockType = 0;
     int optLen = sizeof(sockType);
     getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
+    if (sockType != SOCK_STREAM)
+        return false;
 
-    if (sockType == SOCK_STREAM && name->sa_family == AF_INET) { // check if its a TCP socket
-        sockaddr_in addrCopy = *(sockaddr_in*)name;
-        int port = ntohs(addrCopy.sin_port);
-        if (port == 80 || port == 443) { // check if its HTTP/HTTPS
-            // if it is then redirect to our server emulator
-            addrCopy.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-            addrCopy.sin_port = htons(port == 80 ? gEmuHttpPort : gEmuHttpsPort);
-            return pOrigConnect(s, (sockaddr*)&addrCopy, namelen);
-        }
+    const sockaddr_in* in = reinterpret_cast<const sockaddr_in*>(name);
+    int port = ntohs(in->sin_port);
+
+    char origIp[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, (void*)&in->sin_addr, origIp, sizeof(origIp));
+
+    if (port != 80 && port != 443) {
+        Out(api, "passthrough %s:%d (not HTTP/HTTPS)", origIp, port);
+        return false;
     }
+
+    *out = *in;
+    out->sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+    out->sin_port = htons(port == 80 ? gEmuHttpPort : gEmuHttpsPort);
+    Out(api, "redirect %s:%d -> 127.0.0.1:%d", origIp, port, ntohs(out->sin_port));
+    return true;
+}
+
+static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
+static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
+    sockaddr_in redirected;
+    if (RedirectConnectAddr("connect", s, name, &redirected))
+        return pOrigConnect(s, (sockaddr*)&redirected, sizeof(redirected));
     return pOrigConnect(s, name, namelen);
+}
+
+static int (WSAAPI* pOrigWSAConnect)(SOCKET, const sockaddr*, int, LPWSABUF, LPWSABUF, LPQOS, LPQOS);
+static int WSAAPI MyWSAConnect(SOCKET s, const sockaddr* name, int namelen,
+                               LPWSABUF callerData, LPWSABUF calleeData, LPQOS sqos, LPQOS gqos) {
+    sockaddr_in redirected;
+    if (RedirectConnectAddr("WSAConnect", s, name, &redirected))
+        return pOrigWSAConnect(s, (sockaddr*)&redirected, sizeof(redirected), callerData, calleeData, sqos, gqos);
+    return pOrigWSAConnect(s, name, namelen, callerData, calleeData, sqos, gqos);
 }
 
 static HINTERNET (WINAPI* pOrigInternetConnectW)(HINTERNET, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD, DWORD_PTR);
@@ -314,12 +340,18 @@ DWORD WINAPI Thread(LPVOID param) {
 
     Out("Main", "Initializing MinHook");
     MH_Initialize();
-    MH_CreateHookApi(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
-    MH_CreateHookApi(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
-    MH_CreateHookApi(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
-    MH_CreateHookApi(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
-    MH_CreateHookApi(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
-    MH_CreateHookApi(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
+    auto hook = [](const wchar_t* mod, const char* fn, LPVOID detour, LPVOID* orig) {
+        MH_STATUS st = MH_CreateHookApi(mod, fn, detour, orig);
+        Out("MinHook", "CreateHookApi(%ls!%s) = %d (%s)", mod, fn, (int)st,
+            st == MH_OK ? "ok" : "FAILED");
+    };
+    hook(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+    hook(L"ws2_32", "WSAConnect", MyWSAConnect, (LPVOID*)&pOrigWSAConnect);
+    hook(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
+    hook(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
+    hook(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
+    hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
+    hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);
     
 #if defined(_WIN64)
