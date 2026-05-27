@@ -40,6 +40,7 @@
 #include <strsafe.h>
 
 #include <atomic>
+#include <string>
 
 using namespace NoobHook;
 
@@ -284,6 +285,112 @@ static BOOL WINAPI MyWinHttpSendRequest(HINTERNET hRequest, LPCWSTR lpszHeaders,
     return pOrigWinHttpSendRequest(hRequest, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength, dwTotalLength, dwContext);
 }
 
+static wchar_t gMergedCaBundle[MAX_PATH] = {0};
+static std::atomic<bool> gMergedCaReady { false };
+static CRITICAL_SECTION gCaLock;
+
+static HANDLE (WINAPI* pOrigCreateFileW)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+static HANDLE (WINAPI* pOrigCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+
+static bool PathEndsWith(const wchar_t* path, const wchar_t* suffix) {
+    if (!path) return false;
+    size_t pl = wcslen(path), sl = wcslen(suffix);
+    return pl >= sl && _wcsicmp(path + (pl - sl), suffix) == 0;
+}
+
+// Read a whole file via the original CreateFileW so we never re-enter our own hook.
+static bool ReadWholeFileOrig(LPCWSTR path, std::string& out) {
+    HANDLE h = pOrigCreateFileW(path, GENERIC_READ, FILE_SHARE_READ, nullptr,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE)
+        return false;
+    out.clear();
+    char buf[8192];
+    DWORD read = 0;
+    while (ReadFile(h, buf, sizeof(buf), &read, nullptr) && read > 0)
+        out.append(buf, read);
+    CloseHandle(h);
+    return true;
+}
+
+// Build the merged bundle once. originalCacert is whatever path the engine asked for.
+static bool BuildMergedCaBundle(LPCWSTR originalCacert) {
+    wchar_t emuCert[MAX_PATH] = {0};
+    if (GetEnvironmentVariableW(L"NOOBHOOK_EMU_CERT", emuCert, MAX_PATH) == 0) {
+        Out("CaBundle", "NOOBHOOK_EMU_CERT not set -- leaving cacert.pem untouched");
+        return false;
+    }
+
+    std::string original, emu;
+    ReadWholeFileOrig(originalCacert, original); // may be empty; we still want the emu CA
+    if (!ReadWholeFileOrig(emuCert, emu) || emu.empty()) {
+        Out("CaBundle", "Failed to read emulator cert at %ws", emuCert);
+        return false;
+    }
+
+    std::string merged = original;
+    if (!merged.empty() && merged.back() != '\n') merged += '\n';
+    merged += emu;
+    if (merged.back() != '\n') merged += '\n';
+
+    wchar_t tempDir[MAX_PATH] = {0};
+    GetTempPathW(MAX_PATH, tempDir);
+    swprintf(gMergedCaBundle, MAX_PATH, L"%snoobhook_ca_%lu.pem", tempDir, GetCurrentProcessId());
+
+    HANDLE h = pOrigCreateFileW(gMergedCaBundle, GENERIC_WRITE, 0, nullptr,
+                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        Out("CaBundle", "Failed to create merged bundle at %ws", gMergedCaBundle);
+        gMergedCaBundle[0] = L'\0';
+        return false;
+    }
+    DWORD written = 0;
+    WriteFile(h, merged.data(), (DWORD)merged.size(), &written, nullptr);
+    CloseHandle(h);
+    Out("CaBundle", "Merged emulator CA into %ws (%zu bytes)", gMergedCaBundle, merged.size());
+    return true;
+}
+
+// Returns the merged-bundle path to open instead, or nullptr to pass through.
+static const wchar_t* ResolveCaRedirect(LPCWSTR requested) {
+    if (!PathEndsWith(requested, L"cacert.pem"))
+        return nullptr;
+    if (gMergedCaBundle[0] && _wcsicmp(requested, gMergedCaBundle) == 0)
+        return nullptr; // already our merged file
+
+    EnterCriticalSection(&gCaLock);
+    bool ready = gMergedCaReady.load();
+    if (!ready) {
+        ready = BuildMergedCaBundle(requested);
+        gMergedCaReady.store(ready);
+    }
+    LeaveCriticalSection(&gCaLock);
+    return ready ? gMergedCaBundle : nullptr;
+}
+
+static HANDLE WINAPI MyCreateFileW(LPCWSTR lpFileName, DWORD access, DWORD share,
+                                   LPSECURITY_ATTRIBUTES sec, DWORD disp, DWORD flags, HANDLE tmpl) {
+    if (const wchar_t* redir = ResolveCaRedirect(lpFileName)) {
+        Out("CreateFileW", "redirect %ws -> %ws", lpFileName, redir);
+        return pOrigCreateFileW(redir, access, share, sec, disp, flags, tmpl);
+    }
+    return pOrigCreateFileW(lpFileName, access, share, sec, disp, flags, tmpl);
+}
+
+static HANDLE WINAPI MyCreateFileA(LPCSTR lpFileName, DWORD access, DWORD share,
+                                   LPSECURITY_ATTRIBUTES sec, DWORD disp, DWORD flags, HANDLE tmpl) {
+    if (lpFileName) {
+        wchar_t wide[MAX_PATH] = {0};
+        if (MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, wide, MAX_PATH) > 0) {
+            if (const wchar_t* redir = ResolveCaRedirect(wide)) {
+                Out("CreateFileA", "redirect %s -> %ws", lpFileName, redir);
+                return pOrigCreateFileW(redir, access, share, sec, disp, flags, tmpl);
+            }
+        }
+    }
+    return pOrigCreateFileA(lpFileName, access, share, sec, disp, flags, tmpl);
+}
+
 static std::atomic<bool> gGoodbyeSent { false };
 static void EmitGoodbyeOnce() {
     bool expected = false;
@@ -339,6 +446,7 @@ DWORD WINAPI Thread(LPVOID param) {
     if (hbThread) CloseHandle(hbThread);
 
     Out("Main", "Initializing MinHook");
+    InitializeCriticalSection(&gCaLock);
     MH_Initialize();
     auto hook = [](const wchar_t* mod, const char* fn, LPVOID detour, LPVOID* orig) {
         MH_STATUS st = MH_CreateHookApi(mod, fn, detour, orig);
@@ -350,6 +458,8 @@ DWORD WINAPI Thread(LPVOID param) {
     hook(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
     hook(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
     hook(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
+    hook(L"kernel32", "CreateFileW", MyCreateFileW, (LPVOID*)&pOrigCreateFileW);
+    hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
     hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
     hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);

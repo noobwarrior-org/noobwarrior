@@ -250,6 +250,7 @@ Args:
     std::wstring emuHttpsStr;
     std::wstring sideStr;
     std::wstring schemeStr;
+    std::wstring emuCertStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -289,6 +290,10 @@ Args:
         if (wcscmp(argv[i], L"--scheme") == 0) {
             schemeStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--emucert") == 0) {
+            emuCertStr = argv[i + 1];
+        }
     }
 
     printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
@@ -313,11 +318,21 @@ Args:
         std::wstring rccPlaceId = placeIdStr.empty() ? L"1818" : placeIdStr;
         wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        if (schemeStr == L"modern") {
-            std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
-            wargs += std::format(L" -play -a \"roblox://experiences/start?placeId={}\"", placeId);
-        } else {
+        if (schemeStr == L"legacy") {
+            // Pre-2023: the -a/-j/-t launch (the --play flag did not exist yet)
             wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
+        } else {
+            std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
+            std::wstring ip = ipStr.empty() ? L"127.0.0.1" : ipStr;
+            std::wstring port = portStr.empty() ? L"53640" : portStr;
+            std::wstring placeLauncher = std::format(
+                L"http://www.roblox.com/Game/PlaceLauncher.ashx?request=RequestGame&ip={}&port={}&placeId={}&local={}",
+                ip, port, placeId, localStr);
+            std::wstring deeplink = std::format(L"roblox://experiences/start?placeId={}", placeId);
+            wargs += std::format(
+                L" --play -b \"12345678\" -t \"1\" --launchtime 1716000000000 --rloc en_us --gloc en_us"
+                L" --deeplink \"{}\" -j \"{}\"",
+                deeplink, placeLauncher);
         }
     } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
         std::wstring port = portStr.empty() ? L"53640" : portStr;
@@ -346,6 +361,10 @@ Args:
         SetEnvironmentVariableW(L"NOOBHOOK_PORT", portStr.c_str());
     if (!placeIdStr.empty())
         SetEnvironmentVariableW(L"NOOBHOOK_PLACEID", placeIdStr.c_str());
+    // Path to the emulator's CA cert; noobhook merges it into a temp cacert.pem at
+    // runtime (see MyCreateFileW) so the engine's own ssl/cacert.pem stays untouched.
+    if (!emuCertStr.empty())
+        SetEnvironmentVariableW(L"NOOBHOOK_EMU_CERT", emuCertStr.c_str());
 
     PROCESS_INFORMATION pi {};
     STARTUPINFOW si = {};
