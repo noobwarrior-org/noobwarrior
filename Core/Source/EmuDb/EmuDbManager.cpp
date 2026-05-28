@@ -32,6 +32,8 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <sol/sol.hpp>
+
 #include <vector>
 
 using namespace NoobWarrior;
@@ -48,7 +50,7 @@ void EmuDbManager::MountDatabases() {
     int filePriority = 0;
     for (int i = 1; i <= (int)(*mounted).size(); i++) {
         sol::object val = (*mounted)[i];
-        if (val.get_type() == sol::type::nil) break;
+        if (val.get_type() == sol::type::lua_nil) break;
         if (!val.is<std::string>()) continue;
         std::filesystem::path absolutePath = mCore->GetUserDataDir() / NW_PATH_DATABASES / val.as<std::string>();
         Mount(absolutePath, filePriority++);
