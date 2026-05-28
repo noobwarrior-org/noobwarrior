@@ -49,6 +49,7 @@ public:
 
     EmuDb* GetMasterDatabase();
     std::vector<EmuDb*> GetMountedDatabases();
+    void SetMountOrder(const std::vector<EmuDb*>& order);
 
     EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
     

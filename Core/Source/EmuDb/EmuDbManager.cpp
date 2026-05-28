@@ -127,6 +127,10 @@ std::vector<EmuDb*> EmuDbManager::GetMountedDatabases() {
     return mMountedDatabases;
 }
 
+void EmuDbManager::SetMountOrder(const std::vector<EmuDb*>& order) {
+    mMountedDatabases = order;
+}
+
 EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
     for (EmuDb* db : mMountedDatabases) {
         bool exists = db->DoesItemExist(type, id);

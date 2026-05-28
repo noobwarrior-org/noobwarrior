@@ -122,14 +122,14 @@ void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
 
     auto* item = new QListWidgetItem(icon, title, this);
     if (!isTemp)
-        item->setData(Qt::UserRole, QVariant::fromValue(db));
+        item->setData(Qt::UserRole, QVariant::fromValue(reinterpret_cast<quintptr>(db)));
     item->setToolTip(filePath);
 }
 
 EmuDb* EmuDbListWidget::GetSelectedDatabase() {
     QListWidgetItem *item = currentItem();
     if (item != nullptr)
-        return item->data(Qt::UserRole).value<EmuDb*>();
+        return reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>());
     return nullptr;
 }
 
@@ -137,7 +137,7 @@ QList<EmuDb*> EmuDbListWidget::GetSelectedDatabases() {
     QList<EmuDb*> dbs;
     QList<QListWidgetItem*> items = selectedItems();
     for (auto *item : items) {
-        dbs.push_back(item->data(Qt::UserRole).value<EmuDb*>());
+        dbs.push_back(reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>()));
     }
     return dbs;
 }

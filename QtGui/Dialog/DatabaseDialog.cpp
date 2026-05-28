@@ -76,6 +76,13 @@ void DatabaseDialog::InitWidgets() {
 
     mAvailableList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     mSelectedList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    mSelectedList->setDragEnabled(true);
+    mSelectedList->setAcceptDrops(true);
+    mSelectedList->setDropIndicatorShown(true);
+    mSelectedList->setDragDropMode(QAbstractItemView::InternalMove);
+
+    connect(mSelectedList->model(), &QAbstractItemModel::rowsMoved,
+            this, &DatabaseDialog::OnSelectedOrderChanged);
 
     mGridLayout->addWidget(mAvailableFrame, 0, 0);
     mGridLayout->addWidget(mSelectorArrowFrame, 0, 1);
@@ -140,6 +147,17 @@ void DatabaseDialog::OnMoveAllLeft() {
     SaveToRegistry();
     mAvailableList->Refresh();
     mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnSelectedOrderChanged() {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    std::vector<EmuDb*> newOrder;
+    for (int i = 0; i < mSelectedList->count(); i++) {
+        EmuDb* db = reinterpret_cast<EmuDb*>(mSelectedList->item(i)->data(Qt::UserRole).value<quintptr>());
+        if (db) newOrder.push_back(db);
+    }
+    manager->SetMountOrder(newOrder);
+    SaveToRegistry();
 }
 
 void DatabaseDialog::SaveToRegistry() {

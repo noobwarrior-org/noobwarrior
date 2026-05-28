@@ -112,11 +112,11 @@ void EmuDbComboBox::AddDatabase(EmuDb* db, bool isTemp) {
     if (title.isEmpty())
         title = fileName;
 
-    addItem(icon, title, !isTemp ? QVariant::fromValue(db) : QVariant());
+    addItem(icon, title, !isTemp ? QVariant::fromValue(reinterpret_cast<quintptr>(db)) : QVariant());
 }
 
 bool EmuDbComboBox::SetDatabase(EmuDb* db) {
-    int index = findData(QVariant::fromValue(db));
+    int index = findData(QVariant::fromValue(reinterpret_cast<quintptr>(db)));
     if (index != -1) {
         setCurrentIndex(index);
         return true;
@@ -127,5 +127,5 @@ bool EmuDbComboBox::SetDatabase(EmuDb* db) {
 EmuDb* EmuDbComboBox::GetSelectedDatabase() {
     if (currentIndex() == -1)
         return nullptr;
-    return currentData().value<EmuDb*>();
+    return reinterpret_cast<EmuDb*>(currentData().value<quintptr>());
 }

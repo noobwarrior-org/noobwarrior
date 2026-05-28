@@ -64,5 +64,6 @@ private slots:
     void OnMoveAllRight();
     void OnMoveOneLeft();
     void OnMoveAllLeft();
+    void OnSelectedOrderChanged();
 };
 }
