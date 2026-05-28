@@ -24,6 +24,13 @@
 // Description:
 #pragma once
 #include <QDialog>
+#include <QGridLayout>
+#include <QFrame>
+#include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+
+#include "Sdk/EmuDbListWidget.h"
 
 namespace NoobWarrior {
 class DatabaseDialog : public QDialog {
@@ -31,5 +38,24 @@ class DatabaseDialog : public QDialog {
 public:
     DatabaseDialog(QWidget *parent = nullptr);
     void InitWidgets();
+private:
+    QGridLayout* mGridLayout;
+
+    QFrame* mAvailableFrame;
+    QVBoxLayout* mAvailableLayout;
+    QLabel* mAvailableLabel;
+    EmuDbListWidget* mAvailableList;
+
+    QFrame* mSelectedFrame;
+    QVBoxLayout* mSelectedLayout;
+    QLabel* mSelectedLabel;
+    EmuDbListWidget* mSelectedList;
+
+    QFrame* mSelectorArrowFrame;
+    QVBoxLayout* mSelectorArrowLayout;
+    QPushButton* mSelectorArrow_MoveOneRight;
+    QPushButton* mSelectorArrow_MoveAllRight;
+    QPushButton* mSelectorArrow_MoveOneLeft;
+    QPushButton* mSelectorArrow_MoveAllLeft;
 };
 }

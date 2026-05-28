@@ -32,13 +32,16 @@ class EmuDbListWidget : public QListWidget {
 public:
     enum class Mode {
         ShowEntriesInDir, // Shows every database file in the databases folder, even the ones that aren't mounted
-        ShowMounted // Shows only the currently mounted databases in the database manager
+        ShowMounted, // Shows only the currently mounted databases in the database manager
+        ShowNotMounted, // Shows the databases not mounted in the database manager
+        Manual // Shows nothing, you add stuff manually
     };
 
     EmuDbListWidget(Mode mode = Mode::ShowEntriesInDir, QWidget* parent = nullptr);
     ~EmuDbListWidget();
 
     void Refresh();
+    void AddDatabase(EmuDb* db, bool isTemp = false);
     EmuDb* GetSelectedDatabase();
     QList<EmuDb*> GetSelectedDatabases();
 private:

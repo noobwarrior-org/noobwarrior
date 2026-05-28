@@ -52,7 +52,7 @@ void EmuDbListWidget::Refresh() {
     clear();
 
     if (mMode == Mode::ShowEntriesInDir) {
-        std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / "databases";
+        std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
         QDir directory(QString::fromStdString(dbPath.string()));
         
         QStringList filters;
@@ -61,54 +61,69 @@ void EmuDbListWidget::Refresh() {
 
         QFileInfoList fileList = directory.entryInfoList(QDir::Files);
         for (const QFileInfo& fileInfo : fileList) {
-            EmuDb db(fileInfo.absoluteFilePath().toStdString(), true);
-            if (db.Fail())
-                continue;
-
-            QIcon icon;
-            std::vector<unsigned char> iconData = db.GetIcon();
-            if (!iconData.empty()) {
-                QPixmap pixmap;
-                pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
-                icon = QIcon(pixmap);
-            } else {
-                icon = QIcon(":/images/silk/database.png");
-            }
-
-            QString title = QString::fromStdString(db.GetTitle());
-            if (title.isEmpty())
-                title = fileInfo.baseName();
-
-            auto* item = new QListWidgetItem(icon, title, this);
-            item->setData(Qt::UserRole, fileInfo.absoluteFilePath());
-            item->setToolTip(fileInfo.absoluteFilePath());
+            EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
+            AddDatabase(&db, true);
         }
     } else if (mMode == Mode::ShowMounted) {
         EmuDbManager *manager = gApp->GetCore()->GetEmuDbManager();
         std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
         for (auto *db : dbs) {
-            QIcon icon;
-            std::vector<unsigned char> iconData = db->GetIcon();
-            if (!iconData.empty()) {
-                QPixmap pixmap;
-                pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
-                icon = QIcon(pixmap);
-            } else {
-                icon = QIcon(":/images/silk/database.png");
+            AddDatabase(db);
+        }
+    } else if (mMode == Mode::ShowNotMounted) {
+        EmuDbManager *manager = gApp->GetCore()->GetEmuDbManager();
+        std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
+
+        std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
+        QDir directory(QString::fromStdString(dbPath.string()));
+        
+        QStringList filters;
+        filters << "*.nwdb";
+        directory.setNameFilters(filters);
+
+        QFileInfoList fileList = directory.entryInfoList(QDir::Files);
+        for (const QFileInfo& fileInfo : fileList) {
+            EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
+            bool foundDbInMgr = false;
+            for (auto *otherDb : dbs) {
+                std::error_code ec;
+                if (std::filesystem::equivalent(fileInfo.absoluteFilePath().toStdString(), otherDb->GetFilePath(), ec) && !ec) {
+                    foundDbInMgr = true;
+                    break;
+                }
             }
-
-            QString fileName = QString::fromStdString(db->GetFileName());
-            QString filePath = QString::fromStdString(db->GetFilePath().string());
-
-            QString title = QString::fromStdString(db->GetTitle());
-            if (title.isEmpty())
-                title = fileName;
-
-            auto* item = new QListWidgetItem(icon, title, this);
-            item->setData(Qt::UserRole, QVariant::fromValue(db));
-            item->setToolTip(filePath);
+            if (!foundDbInMgr) {
+                AddDatabase(&db, true);
+            }
         }
     }
+}
+
+// isTemp var exists to prevent dangling references from being set
+void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
+    if (db->Fail())
+        return;
+    QIcon icon;
+    std::vector<unsigned char> iconData = db->GetIcon();
+    if (!iconData.empty()) {
+        QPixmap pixmap;
+        pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
+        icon = QIcon(pixmap);
+    } else {
+        icon = QIcon(":/images/silk/database.png");
+    }
+
+    QString fileName = QString::fromStdString(db->GetFileName());
+    QString filePath = QString::fromStdString(db->GetFilePath().string());
+
+    QString title = QString::fromStdString(db->GetTitle());
+    if (title.isEmpty())
+        title = fileName;
+
+    auto* item = new QListWidgetItem(icon, title, this);
+    if (!isTemp)
+        item->setData(Qt::UserRole, QVariant::fromValue(db));
+    item->setToolTip(filePath);
 }
 
 EmuDb* EmuDbListWidget::GetSelectedDatabase() {

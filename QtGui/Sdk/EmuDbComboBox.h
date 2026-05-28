@@ -32,13 +32,16 @@ class EmuDbComboBox : public QComboBox {
 public:
     enum class Mode {
         ShowEntriesInDir, // Shows every database file in the databases folder, even the ones that aren't mounted
-        ShowMounted // Shows only the currently mounted databases in the database manager
+        ShowMounted, // Shows only the currently mounted databases in the database manager
+        ShowNotMounted, // Shows the databases not mounted in the database manager
+        Manual // Shows nothing, you add stuff manually
     };
 
     EmuDbComboBox(Mode mode = Mode::ShowEntriesInDir, QWidget* parent = nullptr);
     ~EmuDbComboBox();
 
     void Refresh();
+    void AddDatabase(EmuDb* db, bool isTemp = false);
     bool SetDatabase(EmuDb* db);
     EmuDb* GetSelectedDatabase();
 private:
