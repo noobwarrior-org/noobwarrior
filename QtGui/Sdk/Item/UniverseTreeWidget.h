@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: UniverseDropdown.h
+// File: UniverseTreeWidget.h
 // Started by: Hattozo
 // Started on: 5/6/2026
 // Description:
@@ -27,9 +27,10 @@
 #include <QTreeWidget>
 
 namespace NoobWarrior {
-class UniverseDropdown : public QTreeWidget {
+class UniverseTreeWidget : public QTreeWidget {
+    Q_OBJECT
 public:
-    UniverseDropdown(QWidget *parent = nullptr);
+    UniverseTreeWidget(QWidget *parent = nullptr);
     void Populate(EmuDb* db);
     std::optional<int64_t> GetSelectedPlaceId();
 };

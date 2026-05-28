@@ -24,6 +24,7 @@
 // Description:
 #include "ServerEmulatorPage.h"
 #include "Application.h"
+#include "Sdk/EmuDbComboBox.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -53,7 +54,7 @@ void ServerEmulatorPage::InitWidgets() {
     mAssetGrabInput = new QCheckBox();
     mForm->addRow("Asset Grab Mode", mAssetGrabInput);
 
-    mSaveDbDropdown = new QComboBox();
+    mSaveDbDropdown = new EmuDbComboBox(EmuDbComboBox::Mode::ShowMounted);
     mForm->addRow("Save to Database", mSaveDbDropdown);
 
     auto *backupModeInfo = new QLabel("When enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice.");

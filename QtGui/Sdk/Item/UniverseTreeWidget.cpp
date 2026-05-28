@@ -18,16 +18,16 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: UniverseDropdown.cpp
+// File: UniverseTreeWidget.cpp
 // Started by: Hattozo
 // Started on: 5/6/2026
 // Description:
-#include "UniverseDropdown.h"
+#include "UniverseTreeWidget.h"
 #include <qnamespace.h>
 
 using namespace NoobWarrior;
 
-UniverseDropdown::UniverseDropdown(QWidget *parent) : QTreeWidget(parent) {
+UniverseTreeWidget::UniverseTreeWidget(QWidget *parent) : QTreeWidget(parent) {
     setSelectionMode(QAbstractItemView::SingleSelection);
     setHeaderLabel("Name");
     setIconSize(QSize(48, 48));
@@ -39,7 +39,7 @@ UniverseDropdown::UniverseDropdown(QWidget *parent) : QTreeWidget(parent) {
     )");
 }
 
-void UniverseDropdown::Populate(EmuDb* db) {
+void UniverseTreeWidget::Populate(EmuDb* db) {
     clear();
     if (db == nullptr)
         return;
@@ -98,7 +98,7 @@ void UniverseDropdown::Populate(EmuDb* db) {
     }
 }
 
-std::optional<int64_t> UniverseDropdown::GetSelectedPlaceId() {
+std::optional<int64_t> UniverseTreeWidget::GetSelectedPlaceId() {
     QList<QTreeWidgetItem*> items = selectedItems();
     if (items.size() <= 0) {
         return std::nullopt;

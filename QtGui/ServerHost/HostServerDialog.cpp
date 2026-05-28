@@ -25,7 +25,7 @@
 #include "HostServerDialog.h"
 #include "../Application.h"
 #include "PlaceInfoCardWidget.h"
-#include "Sdk/Item/UniverseDropdown.h"
+#include "Sdk/Item/UniverseTreeWidget.h"
 #include "ServerSettingsWidget.h"
 
 #include <QLabel>
@@ -51,19 +51,19 @@ void HostServerDialog::InitWidgets() {
     mLayout = new QVBoxLayout();
 
     mDbListWidget = new EmuDbListWidget(EmuDbListWidget::Mode::ShowMounted);
-    mUniverseDropdown = new UniverseDropdown(this);
+    mUniverseTreeWidget = new UniverseTreeWidget(this);
 
     mMainLayout->addWidget(mDbListWidget);
-    mMainLayout->addWidget(mUniverseDropdown);
+    mMainLayout->addWidget(mUniverseTreeWidget);
 
     connect(mDbListWidget, &QListWidget::itemSelectionChanged, [this]() {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
-        mUniverseDropdown->Populate(db);
+        mUniverseTreeWidget->Populate(db);
     });
     mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     mDbListWidget->setCurrentRow(0);
 
-    connect(mUniverseDropdown, &QTreeWidget::currentItemChanged, [this](QTreeWidgetItem *current, QTreeWidgetItem *previous) {
+    connect(mUniverseTreeWidget, &QTreeWidget::currentItemChanged, [this](QTreeWidgetItem *current, QTreeWidgetItem *previous) {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
         mPlaceInfoCardWidget->Refresh(db, current->data(0, Qt::UserRole).toLongLong());
     });
@@ -92,9 +92,9 @@ void HostServerDialog::InitWidgets() {
     mMainLayout->addLayout(mLayout);
 
     connect(mStartServer, &QPushButton::clicked, [this]() {
-        std::optional<int64_t> placeId = mUniverseDropdown->GetSelectedPlaceId();
+        std::optional<int64_t> placeId = mUniverseTreeWidget->GetSelectedPlaceId();
 
-        QList<QTreeWidgetItem*> items = mUniverseDropdown->selectedItems();
+        QList<QTreeWidgetItem*> items = mUniverseTreeWidget->selectedItems();
         if (items.size() <= 0) {
             QMessageBox::critical(nullptr, "Error", "You need to select a place!");
             return;

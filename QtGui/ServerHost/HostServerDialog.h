@@ -27,7 +27,7 @@
 
 #include "Sdk/EmuDbListWidget.h"
 #include "Sdk/Item/ItemListWidget.h"
-#include "Sdk/Item/UniverseDropdown.h"
+#include "Sdk/Item/UniverseTreeWidget.h"
 #include "PlaceInfoCardWidget.h"
 #include "ServerSettingsWidget.h"
 
@@ -52,7 +52,7 @@ private:
     QHBoxLayout* mMainLayout;
 
     EmuDbListWidget* mDbListWidget;
-    UniverseDropdown* mUniverseDropdown;
+    UniverseTreeWidget* mUniverseTreeWidget;
     PlaceInfoCardWidget* mPlaceInfoCardWidget;
     ServerSettingsWidget* mServerSettingsWidget;
     QComboBox* mEngineCombo;
