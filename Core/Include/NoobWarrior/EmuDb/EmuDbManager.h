@@ -42,6 +42,7 @@ public:
     // CALL MOUNTDATABASES() BEFORE WASTING YOUR TIME ON THIS FUNCTION!!!
     SqlDb::Response MountMasterDbIfNotAlreadyMounted();
 
+    SqlDb::FailReason Mount(const std::filesystem::path &filePath, unsigned int priority);
     SqlDb::FailReason Mount(const std::string &fileName, unsigned int priority);
     bool Mount(EmuDb* database, unsigned int priority);
     bool Unmount(EmuDb* database);

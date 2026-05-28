@@ -24,6 +24,8 @@
 // Description:
 #include "DatabaseDialog.h"
 #include "Application.h"
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <filesystem>
 
 using namespace NoobWarrior;
 
@@ -67,7 +69,88 @@ void DatabaseDialog::InitWidgets() {
     mSelectorArrowLayout->addWidget(mSelectorArrow_MoveOneLeft);
     mSelectorArrowLayout->addWidget(mSelectorArrow_MoveAllLeft);
 
+    connect(mSelectorArrow_MoveOneRight, &QPushButton::clicked, this, &DatabaseDialog::OnMoveOneRight);
+    connect(mSelectorArrow_MoveAllRight, &QPushButton::clicked, this, &DatabaseDialog::OnMoveAllRight);
+    connect(mSelectorArrow_MoveOneLeft,  &QPushButton::clicked, this, &DatabaseDialog::OnMoveOneLeft);
+    connect(mSelectorArrow_MoveAllLeft,  &QPushButton::clicked, this, &DatabaseDialog::OnMoveAllLeft);
+
+    mAvailableList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    mSelectedList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+
     mGridLayout->addWidget(mAvailableFrame, 0, 0);
     mGridLayout->addWidget(mSelectorArrowFrame, 0, 1);
     mGridLayout->addWidget(mSelectedFrame, 0, 2);
+}
+
+void DatabaseDialog::OnMoveOneRight() {
+    QList<QListWidgetItem*> items = mAvailableList->selectedItems();
+    if (items.isEmpty())
+        return;
+
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
+    for (auto* item : items) {
+        std::filesystem::path filePath(item->toolTip().toStdString());
+        manager->Mount(filePath, priority++);
+    }
+
+    SaveToRegistry();
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnMoveAllRight() {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
+    for (int i = 0; i < mAvailableList->count(); i++) {
+        std::filesystem::path filePath(mAvailableList->item(i)->toolTip().toStdString());
+        manager->Mount(filePath, priority++);
+    }
+
+    SaveToRegistry();
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnMoveOneLeft() {
+    QList<EmuDb*> dbs = mSelectedList->GetSelectedDatabases();
+    if (dbs.isEmpty())
+        return;
+
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    for (auto* db : dbs) {
+        if (!db) continue;
+        manager->Unmount(db);
+        delete db;
+    }
+
+    SaveToRegistry();
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnMoveAllLeft() {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
+    for (auto* db : dbs) {
+        manager->Unmount(db);
+        delete db;
+    }
+
+    SaveToRegistry();
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::SaveToRegistry() {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    std::vector<EmuDb*> mounted = manager->GetMountedDatabases();
+
+    LuaState* lua = gApp->GetCore()->GetLuaState();
+    sol::table mountedTbl = lua->create_table();
+    int i = 1;
+    for (auto* db : mounted)
+        mountedTbl[i++] = db->GetFileName();
+
+    gApp->GetCore()->GetRegistry()->SetKeyValue("databases.mounted", mountedTbl);
 }

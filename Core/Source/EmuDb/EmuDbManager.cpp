@@ -41,16 +41,17 @@ EmuDbManager::EmuDbManager(Core *core) :
 {}
 
 void EmuDbManager::MountDatabases() {
-    int filePriority = 0;
-    auto mounted = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("databases.mounted");
+    auto mounted = mCore->GetRegistry()->GetKeyValue<sol::table>("databases.mounted");
     if (!mounted.has_value())
         return;
 
-    for (auto &fileNameElement : *mounted) {
-        if (!fileNameElement.is_string()) continue;
-        auto fileName = fileNameElement.get<std::string>();
-        Mount(fileName, filePriority);
-        filePriority++;
+    int filePriority = 0;
+
+    for (int i = 1; i < (*mounted).size(); i++) {
+        sol::object val = (*mounted)[i];
+        if (!val.is<std::string>())
+            continue;
+        Mount(std::filesystem::path(val.as<std::string>()), filePriority++);
     }
 }
 
@@ -83,11 +84,20 @@ SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {
     return SqlDb::Response::DidNothing;
 }
 
-SqlDb::FailReason EmuDbManager::Mount(const std::string &fileName, unsigned int priority) {
-    std::filesystem::path absolutePath = mCore->GetUserDataDir() / "databases" / fileName;
+SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
+    auto *database = new EmuDb(filePath.string(), true);
+    if (database->Fail()) return database->GetFailReason();
+    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
+    Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
+    return database->GetFailReason();
+}
+
+SqlDb::FailReason EmuDbManager::Mount(const std::string &dbName, unsigned int priority) {
+    std::filesystem::path absolutePath = mCore->GetUserDataDir() / NW_PATH_DATABASES / (dbName + ".nwdb");
     auto *database = new EmuDb(absolutePath.string(), true);
     if (database->Fail()) return database->GetFailReason();
     mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
+    Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return database->GetFailReason();
 }
 

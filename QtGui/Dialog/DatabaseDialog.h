@@ -57,5 +57,12 @@ private:
     QPushButton* mSelectorArrow_MoveAllRight;
     QPushButton* mSelectorArrow_MoveOneLeft;
     QPushButton* mSelectorArrow_MoveAllLeft;
+
+    void SaveToRegistry();
+private slots:
+    void OnMoveOneRight();
+    void OnMoveAllRight();
+    void OnMoveOneLeft();
+    void OnMoveAllLeft();
 };
 }
