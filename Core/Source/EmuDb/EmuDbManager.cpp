@@ -46,12 +46,12 @@ void EmuDbManager::MountDatabases() {
         return;
 
     int filePriority = 0;
-
-    for (int i = 1; i < (*mounted).size(); i++) {
+    for (int i = 1; i <= (int)(*mounted).size(); i++) {
         sol::object val = (*mounted)[i];
-        if (!val.is<std::string>())
-            continue;
-        Mount(std::filesystem::path(val.as<std::string>()), filePriority++);
+        if (val.get_type() == sol::type::nil) break;
+        if (!val.is<std::string>()) continue;
+        std::filesystem::path absolutePath = mCore->GetUserDataDir() / NW_PATH_DATABASES / val.as<std::string>();
+        Mount(absolutePath, filePriority++);
     }
 }
 
