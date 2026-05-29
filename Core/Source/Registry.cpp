@@ -133,7 +133,7 @@ RegistryResponse Registry::Open() {
     SetKeyComment("emu.https_port", "The port that the HTTPS server emulator should listen on.");
 
     SetKeyValueIfNotSet("emu.asset_grab_mode", false);
-    SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice.");
+    SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice. This requires emu.enable_roblox_proxy to be enabled.");
 
     SetKeyValueIfNotSet("emu.asset_grab_db", "");
     SetKeyComment("emu.asset_grab_db", "Where should the Asset Grab Mode save its assets to?");

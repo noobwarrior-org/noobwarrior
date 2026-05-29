@@ -318,10 +318,7 @@ Args:
         std::wstring rccPlaceId = placeIdStr.empty() ? L"1818" : placeIdStr;
         wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
-        if (schemeStr == L"legacy") {
-            // Pre-2023: the -a/-j/-t launch (the --play flag did not exist yet)
-            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
-        } else {
+        if (schemeStr == L"new") {
             std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
             std::wstring ip = ipStr.empty() ? L"127.0.0.1" : ipStr;
             std::wstring port = portStr.empty() ? L"53640" : portStr;
@@ -333,6 +330,9 @@ Args:
                 L" --play -b \"12345678\" -t \"1\" --launchtime 1716000000000 --rloc en_us --gloc en_us"
                 L" --deeplink \"{}\" -j \"{}\"",
                 deeplink, placeLauncher);
+        } else {
+            // Pre-2023: the -a/-j/-t launch (the --play flag did not exist yet)
+            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
         }
     } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
         std::wstring port = portStr.empty() ? L"53640" : portStr;

@@ -172,51 +172,73 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
 
 int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     int ret = 0;
-    std::optional<std::string> details_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details");
-    if (!details_url.has_value())
-        return -2;
+    std::string details_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details")
+        .value_or("https://economy.roblox.com/v2/assets/{}/details");
 
     std::vector<char> buffer;
     CURL *handle = curl_easy_init();
     if (!handle)
         return ret;
+
+    // The economy details endpoint requires authentication; without the
+    // .ROBLOSECURITY cookie it returns an error payload instead of the details.
+    std::string cookie;
+    if (auto *acc = GetRbxKeychain()->GetActiveAccount()) {
+        cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+        curl_easy_setopt(handle, CURLOPT_COOKIE, cookie.c_str());
+    }
+
     curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet");
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToBuf);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(details_url.value(), std::make_format_args(id)).c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(details_url, std::make_format_args(id)).c_str());
     CURLcode res = curl_easy_perform(handle);
     if (res == CURLE_OK) {
         json data = json::parse(buffer, nullptr, false);
 
-        if (!data["errors"].is_null()) {
+        if (data.is_discarded() || (data.contains("errors") && !data["errors"].is_null())) {
             ret = -1;
             goto cleanup;
         }
 
-        details->TargetId = data["TargetId"];
-        details->ProductType = !data["ProductType"].is_null() ? (data["ProductType"] != "Collectible Item" ? Roblox::ProductType::UserProduct : Roblox::ProductType::CollectibleItem) : Roblox::ProductType::None;
-        details->AssetId = data["AssetId"];
-        details->ProductId = data["ProductId"];
-        details->Name = data["Name"];
-        details->Description = data["Description"];
-        details->AssetType = data["AssetTypeId"];
-        details->CreatorId = data["Creator"]["Id"];
-        details->CreatorName = data["Creator"]["Name"];
-        details->CreatorType = data["Creator"]["CreatorType"] != "Group" ? Roblox::CreatorType::User : Roblox::CreatorType::Group;
-        details->CreatorTargetId = data["Creator"]["CreatorTargetId"];
-        details->CreatorHasVerifiedBadge = data["Creator"]["HasVerifiedBadge"];
-        details->IconImageAssetId = data["IconImageAssetId"];
-        details->Created = ConvertISO8601ToTimestamp(data["Created"]);
-        details->Updated = ConvertISO8601ToTimestamp(data["Updated"]);
-        details->PriceInRobux = !data["PriceInRobux"].is_null() ? static_cast<int>(data["PriceInRobux"]) : -1;
-        details->PriceInTickets = !data["PriceInRobux"].is_null() ? static_cast<int>(data["PriceInTickets"]) : -1;
-        details->Sales = data["Sales"];
-        details->IsNew = data["IsNew"];
-        details->IsForSale = data["IsForSale"];
-        details->IsPublicDomain = data["IsPublicDomain"];
-        details->IsLimited = data["IsLimited"];
-        details->IsLimitedUnique = data["IsLimitedUnique"];
-        details->MinimumMembershipLevel = data["MinimumMembershipLevel"];
+        auto getInt = [&](const json &j, const char *key) -> int64_t {
+            return j.contains(key) && j[key].is_number() ? j[key].get<int64_t>() : 0;
+        };
+        auto getStr = [&](const json &j, const char *key) -> std::string {
+            return j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : std::string();
+        };
+        auto getBool = [&](const json &j, const char *key) -> bool {
+            return j.contains(key) && j[key].is_boolean() ? j[key].get<bool>() : false;
+        };
+
+        const json &creator = data.contains("Creator") && data["Creator"].is_object() ? data["Creator"] : json::object();
+
+        details->TargetId = getInt(data, "TargetId");
+        details->ProductType = data.contains("ProductType") && data["ProductType"].is_string()
+            ? (data["ProductType"] != "Collectible Item" ? Roblox::ProductType::UserProduct : Roblox::ProductType::CollectibleItem)
+            : Roblox::ProductType::None;
+        details->AssetId = getInt(data, "AssetId");
+        details->ProductId = getInt(data, "ProductId");
+        details->Name = getStr(data, "Name");
+        details->Description = getStr(data, "Description");
+        details->AssetType = static_cast<Roblox::AssetType>(getInt(data, "AssetTypeId"));
+        details->CreatorId = getInt(creator, "Id");
+        details->CreatorName = getStr(creator, "Name");
+        details->CreatorType = getStr(creator, "CreatorType") != "Group" ? Roblox::CreatorType::User : Roblox::CreatorType::Group;
+        details->CreatorTargetId = getInt(creator, "CreatorTargetId");
+        details->CreatorHasVerifiedBadge = getBool(creator, "HasVerifiedBadge");
+        details->IconImageAssetId = getInt(data, "IconImageAssetId");
+        details->Created = getStr(data, "Created").empty() ? 0 : ConvertISO8601ToTimestamp(getStr(data, "Created"));
+        details->Updated = getStr(data, "Updated").empty() ? 0 : ConvertISO8601ToTimestamp(getStr(data, "Updated"));
+        details->PriceInRobux = data.contains("PriceInRobux") && data["PriceInRobux"].is_number() ? data["PriceInRobux"].get<int>() : -1;
+        details->PriceInTickets = data.contains("PriceInTickets") && data["PriceInTickets"].is_number() ? data["PriceInTickets"].get<int>() : -1;
+        details->Sales = getInt(data, "Sales");
+        details->IsNew = getBool(data, "IsNew");
+        details->IsForSale = getBool(data, "IsForSale");
+        details->IsPublicDomain = getBool(data, "IsPublicDomain");
+        details->IsLimited = getBool(data, "IsLimited");
+        details->IsLimitedUnique = getBool(data, "IsLimitedUnique");
+        details->MinimumMembershipLevel = static_cast<Roblox::MembershipType>(getInt(data, "MinimumMembershipLevel"));
         ret = 1;
     }
 cleanup:

@@ -59,9 +59,10 @@ void EmuDbManager::MountDatabases() {
 
 void EmuDbManager::UnmountDatabases() {
     for (auto *db : mMountedDatabases) {
-        Unmount(db);
+        Out("EmuDbManager", "Unmounted database \"{}\"", db->GetFileName());
         NOOBWARRIOR_FREE_PTR(db)
     }
+    mMountedDatabases.clear();
 }
 
 SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {

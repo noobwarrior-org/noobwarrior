@@ -63,12 +63,16 @@ void HostServerDialog::InitWidgets() {
     mDbListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     mDbListWidget->setCurrentRow(0);
 
+    mPlaceInfoCardWidget = new PlaceInfoCardWidget();
+
     connect(mUniverseTreeWidget, &QTreeWidget::currentItemChanged, [this](QTreeWidgetItem *current, QTreeWidgetItem *previous) {
+        if (!current) {
+            mPlaceInfoCardWidget->Refresh(nullptr, 0);
+            return;
+        }
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
         mPlaceInfoCardWidget->Refresh(db, current->data(0, Qt::UserRole).toLongLong());
     });
-
-    mPlaceInfoCardWidget = new PlaceInfoCardWidget();
     mServerSettingsWidget = new ServerSettingsWidget();
 
     auto* engineRow = new QHBoxLayout();

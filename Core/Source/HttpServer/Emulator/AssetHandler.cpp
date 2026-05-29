@@ -219,24 +219,101 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
     
     if (res == SqlDb::Response::NotFound || res == SqlDb::Response::MissingBlob || (res == SqlDb::Response::Success && data.empty())) {
-        std::string rbxUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
-        if (ver > 0) rbxUrl += "&version=" + std::to_string(ver);
+        bool enableRbxProxy = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
+        if (enableRbxProxy) {
+            std::string rbxUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
+            if (ver > 0)
+                rbxUrl += "&version=" + std::to_string(ver);
 
-        HttpRequest rbxReq;
-        rbxReq.Url = rbxUrl;
-        rbxReq.UserAgent = "Roblox/WinINet";
-        if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
-            rbxReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+            HttpRequest rbxReq;
+            rbxReq.Url = rbxUrl;
+            rbxReq.UserAgent = "Roblox/WinINet";
+            if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
+                rbxReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
 
-        NetClient netClient;
-        HttpResponse rbxRes = netClient.Fetch(rbxReq);
-        if (rbxRes.Code == CURLE_OK && rbxRes.HttpStatus == 200 && !rbxRes.Body.empty()) {
-            Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", id, ver, rbxRes.Body.size());
-            data = std::move(rbxRes.Body);
-            res = SqlDb::Response::Success;
-        } else {
-            Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", id, ver,
-                (int)rbxRes.Code, rbxRes.HttpStatus);
+            NetClient netClient;
+            HttpResponse rbxRes = netClient.Fetch(rbxReq);
+            if (rbxRes.Code == CURLE_OK && rbxRes.HttpStatus == 200 && !rbxRes.Body.empty()) {
+                Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", id, ver, rbxRes.Body.size());
+                data = std::move(rbxRes.Body);
+                res = SqlDb::Response::Success;
+            } else {
+                Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", id, ver,
+                    (int)rbxRes.Code, rbxRes.HttpStatus);
+            }
+
+            bool assetGrabMode = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false);
+            if (assetGrabMode && res == SqlDb::Response::Success) {
+                std::string dbFilePath = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<std::string>("emu.asset_grab_db").value_or("");
+                EmuDb* db = mServerEmulator->GetCore()->GetEmuDbManager()->GetDbFromFilePath(std::filesystem::path(dbFilePath));
+                if (db != nullptr) {
+                    Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
+
+                    bool alreadyExists = db->DoesItemExist(ItemType::Asset, id);
+                    if (!alreadyExists) {
+                        Roblox::AssetDetails details;
+                        bool hasDetails = mServerEmulator->GetCore()->GetAssetDetails(id, &details) == 1;
+
+                        // Fetch and save the icon image first so ImageId can reference it
+                        int64_t savedImageId = 0;
+                        if (hasDetails && details.IconImageAssetId != 0) {
+                            if (!db->DoesItemExist(ItemType::Asset, details.IconImageAssetId)) {
+                                std::string iconUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(details.IconImageAssetId);
+                                HttpRequest iconReq;
+                                iconReq.Url = iconUrl;
+                                iconReq.UserAgent = "Roblox/WinINet";
+                                if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
+                                    iconReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+
+                                NetClient iconClient;
+                                HttpResponse iconRes = iconClient.Fetch(iconReq);
+                                if (iconRes.Code == CURLE_OK && iconRes.HttpStatus == 200 && !iconRes.Body.empty()) {
+                                    SqlRow iconRow;
+                                    iconRow.push_back({"Id", details.IconImageAssetId});
+                                    iconRow.push_back({"Name", std::to_string(details.IconImageAssetId)});
+                                    iconRow.push_back({"Type", static_cast<int>(Roblox::AssetType::Image)});
+
+                                    if (db->AddItem(ItemType::Asset, iconRow) == SqlDb::Response::Success)
+                                        db->AttachDataToAsset(details.IconImageAssetId, 0, iconRes.Body);
+                                }
+                            }
+                            savedImageId = details.IconImageAssetId;
+                        }
+
+                        SqlRow row;
+                        row.push_back({"Id", (int64_t)id});
+                        row.push_back({"Name", hasDetails && !details.Name.empty() ? details.Name : std::to_string(id)});
+                        if (hasDetails) {
+                            if (!details.Description.empty())
+                                row.push_back({"Description", details.Description});
+                            if (details.Created != 0)
+                                row.push_back({"Created", (int64_t)details.Created});
+                            if (details.Updated != 0)
+                                row.push_back({"Updated", (int64_t)details.Updated});
+                            if (savedImageId != 0)
+                                row.push_back({"ImageId", savedImageId});
+                            row.push_back({"Type", static_cast<int>(details.AssetType)});
+                            row.push_back({"Public", details.IsPublicDomain || details.IsForSale ? 1 : 0});
+                            if (details.CreatorType == Roblox::CreatorType::User && details.CreatorTargetId != 0)
+                                row.push_back({"UserId", details.CreatorTargetId});
+                            else if (details.CreatorType == Roblox::CreatorType::Group && details.CreatorTargetId != 0)
+                                row.push_back({"GroupId", details.CreatorTargetId});
+                        } else {
+                            row.push_back({"Type", 0});
+                        }
+
+                        SqlDb::Response addRes = db->AddItem(ItemType::Asset, row);
+                        if (addRes != SqlDb::Response::Success)
+                            Out("AssetHandler", "Failed to add asset id={} to database (code={})", id, (int)addRes);
+                    }
+
+                    SqlDb::Response attachRes = db->AttachDataToAsset(id, ver, data);
+                    if (attachRes != SqlDb::Response::Success)
+                        Out("AssetHandler", "Failed to attach data to asset id={} (code={})", id, (int)attachRes);
+                    else
+                        db->MarkDirty();
+                }
+            }
         }
     }
 
