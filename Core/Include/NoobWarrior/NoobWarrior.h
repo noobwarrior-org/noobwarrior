@@ -53,6 +53,7 @@
 #include <lua.hpp>
 #include <curl/curl.h>
 
+#include <functional>
 #include <vector>
 
 namespace NoobWarrior {
@@ -133,6 +134,14 @@ public:
     RegistryResponse RegistryReturnCode;
 
     event_base *GetEventBase();
+
+    /**
+     * @brief Schedules fn to run on the event-loop thread (the thread that calls ProcessEvents).
+     * Safe to call from any thread. Used by background workers to hand results back to the
+     * thread that owns libevent/SQLite state (e.g. to send an HTTP reply after an off-thread fetch).
+     */
+    void RunOnEventLoop(std::function<void()> fn);
+
     LuaState *GetLuaState();
     Registry *GetRegistry();
     EmuDbManager *GetEmuDbManager();

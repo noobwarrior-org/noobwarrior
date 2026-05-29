@@ -180,6 +180,23 @@ event_base *Core::GetEventBase() {
     return mEventBase;
 }
 
+static void RunEventLoopTaskCb(evutil_socket_t, short, void *arg) {
+    auto *fn = static_cast<std::function<void()>*>(arg);
+    (*fn)();
+    delete fn;
+}
+
+void Core::RunOnEventLoop(std::function<void()> fn) {
+    // event_base_once + event_add are thread-safe because libevent threading is enabled (see ctor);
+    // adding the event from another thread wakes the loop via libevent's notify mechanism.
+    auto *heapFn = new std::function<void()>(std::move(fn));
+    struct timeval tv { 0, 0 };
+    if (event_base_once(mEventBase, -1, EV_TIMEOUT, RunEventLoopTaskCb, heapFn, &tv) != 0) {
+        // Scheduling failed (e.g. base shutting down); run inline rather than leak the task.
+        delete heapFn;
+    }
+}
+
 LuaState *Core::GetLuaState() {
     return mLuaState;
 }

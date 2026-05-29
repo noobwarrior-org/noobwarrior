@@ -26,6 +26,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/Url.h>
+#include <NoobWarrior/EmuDb/AssetEnricher.h>
 
 #include "ProcessPingHandler.h"
 #include "CreateAccountHandler.h"
@@ -97,6 +98,9 @@ public:
 
     void SetCurrentEngine(const Engine &engine);
     std::optional<Engine> GetCurrentEngine();
+
+    // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
+    AssetEnricher* GetAssetEnricher();
 private:
     Mode mMode;
     std::optional<Engine> mCurrentEngine;
@@ -150,5 +154,7 @@ private:
 
     mutable std::mutex mInstancesMutex;
     std::vector<RunningInstance> mInstances;
+
+    AssetEnricher mAssetEnricher;
 };
 }

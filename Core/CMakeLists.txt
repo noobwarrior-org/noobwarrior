@@ -108,6 +108,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/SqlDb/Statement.cpp
     Source/EmuDb/EmuDb.cpp
     Source/EmuDb/EmuDbManager.cpp
+    Source/EmuDb/AssetEnricher.cpp
     Source/EmuDb/ContentImages.cpp
     Source/FileSystem/VirtualFileSystem.cpp
     Source/FileSystem/OverlayFileSystem.cpp

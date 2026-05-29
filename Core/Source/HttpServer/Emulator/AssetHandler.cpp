@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 6/19/2025
 // Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
+//              Some assistance by Claude Opus 4.8
 #include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NetClient.h>
@@ -132,7 +133,171 @@ using namespace NoobWarrior;
 AssetHandler::AssetHandler(ServerEmulator *srv, EmuDbManager *dbm) :
     mServerEmulator(srv),
     mEmuDbManager(dbm)
-{}
+{
+    StartProxyPool();
+}
+
+AssetHandler::~AssetHandler() {
+    StopProxyPool();
+}
+
+void AssetHandler::StartProxyPool() {
+    bool expected = false;
+    if (!mPoolRunning.compare_exchange_strong(expected, true))
+        return;
+    for (size_t i = 0; i < kProxyThreadCount; i++)
+        mProxyThreads.emplace_back(&AssetHandler::RunProxyWorker, this);
+}
+
+void AssetHandler::StopProxyPool() {
+    if (!mPoolRunning.exchange(false))
+        return;
+    mProxyCv.notify_all();
+    for (auto &t : mProxyThreads)
+        if (t.joinable())
+            t.join();
+    mProxyThreads.clear();
+}
+
+void AssetHandler::PauseProxy() {
+    // The server is about to free its evhttp, so any fetch still running must not try to reply.
+    // Mark replies off and detach every in-flight request from its (soon-to-be-freed) connection.
+    // The worker threads keep their own shared_ptr to each ProxyFetch, so this stays safe.
+    mProxyActive = false;
+    for (auto &fetch : mActiveFetches) {
+        if (fetch->Connection)
+            evhttp_connection_set_closecb(fetch->Connection, nullptr, nullptr);
+        fetch->ClientConnected = false;
+    }
+    mActiveFetches.clear();
+}
+
+void AssetHandler::ResumeProxy() {
+    mProxyActive = true;
+}
+
+void AssetHandler::OnClientDisconnect(evhttp_connection *conn, void *arg) {
+    // The client hung up before its fetch finished. Just note it; OnFetchComplete will see the flag
+    // and skip the reply. (arg stays valid: mActiveFetches holds the ProxyFetch until then.)
+    static_cast<ProxyFetch*>(arg)->ClientConnected = false;
+}
+
+void AssetHandler::RunProxyWorker() {
+    while (mPoolRunning) {
+        std::shared_ptr<ProxyFetch> fetch;
+        {
+            std::unique_lock<std::mutex> lock(mProxyMutex);
+            mProxyCv.wait(lock, [&] { return !mPoolRunning || !mProxyQueue.empty(); });
+            if (!mPoolRunning)
+                break;
+            fetch = std::move(mProxyQueue.front());
+            mProxyQueue.pop_front();
+        }
+
+        HttpRequest req;
+        req.Url = fetch->Url;
+        req.UserAgent = "Roblox/WinINet";
+        req.Cookie = fetch->Cookie;
+
+        NetClient client;
+        HttpResponse response = client.Fetch(req);
+
+        // The fetch is done; everything else (the reply, the DB write) happens on the event loop.
+        mServerEmulator->GetCore()->RunOnEventLoop(
+            [this, fetch, response = std::move(response)]() mutable {
+                OnFetchComplete(fetch, std::move(response));
+            });
+    }
+}
+
+void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, HttpResponse response) {
+    mActiveFetches.erase(fetch); // this request is finished, one way or another
+
+    if (!mProxyActive)            return; // server stopped; don't touch evhttp
+    if (!fetch->ClientConnected)  return; // client hung up; its request is already gone
+
+    // Done with the disconnect notification now that we're about to reply.
+    if (fetch->Connection)
+        evhttp_connection_set_closecb(fetch->Connection, nullptr, nullptr);
+
+    std::vector<unsigned char> data;
+    SqlDb::Response res = fetch->MissResult;
+    if (response.Code == CURLE_OK && response.HttpStatus == 200 && !response.Body.empty()) {
+        Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, response.Body.size());
+        data = std::move(response.Body);
+        res = SqlDb::Response::Success;
+        if (fetch->SaveToGrabDb)
+            SaveGrabbedAsset(fetch->GrabDbPath, fetch->Id, fetch->Version, data);
+    } else {
+        Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", fetch->Id, fetch->Version,
+            (int)response.Code, response.HttpStatus);
+    }
+
+    ReplyWithAsset(fetch->Request, res, data, "");
+}
+
+void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, int version,
+                                    const std::vector<unsigned char> &data) {
+    EmuDb* db = mServerEmulator->GetCore()->GetEmuDbManager()->GetDbFromFilePath(std::filesystem::path(dbFilePath));
+    if (db == nullptr)
+        return;
+
+    Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
+
+    // Save the asset + its data blob immediately with a placeholder name. The real
+    // name/description/type/creator and a thumbnail are filled in asynchronously by the
+    // AssetEnricher (Roblox's per-asset details endpoint is rate-limited to ~1/min).
+    if (!db->DoesItemExist(ItemType::Asset, id)) {
+        SqlRow row;
+        row.push_back({"Id", (int64_t)id});
+        row.push_back({"Name", std::to_string(id)});
+        row.push_back({"Type", 0});
+
+        SqlDb::Response addRes = db->AddItem(ItemType::Asset, row);
+        if (addRes != SqlDb::Response::Success)
+            Out("AssetHandler", "Failed to add asset id={} to database (code={})", id, (int)addRes);
+    }
+
+    SqlDb::Response attachRes = db->AttachDataToAsset(id, version, data);
+    if (attachRes != SqlDb::Response::Success)
+        Out("AssetHandler", "Failed to attach data to asset id={} (code={})", id, (int)attachRes);
+    else
+        db->MarkDirty();
+
+    mServerEmulator->GetAssetEnricher()->Enqueue(dbFilePath, id);
+}
+
+void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
+                                  const std::vector<unsigned char> &data, const std::string &hash) {
+    std::string contentDispositionVal;
+    evbuffer* buf = evbuffer_new();
+    switch (res) {
+    case SqlDb::Response::Success:
+        if (data.empty()) {
+            evhttp_send_error(req, 500, "Asset data is empty");
+            break;
+        }
+
+        contentDispositionVal = std::format("attachment; filename=\"{}\"", !hash.empty() ? hash : "asset");
+
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
+
+        evbuffer_add(buf, data.data(), data.size());
+        evhttp_send_reply(req, 200, NULL, buf);
+        break;
+    case SqlDb::Response::NotFound:
+        evhttp_send_error(req, 404, "Asset not found");
+        break;
+    case SqlDb::Response::MissingBlob:
+        evhttp_send_error(req, 500, "Asset blob is missing");
+        break;
+    default:
+        evhttp_send_error(req, 500, "Failed to retrieve asset data");
+        break;
+    }
+    evbuffer_free(buf);
+}
 
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
@@ -217,132 +382,52 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::vector<unsigned char> data;
     std::string hash;
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
-    
-    if (res == SqlDb::Response::NotFound || res == SqlDb::Response::MissingBlob || (res == SqlDb::Response::Success && data.empty())) {
-        bool enableRbxProxy = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
-        if (enableRbxProxy) {
-            std::string rbxUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
-            if (ver > 0)
-                rbxUrl += "&version=" + std::to_string(ver);
 
-            HttpRequest rbxReq;
-            rbxReq.Url = rbxUrl;
-            rbxReq.UserAgent = "Roblox/WinINet";
-            if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
-                rbxReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+    // If we have it locally, reply right away. Otherwise fetch it from Roblox on a worker thread
+    // (so we don't block other requests) and reply once that finishes.
+    bool needFetch = res == SqlDb::Response::NotFound
+                  || res == SqlDb::Response::MissingBlob
+                  || (res == SqlDb::Response::Success && data.empty());
+    bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
 
-            NetClient netClient;
-            HttpResponse rbxRes = netClient.Fetch(rbxReq);
-            if (rbxRes.Code == CURLE_OK && rbxRes.HttpStatus == 200 && !rbxRes.Body.empty()) {
-                Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", id, ver, rbxRes.Body.size());
-                data = std::move(rbxRes.Body);
-                res = SqlDb::Response::Success;
-            } else {
-                Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", id, ver,
-                    (int)rbxRes.Code, rbxRes.HttpStatus);
-            }
-
-            bool assetGrabMode = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false);
-            if (assetGrabMode && res == SqlDb::Response::Success) {
-                std::string dbFilePath = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<std::string>("emu.asset_grab_db").value_or("");
-                EmuDb* db = mServerEmulator->GetCore()->GetEmuDbManager()->GetDbFromFilePath(std::filesystem::path(dbFilePath));
-                if (db != nullptr) {
-                    Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
-
-                    bool alreadyExists = db->DoesItemExist(ItemType::Asset, id);
-                    if (!alreadyExists) {
-                        Roblox::AssetDetails details;
-                        bool hasDetails = mServerEmulator->GetCore()->GetAssetDetails(id, &details) == 1;
-
-                        // Fetch and save the icon image first so ImageId can reference it
-                        int64_t savedImageId = 0;
-                        if (hasDetails && details.IconImageAssetId != 0) {
-                            if (!db->DoesItemExist(ItemType::Asset, details.IconImageAssetId)) {
-                                std::string iconUrl = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(details.IconImageAssetId);
-                                HttpRequest iconReq;
-                                iconReq.Url = iconUrl;
-                                iconReq.UserAgent = "Roblox/WinINet";
-                                if (auto *acc = mServerEmulator->GetCore()->GetRbxKeychain()->GetActiveAccount())
-                                    iconReq.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
-
-                                NetClient iconClient;
-                                HttpResponse iconRes = iconClient.Fetch(iconReq);
-                                if (iconRes.Code == CURLE_OK && iconRes.HttpStatus == 200 && !iconRes.Body.empty()) {
-                                    SqlRow iconRow;
-                                    iconRow.push_back({"Id", details.IconImageAssetId});
-                                    iconRow.push_back({"Name", std::to_string(details.IconImageAssetId)});
-                                    iconRow.push_back({"Type", static_cast<int>(Roblox::AssetType::Image)});
-
-                                    if (db->AddItem(ItemType::Asset, iconRow) == SqlDb::Response::Success)
-                                        db->AttachDataToAsset(details.IconImageAssetId, 0, iconRes.Body);
-                                }
-                            }
-                            savedImageId = details.IconImageAssetId;
-                        }
-
-                        SqlRow row;
-                        row.push_back({"Id", (int64_t)id});
-                        row.push_back({"Name", hasDetails && !details.Name.empty() ? details.Name : std::to_string(id)});
-                        if (hasDetails) {
-                            if (!details.Description.empty())
-                                row.push_back({"Description", details.Description});
-                            if (details.Created != 0)
-                                row.push_back({"Created", (int64_t)details.Created});
-                            if (details.Updated != 0)
-                                row.push_back({"Updated", (int64_t)details.Updated});
-                            if (savedImageId != 0)
-                                row.push_back({"ImageId", savedImageId});
-                            row.push_back({"Type", static_cast<int>(details.AssetType)});
-                            row.push_back({"Public", details.IsPublicDomain || details.IsForSale ? 1 : 0});
-                            if (details.CreatorType == Roblox::CreatorType::User && details.CreatorTargetId != 0)
-                                row.push_back({"UserId", details.CreatorTargetId});
-                            else if (details.CreatorType == Roblox::CreatorType::Group && details.CreatorTargetId != 0)
-                                row.push_back({"GroupId", details.CreatorTargetId});
-                        } else {
-                            row.push_back({"Type", 0});
-                        }
-
-                        SqlDb::Response addRes = db->AddItem(ItemType::Asset, row);
-                        if (addRes != SqlDb::Response::Success)
-                            Out("AssetHandler", "Failed to add asset id={} to database (code={})", id, (int)addRes);
-                    }
-
-                    SqlDb::Response attachRes = db->AttachDataToAsset(id, ver, data);
-                    if (attachRes != SqlDb::Response::Success)
-                        Out("AssetHandler", "Failed to attach data to asset id={} (code={})", id, (int)attachRes);
-                    else
-                        db->MarkDirty();
-                }
-            }
-        }
+    if (needFetch && proxyEnabled) {
+        BeginProxyFetch(req, id, ver, res);
+        return; // reply happens later, in OnFetchComplete
     }
 
-    std::string contentDispositionVal;
-    evbuffer* buf = evbuffer_new();
-    switch (res) {
-    case SqlDb::Response::Success:
-        if (data.empty()) {
-            evhttp_send_error(req, 500, "Asset data is empty");
-            break;
-        }
+    ReplyWithAsset(req, res, data, hash);
+}
 
-        contentDispositionVal = std::format("attachment; filename=\"{}\"", !hash.empty() ? hash : "asset");
+void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult) {
+    Core *core = mServerEmulator->GetCore();
 
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
+    auto fetch = std::make_shared<ProxyFetch>();
+    fetch->Request    = req;
+    fetch->Connection = evhttp_request_get_connection(req);
+    fetch->Id         = id;
+    fetch->Version    = version;
+    fetch->MissResult = missResult;
 
-        evbuffer_add(buf, data.data(), data.size());
-        evhttp_send_reply(req, 200, NULL, buf);
-        break;
-    case SqlDb::Response::NotFound:
-        evhttp_send_error(req, 404, "Asset not found");
-        break;
-    case SqlDb::Response::MissingBlob:
-        evhttp_send_error(req, 500, "Asset blob is missing");
-        break;
-    default:
-        evhttp_send_error(req, 500, "Failed to retrieve asset data");
-        break;
+    fetch->Url = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
+    if (version > 0)
+        fetch->Url += "&version=" + std::to_string(version);
+
+    if (auto *acc = core->GetRbxKeychain()->GetActiveAccount())
+        fetch->Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
+
+    bool grabMode = core->GetRegistry()->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false);
+    fetch->GrabDbPath  = grabMode ? core->GetRegistry()->GetKeyValue<std::string>("emu.asset_grab_db").value_or("") : "";
+    fetch->SaveToGrabDb = grabMode && !fetch->GrabDbPath.empty();
+
+    // Get told if the client disconnects before the fetch finishes.
+    if (fetch->Connection)
+        evhttp_connection_set_closecb(fetch->Connection, &AssetHandler::OnClientDisconnect, fetch.get());
+
+    mActiveFetches.insert(fetch);
+
+    {
+        std::lock_guard<std::mutex> lock(mProxyMutex);
+        mProxyQueue.push_back(fetch);
     }
-    evbuffer_free(buf);
+    mProxyCv.notify_one();
 }
