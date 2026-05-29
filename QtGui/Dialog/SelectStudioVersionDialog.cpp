@@ -23,6 +23,11 @@
 // Started on: 4/21/2026
 // Description:
 #include "SelectStudioVersionDialog.h"
+#include "Application.h"
+
+#include <NoobWarrior/NoobWarrior.h>
+
+#include <QListWidget>
 
 using namespace NoobWarrior;
 
@@ -37,4 +42,33 @@ void SelectStudioVersionDialog::InitWidgets() {
     mLabel = new QLabel("Choose the version of Studio that you would like to open.");
     mLabel->setWordWrap(true);
     mLayout->addWidget(mLabel);
+
+    mListWidget = new QListWidget();
+    mListWidget->setAutoFillBackground(true);
+
+    for (auto &engine : gApp->GetCore()->GetInstalledEngines()) {
+        if (engine.Side == EngineSide::Studio) {
+            auto *item = new QListWidgetItem(QString::fromStdString(engine.Version));
+            item->setData(Qt::UserRole, QVariant::fromValue(engine));
+            mListWidget->addItem(item);
+        }
+    }
+    mLayout->addWidget(mListWidget);
+
+    mButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    connect(mButtonBox, &QDialogButtonBox::accepted, [this]() {
+        if (!mListWidget->selectedItems().empty()) {
+            auto *item = mListWidget->selectedItems().at(0);
+            auto engine = item->data(Qt::UserRole).value<Engine>();
+            gApp->LaunchEngine({
+                .Engine = engine,
+                .LaunchSide = EngineSide::Studio
+            });
+        }
+        close();
+    });
+    connect(mButtonBox, &QDialogButtonBox::rejected, [this]() {
+        close();
+    });
+    mLayout->addWidget(mButtonBox);
 }

@@ -26,6 +26,7 @@
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QListWidget>
 #include <QDialogButtonBox>
 
 namespace NoobWarrior {
@@ -37,6 +38,7 @@ public:
 private:
     QVBoxLayout *mLayout;
     QLabel* mLabel;
+    QListWidget* mListWidget;
     QDialogButtonBox* mButtonBox;
 };
 }

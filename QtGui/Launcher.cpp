@@ -30,6 +30,7 @@
 #include "Dialog/AssetDownloaderDialog.h"
 #include "Dialog/DatabaseDialog.h"
 #include "Dialog/PluginDialog.h"
+#include "Dialog/SelectStudioVersionDialog.h"
 #include "ServerHost/HostServerDialog.h"
 
 #include <QLabel>
@@ -69,6 +70,9 @@ static void ShowPluginMenu(Launcher &launcher) { HANDLE_QDIALOG(launcher.mPlugin
 static void ShowLocalPlayer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mLocalPlayerDialog, LocalPlayerDialog) }
 static void ShowDownloadAssetDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAssetDownload, AssetDownloader) }
 static void LaunchOfflineStudio(Launcher &launcher) {
+    SelectStudioVersionDialog dialog;
+    dialog.exec();
+    /*
     gApp->LaunchEngine({
         .Engine = {
             .Architecture = EngineArchitecture::x86_64,
@@ -82,7 +86,7 @@ static void LaunchOfflineStudio(Launcher &launcher) {
         .Ip = "",
         .Port = std::nullopt,
         .PlaceId = std::nullopt
-    });
+    });*/
 }
 
 static const char* sCategoryNames[] = {
