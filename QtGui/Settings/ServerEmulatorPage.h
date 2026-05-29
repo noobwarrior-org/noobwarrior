@@ -24,6 +24,7 @@
 // Description:
 #pragma once
 #include "SettingsPage.h"
+#include "Sdk/EmuDbComboBox.h"
 
 #include <QFormLayout>
 #include <QLineEdit>
@@ -47,6 +48,6 @@ private:
     QLineEdit* mHttpsPortInput;
     QLineEdit* mHttpPortInput;
     QCheckBox* mAssetGrabInput;
-    QComboBox* mSaveDbDropdown;
+    EmuDbComboBox* mSaveDbDropdown;
 };
 }

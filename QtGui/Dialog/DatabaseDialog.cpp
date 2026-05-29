@@ -168,7 +168,7 @@ void DatabaseDialog::SaveToRegistry() {
     sol::table mountedTbl = lua->create_table();
     int i = 1;
     for (auto* db : mounted)
-        mountedTbl[i++] = db->GetFileName();
+        mountedTbl[i++] = db->GetFilePath().string();
 
     gApp->GetCore()->GetRegistry()->SetKeyValue("databases.mounted", mountedTbl);
 }

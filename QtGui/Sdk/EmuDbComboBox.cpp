@@ -76,15 +76,8 @@ void EmuDbComboBox::Refresh() {
         QFileInfoList fileList = directory.entryInfoList(QDir::Files);
         for (const QFileInfo& fileInfo : fileList) {
             EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
-            bool foundDbInMgr = false;
-            for (auto *otherDb : dbs) {
-                std::error_code ec;
-                if (std::filesystem::equivalent(fileInfo.absoluteFilePath().toStdString(), otherDb->GetFilePath(), ec) && !ec) {
-                    foundDbInMgr = true;
-                    break;
-                }
-            }
-            if (!foundDbInMgr) {
+            EmuDb* otherDb = manager->GetDbFromFilePath(fileInfo.absoluteFilePath().toStdString());
+            if (otherDb == nullptr) {
                 AddDatabase(&db, true);
             }
         }

@@ -131,6 +131,23 @@ void EmuDbManager::SetMountOrder(const std::vector<EmuDb*>& order) {
     mMountedDatabases = order;
 }
 
+EmuDb* EmuDbManager::GetDbFromFilePath(const std::filesystem::path &path) {
+    for (auto *db : mMountedDatabases) {
+        std::error_code ec;
+        if (std::filesystem::equivalent(path, db->GetFilePath(), ec) && !ec)
+            return db;
+    }
+    return nullptr;
+}
+
+EmuDb* EmuDbManager::GetDbFromFileName(const std::string &name) {
+    for (auto *db : mMountedDatabases) {
+        if (db->GetFileName() == (name.ends_with(".nwdb") ? name : name + ".nwdb"))
+            return db;
+    }
+    return nullptr;
+}
+
 EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
     for (EmuDb* db : mMountedDatabases) {
         bool exists = db->DoesItemExist(type, id);

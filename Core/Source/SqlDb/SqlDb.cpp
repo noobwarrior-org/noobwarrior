@@ -88,7 +88,8 @@ std::string SqlDb::GetFileName() {
 	if (mPath.compare(":memory:") == 0)
 		return "Unsaved Database";
     std::string::size_type last_slash = mPath.find_last_of("/");
-	return last_slash != std::string::npos ? mPath.substr(last_slash + 1) : mPath;
+    std::string::size_type last_slash_win = mPath.find_last_of("\\");
+	return last_slash != std::string::npos ? mPath.substr(last_slash + 1) : (last_slash_win != std::string::npos ? mPath.substr(last_slash_win + 1) : mPath);
 }
 
 std::filesystem::path SqlDb::GetFilePath() {

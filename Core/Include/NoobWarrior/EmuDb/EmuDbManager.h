@@ -50,7 +50,8 @@ public:
     EmuDb* GetMasterDatabase();
     std::vector<EmuDb*> GetMountedDatabases();
     void SetMountOrder(const std::vector<EmuDb*>& order);
-
+    EmuDb* GetDbFromFilePath(const std::filesystem::path &path);
+    EmuDb* GetDbFromFileName(const std::string &name);
     EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
     
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);

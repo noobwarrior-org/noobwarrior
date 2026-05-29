@@ -80,6 +80,12 @@ void ServerEmulatorPage::Deserialize(Registry* reg) {
     mHttpsPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.https_port").value_or(53640)));
     mHttpPortInput->setText(QString::number(reg->GetKeyValue<uint16_t>("emu.http_port").value_or(8080)));
     mAssetGrabInput->setChecked(reg->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false));
+    auto dbFilePath = reg->GetKeyValue<std::string>("emu.asset_grab_db");
+    if (dbFilePath.has_value()) {
+        EmuDb* db = gApp->GetCore()->GetEmuDbManager()->GetDbFromFilePath(dbFilePath.value());
+        if (db != nullptr)
+            mSaveDbDropdown->SetDatabase(db);
+    }
 }
 
 void ServerEmulatorPage::Serialize(Registry* reg) {
@@ -94,4 +100,8 @@ void ServerEmulatorPage::Serialize(Registry* reg) {
     }
 
     reg->SetKeyValue<bool>("emu.asset_grab_mode", mAssetGrabInput->isChecked());
+    EmuDb* db = mSaveDbDropdown->GetSelectedDatabase();
+    if (db != nullptr) {
+        reg->SetKeyValue<std::string>("emu.asset_grab_db", db->GetFilePath().string());
+    }
 }

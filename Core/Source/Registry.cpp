@@ -135,6 +135,9 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.asset_grab_mode", false);
     SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice.");
 
+    SetKeyValueIfNotSet("emu.asset_grab_db", "");
+    SetKeyComment("emu.asset_grab_db", "Where should the Asset Grab Mode save its assets to?");
+
     sol::table proxies_tbl = mLua->create_table();
     SetKeyValueIfNotSet("emu.proxies", proxies_tbl);
     SetKeyComment("emu.proxies", "Any proxies in this list will be used as a fallback reverse proxy for API requests in case yours fail.");
