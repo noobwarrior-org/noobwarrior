@@ -96,9 +96,6 @@ public:
     std::vector<RunningInstance> GetRunningInstances() const;
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
 
-    void SetCurrentEngine(const Engine &engine);
-    std::optional<Engine> GetCurrentEngine();
-
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
 private:

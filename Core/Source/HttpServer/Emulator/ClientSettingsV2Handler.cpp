@@ -23,13 +23,16 @@
 // Started on: 5/18/2026
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsV2Handler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Log.h>
 
 #include "FFlagJson/PCStudioAppV2.json.inc.cpp"
 
+#include <nlohmann/json.hpp>
+
 using namespace NoobWarrior;
 
-ClientSettingsV2Handler::ClientSettingsV2Handler(ServerEmulator *server) {}
+ClientSettingsV2Handler::ClientSettingsV2Handler(ServerEmulator* server) : mEmu(server) {}
 
 void ClientSettingsV2Handler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
@@ -42,9 +45,14 @@ void ClientSettingsV2Handler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("ClientSettingsV2Handler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
+    nlohmann::json fuckyou = nlohmann::json::parse(PCStudioAppV2_json);
+    if (!mEmu->GetRunningGameServers().empty()) {
+        fuckyou["applicationSettings"]["FFlagDebugLocalRccServerConnection"] = "True";
+    }
+
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", PCStudioAppV2_json);
+    evbuffer_add_printf(reply, "%s", fuckyou.dump().c_str());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

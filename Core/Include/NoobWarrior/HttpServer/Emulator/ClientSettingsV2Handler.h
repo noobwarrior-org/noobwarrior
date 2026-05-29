@@ -29,7 +29,9 @@ namespace NoobWarrior {
 class ServerEmulator;
 class ClientSettingsV2Handler : public Handler {
 public:
-    ClientSettingsV2Handler(ServerEmulator *server);
+    ClientSettingsV2Handler(ServerEmulator* server);
     void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    ServerEmulator* mEmu;
 };
 }

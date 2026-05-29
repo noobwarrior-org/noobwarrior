@@ -255,11 +255,3 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
     }
     return servers;
 }
-
-void ServerEmulator::SetCurrentEngine(const Engine &engine) {
-    mCurrentEngine = engine;
-}
-
-std::optional<Engine> ServerEmulator::GetCurrentEngine() {
-    return mCurrentEngine;
-}

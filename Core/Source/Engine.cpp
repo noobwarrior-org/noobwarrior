@@ -348,6 +348,10 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back(emuCert.string());
     }
 
+    Out("Engine", params.Engine.Version.substr(2, 3));
+    args.push_back("--scheme");
+    args.push_back(params.Engine.Version.substr(2, 3) == "463" ? "old" : "new");
+
     std::string argsStr;
     for (int i = 0; i < args.size(); i++) {
         argsStr += args[i];
@@ -507,6 +511,5 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     if (exe.empty())
         return EngineLaunchResponse::NoValidExecutable;
     
-    mServerEmulator->SetCurrentEngine(params.Engine);
     return LaunchProcessThroughInjector(params.Engine.Architecture, exe, params);
 }

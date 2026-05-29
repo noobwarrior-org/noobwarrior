@@ -330,10 +330,13 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    if (mServerEmulator->GetCurrentEngine().has_value()) {
+    if (!mServerEmulator->GetRunningInstances().empty()) {
         auto idCppStr = std::string(idStr);
         if (materials.contains(idCppStr)) {
-            std::filesystem::path engineDir = mServerEmulator->GetCore()->GetEngineDirectory(*mServerEmulator->GetCurrentEngine());
+            std::filesystem::path engineDir = mServerEmulator->GetCore()->GetEngineDirectory({
+                .Side = mServerEmulator->GetRunningInstances().at(0).Side,
+                .Version = mServerEmulator->GetRunningInstances().at(0).Version
+            });
             std::filesystem::path fileDir = engineDir / "PlatformContent" / "pc" / "textures" / materials[idCppStr];
 
             if (!std::filesystem::exists(fileDir)) {

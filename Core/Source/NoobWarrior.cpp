@@ -184,6 +184,7 @@ event_base *Core::GetEventBase() {
 }
 
 static void RunEventLoopTaskCb(evutil_socket_t, short, void *arg) {
+    // WTf is this bro im crine
     auto *fn = static_cast<std::function<void()>*>(arg);
     (*fn)();
     delete fn;

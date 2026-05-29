@@ -1,7 +1,6 @@
 /* https://web.archive.org/web/20230407202822/https://clientsettingscdn.roblox.com/v2/settings/application/PCStudioApp */
 static const char *PCStudioAppV2_json = R"***({
   "applicationSettings": {
-    "FFlagDebugLocalRccServerConnection": "True",
     "DFFlagCSGOperationStatisticsGA": "False",
     "DFFlagCSGv2StatisticsFix": "True",
     "DFFlagCSGv2UseMegaAssetFetcher": "True",
