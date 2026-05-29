@@ -46,6 +46,15 @@ CPMAddPackage(
     "CURL_ZLIB_FOUND FALSE"
 )
 
+CPMAddPackage(
+    URI "gh:libcpr/cpr#1.11.2"
+    OPTIONS
+    "CPR_ENABLE_SSL ON"
+    "CPR_BUILD_TESTS OFF"
+    "BUILD_SHARED_LIBS OFF"
+    "CMAKE_SKIP_INSTALL_RULES ON"
+)
+
 add_library(sqlite3 STATIC ${CMAKE_SOURCE_DIR}/ThirdParty/sqlite3/sqlite3.c)
 target_include_directories(sqlite3
     PUBLIC
@@ -131,7 +140,6 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Url.cpp
     Source/RccServiceManager.cpp
     Source/Engine.cpp
-    Source/NetClient.cpp
     Source/Backup.cpp
     Source/HttpServer/Base/HttpServer.cpp
     Source/HttpServer/Base/Handler.cpp
@@ -175,6 +183,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     zlibstatic
     libzstd_static
     libcurl
+    cpr::cpr
     sqlite3
     libluajit
     sol2

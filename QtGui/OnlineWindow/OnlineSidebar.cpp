@@ -22,10 +22,13 @@
 // Started by: Hattozo
 // Started on: 11/6/2025
 // Description: Widget that contains a list of master servers
+// cpr must precede any libevent header (Application.h pulls it in via NoobWarrior.h):
+// libevent's event2/http.h defines HTTP_OK etc. as macros that collide with cpr's
+// cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include "OnlineSidebar.h"
 #include "../Application.h"
-
-#include <NoobWarrior/NetClient.h>
 
 using namespace NoobWarrior;
 
@@ -50,8 +53,7 @@ void OnlineSidebar::InitWidgets() {
     std::optional<nlohmann::json> servers = gApp->GetCore()->GetRegistry()->GetKeyValue<nlohmann::json>("gui.master_servers");
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
-            NetClient client;
-            client.Fetch({.Url = server["url"].get<std::string>() + "/autodiscover"});
+            cpr::Get(cpr::Url{server["url"].get<std::string>() + "/autodiscover"});
             std::string name = server.contains("name") ? server["name"].get<std::string>() : "Loading...";
             QStandardItem *serverRow = new QStandardItem(QIcon(":/images/silk/server.png"), QString::fromStdString(name));
 

@@ -23,10 +23,15 @@
 // Started on: 6/19/2025
 // Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
 //              Some assistance by Claude Opus 4.8
+// cpr must precede any libevent header (ServerEmulator pulls it in): libevent's
+// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
-#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
+
+#include <curl/curl.h>
 
 #include <unordered_map>
 
@@ -194,23 +199,27 @@ void AssetHandler::RunProxyWorker() {
             mProxyQueue.pop_front();
         }
 
-        HttpRequest req;
-        req.Url = fetch->Url;
-        req.UserAgent = "Roblox/WinINet";
-        req.Cookie = fetch->Cookie;
+        cpr::Session session;
+        session.SetUrl(cpr::Url{fetch->Url});
+        session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
+        if (!fetch->Cookie.empty())
+            session.SetHeader(cpr::Header{{"Cookie", fetch->Cookie}});
+        curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+        cpr::Response response = session.Get();
 
-        NetClient client;
-        HttpResponse response = client.Fetch(req);
+        bool ok = (response.error.code == cpr::ErrorCode::OK);
+        long httpStatus = response.status_code;
+        std::vector<unsigned char> body(response.text.begin(), response.text.end());
 
         // The fetch is done; everything else (the reply, the DB write) happens on the event loop.
         mServerEmulator->GetCore()->RunOnEventLoop(
-            [this, fetch, response = std::move(response)]() mutable {
-                OnFetchComplete(fetch, std::move(response));
+            [this, fetch, ok, httpStatus, body = std::move(body)]() mutable {
+                OnFetchComplete(fetch, ok, httpStatus, std::move(body));
             });
     }
 }
 
-void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, HttpResponse response) {
+void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, long httpStatus, std::vector<unsigned char> data) {
     mActiveFetches.erase(fetch); // this request is finished, one way or another
 
     if (!mProxyActive)            return; // server stopped; don't touch evhttp
@@ -220,17 +229,16 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, HttpRespon
     if (fetch->Connection)
         evhttp_connection_set_closecb(fetch->Connection, nullptr, nullptr);
 
-    std::vector<unsigned char> data;
     SqlDb::Response res = fetch->MissResult;
-    if (response.Code == CURLE_OK && response.HttpStatus == 200 && !response.Body.empty()) {
-        Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, response.Body.size());
-        data = std::move(response.Body);
+    if (ok && httpStatus == 200 && !data.empty()) {
+        Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
         res = SqlDb::Response::Success;
         if (fetch->SaveToGrabDb)
             SaveGrabbedAsset(fetch->GrabDbPath, fetch->Id, fetch->Version, data);
     } else {
-        Out("AssetHandler", "Roblox fallback failed for id={} ver={}: curl={} http={}", fetch->Id, fetch->Version,
-            (int)response.Code, response.HttpStatus);
+        Out("AssetHandler", "Roblox fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
+            ok, httpStatus);
+        data.clear();
     }
 
     ReplyWithAsset(fetch->Request, res, data, "");

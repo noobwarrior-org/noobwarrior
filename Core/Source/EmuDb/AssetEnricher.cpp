@@ -23,19 +23,26 @@
 // Started on: 5/28/2026
 // Description: See AssetEnricher.h.
 //              (Disclaimer: This code was created by Claude Opus 4.8.)
+// cpr must precede any libevent header (NoobWarrior.h pulls it in): libevent's
+// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/EmuDb/AssetEnricher.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
-#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
+#include <curl/curl.h>
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <thread>
 #include <unordered_map>
 
 using namespace NoobWarrior;
@@ -213,7 +220,16 @@ void AssetEnricher::ProcessBatch(const std::string &dbFilePath, const std::vecto
         idList += std::to_string(ids[i]);
     }
 
-    NetClient client;
+    // A plain GET against a Roblox endpoint, verifying against the OS certificate store.
+    auto fetchGet = [](const std::string &url, const std::string &cookie) -> cpr::Response {
+        cpr::Session session;
+        session.SetUrl(cpr::Url{url});
+        session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
+        if (!cookie.empty())
+            session.SetHeader(cpr::Header{{"Cookie", cookie}});
+        curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+        return session.Get();
+    };
 
     //////////////// Metadata: develop.roblox.com/v1/assets (batch, needs auth) ////////////////
     if (cookie.empty()) {
@@ -221,25 +237,22 @@ void AssetEnricher::ProcessBatch(const std::string &dbFilePath, const std::vecto
         if (!warned.exchange(true))
             Out("AssetEnricher", "No logged-in Roblox account; grabbed assets will keep placeholder names (thumbnails still work). Log in to fetch real names/descriptions.");
     } else {
-        HttpRequest req;
-        req.Url = "https://develop.roblox.com/v1/assets?assetIds=" + idList;
-        req.UserAgent = "Roblox/WinINet";
-        req.Cookie = cookie;
+        std::string metaUrl = "https://develop.roblox.com/v1/assets?assetIds=" + idList;
 
-        HttpResponse meta;
+        cpr::Response meta;
         for (int attempt = 0; attempt < 3; attempt++) {
-            meta = client.Fetch(req);
-            if (meta.Code == CURLE_OK && meta.HttpStatus == 429) {
+            meta = fetchGet(metaUrl, cookie);
+            if (meta.error.code == cpr::ErrorCode::OK && meta.status_code == 429) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000 * (attempt + 1)));
                 continue;
             }
             break;
         }
 
-        if (meta.Code == CURLE_OK && meta.HttpStatus == 200) {
-            json root = json::parse(meta.Body, nullptr, false);
+        if (meta.error.code == cpr::ErrorCode::OK && meta.status_code == 200) {
+            json root = json::parse(meta.text, nullptr, false);
             if (root.is_discarded() || !root.contains("data") || !root["data"].is_array()) {
-                std::string preview(meta.Body.begin(), meta.Body.begin() + std::min<size_t>(meta.Body.size(), 300));
+                std::string preview = meta.text.substr(0, std::min<size_t>(meta.text.size(), 300));
                 Out("AssetEnricher", "Unexpected develop /v1/assets response shape: {}", preview);
             } else {
                 for (auto &a : root["data"]) {
@@ -282,24 +295,22 @@ void AssetEnricher::ProcessBatch(const std::string &dbFilePath, const std::vecto
             }
         } else {
             Out("AssetEnricher", "develop /v1/assets fetch failed (curl={} http={}) for ids {}",
-                (int)meta.Code, meta.HttpStatus, idList);
+                (int)meta.error.code, meta.status_code, idList);
         }
     }
 
     //////////////// Images: thumbnails.roblox.com/v1/assets (batch, no auth) ////////////////
-    HttpRequest thumbReq;
-    thumbReq.Url = "https://thumbnails.roblox.com/v1/assets?assetIds=" + idList + "&size=420x420&format=Png&isCircular=false";
-    thumbReq.UserAgent = "Roblox/WinINet";
-    HttpResponse thumbRes = client.Fetch(thumbReq);
-    if (thumbRes.Code != CURLE_OK || thumbRes.HttpStatus != 200)
+    std::string thumbUrl = "https://thumbnails.roblox.com/v1/assets?assetIds=" + idList + "&size=420x420&format=Png&isCircular=false";
+    cpr::Response thumbRes = fetchGet(thumbUrl, "");
+    if (thumbRes.error.code != cpr::ErrorCode::OK || thumbRes.status_code != 200)
         return;
 
-    json troot = json::parse(thumbRes.Body, nullptr, false);
+    json troot = json::parse(thumbRes.text, nullptr, false);
     if (troot.is_discarded() || !troot.contains("data") || !troot["data"].is_array())
         return;
 
     std::vector<int64_t> thumbIds;
-    std::vector<HttpRequest> imageReqs;
+    std::vector<std::string> imageUrls;
     for (auto &t : troot["data"]) {
         if (!t.contains("state") || !t["state"].is_string() || t["state"].get<std::string>() != "Completed")
             continue;
@@ -309,22 +320,43 @@ void AssetEnricher::ProcessBatch(const std::string &dbFilePath, const std::vecto
         if (targetId == 0)
             continue;
 
-        HttpRequest ir;
-        ir.Url = t["imageUrl"].get<std::string>();
-        ir.UserAgent = "Roblox/WinINet";
         thumbIds.push_back(targetId);
-        imageReqs.push_back(std::move(ir));
+        imageUrls.push_back(t["imageUrl"].get<std::string>());
     }
 
-    if (imageReqs.empty())
+    if (imageUrls.empty())
         return;
+    
+    std::vector<std::vector<unsigned char>> imageBodies(imageUrls.size());
+    std::vector<char> imageOk(imageUrls.size(), 0);
 
-    std::vector<HttpResponse> images = client.FetchMany(imageReqs);
-    for (size_t i = 0; i < images.size() && i < thumbIds.size(); i++) {
-        const HttpResponse &img = images[i];
-        if (img.Code != CURLE_OK || img.HttpStatus != 200 || img.Body.empty())
+    const size_t kMaxConcurrency = 8;
+    size_t hw = std::thread::hardware_concurrency();
+    if (hw == 0) hw = 4;
+    size_t workers = std::min({imageUrls.size(), kMaxConcurrency, hw});
+
+    std::atomic<size_t> nextIndex{0};
+    std::vector<std::thread> threads;
+    threads.reserve(workers);
+    for (size_t w = 0; w < workers; w++) {
+        threads.emplace_back([&]() {
+            for (;;) {
+                size_t i = nextIndex.fetch_add(1, std::memory_order_relaxed);
+                if (i >= imageUrls.size()) return;
+                cpr::Response img = fetchGet(imageUrls[i], "");
+                if (img.error.code == cpr::ErrorCode::OK && img.status_code == 200 && !img.text.empty()) {
+                    imageBodies[i].assign(img.text.begin(), img.text.end());
+                    imageOk[i] = 1;
+                }
+            }
+        });
+    }
+    for (auto &t : threads) t.join();
+
+    for (size_t i = 0; i < imageBodies.size() && i < thumbIds.size(); i++) {
+        if (!imageOk[i] || imageBodies[i].empty())
             continue;
-        if (db->AttachThumbnailDataToAsset(thumbIds[i], img.Body) == SqlDb::Response::Success)
+        if (db->AttachThumbnailDataToAsset(thumbIds[i], imageBodies[i]) == SqlDb::Response::Success)
             db->MarkDirty();
     }
 }

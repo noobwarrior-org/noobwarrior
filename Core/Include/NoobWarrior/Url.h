@@ -113,7 +113,7 @@ public:
     std::filesystem::path ResolveAsLocalPath(Core* core) const;
 
     /* This works for only URLs that use completely offline protocols that rely on virtual file systems like plugin://, file://, or db://
-       Anything else will fail. Use NetClient for that. */
+       Anything else will fail. Use cpr for that. */
     VirtualFileSystem::Response OpenHandle(Core* core, VirtualFileSystem **vfsPtr, FSEntryHandle *handlePtr) const;
 
     /* Same thing here, except it will return nullptr instead */

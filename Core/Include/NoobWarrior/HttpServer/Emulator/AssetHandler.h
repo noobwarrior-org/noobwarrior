@@ -25,7 +25,6 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
-#include <NoobWarrior/NetClient.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -82,7 +81,9 @@ private:
 
     // Everything below runs on the event-loop thread.
     void BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult);
-    void OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, HttpResponse response);
+    // Called on the event loop once a worker's network fetch finishes. The cpr result is decoded
+    // into plain fields by the worker so this header doesn't depend on the HTTP client.
+    void OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, long httpStatus, std::vector<unsigned char> data);
     void ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
                         const std::vector<unsigned char> &data, const std::string &hash);
     void SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, int version,

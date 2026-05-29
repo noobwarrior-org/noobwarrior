@@ -25,14 +25,9 @@
 #include <NoobWarrior/Keychain/RbxKeychain.h>
 
 #include <curl/curl.h>
+#include <cpr/cpr.h>
 
 using namespace NoobWarrior;
-
-static size_t CurlWriteToBuf(void *contents, size_t size, size_t nmemb, std::string *buffer) {
-    size_t totalSize = size * nmemb;
-    buffer->insert(buffer->end(), (char*)contents, (char*)contents + totalSize);
-    return totalSize;
-}
 
 RbxKeychain::RbxKeychain(Registry *registry) : Keychain(registry) {}
 
@@ -41,28 +36,23 @@ std::string RbxKeychain::GetName() {
 }
 
 nlohmann::json RbxKeychain::GetJsonFromToken(const std::string &token) {
-    CURL *handle = curl_easy_init();
-    if (!handle) return nlohmann::json {};
-
-    std::string jsonStr;
     std::string cookie = std::format(".ROBLOSECURITY={};", token);
 
-    curl_easy_setopt(handle, CURLOPT_URL, "https://users.roblox.com/v1/users/authenticated");
-    curl_easy_setopt(handle, CURLOPT_COOKIE, cookie.c_str());
-    curl_easy_setopt(handle, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, CurlWriteToBuf);
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &jsonStr);
+    cpr::Session session;
+    session.SetUrl(cpr::Url{"https://users.roblox.com/v1/users/authenticated"});
+    session.SetHeader(cpr::Header{{"Cookie", cookie}});
+    // Verify against the OS certificate store.
+    curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
 
-    CURLcode ret = curl_easy_perform(handle);
-    curl_easy_cleanup(handle);
+    cpr::Response res = session.Get();
 
-    if (ret == CURLE_OK) {
+    if (res.error.code == cpr::ErrorCode::OK) {
         try {
-            return nlohmann::json::parse(jsonStr);
+            return nlohmann::json::parse(res.text);
         } catch (nlohmann::json::exception &e) {
-            Out("RbxKeychain", "parse failed: {} | body: {}", e.what(), jsonStr);
+            Out("RbxKeychain", "parse failed: {} | body: {}", e.what(), res.text);
         }
     }
-    Out("RbxKeychain", "curl failed: {}", (int)ret);
+    Out("RbxKeychain", "curl failed: {}", (int)res.error.code);
     return nlohmann::json {};
 }

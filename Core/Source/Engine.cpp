@@ -25,7 +25,6 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>

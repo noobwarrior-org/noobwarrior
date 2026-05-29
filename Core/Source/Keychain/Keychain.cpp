@@ -25,6 +25,8 @@
 // These keys are securely stored using the appropriate API's for your operating system
 #include <NoobWarrior/Keychain/Keychain.h>
 
+#include <cpr/cpr.h>
+
 using namespace NoobWarrior;
 
 nlohmann::json Keychain::AccStructToJson(Account &acc) {
@@ -167,11 +169,7 @@ std::vector<Account>& Keychain::GetAccounts() {
 
 AuthResponse Keychain::TryAuthAccount(std::string& name, std::string& pass) {
     Out("Keychain", "Attempting to log into account {}", name);
-    CURL *handle = curl_easy_init();
-    if (handle == nullptr) return AuthResponse::Failed;
-    curl_easy_setopt(handle, CURLOPT_URL, "http://example.com/");
-    CURLcode ret = curl_easy_perform(handle);
-    curl_easy_cleanup(handle);
+    cpr::Get(cpr::Url{"http://example.com/"});
     return AuthResponse::Failed;
 }
 

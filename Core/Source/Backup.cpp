@@ -22,6 +22,10 @@
 // Started by: Hattozo
 // Started on: 3/5/2025
 // Description: All functions that concern backing up data from Roblox servers to your computer belong here
+// cpr must precede any libevent header (NoobWarrior.h pulls it in): libevent's
+// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/Backup.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/NoobWarrior.h>
@@ -30,7 +34,6 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
-#include <cmath>
 #include <iostream>
 #include <filesystem>
 #include <sstream>
@@ -58,12 +61,6 @@ static const std::map<long, std::string> sHttpStatusMessages = {
     {503, "Service Unavailable"}
 };
 
-static int CountDigits(int c) {
-    if (c == 0)
-        return 1;
-    return (int)floor(log10(abs(c))) + 1;
-}
-
 static long ConvertISO8601ToTimestamp(const std::string& iso8601_string) {
     std::tm t{};
     std::istringstream ss(iso8601_string);
@@ -76,97 +73,81 @@ static long ConvertISO8601ToTimestamp(const std::string& iso8601_string) {
     return static_cast<long>(time_since_epoch);
 }
 
-static size_t CurlWriteToFile(char* ptr, size_t size, size_t nmemb, FILE *userdata) {
-    size_t written;
-    written = fwrite(ptr, size, nmemb, userdata);
-    return written;
-}
-
-static size_t CurlWriteToBuf(void *contents, size_t size, size_t nmemb, std::vector<char> *buffer) {
-    size_t totalSize = size * nmemb;
-    buffer->insert(buffer->end(), (char*)contents, (char*)contents + totalSize);
-    return totalSize;
-}
-
-static size_t HeaderCallback(char* buffer, size_t size, size_t nitems, void* userdata) {
-    size_t totalSize = nitems * size;
-    char* contentDepositionHeader = (char*)"Content-Disposition: ";
-    size_t headerLength = strlen(contentDepositionHeader);
-
-    if (totalSize > headerLength && strncmp(buffer, contentDepositionHeader, headerLength) == 0) {
-        // our content deposition header.
-        char* val = buffer + headerLength;
-        userdata = val; // our userdata in this case is the file name, since the content deposition header contains that stuff.
+// Pull the filename out of a Content-Disposition header value, e.g.
+// `attachment; filename="abc123"` -> `abc123`. Returns empty if not present.
+static std::string FileNameFromContentDisposition(const std::string &header) {
+    const std::string key = "filename=";
+    size_t pos = header.find(key);
+    if (pos == std::string::npos)
+        return {};
+    pos += key.size();
+    std::string name = header.substr(pos);
+    // Strip surrounding quotes and anything after a trailing separator.
+    if (!name.empty() && name.front() == '"') {
+        name.erase(0, 1);
+        size_t end = name.find('"');
+        if (end != std::string::npos)
+            name.erase(end);
+    } else {
+        size_t end = name.find_first_of(";\r\n");
+        if (end != std::string::npos)
+            name.erase(end);
     }
-
-    return totalSize;
+    return name;
 }
 
 int Core::DownloadAssets(DownloadAssetArgs args) {
     if (args.OutStream == nullptr) args.OutStream = &std::cout;
-    curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
-    if (!(vinfo->features & CURL_VERSION_SSL))
-        OutEx(args.OutStream, "AssetRequest", "WARNING! SSL in curl library is not enabled. HTTPS links will be unsupported!", args.OutDir);
     if (!std::filesystem::is_directory(args.OutDir)) {
         OutEx(args.OutStream, "AssetRequest", "Failed to download assets: Directory \"{}\" doesn't exist", args.OutDir);
         return -1;
     }
-    CURL *handle = curl_easy_init();
-    if (!handle) {
-        OutEx(args.OutStream, "AssetRequest", "Failed to download assets: Failed to create curl handle");
-        return 0;
-    }
-    curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet"); // use the same user agent that the Roblox client uses.
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToFile);
-    curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, &HeaderCallback);
     for (int i = 0; i < args.Id.size(); i++) {
-        OutEx(args.OutStream, "AssetRequest", "Downloading ID {}", args.Id.at(i));
-
-        // by default we create a placeholder file with the ID as its name.
         int64_t id = args.Id.at(i);
-        size_t idDigits = CountDigits(id);
-        char* fileName = (char*)malloc(idDigits + 1);
-        snprintf(fileName, idDigits + 1, "%i", (int)id);
+        OutEx(args.OutStream, "AssetRequest", "Downloading ID {}", id);
 
         std::optional<std::string> download_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_download");
         if (!download_url.has_value())
             return -2;
 
         std::string fmtApiCall = std::vformat(download_url.value(), std::make_format_args(id));
-        std::string fileDir = args.OutDir + "/" + fileName;
 
-        FILE* filePointer = fopen(fileDir.c_str(), "wb");
-        if (filePointer == NULL) {
-            OutEx(args.OutStream, "AssetRequest", "Failed to download ID %i: Failed to create file");
+        cpr::Session session;
+        session.SetUrl(cpr::Url{fmtApiCall});
+        session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"}); // use the same user agent that the Roblox client uses.
+        cpr::Response res = session.Get();
+
+        if (res.error.code != cpr::ErrorCode::OK) {
+            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: Curl error {}, {}", id, (int)res.error.code, res.error.message);
+            continue;
+        }
+        if (res.status_code != 200) {
+            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: {} {}", id, res.status_code, sHttpStatusMessages.count(res.status_code) ? sHttpStatusMessages.at(res.status_code) : "Unknown");
             continue;
         }
 
-        // we had this pointing to memory that was allocated to the number of digits in our asset id, so we could have the file name be the asset ID.
-        // now we're done with that part, and we might soon rename it to something else anyways if the user decides to not like ID's as the file name.
-        free(fileName);
-
-        curl_easy_setopt(handle, CURLOPT_URL, fmtApiCall.c_str());
-        curl_easy_setopt(handle, CURLOPT_WRITEDATA, filePointer);
-        if (args.FileNameStyle == AssetFileNameStyle::Raw) // header callback makes the file name pointer point to content deposition's header value.
-            curl_easy_setopt(handle, CURLOPT_HEADERDATA, fileName);
-
-        CURLcode ret = curl_easy_perform(handle);
-        if (ret == CURLE_OK) {
-            long res;
-            curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &res);
-            if (res != 200) { OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: {} {}", id, res, sHttpStatusMessages.count(res) ? sHttpStatusMessages.at(res) : "Unknown"); }
+        // By default the file is named after the asset ID. For the Raw style we use the name the
+        // server reports in its Content-Disposition header (an MD5 hash, for Roblox), if present.
+        std::string fileName = std::to_string(id);
+        if (args.FileNameStyle == AssetFileNameStyle::Raw) {
+            auto it = res.header.find("Content-Disposition");
+            if (it != res.header.end()) {
+                std::string fromHeader = FileNameFromContentDisposition(it->second);
+                if (!fromHeader.empty())
+                    fileName = fromHeader;
+            }
         }
-        if (ret != CURLE_OK)
-            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: Curl error {}, {}", id, (int)ret, curl_easy_strerror(ret));
-        else if (args.FileNameStyle != AssetFileNameStyle::AssetId) { // because the file is already named with its corresponding asset id, so it's pointless to rename it to the same thing.
-            std::string newFileDir = args.OutDir + "/" + fileName;
-            rename(fileDir.c_str(), newFileDir.c_str());
+
+        std::string fileDir = args.OutDir + "/" + fileName;
+        FILE* filePointer = fopen(fileDir.c_str(), "wb");
+        if (filePointer == NULL) {
+            OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: Failed to create file", id);
+            continue;
         }
-        
+        fwrite(res.text.data(), 1, res.text.size(), filePointer);
         fclose(filePointer);
     }
     OutEx(args.OutStream, "AssetRequest", !args.Id.empty() ? "Finished iterating through all IDs." : "Stopping, nothing to download.");
-    curl_easy_cleanup(handle);
     return 1;
 }
 
@@ -175,30 +156,21 @@ int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
     std::string details_url = GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_details")
         .value_or("https://economy.roblox.com/v2/assets/{}/details");
 
-    std::vector<char> buffer;
-    CURL *handle = curl_easy_init();
-    if (!handle)
-        return ret;
+    cpr::Session session;
+    session.SetUrl(cpr::Url{std::vformat(details_url, std::make_format_args(id))});
+    session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
 
     // The economy details endpoint requires authentication; without the
     // .ROBLOSECURITY cookie it returns an error payload instead of the details.
-    std::string cookie;
-    if (auto *acc = GetRbxKeychain()->GetActiveAccount()) {
-        cookie = ".ROBLOSECURITY=" + acc->Token + ";";
-        curl_easy_setopt(handle, CURLOPT_COOKIE, cookie.c_str());
-    }
+    if (auto *acc = GetRbxKeychain()->GetActiveAccount())
+        session.SetHeader(cpr::Header{{"Cookie", ".ROBLOSECURITY=" + acc->Token + ";"}});
 
-    curl_easy_setopt(handle, CURLOPT_USERAGENT, "Roblox/WinINet");
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, &CurlWriteToBuf);
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(handle, CURLOPT_URL, std::vformat(details_url, std::make_format_args(id)).c_str());
-    CURLcode res = curl_easy_perform(handle);
-    if (res == CURLE_OK) {
-        json data = json::parse(buffer, nullptr, false);
+    cpr::Response res = session.Get();
+    if (res.error.code == cpr::ErrorCode::OK) {
+        json data = json::parse(res.text, nullptr, false);
 
         if (data.is_discarded() || (data.contains("errors") && !data["errors"].is_null())) {
-            ret = -1;
-            goto cleanup;
+            return -1;
         }
 
         auto getInt = [&](const json &j, const char *key) -> int64_t {
@@ -241,18 +213,13 @@ int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
         details->MinimumMembershipLevel = static_cast<Roblox::MembershipType>(getInt(data, "MinimumMembershipLevel"));
         ret = 1;
     }
-cleanup:
-    curl_easy_cleanup(handle);
     return ret;
 }
 
-static HttpRequest CreateRbxReq(Core* core) {
-    HttpRequest req;
-    if (auto *acc = core->GetRbxKeychain()->GetActiveAccount()) {
-        req.Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
-    }
-    req.UserAgent = "Roblox/WinINet";
-    return req;
+static std::string GetRbxCookie(Core* core) {
+    if (auto *acc = core->GetRbxKeychain()->GetActiveAccount())
+        return ".ROBLOSECURITY=" + acc->Token + ";";
+    return {};
 }
 
 Backup::ItemDescriptor::ItemDescriptor() {
@@ -329,23 +296,27 @@ Backup::ItemDescriptor* Backup::Process::GetRoot() {
 void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems) {
     discoveredItems[{ descriptor->Type, descriptor->Id }] = true;
     
-    NetClient client;
+    const std::string rbxCookie = GetRbxCookie(mCore);
     auto FetchJson = [&](
         const std::string& url,
         const std::string& description,
         nlohmann::json& out
     ) -> bool {
-        HttpRequest req = CreateRbxReq(mCore);
-        req.Url = url;
-        HttpResponse res = client.Fetch(req);
+        cpr::Session session;
+        session.SetUrl(cpr::Url{url});
+        session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
+        if (!rbxCookie.empty())
+            session.SetHeader(cpr::Header{{"Cookie", rbxCookie}});
+        curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+        cpr::Response res = session.Get();
 
-        if (res.Code != CURLE_OK) {
+        if (res.error.code != cpr::ErrorCode::OK) {
             mOptions.Callback(Backup::State::DownloadingFailed,
                 "Failed to download " + description, mProgress);
             return false;
         }
         try {
-            out = nlohmann::json::parse(res.Body);
+            out = nlohmann::json::parse(res.text);
             return true;
         } catch (const nlohmann::json::exception&) {
             mOptions.Callback(Backup::State::ParsingJsonFailed,

@@ -38,7 +38,6 @@
 #include "Roblox/FileFormat/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
 #include "Engine.h"
-#include "NetClient.h"
 #include "Keychain/MasterKeychain.h"
 #include "Keychain/EmuKeychain.h"
 #include "Keychain/RbxKeychain.h"

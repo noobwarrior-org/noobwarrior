@@ -22,8 +22,11 @@
 // Started by: Hattozo
 // Started on: 6/17/2025
 // Description: Contains code for the main class used to utilize the noobWarrior library
+// cpr must precede any libevent header: libevent's event2/http.h defines HTTP_OK,
+// HTTP_UNAUTHORIZED, etc. as macros that collide with cpr's cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
@@ -316,26 +319,19 @@ bool Core::IsServerEmulatorRunning() {
     return mServerEmulator->IsRunning();
 }
 
-static size_t WriteToString(void *contents, size_t size, size_t nmemb, void *userp) {
-    static_cast<std::string*>(userp)->append(static_cast<char*>(contents), size * nmemb);
-    return size * nmemb;
-}
-
 void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback) {
     std::thread([=]() {
-        NetClient client;
-        HttpRequest req;
-        req.Url = "https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers";
-        req.TimeoutSeconds = 10;
-        req.IgnoreTLSVerification = true; // Because players will be logging into server emulators with self-signed certificates most of the time.
-        HttpResponse response = client.Fetch(req);
+        cpr::Response response = cpr::Get(
+            cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers"},
+            cpr::Timeout{std::chrono::seconds(10)},
+            cpr::VerifySsl{false}); // Because players will be logging into server emulators with self-signed certificates most of the time.
 
-        if (response.Code != CURLE_OK) {
+        if (response.error.code != cpr::ErrorCode::OK) {
             callback(ServerEmulatorConnectFailReason::TimedOut, {});
             return;
         }
 
-        if (response.HttpStatus == 404) {
+        if (response.status_code == 404) {
             callback(ServerEmulatorConnectFailReason::EndpointNotFound, {});
             return;
         }
@@ -343,7 +339,7 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
         std::vector<EngineStartParameters> paramsList;
         nlohmann::json json;
         try {
-            json = nlohmann::json::parse(response.Body);
+            json = nlohmann::json::parse(response.text);
         } catch (nlohmann::json::exception &e) {
             callback(ServerEmulatorConnectFailReason::JsonFailed, {});
             return;

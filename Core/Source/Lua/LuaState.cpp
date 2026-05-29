@@ -22,6 +22,11 @@
 // Started by: Hattozo
 // Started on: 12/3/2025
 // Description: Uses sol
+// cpr must precede any libevent header (HttpServer/ServerEmulator pull it in):
+// libevent's event2/http.h defines HTTP_OK etc. as macros that collide with cpr's
+// cpr::status:: constants.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/LuaSignal.h>
 #include <NoobWarrior/Lua/Lhp.h>
@@ -33,13 +38,14 @@
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
 #include <NoobWarrior/FileSystem/ZipFileSystem.h>
-#include <NoobWarrior/NetClient.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Console/Command/Command.h>
 #include <NoobWarrior/Console/Command/FuncCommand.h>
 
 #include <lua.hpp>
 #include <sol/sol.hpp>
+
+#include <curl/curl.h>
 
 #include <openssl/rand.h>
 #include <openssl/kdf.h>
@@ -98,7 +104,6 @@ static bool Argon2idHash(const std::string &password, const unsigned char *salt,
 }
 
 struct LuaNetClient {
-    NetClient client;
     std::vector<std::pair<std::string, std::string>> defaultHeaders;
     long timeout = 30;
 };
@@ -489,61 +494,60 @@ int LuaState::Open() {
     netClientType["SetHeader"] = [](LuaNetClient& cli, std::string name, std::string value) {
         cli.defaultHeaders.push_back({std::move(name), std::move(value)});
     };
-    auto buildResponse = [this](const HttpResponse &res) -> sol::table {
+    auto doRequest = [](const std::string &method, const std::string &url, const std::string &body,
+                        const std::string &contentType,
+                        const std::vector<std::pair<std::string, std::string>> &headers,
+                        long timeout) -> cpr::Response {
+        cpr::Session session;
+        session.SetUrl(cpr::Url{url});
+        cpr::Header h;
+        for (const auto &[name, value] : headers)
+            h[name] = value;
+        if (!contentType.empty())
+            h["Content-Type"] = contentType;
+        session.SetHeader(h);
+        session.SetTimeout(cpr::Timeout{std::chrono::seconds(timeout)});
+        curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+        if (method == "POST") {
+            session.SetBody(cpr::Body{body});
+            return session.Post();
+        }
+        return session.Get();
+    };
+    auto buildResponse = [this](const cpr::Response &res) -> sol::table {
         sol::table tbl = create_table();
-        tbl["Ok"] = (res.Code == CURLE_OK);
-        tbl["Status"] = static_cast<int>(res.HttpStatus);
-        tbl["Body"] = std::string(res.Body.begin(), res.Body.end());
-        if (res.Code != CURLE_OK)
-            tbl["Error"] = std::string(curl_easy_strerror(res.Code));
+        tbl["Ok"] = (res.error.code == cpr::ErrorCode::OK);
+        tbl["Status"] = static_cast<int>(res.status_code);
+        tbl["Body"] = res.text;
+        if (res.error.code != cpr::ErrorCode::OK)
+            tbl["Error"] = res.error.message;
         return tbl;
     };
-    netClientType["Get"] = [buildResponse](LuaNetClient &c, std::string url) -> sol::table {
-        HttpRequest req;
-        req.Url = std::move(url);
-        req.Method = "GET";
-        req.TimeoutSeconds = c.timeout;
-        req.Headers = c.defaultHeaders;
-        return buildResponse(c.client.Fetch(req));
+    netClientType["Get"] = [doRequest, buildResponse](LuaNetClient &c, std::string url) -> sol::table {
+        return buildResponse(doRequest("GET", url, "", "", c.defaultHeaders, c.timeout));
     };
-    netClientType["Post"] = [buildResponse](LuaNetClient &c, std::string url, std::string body, std::string contentType) -> sol::table {
-        HttpRequest req;
-        req.Url = std::move(url);
-        req.Method = "POST";
-        req.PostBody = std::move(body);
-        req.ContentType = std::move(contentType);
-        req.TimeoutSeconds = c.timeout;
-        req.Headers = c.defaultHeaders;
-        return buildResponse(c.client.Fetch(req));
+    netClientType["Post"] = [doRequest, buildResponse](LuaNetClient &c, std::string url, std::string body, std::string contentType) -> sol::table {
+        return buildResponse(doRequest("POST", url, body, contentType, c.defaultHeaders, c.timeout));
     };
-    netClientType["PostJson"] = [this, buildResponse](LuaNetClient &c, std::string url, sol::table tbl) -> sol::table {
+    netClientType["PostJson"] = [this, doRequest, buildResponse](LuaNetClient &c, std::string url, sol::table tbl) -> sol::table {
         sol::protected_function jsonEncode = (*this)["json"]["encode"];
         std::string body;
         auto encRes = jsonEncode(tbl);
         if (encRes.valid()) body = encRes.get<std::string>();
-        HttpRequest req;
-        req.Url = std::move(url);
-        req.Method = "POST";
-        req.PostBody = std::move(body);
-        req.ContentType = "application/json";
-        req.TimeoutSeconds = c.timeout;
-        req.Headers = c.defaultHeaders;
-        return buildResponse(c.client.Fetch(req));
+        return buildResponse(doRequest("POST", url, body, "application/json", c.defaultHeaders, c.timeout));
     };
-    netClientType["Request"] = [buildResponse](LuaNetClient &c, sol::table params) -> sol::table {
-        HttpRequest req;
-        req.Url = params.get_or<std::string>("Url", "");
-        req.Method = params.get_or<std::string>("Method", "GET");
-        req.PostBody = params.get_or<std::string>("Body", "");
-        req.ContentType = params.get_or<std::string>("ContentType", "");
-        req.TimeoutSeconds = c.timeout;
-        req.Headers = c.defaultHeaders;
+    netClientType["Request"] = [doRequest, buildResponse](LuaNetClient &c, sol::table params) -> sol::table {
+        std::string url = params.get_or<std::string>("Url", "");
+        std::string method = params.get_or<std::string>("Method", "GET");
+        std::string body = params.get_or<std::string>("Body", "");
+        std::string contentType = params.get_or<std::string>("ContentType", "");
+        std::vector<std::pair<std::string, std::string>> headers = c.defaultHeaders;
         sol::optional<sol::table> extraHeaders = params["Headers"];
         if (extraHeaders) {
             for (const auto &kv : *extraHeaders)
-                req.Headers.push_back({kv.first.as<std::string>(), kv.second.as<std::string>()});
+                headers.push_back({kv.first.as<std::string>(), kv.second.as<std::string>()});
         }
-        return buildResponse(c.client.Fetch(req));
+        return buildResponse(doRequest(method, url, body, contentType, headers, c.timeout));
     };
 
     sol::table lhpLib = create_table();
