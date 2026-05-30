@@ -22,7 +22,6 @@
 // Started by: Hattozo
 // Started on: 3/16/2025
 // Description: Contains main entrypoint for noobWarrior Roblox hook
-//              (Disclaimer: Some assistance from Claude)
 #include "Hook.h"
 #include "Ping.h"
 #include "Patch/Patches.h"
@@ -31,10 +30,14 @@
 #include <ws2tcpip.h>
 #include <winhttp.h>
 
+#define SECURITY_WIN32
+#include <sspi.h>
+
 #include <MinHook.h>
 #include <windows.h>
 #include <psapi.h>
-#include <dbghelp.h>
+#include <tlhelp32.h>
+#include <strsafe.h>
 
 #include <atomic>
 #include <string>
@@ -44,6 +47,12 @@ using namespace NoobHook;
 FILE* NoobHook::gFile = nullptr;
 uint16_t NoobHook::gEmuHttpsPort = 53640;
 uint16_t NoobHook::gEmuHttpPort = 8080;
+
+enum RobloxVersion {
+    VER_UNKNOWN,
+    VER_0_449_0_411458,
+    VER_0_463_0_417004
+};
 
 void NoobHook::Out(const char* category, const char* format, ...) {
     if (gFile) {
@@ -62,6 +71,14 @@ void NoobHook::WriteMemory(uintptr_t address, const void* data, size_t size) {
 	VirtualProtect(reinterpret_cast<LPVOID>(address), size, PAGE_EXECUTE_READWRITE, &old_protection);
 	memcpy(reinterpret_cast<void*>(address), data, size);
 	VirtualProtect(reinterpret_cast<LPVOID>(address), size, old_protection, &old_protection);
+}
+
+DWORD StrLength(PCHAR str) {
+    DWORD length = 0;
+    while (str[length] != '\0') {
+        length++;
+    }
+    return length;
 }
 
 static char gVersionStringBuf[128] = {0};
@@ -93,6 +110,101 @@ char *GetProductVersion() {
 cleanup:
     delete[] versionInfo;
     return found ? gVersionStringBuf : nullptr;
+}
+
+RobloxVersion GetRobloxVersion() {
+    char *ver = GetProductVersion();
+    if (strncmp(ver, "0, 449, 0, 411458", strlen(ver)) == 0) {
+        return VER_0_449_0_411458;
+    } else if (strncmp(ver, "0, 463, 0, 417004", strlen(ver)) == 0) {
+        return VER_0_463_0_417004;
+    }
+    return VER_UNKNOWN;
+}
+
+struct ProcWindow {
+    unsigned long pid;
+    HWND hwnd;
+};
+
+static BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam) {
+    ProcWindow &data = *(ProcWindow*)lParam;
+    unsigned long process_id = 0;
+    GetWindowThreadProcessId(handle, &process_id);
+    data.hwnd = handle;
+    return TRUE;
+}
+
+static HWND GetWindow() {
+    struct ProcWindow {
+        unsigned long pid;
+        HWND hwnd;
+    } data;
+    data.pid = GetCurrentProcessId();
+    data.hwnd = NULL;
+    EnumWindows(&EnumWindowsCallback, (LPARAM)&data);
+    return data.hwnd;
+}
+
+// thank you Raymond Chen: https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
+// And this guy: https://stackoverflow.com/a/16684288.
+static void SuspendAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThreadId) {
+    HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (h != INVALID_HANDLE_VALUE)
+    {
+        THREADENTRY32 te;
+        te.dwSize = sizeof(te);
+        if (Thread32First(h, &te))
+        {
+            do
+            {
+                if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID)) 
+                {
+                    // Suspend all threads EXCEPT the one we want to keep running
+                    if (te.th32ThreadID != targetThreadId && te.th32OwnerProcessID == targetProcessId)
+                    {
+                        HANDLE thread = ::OpenThread(THREAD_ALL_ACCESS, FALSE, te.th32ThreadID);
+                        if (thread != NULL)
+                        {
+                            SuspendThread(thread);
+                            CloseHandle(thread);
+                        }
+                    }
+                }
+                te.dwSize = sizeof(te);
+            } while (Thread32Next(h, &te));
+        }
+        CloseHandle(h);    
+    }
+}
+
+static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThreadId) {
+    HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (h != INVALID_HANDLE_VALUE)
+    {
+        THREADENTRY32 te;
+        te.dwSize = sizeof(te);
+        if (Thread32First(h, &te))
+        {
+            do
+            {
+                if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID)) 
+                {
+                    if (te.th32ThreadID != targetThreadId && te.th32OwnerProcessID == targetProcessId)
+                    {
+                        HANDLE thread = ::OpenThread(THREAD_ALL_ACCESS, FALSE, te.th32ThreadID);
+                        if (thread != NULL)
+                        {
+                            ResumeThread(thread);
+                            CloseHandle(thread);
+                        }
+                    }
+                }
+                te.dwSize = sizeof(te);
+            } while (Thread32Next(h, &te));
+        }
+        CloseHandle(h);
+    }
 }
 
 static bool RedirectConnectAddr(const char* api, SOCKET s, const sockaddr* name, sockaddr_in* out) {
@@ -279,90 +391,6 @@ static HANDLE WINAPI MyCreateFileA(LPCSTR lpFileName, DWORD access, DWORD share,
     return pOrigCreateFileA(lpFileName, access, share, sec, disp, flags, tmpl);
 }
 
-// ---- Crash dump capture ----------------------------------------------------
-// Roblox's own crash reporter doesn't write a dump in our environment (no
-// telemetry, no upload endpoint), and complex places "just close" without a
-// trace -- which means we're flying blind diagnosing them. Install a vectored
-// exception handler so when the process actually crashes we write a minidump
-// to %TEMP%\noobhook_crash_<exe>_<pid>_<ts>.dmp.
-//
-// Strict filter: only AV / stack overflow / illegal instr / div0 / priv instr
-// / heap corruption. C++ exceptions, breakpoints, etc. are passed through.
-// Returns EXCEPTION_CONTINUE_SEARCH so the OS still terminates as usual.
-#ifndef STATUS_HEAP_CORRUPTION
-#define STATUS_HEAP_CORRUPTION 0xC0000374
-#endif
-
-static std::atomic<bool> gCrashHandled { false };
-
-static LONG CALLBACK CrashDumpHandler(PEXCEPTION_POINTERS ep) {
-    DWORD code = ep->ExceptionRecord->ExceptionCode;
-    switch (code) {
-    case EXCEPTION_ACCESS_VIOLATION:
-    case EXCEPTION_STACK_OVERFLOW:
-    case EXCEPTION_ILLEGAL_INSTRUCTION:
-    case EXCEPTION_INT_DIVIDE_BY_ZERO:
-    case EXCEPTION_PRIV_INSTRUCTION:
-    case STATUS_HEAP_CORRUPTION:
-        break;
-    default:
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    // Only dump once -- vectored handlers can re-fire from the dump path itself.
-    bool expected = false;
-    if (!gCrashHandled.compare_exchange_strong(expected, true))
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    char exePath[MAX_PATH] = {0};
-    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-    const char* exeName = strrchr(exePath, '\\');
-    exeName = exeName ? exeName + 1 : exePath;
-
-    char tempDir[MAX_PATH] = {0};
-    GetTempPathA(MAX_PATH, tempDir);
-
-    SYSTEMTIME st;
-    GetLocalTime(&st);
-
-    char dumpPath[MAX_PATH * 2] = {0};
-    snprintf(dumpPath, sizeof(dumpPath),
-             "%snoobhook_crash_%s_%lu_%04d%02d%02d_%02d%02d%02d.dmp",
-             tempDir, exeName, GetCurrentProcessId(),
-             st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-
-    HANDLE h = CreateFileA(dumpPath, GENERIC_WRITE, 0, nullptr,
-                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE) {
-        Out("Crash", "code=0x%08lX at %p -- failed to open dump %s (err=%lu)",
-            code, ep->ExceptionRecord->ExceptionAddress, dumpPath, GetLastError());
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-
-    MINIDUMP_EXCEPTION_INFORMATION mei {};
-    mei.ThreadId = GetCurrentThreadId();
-    mei.ExceptionPointers = ep;
-    mei.ClientPointers = FALSE;
-
-    // MiniDumpWithIndirectlyReferencedMemory walks every pointer in the
-    // reachable working set -- on a process the size of the Roblox player it
-    // takes 90+ seconds to scan, during which the process is fully suspended
-    // and looks frozen to the user. The thread + thread-info + unloaded-modules
-    // combo is enough to get a usable stack & registers without that scan.
-    BOOL ok = MiniDumpWriteDump(
-        GetCurrentProcess(), GetCurrentProcessId(), h,
-        (MINIDUMP_TYPE)(MiniDumpNormal
-                      | MiniDumpWithThreadInfo
-                      | MiniDumpWithUnloadedModules),
-        &mei, nullptr, nullptr);
-    CloseHandle(h);
-
-    Out("Crash", "code=0x%08lX at %p -- %s dump: %s",
-        code, ep->ExceptionRecord->ExceptionAddress,
-        ok ? "wrote" : "FAILED",
-        dumpPath);
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
 static std::atomic<bool> gGoodbyeSent { false };
 static void EmitGoodbyeOnce() {
     bool expected = false;
@@ -456,6 +484,8 @@ DWORD WINAPI Thread(LPVOID param) {
 #endif
 
     Out("Main", "Done");
+    //fclose(file);
+
     return 0;
 }
 
@@ -468,22 +498,13 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
             MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
         }
 
-        // FIRST argument 1 = front of the chain. We want to win the race against
-        // Roblox's own crash filter (if any), so we get the dump before they
-        // ExitProcess and we lose the dying threads.
-        AddVectoredExceptionHandler(1, CrashDumpHandler);
-        Out("DllMain", "Crash dump handler installed (dumps to %%TEMP%%\\noobhook_crash_*.dmp)");
-
         Out("DllMain", "Applying patches...");
-        Patches::RemoveTrustCheck();
+        Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
         Patches::RemoveSignatureCheck();
         Patches::RemoveTLSVerification();
         Patches::FixSettingsKeyMustBeDefined();
         Patches::FixInsertObjects();
         Patches::FixStudioUnableToConnect();
-        Patches::FixPlayerMissingEdxNullCheck();
-        Patches::FixPlayerNullMovssDeref();
-        Patches::FixPlayerNullChunkMovqDeref();
 
         DisableThreadLibraryCalls(hModule);
 
@@ -496,6 +517,8 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     case DLL_PROCESS_DETACH:
         EmitGoodbyeOnce();
         MH_Uninitialize();
+        if (lpReserved != nullptr)
+            break;
         break;
     default:
         break;
