@@ -232,29 +232,44 @@ static offline::not_trusted_fn     gOrigNotTrusted     = nullptr;
 // `schema` and `host` are pointers to std::string-shaped things laid out as
 // {data ptr @ +0, length @ +8}. Studio-offline relies on the original strings
 // being heap-allocated (long enough to break SSO); short literals like "http"
-// would normally be SSO. In practice the call sites here pass strings whose
-// data pointer at +0 IS what gets used downstream -- the layout assumption
-// holds for these specific call paths in 0.574.
-//
-// The host includes ":8080" so the URL stays self-contained: WebView2 spawns
-// its own subprocesses for navigation and those don't inherit Hook.cpp's
-// connect() redirect (port 80 -> emulator). Embedding the emulator's HTTP
-// port in the host means WebView2 (and any other consumer) lands on the
-// emulator directly without needing per-process injection or a port-80 bind.
-// Hook.cpp's redirect is still useful for code paths that bypass
+// would normally be SSO. The host includes ":8080" so the URL stays self-
+// contained: WebView2 spawns its own subprocesses for navigation and those
+// don't inherit Hook.cpp's connect() redirect (port 80 -> emulator). Embedding
+// the emulator's HTTP port in the host means WebView2 (and any other consumer)
+// lands on the emulator directly without needing per-process injection or a
+// port-80 bind. Hook.cpp's redirect is still useful for code paths that bypass
 // FromComponents and connect to localhost:80 by other means.
+//
+// The original studio-offline port mutated the CALLER's schema/host structs in
+// place. That's a heap-corruption hazard: the caller's string still owns its
+// original heap buffer, and overwriting the data ptr (+0) makes its destructor
+// later try to free our string literal `kHost` -- silent corruption that piles
+// up across a session, manifests on complex places (more URL construction =
+// more chances), and kills the process without a dump. Instead, copy the
+// caller's structs into local buffers, override just data+size in the copies,
+// and pass the copies down. The caller's structs are never touched.
+//
+// 32 bytes covers std::string in any common ABI (MSVC: 24, libstdc++: 32,
+// libc++: 24 + 8 SSO) plus alignment padding, and is safely readable for any
+// heap-allocated object that's at least that size -- MSVC heap allocations are
+// padded to 16-byte multiples anyway. If the underlying type turns out to be
+// smaller, the read would still be on the same allocation page.
 static void FromComponentsHook(void* res16, void* schema, void* host,
                                void* path, void* query, void* fragment) {
     static const char* kHost   = "localhost:8080";
     static const char* kScheme = "http";
 
-    *reinterpret_cast<const char**>(host) = kHost;
-    *reinterpret_cast<size_t*>(reinterpret_cast<uint8_t*>(host) + 8) = std::strlen(kHost);
+    alignas(16) uint8_t schemaCopy[32];
+    alignas(16) uint8_t hostCopy[32];
+    std::memcpy(schemaCopy, schema, sizeof(schemaCopy));
+    std::memcpy(hostCopy,   host,   sizeof(hostCopy));
 
-    *reinterpret_cast<const char**>(schema) = kScheme;
-    *reinterpret_cast<size_t*>(reinterpret_cast<uint8_t*>(schema) + 8) = std::strlen(kScheme);
+    *reinterpret_cast<const char**>(schemaCopy)     = kScheme;
+    *reinterpret_cast<size_t*>(schemaCopy + 8)      = std::strlen(kScheme);
+    *reinterpret_cast<const char**>(hostCopy)       = kHost;
+    *reinterpret_cast<size_t*>(hostCopy + 8)        = std::strlen(kHost);
 
-    gOrigFromComponents(res16, schema, host, path, query, fragment);
+    gOrigFromComponents(res16, schemaCopy, hostCopy, path, query, fragment);
 }
 
 static uint64_t* TrustCheckHook(const char* url, char a2, char a3) {
@@ -425,8 +440,7 @@ static DWORD WINAPI WorkerThread(LPVOID) {
         : "solo -- vanilla script handling (connection hooks only)");
 
     // Studio-offline web-stack hooks are needed in BOTH modes -- they're what let
-    // Studio reach the local emulator at all. Install them first, unconditionally.
-    // If none of the three patterns match, log and keep going.
+    // Studio reach the local emulator at all.
     if (!InstallOfflineHooks())
         Log("main", "No studio-offline patterns matched (connection bypass disabled)");
 
@@ -459,7 +473,7 @@ static DWORD WINAPI WorkerThread(LPVOID) {
     MH_STATUS est = MH_EnableHook(MH_ALL_HOOKS);
     if (est != MH_OK) { Log("main", "EnableHook failed: %d", (int)est); return 1; }
     Log("main", "Enabled hooks (offline%s)",
-        teamTest ? " + compile + deserializeItem" : " only");
+        teamTest ? " + compile + deserializeItem" : "");
 
     if (teamTest) {
         PatchTypeForProperty();

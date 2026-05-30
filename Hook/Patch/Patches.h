@@ -37,4 +37,7 @@ void BypassPlaceIdVerification();
 void FixSettingsKeyMustBeDefined();
 void FixStudioUnableToConnect();
 void FixInsertObjects();
+void FixPlayerMissingEdxNullCheck();
+void FixPlayerNullMovssDeref();
+void FixPlayerNullChunkMovqDeref();
 }
