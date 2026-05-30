@@ -44,6 +44,18 @@ for k, v in pairs(rows) do
     print("Row " .. k .. ": Contact Id: " .. tostring(v.contact_id) .. ", First Name: " .. v.first_name .. ", Last Name: " .. v.last_name .. ", Email: " .. v.email .. ", Phone: " .. v.phone)
 end
 
+emu_servers = {}
+EMU_SERVER_TIMEOUT = 30 -- seconds before a server we haven't heard from is swept
+
+function SweepEmuServers()
+    local now = os.time()
+    for key, srv in pairs(emu_servers) do
+        if now - srv.LastSeen > EMU_SERVER_TIMEOUT then
+            emu_servers[key] = nil
+        end
+    end
+end
+
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
@@ -58,7 +70,8 @@ local sitemap = {
     -- API
     ["/v1/login"] = "plugin://master-server@noobwarrior.org/src/api/login.lhp",
     ["/v1/create-account"] = "plugin://master-server@noobwarrior.org/src/api/create_account.lhp",
-    ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp"
+    ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp",
+    ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp"
 }
 
 master = http_base.CreateServer({

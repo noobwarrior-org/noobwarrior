@@ -1,0 +1,55 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local ok, body = pcall(json.parse, _RAW_POST)
+if not ok or type(body) ~= "table" then
+    http_response_code(400)
+    die("Malformed JSON")
+end
+
+local event = body.Event or ""
+
+local ip = _SERVER.REMOTE_ADDR or ""
+
+local port = tonumber(body.Port)
+if not port or port <= 0 or port > 65535 then
+    http_response_code(400)
+    die("Missing or invalid Port")
+end
+
+local key = ip .. ":" .. tostring(port)
+
+SweepEmuServers()
+
+if event == "Goodbye" then
+    emu_servers[key] = nil
+    http_response_code(200)
+    die("")
+end
+
+if event ~= "Hello" and event ~= "Heartbeat" then
+    http_response_code(400)
+    die("Unknown Event")
+end
+
+local now = os.time()
+local existing = emu_servers[key]
+
+emu_servers[key] = {
+    Ip = ip,
+    Port = port,
+    Name = tostring(body.Name or ""),
+    Version = tostring(body.Version or ""),
+    PlaceId = tonumber(body.PlaceId),
+    Players = tonumber(body.Players) or 0,
+    MaxPlayers = tonumber(body.MaxPlayers) or 0,
+    FirstSeen = existing and existing.FirstSeen or now,
+    LastSeen = now,
+}
+
+http_response_code(200)
+die("")
+?>

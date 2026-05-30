@@ -189,6 +189,7 @@ function http_base.AttachToServer(srv, params)
                     },
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
+                    ["_RAW_POST"] = req.PostBody or "",
                     ["_FILES"] = {},
                     ["_COOKIE"] = cookies_tbl,
                     ["_PARAMS"] = url_params,
