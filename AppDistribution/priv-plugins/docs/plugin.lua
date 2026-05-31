@@ -5,5 +5,6 @@ return {
     description = "Adds documentation for noobWarrior & adds HTTP server to dynamically generate pages for it",
     icon = "icon.png",
     authors = { "hattozo@noobwarrior.org" },
-    permissions = {  }
+    permissions = {  },
+    autorun = { "lua/main.lua" }
 }
