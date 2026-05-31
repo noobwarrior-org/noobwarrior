@@ -53,6 +53,7 @@
 #include "migrations/v11.sql.inc.cpp"
 #include "migrations/v12.sql.inc.cpp"
 #include "migrations/v13.sql.inc.cpp"
+#include "migrations/v14.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -276,6 +277,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v12)
 	/* V13: Added ForumCategory table and made fields in Forum table able to be parented to it */
 	MIGRATE(v13)
+	/* V14: recreated AssetPlaceThumbnail with a composite key so a place can have multiple thumbnails */
+	MIGRATE(v14)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.

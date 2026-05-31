@@ -23,14 +23,81 @@
 // Started on: 3/25/2026
 // Description: An unholy abomination that implements the Asset type for ItemDialog
 #include "ItemDialog.h"
+#include "ItemOpenSaveDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
 #include <NoobWarrior/EmuDb/Item/Asset.h>
+
+#include <QMenu>
+#include <QRegularExpressionValidator>
 
 using namespace NoobWarrior;
 
 void ItemDialog::Asset_AddFields() {
     AddOwnedItemFields();
     Asset_AddFields_AssetType();
+
+    bool isPublic = false;
+    int64_t minMembership = 0;
+    int64_t contentRating = 0;
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT Public, MinimumMembershipLevel, ContentRatingTypeId FROM Asset WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            isPublic = stmt.GetIntFromColumnIndex(0);
+            minMembership = stmt.GetInt64FromColumnIndex(1);
+            contentRating = stmt.GetInt64FromColumnIndex(2);
+        }
+    }
+
+    mAsset_PublicInput = new QCheckBox();
+    mAsset_PublicInput->setChecked(isPublic);
+    mContentLayout->addRow("Public", mAsset_PublicInput);
+
+    mAsset_MinMembershipInput = new QLineEdit(QString::number(minMembership));
+    mAsset_MinMembershipInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_MinMembershipInput));
+    mContentLayout->addRow("Min. Membership Level", mAsset_MinMembershipInput);
+
+    mAsset_ContentRatingInput = new QLineEdit(QString::number(contentRating));
+    mAsset_ContentRatingInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_ContentRatingInput));
+    mContentLayout->addRow("Content Rating Type", mAsset_ContentRatingInput);
+
+    // Asset statistics live in the separate AssetHistorical table.
+    bool isNew = false;
+    int64_t sales = 0;
+    int64_t favorites = 0;
+    int64_t likes = 0;
+    int64_t dislikes = 0;
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT IsNew, Sales, Favorites, Likes, Dislikes FROM AssetHistorical WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            isNew = stmt.GetIntFromColumnIndex(0);
+            sales = stmt.GetInt64FromColumnIndex(1);
+            favorites = stmt.GetInt64FromColumnIndex(2);
+            likes = stmt.GetInt64FromColumnIndex(3);
+            dislikes = stmt.GetInt64FromColumnIndex(4);
+        }
+    }
+
+    mAsset_IsNewInput = new QCheckBox();
+    mAsset_IsNewInput->setChecked(isNew);
+    mContentLayout->addRow("New", mAsset_IsNewInput);
+
+    mAsset_SalesInput = new QLineEdit(QString::number(sales));
+    mAsset_SalesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_SalesInput));
+    mContentLayout->addRow("Sales", mAsset_SalesInput);
+
+    mAsset_FavoritesInput = new QLineEdit(QString::number(favorites));
+    mAsset_FavoritesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_FavoritesInput));
+    mContentLayout->addRow("Favorites", mAsset_FavoritesInput);
+
+    mAsset_LikesInput = new QLineEdit(QString::number(likes));
+    mAsset_LikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_LikesInput));
+    mContentLayout->addRow("Likes", mAsset_LikesInput);
+
+    mAsset_DislikesInput = new QLineEdit(QString::number(dislikes));
+    mAsset_DislikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_DislikesInput));
+    mContentLayout->addRow("Dislikes", mAsset_DislikesInput);
 
     auto *dataFrame = new QFrame();
     auto *dataLayout = new QVBoxLayout(dataFrame);
@@ -219,19 +286,105 @@ void ItemDialog::Asset_AddFields_Place() {
     auto *thumbnailLayout = new QVBoxLayout(mAsset_Place_ThumbnailFrame);
 
     mAsset_Place_ThumbnailList = new QListWidget();
+    mAsset_Place_ThumbnailList->setIconSize(QSize(64, 64));
+
+    // Right-click a thumbnail to remove it.
+    mAsset_Place_ThumbnailList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mAsset_Place_ThumbnailList, &QListWidget::customContextMenuRequested, [this](const QPoint &point) {
+        QListWidgetItem* item = mAsset_Place_ThumbnailList->itemAt(point);
+        if (item == nullptr)
+            return;
+
+        QMenu menu;
+        QAction* del = menu.addAction(QIcon(":/images/silk/cross.png"), "Remove Thumbnail");
+        connect(del, &QAction::triggered, [this, item]() {
+            int64_t thumbnailId = item->data(Qt::UserRole).toLongLong();
+            bool isPendingAdd = item->data(Qt::UserRole + 1).toBool();
+            if (isPendingAdd) {
+                mAsset_Place_DataPendingThumbnails.removeAll(thumbnailId);
+            } else {
+                mAsset_Place_DataPendingDeleteThumbnails.push_back(thumbnailId);
+            }
+            delete mAsset_Place_ThumbnailList->takeItem(mAsset_Place_ThumbnailList->row(item));
+        });
+        menu.exec(mAsset_Place_ThumbnailList->viewport()->mapToGlobal(point));
+    });
+
+    // Populate the existing thumbnails for this place.
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT Thumbnail FROM AssetPlaceThumbnail WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        while (stmt.Step() == SQLITE_ROW) {
+            if (stmt.IsColumnIndexNull(0))
+                continue;
+            Asset_AddThumbnailToList(stmt.GetInt64FromColumnIndex(0), false);
+        }
+    }
+
     mAsset_Place_UploadThumbnailButton = new QPushButton("Upload Thumbnail");
+    connect(mAsset_Place_UploadThumbnailButton, &QPushButton::clicked, [this]() {
+        QString filePath = QFileDialog::getOpenFileName(
+            this,
+            "Upload Thumbnail",
+            QString(),
+            "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
+        );
+        if (filePath.isEmpty())
+            return;
 
-    connect(mAsset_Place_UploadThumbnailButton, &QPushButton::clicked, []() {
+        std::optional<int64_t> thumbnailId = CreateImageAssetFromFile(filePath);
+        if (!thumbnailId.has_value())
+            return;
 
+        mAsset_Place_DataPendingThumbnails.push_back(thumbnailId.value());
+        Asset_AddThumbnailToList(thumbnailId.value(), true);
     });
 
     mAsset_Place_AddThumbnailFromExistingImageButton = new QPushButton("Add Thumbnail From Existing Image");
+    connect(mAsset_Place_AddThumbnailFromExistingImageButton, &QPushButton::clicked, [this]() {
+        std::optional<int64_t> thumbnailId = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
+        if (!thumbnailId.has_value())
+            return;
+
+        // Don't allow the same image to be added twice (the table's key is (Id, Thumbnail)).
+        if (mAsset_Place_DataPendingThumbnails.contains(thumbnailId.value())) {
+            QMessageBox::information(this, "Already Added", "That image is already a thumbnail for this place.");
+            return;
+        }
+        for (int i = 0; i < mAsset_Place_ThumbnailList->count(); i++) {
+            if (mAsset_Place_ThumbnailList->item(i)->data(Qt::UserRole).toLongLong() == thumbnailId.value()) {
+                QMessageBox::information(this, "Already Added", "That image is already a thumbnail for this place.");
+                return;
+            }
+        }
+
+        mAsset_Place_DataPendingThumbnails.push_back(thumbnailId.value());
+        // If it was queued for deletion this session, adding it back cancels that.
+        mAsset_Place_DataPendingDeleteThumbnails.removeAll(thumbnailId.value());
+        Asset_AddThumbnailToList(thumbnailId.value(), true);
+    });
 
     thumbnailLayout->addWidget(mAsset_Place_ThumbnailList);
     thumbnailLayout->addWidget(mAsset_Place_UploadThumbnailButton);
     thumbnailLayout->addWidget(mAsset_Place_AddThumbnailFromExistingImageButton);
 
     mContentLayout->addRow("Thumbnails", mAsset_Place_ThumbnailFrame);
+}
+
+void ItemDialog::Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd) {
+    auto *listItem = new QListWidgetItem();
+    listItem->setText(pendingAdd
+        ? QString("(Pending) Image %1").arg(thumbnailId)
+        : QString("Image %1").arg(thumbnailId));
+    listItem->setData(Qt::UserRole, static_cast<qlonglong>(thumbnailId));
+    listItem->setData(Qt::UserRole + 1, pendingAdd);
+
+    std::vector<unsigned char> data = GetDatabase()->RetrieveImageData(ItemType::Asset, thumbnailId);
+    QImage image;
+    if (image.loadFromData(data))
+        listItem->setIcon(QPixmap::fromImage(image));
+
+    mAsset_Place_ThumbnailList->addItem(listItem);
 }
 
 void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
@@ -287,9 +440,12 @@ bool ItemDialog::Asset_OnSave() {
     std::string name = mNameInput->text().toStdString();
     std::string description = mOwned_DescriptionInput->text().toStdString();
     int64_t imageId = mImageIdInput->text().toLongLong();
+    bool isPublic = mAsset_PublicInput->isChecked();
+    int64_t minMembership = mAsset_MinMembershipInput->text().toLongLong();
+    int64_t contentRating = mAsset_ContentRatingInput->text().toLongLong();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO Asset (Id, Name, Description, Created, Updated, ImageId, Type) VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Asset (Id, Name, Description, Created, Updated, ImageId, Type, Public, MinimumMembershipLevel, ContentRatingTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id) DO UPDATE SET
             LastRecorded = (unixepoch()),
             Name = excluded.Name,
@@ -297,7 +453,10 @@ bool ItemDialog::Asset_OnSave() {
             Created = excluded.Created,
             Updated = excluded.Updated,
             ImageId = excluded.ImageId,
-            Type = excluded.Type;
+            Type = excluded.Type,
+            Public = excluded.Public,
+            MinimumMembershipLevel = excluded.MinimumMembershipLevel,
+            ContentRatingTypeId = excluded.ContentRatingTypeId;
     )");
     stmt.Bind(1, newId);
     stmt.Bind(2, name);
@@ -306,9 +465,41 @@ bool ItemDialog::Asset_OnSave() {
     stmt.Bind(5, static_cast<int64_t>(mOwned_UpdatedInput->dateTime().toSecsSinceEpoch()));
     stmt.Bind(6, imageId);
     stmt.Bind(7, static_cast<int>(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>()));
+    stmt.Bind(8, isPublic);
+    stmt.Bind(9, minMembership);
+    stmt.Bind(10, contentRating);
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
+    }
+
+    // Persist asset statistics into the AssetHistorical table.
+    {
+        bool isNew = mAsset_IsNewInput->isChecked();
+        int64_t sales = mAsset_SalesInput->text().toLongLong();
+        int64_t favorites = mAsset_FavoritesInput->text().toLongLong();
+        int64_t likes = mAsset_LikesInput->text().toLongLong();
+        int64_t dislikes = mAsset_DislikesInput->text().toLongLong();
+
+        Statement histStmt = db->PrepareStatement(R"(
+            INSERT INTO AssetHistorical (Id, IsNew, Sales, Favorites, Likes, Dislikes) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (Id) DO UPDATE SET
+                IsNew = excluded.IsNew,
+                Sales = excluded.Sales,
+                Favorites = excluded.Favorites,
+                Likes = excluded.Likes,
+                Dislikes = excluded.Dislikes;
+        )");
+        histStmt.Bind(1, newId);
+        histStmt.Bind(2, isNew);
+        histStmt.Bind(3, sales);
+        histStmt.Bind(4, favorites);
+        histStmt.Bind(5, likes);
+        histStmt.Bind(6, dislikes);
+        if (histStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
     }
 
     for (QString filePath : mAsset_DataPendingFiles) {
@@ -350,6 +541,33 @@ bool ItemDialog::Asset_OnSave() {
             QMessageBox::critical(this, "Failed to Save Changes",
                 QString("Failed to delete version %1.\nLast error: %2")
                     .arg(version)
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+            return false;
+        }
+    }
+
+    // Persist place thumbnails (only relevant for Place assets, but harmless otherwise).
+    for (int64_t thumbnailId : mAsset_Place_DataPendingDeleteThumbnails) {
+        Statement delStmt = db->PrepareStatement("DELETE FROM AssetPlaceThumbnail WHERE Id = ? AND Thumbnail = ?;");
+        delStmt.Bind(1, newId);
+        delStmt.Bind(2, thumbnailId);
+        if (delStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes",
+                QString("Failed to remove thumbnail %1.\nLast error: %2")
+                    .arg(thumbnailId)
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+            return false;
+        }
+    }
+
+    for (int64_t thumbnailId : mAsset_Place_DataPendingThumbnails) {
+        Statement insStmt = db->PrepareStatement("INSERT OR IGNORE INTO AssetPlaceThumbnail (Id, Thumbnail) VALUES (?, ?);");
+        insStmt.Bind(1, newId);
+        insStmt.Bind(2, thumbnailId);
+        if (insStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes",
+                QString("Failed to add thumbnail %1.\nLast error: %2")
+                    .arg(thumbnailId)
                     .arg(QString::fromStdString(db->GetLastErrorMsg())));
             return false;
         }

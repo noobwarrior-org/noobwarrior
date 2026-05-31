@@ -87,6 +87,31 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_ActiveInput->setChecked(active);
     mContentLayout->addRow("Active", mUniverse_ActiveInput);
 
+    int64_t favorites = 0;
+    int64_t likes = 0;
+    int64_t dislikes = 0;
+    if (mId.has_value()) {
+        Statement histStmt = db->PrepareStatement("SELECT Favorites, Likes, Dislikes FROM UniverseHistorical WHERE Id = ?");
+        histStmt.Bind(1, mId.value());
+        if (histStmt.Step() == SQLITE_ROW) {
+            favorites = histStmt.GetInt64FromColumnIndex(0);
+            likes = histStmt.GetInt64FromColumnIndex(1);
+            dislikes = histStmt.GetInt64FromColumnIndex(2);
+        }
+    }
+
+    mUniverse_FavoritesInput = new QLineEdit(QString::number(favorites));
+    mUniverse_FavoritesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_FavoritesInput));
+    mContentLayout->addRow("Favorites", mUniverse_FavoritesInput);
+
+    mUniverse_LikesInput = new QLineEdit(QString::number(likes));
+    mUniverse_LikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_LikesInput));
+    mContentLayout->addRow("Likes", mUniverse_LikesInput);
+
+    mUniverse_DislikesInput = new QLineEdit(QString::number(dislikes));
+    mUniverse_DislikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_DislikesInput));
+    mContentLayout->addRow("Dislikes", mUniverse_DislikesInput);
+
     mUniverse_PlaceFrame = new QFrame();
     auto *placeFrameLayout = new QVBoxLayout(mUniverse_PlaceFrame);
 
@@ -231,6 +256,26 @@ bool ItemDialog::Universe_OnSave() {
     stmt.Bind(9, visits);
 
     if (stmt.Step() != SQLITE_DONE) {
+        QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        return false;
+    }
+
+    int64_t favorites = mUniverse_FavoritesInput->text().toLongLong();
+    int64_t likes = mUniverse_LikesInput->text().toLongLong();
+    int64_t dislikes = mUniverse_DislikesInput->text().toLongLong();
+
+    Statement histStmt = db->PrepareStatement(R"(
+        INSERT INTO UniverseHistorical (Id, Favorites, Likes, Dislikes) VALUES (?, ?, ?, ?)
+        ON CONFLICT (Id) DO UPDATE SET
+            Favorites = excluded.Favorites,
+            Likes = excluded.Likes,
+            Dislikes = excluded.Dislikes;
+    )");
+    histStmt.Bind(1, id);
+    histStmt.Bind(2, favorites);
+    histStmt.Bind(3, likes);
+    histStmt.Bind(4, dislikes);
+    if (histStmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
     }

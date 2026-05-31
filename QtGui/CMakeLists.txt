@@ -47,6 +47,13 @@ set(SOURCES
     Sdk/Item/ItemListWidget.cpp
     Sdk/Item/ItemDialog.cpp
     Sdk/Item/ItemDialog_Impl_Asset.cpp
+    Sdk/Item/ItemDialog_Impl_Badge.cpp
+    Sdk/Item/ItemDialog_Impl_Bundle.cpp
+    Sdk/Item/ItemDialog_Impl_DevProduct.cpp
+    Sdk/Item/ItemDialog_Impl_Group.cpp
+    Sdk/Item/ItemDialog_Impl_Outfit.cpp
+    Sdk/Item/ItemDialog_Impl_Pass.cpp
+    Sdk/Item/ItemDialog_Impl_Set.cpp
     Sdk/Item/ItemDialog_Impl_Universe.cpp
     Sdk/Item/ItemDialog_Impl_User.cpp
     Sdk/Item/UniverseTreeWidget.cpp

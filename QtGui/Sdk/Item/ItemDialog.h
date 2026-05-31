@@ -60,12 +60,38 @@ protected:
 
     void AddOwnedItemFields();
 
+    // Creates an Image asset from a file on disk (uploading its data as a blob) and
+    // returns the new asset's Id, or std::nullopt on failure.
+    std::optional<int64_t> CreateImageAssetFromFile(const QString &filePath);
+
     void Asset_AddFields();
     void Asset_AddFields_AssetType();
     void Asset_AddFields_Place();
+    void Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd);
     void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
     Roblox::AssetType Asset_GetAssetTypeFromFileType(const std::filesystem::path &path);
     bool Asset_OnSave();
+
+    void Badge_AddFields();
+    bool Badge_OnSave();
+
+    void Bundle_AddFields();
+    bool Bundle_OnSave();
+
+    void DevProduct_AddFields();
+    bool DevProduct_OnSave();
+
+    void Group_AddFields();
+    bool Group_OnSave();
+
+    void Outfit_AddFields();
+    bool Outfit_OnSave();
+
+    void Pass_AddFields();
+    bool Pass_OnSave();
+
+    void Set_AddFields();
+    bool Set_OnSave();
 
     void Universe_AddFields();
     bool Universe_OnSave();
@@ -105,6 +131,15 @@ protected:
     QList<QString> mAsset_DataPendingFiles;
     QList<int> mAsset_DataPendingDeleteVersions;
 
+    QCheckBox* mAsset_PublicInput;
+    QLineEdit* mAsset_MinMembershipInput;
+    QLineEdit* mAsset_ContentRatingInput;
+    QCheckBox* mAsset_IsNewInput;
+    QLineEdit* mAsset_SalesInput;
+    QLineEdit* mAsset_FavoritesInput;
+    QLineEdit* mAsset_LikesInput;
+    QLineEdit* mAsset_DislikesInput;
+
     QFrame* mAsset_Place_ThumbnailFrame;
     QListWidget* mAsset_Place_ThumbnailList;
     QPushButton* mAsset_Place_UploadThumbnailButton;
@@ -115,6 +150,9 @@ protected:
     std::optional<int64_t> mUniverse_StartPlaceId;
     QLineEdit* mUniverse_VisitsInput;
     QCheckBox* mUniverse_ActiveInput;
+    QLineEdit* mUniverse_FavoritesInput;
+    QLineEdit* mUniverse_LikesInput;
+    QLineEdit* mUniverse_DislikesInput;
     QFrame* mUniverse_PlaceFrame;
     ItemListWidget* mUniverse_PlaceList;
     QPushButton* mUniverse_AddPlaceButton;
@@ -124,8 +162,65 @@ protected:
     QLineEdit* mUser_DisplayNameInput;
     QLineEdit* mUser_StatusInput;
     QLineEdit* mUser_BioInput;
+    QLineEdit* mUser_EmailInput;
     QDateTimeEdit* mUser_JoinDateInput;
     QDateTimeEdit* mUser_LastOnlineInput;
+    QLineEdit* mUser_PlaceVisitsInput;
+    QLineEdit* mUser_RankInput;
+    QLineEdit* mUser_FriendCountInput;
+    QLineEdit* mUser_FollowersCountInput;
+    QLineEdit* mUser_FollowingCountInput;
+
+    QCheckBox* mBadge_EnabledInput;
+    QLineEdit* mBadge_UniverseIdInput;
+    QLineEdit* mBadge_AwardedInput;
+    QLineEdit* mBadge_AwardedYesterdayInput;
+
+    QComboBox* mBundle_TypeInput;
+    QLineEdit* mBundle_PriceInput;
+    QCheckBox* mBundle_IsForSaleInput;
+    QCheckBox* mBundle_IsNewInput;
+    QCheckBox* mBundle_IsLimitedInput;
+    QCheckBox* mBundle_IsLimitedUniqueInput;
+    QLineEdit* mBundle_RemainingInput;
+    QLineEdit* mBundle_SalesInput;
+    QLineEdit* mBundle_FavoritesInput;
+    ItemListWidget* mBundle_AssetList;
+    QPushButton* mBundle_AddAssetButton;
+    QList<int64_t> mBundle_PendingAssets;
+    QList<int64_t> mBundle_PendingDeleteAssets;
+
+    QComboBox* mDevProduct_CurrencyTypeInput;
+    QLineEdit* mDevProduct_PriceInput;
+    QLineEdit* mDevProduct_UniverseIdInput;
+
+    QLineEdit* mGroup_OwnerIdInput;
+    QLineEdit* mGroup_FundsInput;
+    QLineEdit* mGroup_ShoutInput;
+    QCheckBox* mGroup_EnemyDeclarationsEnabledInput;
+
+    QLineEdit* mOutfit_UserIdInput;
+    QLineEdit* mOutfit_BodyTypeInput;
+    QLineEdit* mOutfit_WidthInput;
+    QLineEdit* mOutfit_HeightInput;
+    QLineEdit* mOutfit_HeadInput;
+    QLineEdit* mOutfit_ProportionsInput;
+    ItemListWidget* mOutfit_ItemList;
+    QPushButton* mOutfit_AddItemButton;
+    QList<int64_t> mOutfit_PendingItems;
+    QList<int64_t> mOutfit_PendingDeleteItems;
+
+    QLineEdit* mPass_UniverseIdInput;
+    QLineEdit* mPass_PriceInput;
+    QCheckBox* mPass_IsForSaleInput;
+    QLineEdit* mPass_LikesInput;
+    QLineEdit* mPass_DislikesInput;
+
+    QLineEdit* mSet_SubscribersInput;
+    ItemListWidget* mSet_AssetList;
+    QPushButton* mSet_AddAssetButton;
+    QList<int64_t> mSet_PendingAssets;
+    QList<int64_t> mSet_PendingDeleteAssets;
 
     QDialogButtonBox* mButtonBox;
 };

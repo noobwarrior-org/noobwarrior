@@ -92,7 +92,7 @@ void ItemDialog::RegenWidgets() {
     mSidebarLayout->addWidget(mUploadImageButton);
     mSidebarLayout->addWidget(mUseExistingImageButton);
 
-    connect(mUploadImageButton, &QPushButton::clicked, [this, db]() {
+    connect(mUploadImageButton, &QPushButton::clicked, [this]() {
         QString filePath = QFileDialog::getOpenFileName(
             this,
             "Change Icon",
@@ -100,41 +100,11 @@ void ItemDialog::RegenWidgets() {
             "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
         );
         if (!filePath.isEmpty()) {
-            if (!std::filesystem::exists(filePath.toStdString())) {
-                QMessageBox::critical(this, "Error", "Unable to open file");
+            std::optional<int64_t> id = CreateImageAssetFromFile(filePath);
+            if (!id.has_value())
                 return;
-            }
 
-            std::filesystem::path stdFilePath = std::filesystem::path(filePath.toStdString());
-
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_int_distribution<> distrib(0, 2147483647);
-
-            int64_t id = distrib(gen);
-            if (db->DoesItemExist(ItemType::Asset, id)) {
-                QMessageBox::critical(this, "Weird Error", "Tried generating a random ID for image and it somehow conflicted with another ID. Try again.");
-                return;
-            }
-            db->AddItem(ItemType::Asset, {
-                {"Id", id},
-                {"Name", "ImageAsset"},
-                {"Type", static_cast<int>(Roblox::AssetType::Image)}
-            });
-
-            std::string hash;
-            SqlDb::Response blobRes = db->AddBlob(stdFilePath, &hash);
-            if (blobRes != SqlDb::Response::Success && blobRes != SqlDb::Response::DidNothing) {
-                QMessageBox::critical(this, "Error", "Could not attach image because adding the blob failed.");
-                return;
-            }
-            SqlDb::Response attachRes = db->AttachBlobHashToAsset(id, 1, hash);
-            if (attachRes != SqlDb::Response::Success) {
-                QMessageBox::critical(this, "Error", "Could not attach image because attaching the blob to the image asset failed.");
-                return;
-            }
-
-            mImageIdInput->setText(QString::number(id));
+            mImageIdInput->setText(QString::number(id.value()));
 
             QImage newImage(filePath);
             QPixmap newPixmap = QPixmap::fromImage(newImage);
@@ -144,10 +114,23 @@ void ItemDialog::RegenWidgets() {
 
     connect(mUseExistingImageButton, &QPushButton::clicked, [this]() {
         std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset, Roblox::AssetType::Image, true);
+        if (id.has_value()) {
+            mImageIdInput->setText(QString::number(id.value()));
+
+            std::vector<unsigned char> data = GetDatabase()->RetrieveImageData(ItemType::Asset, id.value());
+            QImage image;
+            if (image.loadFromData(data))
+                mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
     });
 
-    mUploadImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
-    mUseExistingImageButton->setVisible(!(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
+    // These types either don't have an ImageId column (Bundle, Outfit, Universe, User) or
+    // manage their icon through a dedicated widget (Asset's Place thumbnails), so the generic
+    // sidebar image controls don't apply to them.
+    bool hasSidebarImage = !(mType == ItemType::Asset || mType == ItemType::Bundle ||
+        mType == ItemType::Outfit || mType == ItemType::Universe || mType == ItemType::User);
+    mUploadImageButton->setVisible(hasSidebarImage);
+    mUseExistingImageButton->setVisible(hasSidebarImage);
 
     mSidebarLayout->addStretch();
 
@@ -162,7 +145,7 @@ void ItemDialog::RegenWidgets() {
     mImageIdInput = new QLineEdit("0");
     mImageIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mImageIdInput));
     mContentLayout->addRow("Image Id", mImageIdInput);
-    mContentLayout->setRowVisible(mImageIdInput, !(mType == ItemType::Asset || mType == ItemType::User || mType == ItemType::Universe));
+    mContentLayout->setRowVisible(mImageIdInput, hasSidebarImage);
 
     mNameInput = new QLineEdit();
     mNameInput->setPlaceholderText("Cool Name");
@@ -170,7 +153,7 @@ void ItemDialog::RegenWidgets() {
 
     if (mId.has_value()) {
         // deserialization
-        Statement stmt = db->PrepareStatement(std::format("SELECT Id, Name FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        Statement stmt = db->PrepareStatement(std::format("SELECT Id, Name FROM \"{}\" WHERE Id = ?;", GetTableNameFromItemType(mType)));
         stmt.Bind(1, mId.value());
         int stepResult = stmt.Step();
         if (stepResult == SQLITE_ROW) {
@@ -194,6 +177,27 @@ void ItemDialog::RegenWidgets() {
         break;
     case ItemType::Asset:
         Asset_AddFields();
+        break;
+    case ItemType::Badge:
+        Badge_AddFields();
+        break;
+    case ItemType::Bundle:
+        Bundle_AddFields();
+        break;
+    case ItemType::DevProduct:
+        DevProduct_AddFields();
+        break;
+    case ItemType::Group:
+        Group_AddFields();
+        break;
+    case ItemType::Outfit:
+        Outfit_AddFields();
+        break;
+    case ItemType::Pass:
+        Pass_AddFields();
+        break;
+    case ItemType::Set:
+        Set_AddFields();
         break;
     case ItemType::Universe:
         Universe_AddFields();
@@ -236,7 +240,7 @@ void ItemDialog::OnSave() {
     bool idChanged = mId.has_value() && newId != oldId;
 
     if (idChanged) {
-        Statement checkStmt = db->PrepareStatement(std::format("SELECT COUNT(*) FROM {} WHERE Id = ?;", tableName));
+        Statement checkStmt = db->PrepareStatement(std::format("SELECT COUNT(*) FROM \"{}\" WHERE Id = ?;", tableName));
         checkStmt.Bind(1, newId);
         if (checkStmt.Step() == SQLITE_ROW && checkStmt.GetIntFromColumnIndex(0) > 0) {
             QMessageBox::critical(this, "Cannot Save",
@@ -244,7 +248,7 @@ void ItemDialog::OnSave() {
             return;
         }
 
-        Statement renameStmt = db->PrepareStatement(std::format("UPDATE {} SET Id = ? WHERE Id = ?;", tableName));
+        Statement renameStmt = db->PrepareStatement(std::format("UPDATE \"{}\" SET Id = ? WHERE Id = ?;", tableName));
         renameStmt.Bind(1, newId);
         renameStmt.Bind(2, oldId);
         if (renameStmt.Step() != SQLITE_DONE) {
@@ -265,6 +269,27 @@ void ItemDialog::OnSave() {
         return;
     case ItemType::Asset:
         if (!Asset_OnSave()) return;
+        break;
+    case ItemType::Badge:
+        if (!Badge_OnSave()) return;
+        break;
+    case ItemType::Bundle:
+        if (!Bundle_OnSave()) return;
+        break;
+    case ItemType::DevProduct:
+        if (!DevProduct_OnSave()) return;
+        break;
+    case ItemType::Group:
+        if (!Group_OnSave()) return;
+        break;
+    case ItemType::Outfit:
+        if (!Outfit_OnSave()) return;
+        break;
+    case ItemType::Pass:
+        if (!Pass_OnSave()) return;
+        break;
+    case ItemType::Set:
+        if (!Set_OnSave()) return;
         break;
     case ItemType::Universe:
         if (!Universe_OnSave()) return;
@@ -303,7 +328,7 @@ void ItemDialog::AddOwnedItemFields() {
 
     if (mId.has_value()) {
         // deserialization
-        Statement stmt = db->PrepareStatement(std::format("SELECT Description, Created, Updated FROM {} WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        Statement stmt = db->PrepareStatement(std::format("SELECT Description, Created, Updated FROM \"{}\" WHERE Id = ?;", GetTableNameFromItemType(mType)));
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
             std::string desc = stmt.GetStringFromColumnIndex(0);
@@ -315,6 +340,46 @@ void ItemDialog::AddOwnedItemFields() {
             QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         }
     }
+}
+
+std::optional<int64_t> ItemDialog::CreateImageAssetFromFile(const QString &filePath) {
+    auto *db = GetDatabase();
+
+    if (!std::filesystem::exists(filePath.toStdString())) {
+        QMessageBox::critical(this, "Error", "Unable to open file");
+        return std::nullopt;
+    }
+
+    std::filesystem::path stdFilePath = std::filesystem::path(filePath.toStdString());
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, 2147483647);
+
+    int64_t id = distrib(gen);
+    if (db->DoesItemExist(ItemType::Asset, id)) {
+        QMessageBox::critical(this, "Weird Error", "Tried generating a random ID for image and it somehow conflicted with another ID. Try again.");
+        return std::nullopt;
+    }
+    db->AddItem(ItemType::Asset, {
+        {"Id", id},
+        {"Name", "ImageAsset"},
+        {"Type", static_cast<int>(Roblox::AssetType::Image)}
+    });
+
+    std::string hash;
+    SqlDb::Response blobRes = db->AddBlob(stdFilePath, &hash);
+    if (blobRes != SqlDb::Response::Success && blobRes != SqlDb::Response::DidNothing) {
+        QMessageBox::critical(this, "Error", "Could not attach image because adding the blob failed.");
+        return std::nullopt;
+    }
+    SqlDb::Response attachRes = db->AttachBlobHashToAsset(id, 1, hash);
+    if (attachRes != SqlDb::Response::Success) {
+        QMessageBox::critical(this, "Error", "Could not attach image because attaching the blob to the image asset failed.");
+        return std::nullopt;
+    }
+
+    return id;
 }
 
 EmuDb* ItemDialog::GetDatabase() {
