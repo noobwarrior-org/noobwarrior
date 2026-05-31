@@ -92,7 +92,7 @@ void OverviewWidget::InitWidgets() {
             "Image File (*.png *.jpg *.jpeg *.bmp *.gif)"
         );
         if (!filePath.isEmpty()) {
-            std::ifstream file(filePath.toStdString());
+            std::ifstream file(filePath.toStdString(), std::ios::binary);
 
             if (!file.is_open()) {
                 QMessageBox::critical(this, "Error", "Unable to open file");
