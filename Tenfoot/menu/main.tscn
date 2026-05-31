@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://disa7x3d22eu0"]
+
+[ext_resource type="FontFile" uid="uid://e3urqlkp3huf" path="res://fonts/SourceSansPro-Regular.ttf" id="1_4twx3"]
+[ext_resource type="Texture2D" uid="uid://csgp0mybeuecs" path="res://textures/icon128.png" id="2_nibp5"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_226b0"]
+font = ExtResource("1_4twx3")
+font_size = 64
+
+[node name="Main" type="Control" unique_id=1598948047]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1920.0
+offset_bottom = 1080.0
+
+[node name="Label" type="Label" parent="." unique_id=1714229979]
+layout_mode = 0
+offset_left = 162.0
+offset_top = 88.0
+offset_right = 500.0
+offset_bottom = 169.0
+text = "noobWarrior"
+label_settings = SubResource("LabelSettings_226b0")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=845266918]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 152.0
+offset_bottom = 152.0
+texture = ExtResource("2_nibp5")

@@ -3,21 +3,17 @@
 [ext_resource type="Shader" uid="uid://bxhwo4y5tvome" path="res://gaussian_blur.gdshader" id="1_226b0"]
 [ext_resource type="Script" uid="uid://b84qqvrpt4ep5" path="res://tenfoot.gd" id="1_yt24d"]
 [ext_resource type="Script" uid="uid://b0ix71xx01jfc" path="res://fade_out.gd" id="2_hsclx"]
-[ext_resource type="FontFile" uid="uid://e3urqlkp3huf" path="res://fonts/SourceSansPro-Regular.ttf" id="2_oujc7"]
-[ext_resource type="Texture2D" uid="uid://csgp0mybeuecs" path="res://textures/icon128.png" id="5_qwma8"]
+[ext_resource type="Texture2D" uid="uid://dt1vw8s6cj48c" path="res://textures/sparkle.png" id="4_hsclx"]
+[ext_resource type="AudioStream" uid="uid://gj7ho8tb3hkn" path="res://sounds/music/music1.ogg" id="4_qwma8"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_hsclx"]
 shader = ExtResource("1_226b0")
 shader_parameter/blur_strength = 1.0
 shader_parameter/blur_amount = 2.0
 
-[sub_resource type="LabelSettings" id="LabelSettings_226b0"]
-font = ExtResource("2_oujc7")
-font_size = 64
-
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_oujc7"]
-sky_top_color = Color(0.9938919, 0.68306106, 0.6536951, 1)
-sky_horizon_color = Color(0.49564785, 0.120848246, 0.12824386, 1)
+sky_top_color = Color(0.91158813, 0.21375573, 0.23168361, 1)
+sky_horizon_color = Color(0.2261396, 0.035237953, 0.039214227, 1)
 sky_curve = 0.9747034
 ground_bottom_color = Color(0.31393182, 0.07176805, 0.13126898, 1)
 ground_horizon_color = Color(0.970388, 0, 0.18996677, 1)
@@ -28,17 +24,39 @@ sky_material = SubResource("ProceduralSkyMaterial_oujc7")
 [sub_resource type="Environment" id="Environment_hsclx"]
 background_mode = 2
 sky = SubResource("Sky_226b0")
+ambient_light_source = 3
 glow_enabled = true
 glow_intensity = 5.04
 glow_bloom = 0.1
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_226b0"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_qwma8"]
+emission_shape = 3
+emission_box_extents = Vector3(3, 3, 3)
+spread = 20.0
+initial_velocity_min = 5.0
+initial_velocity_max = 5.0
+gravity = Vector3(0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h52sh"]
+transparency = 1
+albedo_texture = ExtResource("4_hsclx")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 2.0
+billboard_mode = 3
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_txft6"]
+material = SubResource("StandardMaterial3D_h52sh")
+size = Vector2(0.05, 0.05)
 
 [node name="Node3D" type="Node3D" unique_id=1485838790]
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=222963949]
 
-[node name="ColorRectHorizontalBlur" type="ColorRect" parent="CanvasLayer" unique_id=1102281637]
+[node name="ColorRectBlurShader" type="ColorRect" parent="CanvasLayer" unique_id=1102281637]
 material = SubResource("ShaderMaterial_hsclx")
 anchors_preset = 15
 anchor_right = 1.0
@@ -65,31 +83,19 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_yt24d")
 
-[node name="Main" type="Control" parent="CanvasLayer/Ui" unique_id=712420611]
-anchors_preset = 0
-offset_right = 1920.0
-offset_bottom = 1080.0
-
-[node name="Label" type="Label" parent="CanvasLayer/Ui/Main" unique_id=1833960642]
-layout_mode = 0
-offset_left = 140.0
-offset_top = 61.0
-offset_right = 478.0
-offset_bottom = 142.0
-text = "noobWarrior"
-label_settings = SubResource("LabelSettings_226b0")
-
-[node name="TextureRect" type="TextureRect" parent="CanvasLayer/Ui/Main" unique_id=505466815]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
-texture = ExtResource("5_qwma8")
+[node name="Music" type="AudioStreamPlayer" parent="CanvasLayer/Ui" unique_id=1890976560]
+stream = ExtResource("4_qwma8")
+autoplay = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=318999404]
 environment = SubResource("Environment_hsclx")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=109586863]
-transform = Transform3D(1, 0, 0, 0, 0.6711256, -0.7413437, 0, 0.7413437, 0.6711256, 0, 0, 1.7622564)
+transform = Transform3D(1, 0, 0, 0, 0.7772997, -0.6291305, 0, 0.6291305, 0.7772997, 0, 0, 1.7622564)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1350247614]
-mesh = SubResource("CapsuleMesh_226b0")
+[node name="GPUParticles3D" type="GPUParticles3D" parent="." unique_id=1559460496]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 3, -2)
+amount = 64
+lifetime = 5.0
+process_material = SubResource("ParticleProcessMaterial_qwma8")
+draw_pass_1 = SubResource("QuadMesh_txft6")
