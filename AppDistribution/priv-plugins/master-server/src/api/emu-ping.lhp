@@ -22,10 +22,10 @@ end
 
 local key = ip .. ":" .. tostring(port)
 
-SweepEmuServers()
+_G.SweepEmuServers()
 
 if event == "Goodbye" then
-    emu_servers[key] = nil
+    _G.EMU_SERVERS[key] = nil
     http_response_code(200)
     die("")
 end
@@ -36,14 +36,16 @@ if event ~= "Hello" and event ~= "Heartbeat" then
 end
 
 local now = os.time()
-local existing = emu_servers[key]
+local existing = _G.EMU_SERVERS[key]
 
-emu_servers[key] = {
+_G.EMU_SERVERS[key] = {
     Ip = ip,
     Port = port,
     Name = tostring(body.Name or ""),
     Version = tostring(body.Version or ""),
+    Game = tostring(body.Game or ""),
     PlaceId = tonumber(body.PlaceId),
+    ServerCount = tonumber(body.ServerCount) or 0,
     Players = tonumber(body.Players) or 0,
     MaxPlayers = tonumber(body.MaxPlayers) or 0,
     FirstSeen = existing and existing.FirstSeen or now,
@@ -52,4 +54,3 @@ emu_servers[key] = {
 
 http_response_code(200)
 die("")
-?>

@@ -22,9 +22,6 @@
 // Started by: Hattozo
 // Started on: 11/6/2025
 // Description: Widget that contains a list of master servers
-// cpr must precede any libevent header (Application.h pulls it in via NoobWarrior.h):
-// libevent's event2/http.h defines HTTP_OK etc. as macros that collide with cpr's
-// cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include "OnlineSidebar.h"

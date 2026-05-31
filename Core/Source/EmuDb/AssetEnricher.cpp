@@ -23,8 +23,6 @@
 // Started on: 5/28/2026
 // Description: See AssetEnricher.h.
 //              (Disclaimer: This code was created by Claude Opus 4.8.)
-// cpr must precede any libevent header (NoobWarrior.h pulls it in): libevent's
-// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/EmuDb/AssetEnricher.h>

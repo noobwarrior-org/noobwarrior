@@ -23,8 +23,6 @@
 // Started on: 6/19/2025
 // Description: HTTP request handler that simulates the action of getting an asset from Roblox services.
 //              Some assistance by Claude Opus 4.8
-// cpr must precede any libevent header (ServerEmulator pulls it in): libevent's
-// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/HttpServer/Emulator/AssetHandler.h>

@@ -46,12 +46,18 @@ void OnlineWindow::InitWidgets() {
         DirectConnectDialog directConnect;
         directConnect.exec();
     });
-    
-    mToolBar->addWidget(directConnect);
-    mToolBar->addWidget(new QPushButton("Refresh"));
 
     mServerList = new ServerListWidget(this);
     setCentralWidget(mServerList);
+
+    auto *refresh = new QPushButton("Refresh");
+    connect(refresh, &QPushButton::clicked, mServerList, &ServerListWidget::RefreshFromMasters);
+
+    mToolBar->addWidget(directConnect);
+    mToolBar->addWidget(refresh);
+
+    // Populate from the configured master servers on open.
+    mServerList->RefreshFromMasters();
 
     mSidebar = new OnlineSidebar(this);
     mSidebar->setAllowedAreas(Qt::AllDockWidgetAreas);

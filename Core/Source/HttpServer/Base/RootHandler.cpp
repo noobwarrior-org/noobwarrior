@@ -125,7 +125,7 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         const char *p = path.c_str();
         while (*p == '/') p++;
         static const char *kApiPrefixes[] = {
-            "v1/", "v2/", "v1.0/", "v1.1/", "universal-app-configuration/",
+            "v2/", "v1.0/", "v1.1/", "universal-app-configuration/",
             "games-autocomplete/", "discovery-api/", "maintenance-status/",
             "product-experimentation-platform/", "client/", "studio/", "timespent/",
             "web/", "gamejoin/", "game-join/", "presence/", "contacts/", "account/",

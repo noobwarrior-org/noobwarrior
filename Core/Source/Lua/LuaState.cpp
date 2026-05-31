@@ -22,9 +22,6 @@
 // Started by: Hattozo
 // Started on: 12/3/2025
 // Description: Uses sol
-// cpr must precede any libevent header (HttpServer/ServerEmulator pull it in):
-// libevent's event2/http.h defines HTTP_OK etc. as macros that collide with cpr's
-// cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/Lua/LuaState.h>

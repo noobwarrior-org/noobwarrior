@@ -44,14 +44,15 @@ for k, v in pairs(rows) do
     print("Row " .. k .. ": Contact Id: " .. tostring(v.contact_id) .. ", First Name: " .. v.first_name .. ", Last Name: " .. v.last_name .. ", Email: " .. v.email .. ", Phone: " .. v.phone)
 end
 
-emu_servers = {}
-EMU_SERVER_TIMEOUT = 30 -- seconds before a server we haven't heard from is swept
+_G.EMU_SERVERS = {}
 
-function SweepEmuServers()
+local EMU_SERVER_TIMEOUT = 30 -- seconds before a server we haven't heard from is swept
+
+function _G.SweepEmuServers()
     local now = os.time()
-    for key, srv in pairs(emu_servers) do
+    for key, srv in pairs(_G.EMU_SERVERS) do
         if now - srv.LastSeen > EMU_SERVER_TIMEOUT then
-            emu_servers[key] = nil
+            _G.EMU_SERVERS[key] = nil
         end
     end
 end
@@ -71,6 +72,7 @@ local sitemap = {
     ["/v1/login"] = "plugin://master-server@noobwarrior.org/src/api/login.lhp",
     ["/v1/create-account"] = "plugin://master-server@noobwarrior.org/src/api/create_account.lhp",
     ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp",
+    ["/v1/servers"] = "plugin://master-server@noobwarrior.org/src/api/servers.lhp",
     ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp"
 }
 

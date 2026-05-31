@@ -27,15 +27,24 @@
 #include <QVBoxLayout>
 #include <QTreeView>
 #include <QStandardItemModel>
+#include <QModelIndex>
 
 namespace NoobWarrior {
 class ServerListWidget : public QTreeView {
     Q_OBJECT
 public:
     ServerListWidget(QWidget* parent = nullptr);
+
+    // Kicks off an async refresh. Extracts URLs on the calling (main) thread,
+    // then does the HTTP work on a background thread and posts results back.
+    // Ignores calls that arrive while a refresh is already in flight.
+    void RefreshFromMasters();
 protected:
     void InitWidgets();
+private slots:
+    void OnDoubleClicked(const QModelIndex &index);
 private:
     QStandardItemModel* mModel;
+    bool mRefreshing {false};
 };
 }

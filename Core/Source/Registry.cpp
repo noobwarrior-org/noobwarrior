@@ -109,6 +109,12 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.auth.master", "");
     SetKeyComment("emu.auth.master", "The URL of the master server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
 
+    SetKeyValueIfNotSet("emu.master_list.announce", false);
+    SetKeyComment("emu.master_list.announce", "If enabled, this server emulator will announce itself to the master server at emu.master_list.url whenever it has running game servers, so it appears in that master server's public server list. It stops announcing (and is removed from the list) once it has no running game servers.");
+
+    SetKeyValueIfNotSet("emu.master_list.url", "");
+    SetKeyComment("emu.master_list.url", "Base URL of the master server to announce to (e.g. http://example.com:80). Only used if emu.master_list.announce is true.");
+    
     SetKeyValueIfNotSet("emu.auth.allow_registration", false);
     SetKeyComment("emu.auth.allow_registration", "If this is set to false, registrations for guests will be disabled and administrators must manually create accounts in a database.");
 

@@ -21,9 +21,6 @@
 // File: Backup.cpp
 // Started by: Hattozo
 // Started on: 3/5/2025
-// Description: All functions that concern backing up data from Roblox servers to your computer belong here
-// cpr must precede any libevent header (NoobWarrior.h pulls it in): libevent's
-// event2/http.h defines HTTP_OK etc. as macros that collide with cpr's cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/Backup.h>

@@ -21,9 +21,6 @@
 // File: NoobWarrior.cpp
 // Started by: Hattozo
 // Started on: 6/17/2025
-// Description: Contains code for the main class used to utilize the noobWarrior library
-// cpr must precede any libevent header: libevent's event2/http.h defines HTTP_OK,
-// HTTP_UNAUTHORIZED, etc. as macros that collide with cpr's cpr::status:: constants.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/NoobWarrior.h>

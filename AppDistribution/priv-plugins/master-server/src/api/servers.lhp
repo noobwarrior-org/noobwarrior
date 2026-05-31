@@ -1,0 +1,27 @@
+<?lua
+_G.SweepEmuServers()
+
+local list = {}
+for _, srv in pairs(_G.EMU_SERVERS) do
+    list[#list + 1] = {
+        Ip = srv.Ip,
+        Port = srv.Port,
+        Name = srv.Name,
+        Version = srv.Version,
+        Game = srv.Game or "",
+        PlaceId = srv.PlaceId,
+        ServerCount = srv.ServerCount or 0,
+        Players = srv.Players or 0,
+        MaxPlayers = srv.MaxPlayers or 0,
+        FirstSeen = srv.FirstSeen,
+        LastSeen = srv.LastSeen,
+    }
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+
+if #list == 0 then
+    die("[]")
+end
+die(json.stringify(list))

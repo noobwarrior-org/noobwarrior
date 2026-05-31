@@ -60,7 +60,6 @@ void ProcessPingHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_BADREQUEST, "Malformed JSON");
         return;
     }
-    Out("ProcessPingHandler", "Cool {}", json.dump());
 
     std::string event = json.value("Event", "");
     int pid = json.value("Pid", 0);

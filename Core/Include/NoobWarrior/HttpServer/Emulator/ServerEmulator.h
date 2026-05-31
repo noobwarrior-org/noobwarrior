@@ -52,9 +52,12 @@
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
 
+#include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 namespace NoobWarrior {
@@ -153,5 +156,23 @@ private:
     std::vector<RunningInstance> mInstances;
 
     AssetEnricher mAssetEnricher;
+
+    /* Master-list announcer. When emu.master_list.announce is enabled, a background
+     * thread periodically POSTs a Hello/Heartbeat to emu.master_list.url/v1/emu-ping
+     * for as long as there is at least one running game server (Side == Server), and
+     * a Goodbye once there are none (or on shutdown). This is the outbound counterpart
+     * to ProcessPingHandler's inbound process-pings. */
+    void StartAnnouncer();
+    void StopAnnouncer();
+    void AnnouncerLoop();
+    void SendMasterPing(const std::string &event);
+
+    static constexpr int kAnnounceIntervalSecs = 10;
+
+    std::thread mAnnouncerThread;
+    std::atomic<bool> mAnnouncerRunning {false};
+    std::condition_variable mAnnouncerCv;
+    std::mutex mAnnouncerMutex;
+    bool mAnnouncedToMaster {false};
 };
 }

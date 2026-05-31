@@ -22,9 +22,13 @@
 // Started by: Hattozo
 // Started on: 9/2/2025
 // Description:
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
+#include <NoobWarrior/Macros.h>
 
 #include "NoobWarrior/HttpServer/Emulator/RequestAuthHandler.h"
 
@@ -33,6 +37,7 @@
 #include "FFlagJson/GamesSorts.json.inc.cpp"
 
 #include <algorithm>
+#include <chrono>
 #include <ctime>
 
 using namespace NoobWarrior;
@@ -82,9 +87,11 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAssetEnricher(mCore)
 {
     mAssetEnricher.Start();
+    StartAnnouncer();
 }
 
 ServerEmulator::~ServerEmulator() {
+    StopAnnouncer();
     mAssetEnricher.Stop();
 }
 
@@ -254,4 +261,101 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
             servers.push_back(inst);
     }
     return servers;
+}
+
+void ServerEmulator::StartAnnouncer() {
+    if (mAnnouncerRunning.exchange(true))
+        return;
+    mAnnouncerThread = std::thread(&ServerEmulator::AnnouncerLoop, this);
+}
+
+void ServerEmulator::StopAnnouncer() {
+    {
+        std::lock_guard lock(mAnnouncerMutex);
+        if (!mAnnouncerRunning)
+            return;
+        mAnnouncerRunning = false;
+    }
+    mAnnouncerCv.notify_all();
+    if (mAnnouncerThread.joinable())
+        mAnnouncerThread.join();
+
+    // Best-effort farewell so we drop off the master list promptly instead of
+    // waiting for the master's stale-server sweep.
+    if (mAnnouncedToMaster) {
+        SendMasterPing("Goodbye");
+        mAnnouncedToMaster = false;
+    }
+}
+
+void ServerEmulator::AnnouncerLoop() {
+    while (true) {
+        {
+            std::unique_lock lock(mAnnouncerMutex);
+            mAnnouncerCv.wait_for(lock, std::chrono::seconds(kAnnounceIntervalSecs),
+                [this] { return !mAnnouncerRunning.load(); });
+            if (!mAnnouncerRunning)
+                return;
+        }
+
+        Registry* reg = mCore->GetRegistry();
+        if (reg == nullptr)
+            continue;
+        bool enabled = reg->GetKeyValue<bool>("emu.master_list.announce").value_or(false);
+        std::string url = reg->GetKeyValue<std::string>("emu.master_list.url").value_or("");
+        if (!enabled || url.empty()) {
+            // If announcing was just turned off while we were live, say Goodbye once.
+            if (mAnnouncedToMaster) {
+                SendMasterPing("Goodbye");
+                mAnnouncedToMaster = false;
+            }
+            continue;
+        }
+
+        bool hasServers = !GetRunningGameServers().empty();
+        if (hasServers) {
+            SendMasterPing(mAnnouncedToMaster ? "Heartbeat" : "Hello");
+            mAnnouncedToMaster = true;
+        } else if (mAnnouncedToMaster) {
+            SendMasterPing("Goodbye");
+            mAnnouncedToMaster = false;
+        }
+    }
+}
+
+void ServerEmulator::SendMasterPing(const std::string &event) {
+    Registry* reg = mCore->GetRegistry();
+    if (reg == nullptr)
+        return;
+    std::string url = reg->GetKeyValue<std::string>("emu.master_list.url").value_or("");
+    if (url.empty())
+        return;
+    if (url.back() == '/')
+        url.pop_back();
+
+    uint16_t port = static_cast<uint16_t>(reg->GetKeyValue<int>("emu.https_port").value_or(53640));
+    std::string name = reg->GetKeyValue<std::string>("emu.branding.title").value_or("noobWarrior Server Emulator");
+
+    auto servers = GetRunningGameServers();
+
+    json body;
+    body["Event"] = event;
+    body["Port"] = port;
+    body["Name"] = name;
+    body["Version"] = NOOBWARRIOR_VERSION;
+    body["ServerCount"] = static_cast<int>(servers.size());
+    // Surface the first server's placeId so the master can show a "Game" column.
+    if (!servers.empty() && servers.front().PlaceId.has_value())
+        body["PlaceId"] = servers.front().PlaceId.value();
+
+    cpr::Response res = cpr::Post(
+        cpr::Url{url + "/v1/emu-ping"},
+        cpr::Header{{"Content-Type", "application/json"}},
+        cpr::Body{body.dump()},
+        cpr::Timeout{std::chrono::milliseconds(5000)}
+    );
+    if (res.error.code != cpr::ErrorCode::OK)
+        Out(mLogName, "Master announce ({}) to {} failed: {}", event, url, res.error.message);
+    else if (res.status_code >= 400)
+        Out(mLogName, "Master announce ({}) to {} got HTTP {}", event, url, static_cast<long>(res.status_code));
 }
