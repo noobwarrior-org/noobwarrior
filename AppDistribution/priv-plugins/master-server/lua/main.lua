@@ -73,7 +73,8 @@ local sitemap = {
     ["/v1/create-account"] = "plugin://master-server@noobwarrior.org/src/api/create_account.lhp",
     ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp",
     ["/v1/servers"] = "plugin://master-server@noobwarrior.org/src/api/servers.lhp",
-    ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp"
+    ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp",
+    ["/v1/workshop/submit"] = "plugin://master-server@noobwarrior.org/src/api/workshop/submit.lhp"
 }
 
 master = http_base.CreateServer({

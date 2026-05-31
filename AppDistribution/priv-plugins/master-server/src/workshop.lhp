@@ -17,7 +17,7 @@ include("header.lhp")
             <li><a href="/workshop?type=plugins">Plugins</a></li>
             <?lua
             if _SESSION.User then
-                echo([[<li><a href="/workshop?type=submissions">Submissions</a></li>]])
+                echo([[<li><a href="/workshop?type=my-submissions">My Submissions</a></li>]])
                 echo([[<li><a href="/workshop?type=upload">Upload...</a></li>]])
             end
             ?>
@@ -45,10 +45,20 @@ if type == nil or type:match("^%s*$") or type == "databases" or type == "plugins
             <p style="margin: 0; padding-top: 4px; line-height: 1;">Submitted by Hattozo</p>
         </div>
     ]])
-elseif type == "submissions" then
-    echo([[<h1>Submissions</h1>]])
+elseif type == "my-submissions" then
+    echo([[<h1>My Submissions</h1>]])
 elseif type == "upload" then
     echo([[<h1>Upload</h1>]])
+    echo([[
+        <form action="/v1/workshop/submit" method="post">
+            <div class="container">
+                <label for="name"><b>Name</b></label>
+                <input type="text" placeholder="Enter Name" name="name" required>
+
+                <button type="submit">Upload</button>
+            </div>
+        </form>
+    ]])
 end
 ?>
 
