@@ -57,13 +57,18 @@ void ItemDialog::Asset_AddFields() {
     mAsset_PublicInput->setChecked(isPublic);
     mContentLayout->addRow("Public", mAsset_PublicInput);
 
-    mAsset_MinMembershipInput = new QLineEdit(QString::number(minMembership));
-    mAsset_MinMembershipInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_MinMembershipInput));
+    mAsset_MinMembershipInput = new QComboBox();
+    for (int i = 0; i < Roblox::MembershipTypeCount; i++)
+        mAsset_MinMembershipInput->addItem(Roblox::MembershipTypeAsTranslatableString(static_cast<Roblox::MembershipType>(i)), i);
+    int minMembershipIdx = mAsset_MinMembershipInput->findData(static_cast<int>(minMembership));
+    if (minMembershipIdx != -1)
+        mAsset_MinMembershipInput->setCurrentIndex(minMembershipIdx);
     mContentLayout->addRow("Min. Membership Level", mAsset_MinMembershipInput);
 
-    mAsset_ContentRatingInput = new QLineEdit(QString::number(contentRating));
-    mAsset_ContentRatingInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_ContentRatingInput));
-    mContentLayout->addRow("Content Rating Type", mAsset_ContentRatingInput);
+    // ContentRatingTypeId is a flag indicating whether the item is marked 13+ in the catalog.
+    mAsset_ContentRatingInput = new QCheckBox();
+    mAsset_ContentRatingInput->setChecked(contentRating != 0);
+    mContentLayout->addRow("Marked 13+", mAsset_ContentRatingInput);
 
     // Asset statistics live in the separate AssetHistorical table.
     bool isNew = false;
@@ -563,8 +568,8 @@ bool ItemDialog::Asset_OnSave() {
     std::string description = mOwned_DescriptionInput->text().toStdString();
     int64_t imageId = mImageIdInput->text().toLongLong();
     bool isPublic = mAsset_PublicInput->isChecked();
-    int64_t minMembership = mAsset_MinMembershipInput->text().toLongLong();
-    int64_t contentRating = mAsset_ContentRatingInput->text().toLongLong();
+    int minMembership = mAsset_MinMembershipInput->currentData().toInt();
+    bool contentRating = mAsset_ContentRatingInput->isChecked();
 
     Statement stmt = db->PrepareStatement(R"(
         INSERT INTO Asset (Id, Name, Description, Created, Updated, ImageId, Type, Public, MinimumMembershipLevel, ContentRatingTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -138,8 +138,8 @@ protected:
     QList<int> mAsset_DataPendingDeleteVersions;
 
     QCheckBox* mAsset_PublicInput;
-    QLineEdit* mAsset_MinMembershipInput;
-    QLineEdit* mAsset_ContentRatingInput;
+    QComboBox* mAsset_MinMembershipInput;
+    QCheckBox* mAsset_ContentRatingInput;
     QCheckBox* mAsset_IsNewInput;
     QLineEdit* mAsset_SalesInput;
     QLineEdit* mAsset_FavoritesInput;
@@ -170,16 +170,16 @@ protected:
     QLineEdit* mUniverse_FavoritesInput;
     QLineEdit* mUniverse_LikesInput;
     QLineEdit* mUniverse_DislikesInput;
-    QLineEdit* mUniverse_GenreInput;
-    QLineEdit* mUniverse_SubgenreInput;
-    QLineEdit* mUniverse_AvatarTypeInput;
-    QLineEdit* mUniverse_AccessTypeInput;
-    QLineEdit* mUniverse_PaymentTypeInput;
-    QLineEdit* mUniverse_AgeRatingInput;
+    QComboBox* mUniverse_GenreInput;
+    QComboBox* mUniverse_SubgenreInput;
+    QComboBox* mUniverse_AvatarTypeInput;
+    QComboBox* mUniverse_AccessTypeInput;
+    QComboBox* mUniverse_PaymentTypeInput;
+    QComboBox* mUniverse_AgeRatingInput;
     QCheckBox* mUniverse_AllowPrivateServersInput;
     QCheckBox* mUniverse_AllowDirectAccessInput;
     QLineEdit* mUniverse_SupportedDevicesInput;
-    QLineEdit* mUniverse_SocialLinkTypeInput;
+    QComboBox* mUniverse_SocialLinkTypeInput;
     QLineEdit* mUniverse_SocialLinkUrlInput;
     QLineEdit* mUniverse_SocialLinkTitleInput;
     QFrame* mUniverse_PlaceFrame;

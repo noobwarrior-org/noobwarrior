@@ -27,6 +27,7 @@
 #include <string>
 
 namespace NoobWarrior::Roblox {
+constexpr int MembershipTypeCount = 5;
 enum class MembershipType {
     None,
     BuildersClub,
@@ -34,6 +35,16 @@ enum class MembershipType {
     OutrageousBuildersClub,
     Premium
 };
+
+inline const char* MembershipTypeAsTranslatableString(MembershipType type) {
+    switch (type) {
+    case MembershipType::BuildersClub: return "Builders Club";
+    case MembershipType::TurboBuildersClub: return "Turbo Builders Club";
+    case MembershipType::OutrageousBuildersClub: return "Outrageous Builders Club";
+    case MembershipType::Premium: return "Premium";
+    default: return "None";
+    }
+}
 
 enum class CreatorType {
     User,

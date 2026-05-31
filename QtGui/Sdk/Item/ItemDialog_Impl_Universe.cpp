@@ -26,6 +26,7 @@
 #include "ItemOpenSaveDialog.h"
 
 #include <NoobWarrior/Roblox/Api/User.h>
+#include <NoobWarrior/Roblox/Api/Universe.h>
 
 #include <QRegularExpressionValidator>
 
@@ -144,28 +145,53 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_ActiveInput->setChecked(active);
     mContentLayout->addRow("Active", mUniverse_ActiveInput);
 
-    mUniverse_GenreInput = new QLineEdit(QString::number(genre));
-    mUniverse_GenreInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_GenreInput));
+    mUniverse_GenreInput = new QComboBox();
+    for (int i = 0; i < Roblox::GenreCount; i++)
+        mUniverse_GenreInput->addItem(Roblox::GenreAsTranslatableString(static_cast<Roblox::Genre>(i)), i);
+    int genreIdx = mUniverse_GenreInput->findData(static_cast<int>(genre));
+    if (genreIdx != -1)
+        mUniverse_GenreInput->setCurrentIndex(genreIdx);
     mContentLayout->addRow("Genre", mUniverse_GenreInput);
 
-    mUniverse_SubgenreInput = new QLineEdit(QString::number(subgenre));
-    mUniverse_SubgenreInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_SubgenreInput));
+    mUniverse_SubgenreInput = new QComboBox();
+    for (int i = 0; i < Roblox::GenreCount; i++)
+        mUniverse_SubgenreInput->addItem(Roblox::GenreAsTranslatableString(static_cast<Roblox::Genre>(i)), i);
+    int subgenreIdx = mUniverse_SubgenreInput->findData(static_cast<int>(subgenre));
+    if (subgenreIdx != -1)
+        mUniverse_SubgenreInput->setCurrentIndex(subgenreIdx);
     mContentLayout->addRow("Subgenre", mUniverse_SubgenreInput);
 
-    mUniverse_AvatarTypeInput = new QLineEdit(QString::number(avatarType));
-    mUniverse_AvatarTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AvatarTypeInput));
+    mUniverse_AvatarTypeInput = new QComboBox();
+    mUniverse_AvatarTypeInput->addItem(Roblox::UniverseAvatarTypeAsTranslatableString(Roblox::UniverseAvatarType::MorphToR6), static_cast<int>(Roblox::UniverseAvatarType::MorphToR6));
+    mUniverse_AvatarTypeInput->addItem(Roblox::UniverseAvatarTypeAsTranslatableString(Roblox::UniverseAvatarType::PlayerChoice), static_cast<int>(Roblox::UniverseAvatarType::PlayerChoice));
+    mUniverse_AvatarTypeInput->addItem(Roblox::UniverseAvatarTypeAsTranslatableString(Roblox::UniverseAvatarType::MorphToR15), static_cast<int>(Roblox::UniverseAvatarType::MorphToR15));
+    int avatarTypeIdx = mUniverse_AvatarTypeInput->findData(static_cast<int>(avatarType));
+    if (avatarTypeIdx != -1)
+        mUniverse_AvatarTypeInput->setCurrentIndex(avatarTypeIdx);
     mContentLayout->addRow("Avatar Type", mUniverse_AvatarTypeInput);
 
-    mUniverse_AccessTypeInput = new QLineEdit(QString::number(accessType));
-    mUniverse_AccessTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AccessTypeInput));
+    mUniverse_AccessTypeInput = new QComboBox();
+    for (int i = 0; i < Roblox::UniverseAccessTypeCount; i++)
+        mUniverse_AccessTypeInput->addItem(Roblox::UniverseAccessTypeAsTranslatableString(static_cast<Roblox::UniverseAccessType>(i)), i);
+    int accessTypeIdx = mUniverse_AccessTypeInput->findData(static_cast<int>(accessType));
+    if (accessTypeIdx != -1)
+        mUniverse_AccessTypeInput->setCurrentIndex(accessTypeIdx);
     mContentLayout->addRow("Access Type", mUniverse_AccessTypeInput);
 
-    mUniverse_PaymentTypeInput = new QLineEdit(QString::number(paymentType));
-    mUniverse_PaymentTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_PaymentTypeInput));
+    mUniverse_PaymentTypeInput = new QComboBox();
+    for (int i = 0; i < Roblox::UniversePaymentTypeCount; i++)
+        mUniverse_PaymentTypeInput->addItem(Roblox::UniversePaymentTypeAsTranslatableString(static_cast<Roblox::UniversePaymentType>(i)), i);
+    int paymentTypeIdx = mUniverse_PaymentTypeInput->findData(static_cast<int>(paymentType));
+    if (paymentTypeIdx != -1)
+        mUniverse_PaymentTypeInput->setCurrentIndex(paymentTypeIdx);
     mContentLayout->addRow("Payment Type", mUniverse_PaymentTypeInput);
 
-    mUniverse_AgeRatingInput = new QLineEdit(QString::number(ageRating));
-    mUniverse_AgeRatingInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AgeRatingInput));
+    mUniverse_AgeRatingInput = new QComboBox();
+    for (int i = 0; i < Roblox::AgeRatingCount; i++)
+        mUniverse_AgeRatingInput->addItem(Roblox::AgeRatingAsTranslatableString(static_cast<Roblox::AgeRating>(i)), i);
+    int ageRatingIdx = mUniverse_AgeRatingInput->findData(static_cast<int>(ageRating));
+    if (ageRatingIdx != -1)
+        mUniverse_AgeRatingInput->setCurrentIndex(ageRatingIdx);
     mContentLayout->addRow("Age Rating", mUniverse_AgeRatingInput);
 
     mUniverse_AllowPrivateServersInput = new QCheckBox();
@@ -196,8 +222,12 @@ void ItemDialog::Universe_AddFields() {
 
     AddSectionHeader("Social Link");
 
-    mUniverse_SocialLinkTypeInput = new QLineEdit(QString::number(socialLinkType));
-    mUniverse_SocialLinkTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_SocialLinkTypeInput));
+    mUniverse_SocialLinkTypeInput = new QComboBox();
+    for (int i = 0; i < Roblox::SocialLinkTypeCount; i++)
+        mUniverse_SocialLinkTypeInput->addItem(Roblox::SocialLinkTypeAsTranslatableString(static_cast<Roblox::SocialLinkType>(i)), i);
+    int socialLinkTypeIdx = mUniverse_SocialLinkTypeInput->findData(static_cast<int>(socialLinkType));
+    if (socialLinkTypeIdx != -1)
+        mUniverse_SocialLinkTypeInput->setCurrentIndex(socialLinkTypeIdx);
     mContentLayout->addRow("Link Type", mUniverse_SocialLinkTypeInput);
 
     mUniverse_SocialLinkUrlInput = new QLineEdit(QString::fromStdString(socialLinkUrl));
@@ -380,12 +410,12 @@ bool ItemDialog::Universe_OnSave() {
     }
 
     // Persist the universe settings (UniverseMisc table).
-    int64_t genre = mUniverse_GenreInput->text().toLongLong();
-    int64_t subgenre = mUniverse_SubgenreInput->text().toLongLong();
-    int64_t avatarType = mUniverse_AvatarTypeInput->text().toLongLong();
-    int64_t accessType = mUniverse_AccessTypeInput->text().toLongLong();
-    int64_t paymentType = mUniverse_PaymentTypeInput->text().toLongLong();
-    int64_t ageRating = mUniverse_AgeRatingInput->text().toLongLong();
+    int genre = mUniverse_GenreInput->currentData().toInt();
+    int subgenre = mUniverse_SubgenreInput->currentData().toInt();
+    int avatarType = mUniverse_AvatarTypeInput->currentData().toInt();
+    int accessType = mUniverse_AccessTypeInput->currentData().toInt();
+    int paymentType = mUniverse_PaymentTypeInput->currentData().toInt();
+    int ageRating = mUniverse_AgeRatingInput->currentData().toInt();
     bool allowPrivateServers = mUniverse_AllowPrivateServersInput->isChecked();
     bool allowDirectAccess = mUniverse_AllowDirectAccessInput->isChecked();
     std::string supportedDevices = mUniverse_SupportedDevicesInput->text().toStdString();
@@ -429,7 +459,7 @@ bool ItemDialog::Universe_OnSave() {
             return false;
         }
     } else {
-        int64_t socialLinkType = mUniverse_SocialLinkTypeInput->text().toLongLong();
+        int socialLinkType = mUniverse_SocialLinkTypeInput->currentData().toInt();
         Statement linkStmt = db->PrepareStatement(R"(
             INSERT INTO UniverseSocialLink (Id, LinkType, Url, Title) VALUES (?, ?, ?, ?)
             ON CONFLICT (Id) DO UPDATE SET
