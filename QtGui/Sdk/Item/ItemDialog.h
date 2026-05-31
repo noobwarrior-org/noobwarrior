@@ -39,6 +39,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QScrollArea>
+#include <QTableWidget>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -99,6 +100,7 @@ protected:
     bool Set_OnSave();
 
     void Universe_AddFields();
+    void Universe_AddSocialLinkRow(int linkType, const QString &title, const QString &url);
     bool Universe_OnSave();
 
     void User_AddFields();
@@ -179,9 +181,8 @@ protected:
     QCheckBox* mUniverse_AllowPrivateServersInput;
     QCheckBox* mUniverse_AllowDirectAccessInput;
     QLineEdit* mUniverse_SupportedDevicesInput;
-    QComboBox* mUniverse_SocialLinkTypeInput;
-    QLineEdit* mUniverse_SocialLinkUrlInput;
-    QLineEdit* mUniverse_SocialLinkTitleInput;
+    QTableWidget* mUniverse_SocialLinkTable;
+    QPushButton* mUniverse_AddSocialLinkButton;
     QFrame* mUniverse_PlaceFrame;
     ItemListWidget* mUniverse_PlaceList;
     QPushButton* mUniverse_AddPlaceButton;

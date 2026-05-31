@@ -29,6 +29,9 @@
 #include <NoobWarrior/Roblox/Api/Universe.h>
 
 #include <QRegularExpressionValidator>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QMenu>
 
 using namespace NoobWarrior;
 
@@ -206,37 +209,55 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_SupportedDevicesInput->setPlaceholderText("e.g. Computer,Phone,Tablet,Console");
     mContentLayout->addRow("Supported Devices", mUniverse_SupportedDevicesInput);
 
-    // A single social link (the UniverseSocialLink table is keyed by universe Id).
-    int64_t socialLinkType = 0;
-    std::string socialLinkUrl;
-    std::string socialLinkTitle;
+    // A universe can have several social links (UniverseSocialLink), one per platform type.
+    AddSectionHeader("Social Links");
+
+    auto *socialFrame = new QFrame();
+    auto *socialLayout = new QVBoxLayout(socialFrame);
+    socialLayout->setContentsMargins(0, 0, 0, 0);
+
+    mUniverse_SocialLinkTable = new QTableWidget(0, 3);
+    mUniverse_SocialLinkTable->setHorizontalHeaderLabels({"Type", "Title", "Url"});
+    mUniverse_SocialLinkTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    mUniverse_SocialLinkTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    mUniverse_SocialLinkTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    mUniverse_SocialLinkTable->verticalHeader()->setVisible(false);
+    mUniverse_SocialLinkTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    // Right-click a link to remove it.
+    mUniverse_SocialLinkTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mUniverse_SocialLinkTable, &QTableWidget::customContextMenuRequested, [this](const QPoint &point) {
+        QModelIndex index = mUniverse_SocialLinkTable->indexAt(point);
+        if (!index.isValid())
+            return;
+
+        QMenu menu;
+        QAction* del = menu.addAction(QIcon(":/images/silk/cross.png"), "Remove Social Link");
+        connect(del, &QAction::triggered, [this, row = index.row()]() {
+            mUniverse_SocialLinkTable->removeRow(row);
+        });
+        menu.exec(mUniverse_SocialLinkTable->viewport()->mapToGlobal(point));
+    });
+
     if (mId.has_value()) {
         Statement linkStmt = db->PrepareStatement("SELECT LinkType, Url, Title FROM UniverseSocialLink WHERE Id = ?");
         linkStmt.Bind(1, mId.value());
-        if (linkStmt.Step() == SQLITE_ROW) {
-            socialLinkType = linkStmt.GetInt64FromColumnIndex(0);
-            socialLinkUrl = linkStmt.GetStringFromColumnIndex(1);
-            socialLinkTitle = linkStmt.GetStringFromColumnIndex(2);
+        while (linkStmt.Step() == SQLITE_ROW) {
+            int linkType = linkStmt.GetIntFromColumnIndex(0);
+            QString url = QString::fromStdString(linkStmt.GetStringFromColumnIndex(1));
+            QString title = QString::fromStdString(linkStmt.GetStringFromColumnIndex(2));
+            Universe_AddSocialLinkRow(linkType, title, url);
         }
     }
 
-    AddSectionHeader("Social Link");
+    mUniverse_AddSocialLinkButton = new QPushButton("Add Social Link");
+    connect(mUniverse_AddSocialLinkButton, &QPushButton::clicked, [this]() {
+        Universe_AddSocialLinkRow(static_cast<int>(Roblox::SocialLinkType::Facebook), QString(), QString());
+    });
 
-    mUniverse_SocialLinkTypeInput = new QComboBox();
-    for (int i = 0; i < Roblox::SocialLinkTypeCount; i++)
-        mUniverse_SocialLinkTypeInput->addItem(Roblox::SocialLinkTypeAsTranslatableString(static_cast<Roblox::SocialLinkType>(i)), i);
-    int socialLinkTypeIdx = mUniverse_SocialLinkTypeInput->findData(static_cast<int>(socialLinkType));
-    if (socialLinkTypeIdx != -1)
-        mUniverse_SocialLinkTypeInput->setCurrentIndex(socialLinkTypeIdx);
-    mContentLayout->addRow("Link Type", mUniverse_SocialLinkTypeInput);
-
-    mUniverse_SocialLinkUrlInput = new QLineEdit(QString::fromStdString(socialLinkUrl));
-    mUniverse_SocialLinkUrlInput->setPlaceholderText("https://...");
-    mContentLayout->addRow("Link Url", mUniverse_SocialLinkUrlInput);
-
-    mUniverse_SocialLinkTitleInput = new QLineEdit(QString::fromStdString(socialLinkTitle));
-    mUniverse_SocialLinkTitleInput->setPlaceholderText("Title shown to players");
-    mContentLayout->addRow("Link Title", mUniverse_SocialLinkTitleInput);
+    socialLayout->addWidget(mUniverse_SocialLinkTable);
+    socialLayout->addWidget(mUniverse_AddSocialLinkButton);
+    mContentLayout->addRow(socialFrame);
 
     AddSectionHeader("Places");
 
@@ -318,6 +339,22 @@ void ItemDialog::Universe_AddFields() {
     }
     mContentLayout->addRow("Creator Type", mUniverse_CreatorTypeInput);
     */
+}
+
+void ItemDialog::Universe_AddSocialLinkRow(int linkType, const QString &title, const QString &url) {
+    int row = mUniverse_SocialLinkTable->rowCount();
+    mUniverse_SocialLinkTable->insertRow(row);
+
+    auto *typeCombo = new QComboBox();
+    for (int i = 0; i < Roblox::SocialLinkTypeCount; i++)
+        typeCombo->addItem(Roblox::SocialLinkTypeAsTranslatableString(static_cast<Roblox::SocialLinkType>(i)), i);
+    int typeIdx = typeCombo->findData(linkType);
+    if (typeIdx != -1)
+        typeCombo->setCurrentIndex(typeIdx);
+    mUniverse_SocialLinkTable->setCellWidget(row, 0, typeCombo);
+
+    mUniverse_SocialLinkTable->setItem(row, 1, new QTableWidgetItem(title));
+    mUniverse_SocialLinkTable->setItem(row, 2, new QTableWidgetItem(url));
 }
 
 static constexpr const char* sTablesThatNeedToBeUpdated[] = {
@@ -448,29 +485,31 @@ bool ItemDialog::Universe_OnSave() {
         return false;
     }
 
-    // Persist the social link. If the title and url are both blank, treat it as "no link".
-    std::string socialLinkUrl = mUniverse_SocialLinkUrlInput->text().toStdString();
-    std::string socialLinkTitle = mUniverse_SocialLinkTitleInput->text().toStdString();
-    if (socialLinkUrl.empty() && socialLinkTitle.empty()) {
-        Statement delLink = db->PrepareStatement("DELETE FROM UniverseSocialLink WHERE Id = ?;");
-        delLink.Bind(1, id);
-        if (delLink.Step() != SQLITE_DONE) {
-            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
-            return false;
-        }
-    } else {
-        int socialLinkType = mUniverse_SocialLinkTypeInput->currentData().toInt();
-        Statement linkStmt = db->PrepareStatement(R"(
-            INSERT INTO UniverseSocialLink (Id, LinkType, Url, Title) VALUES (?, ?, ?, ?)
-            ON CONFLICT (Id) DO UPDATE SET
-                LinkType = excluded.LinkType,
-                Url = excluded.Url,
-                Title = excluded.Title;
-        )");
+    // Persist social links (UniverseSocialLink): replace the whole set with the table's contents.
+    Statement delLinks = db->PrepareStatement("DELETE FROM UniverseSocialLink WHERE Id = ?;");
+    delLinks.Bind(1, id);
+    if (delLinks.Step() != SQLITE_DONE) {
+        QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        return false;
+    }
+
+    for (int row = 0; row < mUniverse_SocialLinkTable->rowCount(); row++) {
+        QTableWidgetItem* titleItem = mUniverse_SocialLinkTable->item(row, 1);
+        QTableWidgetItem* urlItem = mUniverse_SocialLinkTable->item(row, 2);
+        std::string title = titleItem ? titleItem->text().toStdString() : "";
+        std::string url = urlItem ? urlItem->text().toStdString() : "";
+        if (title.empty() && url.empty())
+            continue; // skip blank rows
+
+        auto *typeCombo = qobject_cast<QComboBox*>(mUniverse_SocialLinkTable->cellWidget(row, 0));
+        int linkType = typeCombo ? typeCombo->currentData().toInt() : 0;
+
+        // INSERT OR REPLACE so that a duplicated link type keeps the last row instead of failing.
+        Statement linkStmt = db->PrepareStatement("INSERT OR REPLACE INTO UniverseSocialLink (Id, LinkType, Url, Title) VALUES (?, ?, ?, ?);");
         linkStmt.Bind(1, id);
-        linkStmt.Bind(2, socialLinkType);
-        linkStmt.Bind(3, socialLinkUrl);
-        linkStmt.Bind(4, socialLinkTitle);
+        linkStmt.Bind(2, linkType);
+        linkStmt.Bind(3, url);
+        linkStmt.Bind(4, title);
         if (linkStmt.Step() != SQLITE_DONE) {
             QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
             return false;
