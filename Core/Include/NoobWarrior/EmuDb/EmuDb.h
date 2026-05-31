@@ -277,6 +277,17 @@ private:
     bool VerifyIntegrityOfMigration();
     bool MigrateToLatestVersion();
 
+    // Shared helpers for the asset auxiliary/junction tables. Each builds and runs a single
+    // prepared statement; column names come from code (the same trusted-input assumption as
+    // AddItem/UpdateItem), never from end users.
+    SqlDb::Response UpsertAuxAssetRow(const std::string &table, int64_t id, const SqlRow &row);
+    SqlDb::Response DetachAuxAssetRow(const std::string &table, int64_t id, const SqlRow &row);
+    SqlDb::Response AddAssetLink(const std::string &table, int64_t ownerId, int64_t assetId);
+    SqlDb::Response RemoveAssetLink(const std::string &table, int64_t ownerId, int64_t assetId);
+
+    // Drops a content-addressed blob only when no table still references its hash.
+    void GarbageCollectBlobIfOrphaned(const std::string &hash);
+
     std::filesystem::path mPath;
     bool mAutoCommit;
     bool mDirty;

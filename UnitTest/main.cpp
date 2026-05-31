@@ -260,6 +260,101 @@ TEST(Database, UpdateAttachDataToAsset) {
         << "Failed to update the data for asset ID 1. Check the quality of the EmuDb::AttachDataToAsset() function.";
 }
 
+TEST(Database, AttachHistoricalDataToAsset) {
+    SqlDb::Response res = sEmuDb->AttachHistoricalDataToAsset(1, {
+        {"Sales", 10},
+        {"Favorites", 5},
+    });
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to attach historical data to asset ID 1.";
+
+    // Attaching again should upsert (ON CONFLICT) rather than fail on the primary key.
+    res = sEmuDb->AttachHistoricalDataToAsset(1, {{"Sales", 20}});
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to upsert historical data for asset ID 1.";
+}
+
+TEST(Database, DetachHistoricalDataFromAsset) {
+    // A non-empty row blanks just the named columns and keeps the record.
+    SqlDb::Response res = sEmuDb->DetachHistoricalDataFromAsset(1, {{"Favorites", 0}});
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to clear a historical column for asset ID 1.";
+
+    // An empty row removes the whole record.
+    res = sEmuDb->DetachHistoricalDataFromAsset(1, {});
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to remove historical data for asset ID 1.";
+
+    // The record is gone, so removing it again reports NotFound.
+    res = sEmuDb->DetachHistoricalDataFromAsset(1, {});
+    EXPECT_EQ(SqlDb::Response::NotFound, res)
+        << "Removing already-removed historical data should report NotFound.";
+}
+
+TEST(Database, AttachMicrotransactionDataToAsset) {
+    SqlDb::Response res = sEmuDb->AttachMicrotransactionDataToAsset(1, {
+        {"CurrencyType", 1},
+        {"Price", 25},
+    });
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to attach microtransaction data to asset ID 1.";
+}
+
+TEST(Database, AddAndRemoveAssetToBundle) {
+    SqlDb::Response res = sEmuDb->AddAssetToBundle(100, 1);
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to add asset 1 to bundle 100.";
+
+    // Re-linking the same pair is a no-op.
+    res = sEmuDb->AddAssetToBundle(100, 1);
+    EXPECT_EQ(SqlDb::Response::DidNothing, res)
+        << "Re-adding asset 1 to bundle 100 should do nothing.";
+
+    res = sEmuDb->RemoveAssetFromBundle(100, 1);
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to remove asset 1 from bundle 100.";
+
+    // Removing a link that isn't there reports NotFound.
+    res = sEmuDb->RemoveAssetFromBundle(100, 1);
+    EXPECT_EQ(SqlDb::Response::NotFound, res)
+        << "Removing a non-existent bundle link should report NotFound.";
+}
+
+TEST(Database, AddAndRemoveThumbnailFromPlace) {
+    SqlDb::Response res = sEmuDb->AddThumbnailToPlace(1, 1);
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to add a thumbnail to place 1.";
+
+    res = sEmuDb->AddThumbnailToPlace(1, 1);
+    EXPECT_EQ(SqlDb::Response::DidNothing, res)
+        << "Re-adding the same place thumbnail should do nothing.";
+
+    res = sEmuDb->RemoveThumbnailFromPlace(1, 1);
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to remove a thumbnail from place 1.";
+}
+
+TEST(Database, DetachDataFromAsset) {
+    // Asset 1 has data versions 1 and 2 attached above; drop version 1 explicitly.
+    SqlDb::Response res = sEmuDb->DetachDataFromAsset(1, 1);
+    EXPECT_EQ(SqlDb::Response::Success, res)
+        << "Failed to detach data version 1 from asset ID 1.";
+
+    // Version 1 is gone now, so detaching it again reports NotFound.
+    res = sEmuDb->DetachDataFromAsset(1, 1);
+    EXPECT_EQ(SqlDb::Response::NotFound, res)
+        << "Detaching an already-removed version should report NotFound.";
+}
+
+TEST(Database, RenderThumbnailForAsset) {
+    // Rendering needs the (not-yet-wired) RCCService pipeline, so this reports failure for a real
+    // asset and NotFound for one that doesn't exist.
+    EXPECT_EQ(SqlDb::Response::Failed, sEmuDb->RenderThumbnailForAsset(1))
+        << "RenderThumbnailForAsset should report failure until RCC rendering is implemented.";
+    EXPECT_EQ(SqlDb::Response::NotFound, sEmuDb->RenderThumbnailForAsset(999999))
+        << "RenderThumbnailForAsset should report NotFound for a missing asset.";
+}
+
 TEST(Database, DeleteAsset) {
     SqlDb::Response res = sEmuDb->DeleteItem(ItemType::Asset, 1);
     EXPECT_EQ(SqlDb::Response::Success, res)
