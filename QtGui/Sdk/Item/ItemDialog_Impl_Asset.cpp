@@ -26,6 +26,8 @@
 #include "ItemOpenSaveDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
 #include <NoobWarrior/EmuDb/Item/Asset.h>
+#include <NoobWarrior/Roblox/Api/Asset.h>
+#include <NoobWarrior/Roblox/Api/Gear.h>
 
 #include <QMenu>
 #include <QRegularExpressionValidator>
@@ -48,6 +50,8 @@ void ItemDialog::Asset_AddFields() {
             contentRating = stmt.GetInt64FromColumnIndex(2);
         }
     }
+
+    AddSectionHeader("Properties");
 
     mAsset_PublicInput = new QCheckBox();
     mAsset_PublicInput->setChecked(isPublic);
@@ -79,6 +83,8 @@ void ItemDialog::Asset_AddFields() {
         }
     }
 
+    AddSectionHeader("Statistics");
+
     mAsset_IsNewInput = new QCheckBox();
     mAsset_IsNewInput->setChecked(isNew);
     mContentLayout->addRow("New", mAsset_IsNewInput);
@@ -98,6 +104,51 @@ void ItemDialog::Asset_AddFields() {
     mAsset_DislikesInput = new QLineEdit(QString::number(dislikes));
     mAsset_DislikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_DislikesInput));
     mContentLayout->addRow("Dislikes", mAsset_DislikesInput);
+
+    // Sale info lives in the separate AssetMicrotransaction table.
+    int saleCurrency = static_cast<int>(Roblox::CurrencyType::Robux);
+    int64_t salePrice = 0;
+    int limitedType = static_cast<int>(Roblox::LimitedType::None);
+    int64_t remaining = 0;
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT CurrencyType, Price, LimitedType, Remaining FROM AssetMicrotransaction WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            saleCurrency = stmt.GetIntFromColumnIndex(0);
+            salePrice = stmt.GetInt64FromColumnIndex(1);
+            limitedType = stmt.GetIntFromColumnIndex(2);
+            remaining = stmt.GetInt64FromColumnIndex(3);
+        }
+    }
+
+    AddSectionHeader("Sale");
+
+    mAsset_SaleCurrencyInput = new QComboBox();
+    for (int i = 0; i <= static_cast<int>(Roblox::CurrencyType::Tix); i++)
+        mAsset_SaleCurrencyInput->addItem(Roblox::CurrencyTypeAsTranslatableString(static_cast<Roblox::CurrencyType>(i)), i);
+    int saleCurrencyIdx = mAsset_SaleCurrencyInput->findData(saleCurrency);
+    if (saleCurrencyIdx != -1)
+        mAsset_SaleCurrencyInput->setCurrentIndex(saleCurrencyIdx);
+    mContentLayout->addRow("Currency", mAsset_SaleCurrencyInput);
+
+    mAsset_SalePriceInput = new QLineEdit(QString::number(salePrice));
+    mAsset_SalePriceInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_SalePriceInput));
+    mContentLayout->addRow("Price", mAsset_SalePriceInput);
+
+    mAsset_LimitedTypeInput = new QComboBox();
+    mAsset_LimitedTypeInput->addItem("None", static_cast<int>(Roblox::LimitedType::None));
+    mAsset_LimitedTypeInput->addItem("Limited", static_cast<int>(Roblox::LimitedType::Limited));
+    mAsset_LimitedTypeInput->addItem("Limited Unique", static_cast<int>(Roblox::LimitedType::LimitedUnique));
+    int limitedTypeIdx = mAsset_LimitedTypeInput->findData(limitedType);
+    if (limitedTypeIdx != -1)
+        mAsset_LimitedTypeInput->setCurrentIndex(limitedTypeIdx);
+    mContentLayout->addRow("Limited Type", mAsset_LimitedTypeInput);
+
+    mAsset_RemainingInput = new QLineEdit(QString::number(remaining));
+    mAsset_RemainingInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_RemainingInput));
+    mContentLayout->addRow("Remaining", mAsset_RemainingInput);
+
+    AddSectionHeader("Data");
 
     auto *dataFrame = new QFrame();
     auto *dataLayout = new QVBoxLayout(dataFrame);
@@ -223,12 +274,15 @@ void ItemDialog::Asset_AddFields() {
 
     dataLayout->addWidget(mAsset_DataView);
     dataLayout->addWidget(dataButton);
+    dataLayout->setContentsMargins(0, 0, 0, 0);
 
-    mContentLayout->addRow("Data", dataFrame);
+    mContentLayout->addRow(dataFrame);
 }
 
 void ItemDialog::Asset_AddFields_AssetType() {
     auto *db = GetDatabase();
+
+    AddSectionHeader("Type");
 
     mAsset_AssetCategoryInput = new QComboBox();
     for (int i = 0; i < AssetCategoryCount; i++) {
@@ -367,8 +421,75 @@ void ItemDialog::Asset_AddFields_Place() {
     thumbnailLayout->addWidget(mAsset_Place_ThumbnailList);
     thumbnailLayout->addWidget(mAsset_Place_UploadThumbnailButton);
     thumbnailLayout->addWidget(mAsset_Place_AddThumbnailFromExistingImageButton);
+    thumbnailLayout->setContentsMargins(0, 0, 0, 0);
 
     mContentLayout->addRow("Thumbnails", mAsset_Place_ThumbnailFrame);
+
+    // ---- Place settings (AssetPlaceAttributes + AssetPlaceGearType) ----
+    int64_t maxPlayers = 0;
+    bool allowDirectAccess = false;
+    int gearGenrePermission = static_cast<int>(Roblox::GearGenreSetting::AllGenres);
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT MaxPlayers, AllowDirectAccess, GearGenrePermission FROM AssetPlaceAttributes WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            maxPlayers = stmt.GetInt64FromColumnIndex(0);
+            allowDirectAccess = stmt.GetIntFromColumnIndex(1);
+            gearGenrePermission = stmt.GetIntFromColumnIndex(2);
+        }
+    }
+
+    QList<int> enabledGearTypes;
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT GearType FROM AssetPlaceGearType WHERE Id = ?;");
+        stmt.Bind(1, mId.value());
+        while (stmt.Step() == SQLITE_ROW)
+            enabledGearTypes.push_back(stmt.GetIntFromColumnIndex(0));
+    }
+
+    mAsset_Place_AttributesGroup = new QGroupBox("Place Settings");
+    auto *attrForm = new QFormLayout(mAsset_Place_AttributesGroup);
+
+    mAsset_Place_MaxPlayersInput = new QLineEdit(QString::number(maxPlayers));
+    mAsset_Place_MaxPlayersInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mAsset_Place_MaxPlayersInput));
+    attrForm->addRow("Max Players", mAsset_Place_MaxPlayersInput);
+
+    mAsset_Place_AllowDirectAccessInput = new QCheckBox();
+    mAsset_Place_AllowDirectAccessInput->setChecked(allowDirectAccess);
+    attrForm->addRow("Allow Direct Access", mAsset_Place_AllowDirectAccessInput);
+
+    mAsset_Place_GearGenreInput = new QComboBox();
+    mAsset_Place_GearGenreInput->addItem("All Genres", static_cast<int>(Roblox::GearGenreSetting::AllGenres));
+    mAsset_Place_GearGenreInput->addItem("Matching Genre Only", static_cast<int>(Roblox::GearGenreSetting::MatchingGenreOnly));
+    int gearGenreIdx = mAsset_Place_GearGenreInput->findData(gearGenrePermission);
+    if (gearGenreIdx != -1)
+        mAsset_Place_GearGenreInput->setCurrentIndex(gearGenreIdx);
+    attrForm->addRow("Gear Genre", mAsset_Place_GearGenreInput);
+
+    auto *gearGroup = new QGroupBox("Allowed Gear Types");
+    auto *gearLayout = new QVBoxLayout(gearGroup);
+    mAsset_Place_GearTypeChecks.clear();
+    const std::pair<Roblox::GearType, const char*> gearTypeOptions[] = {
+        {Roblox::GearType::MeleeWeapons, "Melee Weapons"},
+        {Roblox::GearType::RangedWeapons, "Ranged Weapons"},
+        {Roblox::GearType::Explosives, "Explosives"},
+        {Roblox::GearType::PowerUps, "Power Ups"},
+        {Roblox::GearType::NavigationEnhancers, "Navigation Enhancers"},
+        {Roblox::GearType::MusicalInstruments, "Musical Instruments"},
+        {Roblox::GearType::SocialItems, "Social Items"},
+        {Roblox::GearType::BuildingTools, "Building Tools"},
+        {Roblox::GearType::Transport, "Transport"},
+    };
+    for (const auto &[type, label] : gearTypeOptions) {
+        auto *check = new QCheckBox(label);
+        check->setProperty("gearType", static_cast<int>(type));
+        check->setChecked(enabledGearTypes.contains(static_cast<int>(type)));
+        gearLayout->addWidget(check);
+        mAsset_Place_GearTypeChecks.push_back(check);
+    }
+    attrForm->addRow(gearGroup);
+
+    mContentLayout->addRow(mAsset_Place_AttributesGroup);
 }
 
 void ItemDialog::Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd) {
@@ -393,6 +514,7 @@ void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
     mUseExistingImageButton->setVisible(type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mImageIdInput, type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
+    mContentLayout->setRowVisible(mAsset_Place_AttributesGroup, type == Roblox::AssetType::Place);
 }
 
 Roblox::AssetType ItemDialog::Asset_GetAssetTypeFromFileType(const std::filesystem::path &path) {
@@ -499,6 +621,74 @@ bool ItemDialog::Asset_OnSave() {
         if (histStmt.Step() != SQLITE_DONE) {
             QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
             return false;
+        }
+    }
+
+    // Persist sale info into the AssetMicrotransaction table.
+    {
+        int saleCurrency = mAsset_SaleCurrencyInput->currentData().toInt();
+        int64_t salePrice = mAsset_SalePriceInput->text().toLongLong();
+        int limitedType = mAsset_LimitedTypeInput->currentData().toInt();
+        int64_t remaining = mAsset_RemainingInput->text().toLongLong();
+
+        Statement saleStmt = db->PrepareStatement(R"(
+            INSERT INTO AssetMicrotransaction (Id, CurrencyType, Price, LimitedType, Remaining) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (Id) DO UPDATE SET
+                CurrencyType = excluded.CurrencyType,
+                Price = excluded.Price,
+                LimitedType = excluded.LimitedType,
+                Remaining = excluded.Remaining;
+        )");
+        saleStmt.Bind(1, newId);
+        saleStmt.Bind(2, saleCurrency);
+        saleStmt.Bind(3, salePrice);
+        saleStmt.Bind(4, limitedType);
+        saleStmt.Bind(5, remaining);
+        if (saleStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+    }
+
+    // Persist place-specific settings (only relevant for Place assets).
+    if (mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>() == Roblox::AssetType::Place) {
+        int64_t maxPlayers = mAsset_Place_MaxPlayersInput->text().toLongLong();
+        bool allowDirectAccess = mAsset_Place_AllowDirectAccessInput->isChecked();
+        int gearGenrePermission = mAsset_Place_GearGenreInput->currentData().toInt();
+
+        Statement attrStmt = db->PrepareStatement(R"(
+            INSERT INTO AssetPlaceAttributes (Id, MaxPlayers, AllowDirectAccess, GearGenrePermission) VALUES (?, ?, ?, ?)
+            ON CONFLICT (Id) DO UPDATE SET
+                MaxPlayers = excluded.MaxPlayers,
+                AllowDirectAccess = excluded.AllowDirectAccess,
+                GearGenrePermission = excluded.GearGenrePermission;
+        )");
+        attrStmt.Bind(1, newId);
+        attrStmt.Bind(2, maxPlayers);
+        attrStmt.Bind(3, allowDirectAccess);
+        attrStmt.Bind(4, gearGenrePermission);
+        if (attrStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+
+        // Replace the allowed gear types with the currently-checked set.
+        Statement delGear = db->PrepareStatement("DELETE FROM AssetPlaceGearType WHERE Id = ?;");
+        delGear.Bind(1, newId);
+        if (delGear.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+        for (QCheckBox* check : mAsset_Place_GearTypeChecks) {
+            if (!check->isChecked())
+                continue;
+            Statement insGear = db->PrepareStatement("INSERT OR IGNORE INTO AssetPlaceGearType (Id, GearType) VALUES (?, ?);");
+            insGear.Bind(1, newId);
+            insGear.Bind(2, check->property("gearType").toInt());
+            if (insGear.Step() != SQLITE_DONE) {
+                QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+                return false;
+            }
         }
     }
 

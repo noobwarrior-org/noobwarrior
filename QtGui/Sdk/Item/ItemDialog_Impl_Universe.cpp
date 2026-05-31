@@ -34,6 +34,8 @@ using namespace NoobWarrior;
 void ItemDialog::Universe_AddFields() {
     auto *db = GetDatabase();
 
+    AddSectionHeader("Details");
+
     mOwned_CreatedInput = new QDateTimeEdit();
     mOwned_CreatedInput->setDateTime(QDateTime::currentDateTime());
     mContentLayout->addRow("Created", mOwned_CreatedInput);
@@ -78,14 +80,12 @@ void ItemDialog::Universe_AddFields() {
 
     mUniverse_StartPlaceId = startPlaceId;
 
+    AddSectionHeader("Statistics");
+
     mUniverse_VisitsInput = new QLineEdit();
     mUniverse_VisitsInput->setText(QString::number(visits));
     mUniverse_VisitsInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_VisitsInput));
     mContentLayout->addRow("Visits", mUniverse_VisitsInput);
-
-    mUniverse_ActiveInput = new QCheckBox();
-    mUniverse_ActiveInput->setChecked(active);
-    mContentLayout->addRow("Active", mUniverse_ActiveInput);
 
     int64_t favorites = 0;
     int64_t likes = 0;
@@ -111,6 +111,104 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_DislikesInput = new QLineEdit(QString::number(dislikes));
     mUniverse_DislikesInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_DislikesInput));
     mContentLayout->addRow("Dislikes", mUniverse_DislikesInput);
+
+    // Settings live partly in the Universe table (Active) and partly in UniverseMisc.
+    int64_t genre = 0;
+    int64_t subgenre = 0;
+    int64_t avatarType = 0;
+    int64_t accessType = 0;
+    int64_t paymentType = 0;
+    int64_t ageRating = 0;
+    bool allowPrivateServers = false;
+    bool allowDirectAccess = false;
+    std::string supportedDevices;
+    if (mId.has_value()) {
+        Statement miscStmt = db->PrepareStatement("SELECT Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices FROM UniverseMisc WHERE Id = ?");
+        miscStmt.Bind(1, mId.value());
+        if (miscStmt.Step() == SQLITE_ROW) {
+            genre = miscStmt.GetInt64FromColumnIndex(0);
+            subgenre = miscStmt.GetInt64FromColumnIndex(1);
+            avatarType = miscStmt.GetInt64FromColumnIndex(2);
+            accessType = miscStmt.GetInt64FromColumnIndex(3);
+            paymentType = miscStmt.GetInt64FromColumnIndex(4);
+            allowPrivateServers = miscStmt.GetIntFromColumnIndex(5);
+            allowDirectAccess = miscStmt.GetIntFromColumnIndex(6);
+            ageRating = miscStmt.GetInt64FromColumnIndex(7);
+            supportedDevices = miscStmt.GetStringFromColumnIndex(8);
+        }
+    }
+
+    AddSectionHeader("Settings");
+
+    mUniverse_ActiveInput = new QCheckBox();
+    mUniverse_ActiveInput->setChecked(active);
+    mContentLayout->addRow("Active", mUniverse_ActiveInput);
+
+    mUniverse_GenreInput = new QLineEdit(QString::number(genre));
+    mUniverse_GenreInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_GenreInput));
+    mContentLayout->addRow("Genre", mUniverse_GenreInput);
+
+    mUniverse_SubgenreInput = new QLineEdit(QString::number(subgenre));
+    mUniverse_SubgenreInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_SubgenreInput));
+    mContentLayout->addRow("Subgenre", mUniverse_SubgenreInput);
+
+    mUniverse_AvatarTypeInput = new QLineEdit(QString::number(avatarType));
+    mUniverse_AvatarTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AvatarTypeInput));
+    mContentLayout->addRow("Avatar Type", mUniverse_AvatarTypeInput);
+
+    mUniverse_AccessTypeInput = new QLineEdit(QString::number(accessType));
+    mUniverse_AccessTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AccessTypeInput));
+    mContentLayout->addRow("Access Type", mUniverse_AccessTypeInput);
+
+    mUniverse_PaymentTypeInput = new QLineEdit(QString::number(paymentType));
+    mUniverse_PaymentTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_PaymentTypeInput));
+    mContentLayout->addRow("Payment Type", mUniverse_PaymentTypeInput);
+
+    mUniverse_AgeRatingInput = new QLineEdit(QString::number(ageRating));
+    mUniverse_AgeRatingInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_AgeRatingInput));
+    mContentLayout->addRow("Age Rating", mUniverse_AgeRatingInput);
+
+    mUniverse_AllowPrivateServersInput = new QCheckBox();
+    mUniverse_AllowPrivateServersInput->setChecked(allowPrivateServers);
+    mContentLayout->addRow("Allow Private Servers", mUniverse_AllowPrivateServersInput);
+
+    mUniverse_AllowDirectAccessInput = new QCheckBox();
+    mUniverse_AllowDirectAccessInput->setChecked(allowDirectAccess);
+    mContentLayout->addRow("Allow Direct Access", mUniverse_AllowDirectAccessInput);
+
+    mUniverse_SupportedDevicesInput = new QLineEdit(QString::fromStdString(supportedDevices));
+    mUniverse_SupportedDevicesInput->setPlaceholderText("e.g. Computer,Phone,Tablet,Console");
+    mContentLayout->addRow("Supported Devices", mUniverse_SupportedDevicesInput);
+
+    // A single social link (the UniverseSocialLink table is keyed by universe Id).
+    int64_t socialLinkType = 0;
+    std::string socialLinkUrl;
+    std::string socialLinkTitle;
+    if (mId.has_value()) {
+        Statement linkStmt = db->PrepareStatement("SELECT LinkType, Url, Title FROM UniverseSocialLink WHERE Id = ?");
+        linkStmt.Bind(1, mId.value());
+        if (linkStmt.Step() == SQLITE_ROW) {
+            socialLinkType = linkStmt.GetInt64FromColumnIndex(0);
+            socialLinkUrl = linkStmt.GetStringFromColumnIndex(1);
+            socialLinkTitle = linkStmt.GetStringFromColumnIndex(2);
+        }
+    }
+
+    AddSectionHeader("Social Link");
+
+    mUniverse_SocialLinkTypeInput = new QLineEdit(QString::number(socialLinkType));
+    mUniverse_SocialLinkTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUniverse_SocialLinkTypeInput));
+    mContentLayout->addRow("Link Type", mUniverse_SocialLinkTypeInput);
+
+    mUniverse_SocialLinkUrlInput = new QLineEdit(QString::fromStdString(socialLinkUrl));
+    mUniverse_SocialLinkUrlInput->setPlaceholderText("https://...");
+    mContentLayout->addRow("Link Url", mUniverse_SocialLinkUrlInput);
+
+    mUniverse_SocialLinkTitleInput = new QLineEdit(QString::fromStdString(socialLinkTitle));
+    mUniverse_SocialLinkTitleInput->setPlaceholderText("Title shown to players");
+    mContentLayout->addRow("Link Title", mUniverse_SocialLinkTitleInput);
+
+    AddSectionHeader("Places");
 
     mUniverse_PlaceFrame = new QFrame();
     auto *placeFrameLayout = new QVBoxLayout(mUniverse_PlaceFrame);
@@ -179,7 +277,8 @@ void ItemDialog::Universe_AddFields() {
         }
     });
 
-    mContentLayout->addRow("Places", mUniverse_PlaceFrame);
+    placeFrameLayout->setContentsMargins(0, 0, 0, 0);
+    mContentLayout->addRow(mUniverse_PlaceFrame);
 
     /*
     mUniverse_CreatorTypeInput = new QComboBox();
@@ -278,6 +377,74 @@ bool ItemDialog::Universe_OnSave() {
     if (histStmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
+    }
+
+    // Persist the universe settings (UniverseMisc table).
+    int64_t genre = mUniverse_GenreInput->text().toLongLong();
+    int64_t subgenre = mUniverse_SubgenreInput->text().toLongLong();
+    int64_t avatarType = mUniverse_AvatarTypeInput->text().toLongLong();
+    int64_t accessType = mUniverse_AccessTypeInput->text().toLongLong();
+    int64_t paymentType = mUniverse_PaymentTypeInput->text().toLongLong();
+    int64_t ageRating = mUniverse_AgeRatingInput->text().toLongLong();
+    bool allowPrivateServers = mUniverse_AllowPrivateServersInput->isChecked();
+    bool allowDirectAccess = mUniverse_AllowDirectAccessInput->isChecked();
+    std::string supportedDevices = mUniverse_SupportedDevicesInput->text().toStdString();
+
+    Statement miscStmt = db->PrepareStatement(R"(
+        INSERT INTO UniverseMisc (Id, Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (Id) DO UPDATE SET
+            Genre = excluded.Genre,
+            Subgenre = excluded.Subgenre,
+            AvatarType = excluded.AvatarType,
+            AccessType = excluded.AccessType,
+            PaymentType = excluded.PaymentType,
+            AllowPrivateServers = excluded.AllowPrivateServers,
+            AllowDirectAccessToPlaces = excluded.AllowDirectAccessToPlaces,
+            AgeRating = excluded.AgeRating,
+            SupportedDevices = excluded.SupportedDevices;
+    )");
+    miscStmt.Bind(1, id);
+    miscStmt.Bind(2, genre);
+    miscStmt.Bind(3, subgenre);
+    miscStmt.Bind(4, avatarType);
+    miscStmt.Bind(5, accessType);
+    miscStmt.Bind(6, paymentType);
+    miscStmt.Bind(7, allowPrivateServers);
+    miscStmt.Bind(8, allowDirectAccess);
+    miscStmt.Bind(9, ageRating);
+    miscStmt.Bind(10, supportedDevices);
+    if (miscStmt.Step() != SQLITE_DONE) {
+        QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        return false;
+    }
+
+    // Persist the social link. If the title and url are both blank, treat it as "no link".
+    std::string socialLinkUrl = mUniverse_SocialLinkUrlInput->text().toStdString();
+    std::string socialLinkTitle = mUniverse_SocialLinkTitleInput->text().toStdString();
+    if (socialLinkUrl.empty() && socialLinkTitle.empty()) {
+        Statement delLink = db->PrepareStatement("DELETE FROM UniverseSocialLink WHERE Id = ?;");
+        delLink.Bind(1, id);
+        if (delLink.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+    } else {
+        int64_t socialLinkType = mUniverse_SocialLinkTypeInput->text().toLongLong();
+        Statement linkStmt = db->PrepareStatement(R"(
+            INSERT INTO UniverseSocialLink (Id, LinkType, Url, Title) VALUES (?, ?, ?, ?)
+            ON CONFLICT (Id) DO UPDATE SET
+                LinkType = excluded.LinkType,
+                Url = excluded.Url,
+                Title = excluded.Title;
+        )");
+        linkStmt.Bind(1, id);
+        linkStmt.Bind(2, socialLinkType);
+        linkStmt.Bind(3, socialLinkUrl);
+        linkStmt.Bind(4, socialLinkTitle);
+        if (linkStmt.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
     }
 
     // Delete removed places

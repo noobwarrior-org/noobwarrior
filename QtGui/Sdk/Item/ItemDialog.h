@@ -37,6 +37,8 @@
 #include <QListWidget>
 #include <QLineEdit>
 #include <QCheckBox>
+#include <QGroupBox>
+#include <QScrollArea>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -57,6 +59,9 @@ public:
 protected:
     void RegenWidgets();
     void OnSave();
+
+    // Adds a styled, full-width section heading to the content form to visually group fields.
+    void AddSectionHeader(const QString &title);
 
     void AddOwnedItemFields();
 
@@ -108,6 +113,7 @@ protected:
 
     QLabel* mIcon;
 
+    QVBoxLayout* mRootLayout;
     QHBoxLayout* mLayout;
     QVBoxLayout* mSidebarLayout;
     QFormLayout* mContentLayout;
@@ -140,6 +146,17 @@ protected:
     QLineEdit* mAsset_LikesInput;
     QLineEdit* mAsset_DislikesInput;
 
+    QComboBox* mAsset_SaleCurrencyInput;
+    QLineEdit* mAsset_SalePriceInput;
+    QComboBox* mAsset_LimitedTypeInput;
+    QLineEdit* mAsset_RemainingInput;
+
+    QGroupBox* mAsset_Place_AttributesGroup;
+    QLineEdit* mAsset_Place_MaxPlayersInput;
+    QCheckBox* mAsset_Place_AllowDirectAccessInput;
+    QComboBox* mAsset_Place_GearGenreInput;
+    QList<QCheckBox*> mAsset_Place_GearTypeChecks;
+
     QFrame* mAsset_Place_ThumbnailFrame;
     QListWidget* mAsset_Place_ThumbnailList;
     QPushButton* mAsset_Place_UploadThumbnailButton;
@@ -153,6 +170,18 @@ protected:
     QLineEdit* mUniverse_FavoritesInput;
     QLineEdit* mUniverse_LikesInput;
     QLineEdit* mUniverse_DislikesInput;
+    QLineEdit* mUniverse_GenreInput;
+    QLineEdit* mUniverse_SubgenreInput;
+    QLineEdit* mUniverse_AvatarTypeInput;
+    QLineEdit* mUniverse_AccessTypeInput;
+    QLineEdit* mUniverse_PaymentTypeInput;
+    QLineEdit* mUniverse_AgeRatingInput;
+    QCheckBox* mUniverse_AllowPrivateServersInput;
+    QCheckBox* mUniverse_AllowDirectAccessInput;
+    QLineEdit* mUniverse_SupportedDevicesInput;
+    QLineEdit* mUniverse_SocialLinkTypeInput;
+    QLineEdit* mUniverse_SocialLinkUrlInput;
+    QLineEdit* mUniverse_SocialLinkTitleInput;
     QFrame* mUniverse_PlaceFrame;
     ItemListWidget* mUniverse_PlaceList;
     QPushButton* mUniverse_AddPlaceButton;
@@ -170,6 +199,15 @@ protected:
     QLineEdit* mUser_FriendCountInput;
     QLineEdit* mUser_FollowersCountInput;
     QLineEdit* mUser_FollowingCountInput;
+    QLineEdit* mUser_CharacterBodyTypeInput;
+    QLineEdit* mUser_CharacterWidthInput;
+    QLineEdit* mUser_CharacterHeightInput;
+    QLineEdit* mUser_CharacterHeadInput;
+    QLineEdit* mUser_CharacterProportionsInput;
+    ItemListWidget* mUser_CharacterItemList;
+    QPushButton* mUser_AddCharacterItemButton;
+    QList<int64_t> mUser_PendingCharacterItems;
+    QList<int64_t> mUser_PendingDeleteCharacterItems;
 
     QCheckBox* mBadge_EnabledInput;
     QLineEdit* mBadge_UniverseIdInput;

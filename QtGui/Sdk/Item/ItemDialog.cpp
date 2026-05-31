@@ -60,12 +60,32 @@ void ItemDialog::RegenWidgets() {
     setWindowTitle(tr("Configure %1").arg(QString::fromStdString(tableName)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
-    mLayout = new QHBoxLayout(this);
-    mSidebarLayout = new QVBoxLayout();
-    mContentLayout = new QFormLayout();
 
+    // Root layout: a body row (sidebar + scrollable content) above a fixed button box.
+    mRootLayout = new QVBoxLayout(this);
+    mLayout = new QHBoxLayout();
+    mRootLayout->addLayout(mLayout, 1);
+
+    mSidebarLayout = new QVBoxLayout();
     mLayout->addLayout(mSidebarLayout);
-    mLayout->addLayout(mContentLayout);
+
+    mContentLayout = new QFormLayout();
+    mContentLayout->setLabelAlignment(Qt::AlignRight);
+    mContentLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    mContentLayout->setHorizontalSpacing(14);
+    mContentLayout->setVerticalSpacing(6);
+    mContentLayout->setContentsMargins(14, 6, 14, 6);
+
+    // Editors can get quite tall (a Place asset in particular), so keep the form scrollable
+    // while the icon sidebar and the Save/Cancel buttons stay pinned in place.
+    auto *contentWidget = new QWidget();
+    contentWidget->setLayout(mContentLayout);
+    auto *scrollArea = new QScrollArea();
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setWidget(contentWidget);
+    mLayout->addWidget(scrollArea, 1);
 
     ////////////////////////////////////////////////////////////////////////
     /// icon
@@ -138,6 +158,8 @@ void ItemDialog::RegenWidgets() {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distrib(0, 2147483647);
 
+    AddSectionHeader("General");
+
     mIdInput = new QLineEdit(QString::number(distrib(gen)));
     mIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mIdInput));
     mContentLayout->addRow("Id", mIdInput);
@@ -208,13 +230,17 @@ void ItemDialog::RegenWidgets() {
     }
 
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
-    mContentLayout->addWidget(mButtonBox);
+    mButtonBox->setContentsMargins(14, 0, 14, 8);
+    mRootLayout->addWidget(mButtonBox);
 
     connect(mButtonBox, &QDialogButtonBox::accepted, this, &ItemDialog::OnSave);
 
     connect(mButtonBox, &QDialogButtonBox::rejected, this, [&]() {
         close();
     });
+
+    setMinimumWidth(560);
+    resize(620, 760);
 }
 
 void ItemDialog::OnSave() {
@@ -308,8 +334,24 @@ void ItemDialog::OnSave() {
     }
 }
 
+void ItemDialog::AddSectionHeader(const QString &title) {
+    auto *header = new QLabel(title.toUpper());
+    header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    header->setStyleSheet(
+        "font-weight: bold;"
+        "letter-spacing: 1px;"
+        "color: palette(bright-text);"
+        "padding: 8px 0 3px 0;"
+        "margin-top: 4px;"
+        "border-bottom: 1px solid palette(mid);"
+    );
+    mContentLayout->addRow(header);
+}
+
 void ItemDialog::AddOwnedItemFields() {
     auto *db = GetDatabase();
+
+    AddSectionHeader("Details");
 
     mOwned_DescriptionInput = new QLineEdit();
     mOwned_DescriptionInput->setPlaceholderText("Describe your item here");

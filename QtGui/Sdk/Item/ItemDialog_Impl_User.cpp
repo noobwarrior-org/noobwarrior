@@ -23,9 +23,11 @@
 // Started on: 4/3/2026
 // Description:
 #include "ItemDialog.h"
+#include "ItemOpenSaveDialog.h"
 #include "Sdk/CreatorInfoWidget.h"
 
 #include <QRegularExpressionValidator>
+#include <QDoubleValidator>
 
 using namespace NoobWarrior;
 
@@ -59,6 +61,8 @@ void ItemDialog::User_AddFields() {
         }
     }
 
+    AddSectionHeader("Profile");
+
     mUser_DisplayNameInput = new QLineEdit(QString::fromStdString(displayName));
     mUser_DisplayNameInput->setPlaceholderText("Cool Name");
     mContentLayout->addRow("Display Name", mUser_DisplayNameInput);
@@ -83,6 +87,8 @@ void ItemDialog::User_AddFields() {
     mUser_LastOnlineInput->setDateTime(mId.has_value() ? QDateTime::fromSecsSinceEpoch(lastOnline) : QDateTime::currentDateTime());
     mContentLayout->addRow("Last Online", mUser_LastOnlineInput);
 
+    AddSectionHeader("Statistics");
+
     mUser_RankInput = new QLineEdit(QString::number(rank));
     mUser_RankInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUser_RankInput));
     mContentLayout->addRow("Rank", mUser_RankInput);
@@ -102,12 +108,128 @@ void ItemDialog::User_AddFields() {
     mUser_FollowingCountInput = new QLineEdit(QString::number(followingCount));
     mUser_FollowingCountInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUser_FollowingCountInput));
     mContentLayout->addRow("Following", mUser_FollowingCountInput);
+
+    // ---- Character appearance (Character* columns + UserCharacterItem table) ----
+    int64_t characterBodyType = 0;
+    double characterWidth = 1.0;
+    double characterHeight = 1.0;
+    double characterHead = 1.0;
+    double characterProportions = 0.0;
+    if (mId.has_value()) {
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT CharacterBodyType, CharacterWidth, CharacterHeight, CharacterHead, CharacterProportions FROM User WHERE Id = ?");
+        stmt.Bind(1, mId.value());
+        if (stmt.Step() == SQLITE_ROW) {
+            characterBodyType = stmt.GetInt64FromColumnIndex(0);
+            characterWidth = stmt.GetDoubleFromColumnIndex(1);
+            characterHeight = stmt.GetDoubleFromColumnIndex(2);
+            characterHead = stmt.GetDoubleFromColumnIndex(3);
+            characterProportions = stmt.GetDoubleFromColumnIndex(4);
+        }
+    }
+
+    AddSectionHeader("Character");
+
+    mUser_CharacterBodyTypeInput = new QLineEdit(QString::number(characterBodyType));
+    mUser_CharacterBodyTypeInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUser_CharacterBodyTypeInput));
+    mContentLayout->addRow("Body Type", mUser_CharacterBodyTypeInput);
+
+    mUser_CharacterWidthInput = new QLineEdit(QString::number(characterWidth));
+    mUser_CharacterWidthInput->setValidator(new QDoubleValidator(mUser_CharacterWidthInput));
+    mContentLayout->addRow("Width", mUser_CharacterWidthInput);
+
+    mUser_CharacterHeightInput = new QLineEdit(QString::number(characterHeight));
+    mUser_CharacterHeightInput->setValidator(new QDoubleValidator(mUser_CharacterHeightInput));
+    mContentLayout->addRow("Height", mUser_CharacterHeightInput);
+
+    mUser_CharacterHeadInput = new QLineEdit(QString::number(characterHead));
+    mUser_CharacterHeadInput->setValidator(new QDoubleValidator(mUser_CharacterHeadInput));
+    mContentLayout->addRow("Head", mUser_CharacterHeadInput);
+
+    mUser_CharacterProportionsInput = new QLineEdit(QString::number(characterProportions));
+    mUser_CharacterProportionsInput->setValidator(new QDoubleValidator(mUser_CharacterProportionsInput));
+    mContentLayout->addRow("Proportions", mUser_CharacterProportionsInput);
+
+    // The assets the user is currently wearing (UserCharacterItem table).
+    auto *itemFrame = new QFrame();
+    auto *itemFrameLayout = new QVBoxLayout(itemFrame);
+    itemFrameLayout->setContentsMargins(0, 0, 0, 0);
+
+    mUser_CharacterItemList = new ItemListWidget(nullptr, GetDatabase());
+    mUser_CharacterItemList->SetOnContextMenuShown([this](QMenu* menu, ItemWidget* item) {
+        QAction* removeAction = menu->addAction(QIcon(":/images/silk/cross.png"), "Remove From List");
+        connect(removeAction, &QAction::triggered, [this, item]() {
+            int64_t assetId = item->GetId();
+            mUser_CharacterItemList->Remove(item->GetType(), assetId);
+            mUser_PendingDeleteCharacterItems.push_back(assetId);
+            mUser_PendingCharacterItems.removeAll(assetId);
+        });
+    });
+
+    if (mId.has_value()) {
+        Statement itemsStmt = GetDatabase()->PrepareStatement("SELECT AssetId FROM UserCharacterItem WHERE Id = ?;");
+        itemsStmt.Bind(1, mId.value());
+        while (itemsStmt.Step() == SQLITE_ROW) {
+            int64_t assetId = itemsStmt.GetInt64FromColumnIndex(0);
+            if (!mUser_CharacterItemList->Add(ItemType::Asset, assetId))
+                QMessageBox::critical(this, "Error", "Failed to load asset into list!");
+        }
+    }
+
+    mUser_AddCharacterItemButton = new QPushButton("Add Asset");
+    connect(mUser_AddCharacterItemButton, &QPushButton::clicked, [this]() {
+        std::optional<int64_t> id = ItemOpenSaveDialog::GetOpenId(this, GetDatabase(), ItemType::Asset);
+        if (id.has_value()) {
+            if (mUser_CharacterItemList->IsItemInList(ItemType::Asset, id.value())) {
+                QMessageBox::critical(this, "Asset Already Exists", "You already added this asset to the list.");
+                return;
+            }
+            if (!mUser_CharacterItemList->Add(ItemType::Asset, id.value())) {
+                QMessageBox::critical(this, "Error", "Failed to add asset");
+                return;
+            }
+            mUser_PendingCharacterItems.push_back(id.value());
+            mUser_PendingDeleteCharacterItems.removeAll(id.value());
+        }
+    });
+
+    itemFrameLayout->addWidget(mUser_CharacterItemList);
+    itemFrameLayout->addWidget(mUser_AddCharacterItemButton);
+    mContentLayout->addRow(itemFrame);
 }
+
+static constexpr const char* sUserChildTables[] = {
+    "UserCharacterItem",
+    "UserCharacterBodyColor",
+    "UserNames",
+    "UserGroups",
+    "UserInventory",
+    "UserFavorites",
+    "UserLikesDislikes"
+};
 
 bool ItemDialog::User_OnSave() {
     auto *db = GetDatabase();
 
     int64_t id = mIdInput->text().toLongLong();
+    int64_t oldId = mId.has_value() ? mId.value() : id;
+    bool idChanged = mId.has_value() && oldId != id;
+
+    if (idChanged) {
+        // The main row was already renamed by ItemDialog::OnSave; bring the user-owned child tables along.
+        for (int i = 0; i < std::size(sUserChildTables); i++) {
+            Statement updateStmt = db->PrepareStatement(std::format("UPDATE {} SET Id = ? WHERE Id = ?;", sUserChildTables[i]));
+            updateStmt.Bind(1, id);
+            updateStmt.Bind(2, oldId);
+            if (updateStmt.Step() != SQLITE_DONE) {
+                QMessageBox::critical(this, "Cannot Save",
+                    QString("Failed to update Id field in %1 table.\nLast error: %2")
+                    .arg(sUserChildTables[i])
+                    .arg(QString::fromStdString(db->GetLastErrorMsg())));
+                return false;
+            }
+        }
+    }
+
     std::string name = mNameInput->text().toStdString();
     std::string displayName = mUser_DisplayNameInput->text().toStdString();
     std::string status = mUser_StatusInput->text().toStdString();
@@ -120,9 +242,14 @@ bool ItemDialog::User_OnSave() {
     int64_t friendCount = mUser_FriendCountInput->text().toLongLong();
     int64_t followersCount = mUser_FollowersCountInput->text().toLongLong();
     int64_t followingCount = mUser_FollowingCountInput->text().toLongLong();
+    int64_t characterBodyType = mUser_CharacterBodyTypeInput->text().toLongLong();
+    double characterWidth = mUser_CharacterWidthInput->text().toDouble();
+    double characterHeight = mUser_CharacterHeightInput->text().toDouble();
+    double characterHead = mUser_CharacterHeadInput->text().toDouble();
+    double characterProportions = mUser_CharacterProportionsInput->text().toDouble();
 
     Statement stmt = db->PrepareStatement(R"(
-        INSERT INTO User (Id, Name, DisplayName, Status, Bio, Email, JoinDate, LastOnline, Rank, PlaceVisits, Historical_FriendCount, Historical_FollowersCount, Historical_FollowingCount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO User (Id, Name, DisplayName, Status, Bio, Email, JoinDate, LastOnline, Rank, PlaceVisits, Historical_FriendCount, Historical_FollowersCount, Historical_FollowingCount, CharacterBodyType, CharacterWidth, CharacterHeight, CharacterHead, CharacterProportions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id) DO UPDATE SET
             LastRecorded = (unixepoch()),
             Name = excluded.Name,
@@ -136,7 +263,12 @@ bool ItemDialog::User_OnSave() {
             PlaceVisits = excluded.PlaceVisits,
             Historical_FriendCount = excluded.Historical_FriendCount,
             Historical_FollowersCount = excluded.Historical_FollowersCount,
-            Historical_FollowingCount = excluded.Historical_FollowingCount;
+            Historical_FollowingCount = excluded.Historical_FollowingCount,
+            CharacterBodyType = excluded.CharacterBodyType,
+            CharacterWidth = excluded.CharacterWidth,
+            CharacterHeight = excluded.CharacterHeight,
+            CharacterHead = excluded.CharacterHead,
+            CharacterProportions = excluded.CharacterProportions;
     )");
     stmt.Bind(1, id);
     stmt.Bind(2, name);
@@ -151,10 +283,35 @@ bool ItemDialog::User_OnSave() {
     stmt.Bind(11, friendCount);
     stmt.Bind(12, followersCount);
     stmt.Bind(13, followingCount);
+    stmt.Bind(14, characterBodyType);
+    stmt.Bind(15, characterWidth);
+    stmt.Bind(16, characterHeight);
+    stmt.Bind(17, characterHead);
+    stmt.Bind(18, characterProportions);
 
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
+    }
+
+    for (int64_t assetId : mUser_PendingDeleteCharacterItems) {
+        Statement del = db->PrepareStatement("DELETE FROM UserCharacterItem WHERE Id = ? AND AssetId = ?;");
+        del.Bind(1, id);
+        del.Bind(2, assetId);
+        if (del.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+    }
+
+    for (int64_t assetId : mUser_PendingCharacterItems) {
+        Statement ins = db->PrepareStatement("INSERT OR IGNORE INTO UserCharacterItem (Id, AssetId) VALUES (?, ?);");
+        ins.Bind(1, id);
+        ins.Bind(2, assetId);
+        if (ins.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
     }
     return true;
 }
