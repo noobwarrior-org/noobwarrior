@@ -55,7 +55,7 @@ void HostServerDialog::InitWidgets() {
     mMainLayout->addWidget(mDbListWidget);
     mMainLayout->addWidget(mUniverseTreeWidget);
 
-    connect(mDbListWidget, &QListWidget::itemSelectionChanged, [this]() {
+    connect(mDbListWidget, &QListWidget::currentItemChanged, [this](QListWidgetItem *current, QListWidgetItem *previous) {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
         mUniverseTreeWidget->Populate(db);
     });
