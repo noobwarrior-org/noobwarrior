@@ -25,19 +25,58 @@
 #include "LocalPlayerDialog.h"
 #include "../Application.h"
 
+#include <NoobWarrior/Lua/LuaState.h>
+
 #include <QRegularExpressionValidator>
 #include <QRegularExpression>
-#include <QColorDialog>
 #include <QInputDialog>
 #include <QGroupBox>
 #include <QLabel>
-#include <QIntValidator>
+#include <QDialog>
+
+#include <optional>
 
 using namespace NoobWarrior;
 
-static constexpr const char* kAvatarType = "user.avatar.type";
-static constexpr const char* kColorPrefix = "user.avatar.color.";  // + body part key
-static constexpr const char* kItemsPrefix = "user.avatar.items.";  // + category key
+namespace {
+struct BrickColorEntry { const char* name; const char* hex; };
+const BrickColorEntry kBodyColors[] = {
+    {"Dirt brown","#564236"}, {"Reddish brown","#694028"}, {"Brown","#7C5C46"},
+    {"Sand red","#957977"}, {"Linen","#AF9483"}, {"Burlap","#C7AC78"},
+    {"Brick yellow","#D7C59A"}, {"Medium red","#DA867A"}, {"Dusty Rose","#A34B4B"},
+    {"CGA brown","#AA5500"}, {"Dark orange","#A05F35"}, {"Nougat","#CC8E69"},
+    {"Light orange","#EAB892"}, {"Pastel brown","#FFCC99"}, {"Neon orange","#D5733D"},
+    {"Bright orange","#DA8541"}, {"Br. yellowish orange","#E29B40"}, {"Deep orange","#FFAF00"},
+    {"Bright yellow","#F5CD30"}, {"Daisy orange","#F8D96D"}, {"Cool yellow","#FDEA8D"},
+    {"Earth green","#27462D"}, {"Camo","#3A7D15"}, {"Dark green","#287F47"},
+    {"Bright green","#4B974B"}, {"Shamrock","#5B9A4C"}, {"Moss","#7C9C6B"},
+    {"Br. yellowish green","#A4BD47"}, {"Navy blue","#002060"}, {"Deep blue","#2154B9"},
+    {"Really blue","#0000FF"}, {"Bright blue","#0D69AC"}, {"Steel blue","#527CAE"},
+    {"Medium blue","#6E99CA"}, {"Light blue","#B4D2E4"}, {"Bright bluish green","#008F9C"},
+    {"Teal","#12EED4"}, {"Pastel blue-green","#9FF3E9"}, {"Toothpaste","#00FFFF"},
+    {"Cyan","#04AFEC"}, {"Pastel Blue","#80BBDC"}, {"Pastel light blue","#AFDDFF"},
+    {"Bright violet","#6B327C"}, {"Lavender","#8C5B9F"}, {"Lilac","#A75E9B"},
+    {"Magenta","#AA00AA"}, {"Royal purple","#6225D1"}, {"Alder","#B480FF"},
+    {"Pastel violet","#B1A7FF"}, {"Bright red","#C4281C"}, {"Really red","#FF0000"},
+    {"Hot pink","#FF00BF"}, {"Pink","#FF66CC"}, {"Carnation pink","#FF98DC"},
+    {"Light reddish violet","#E8BAC8"}, {"Pastel orange","#FFC9C9"}, {"Dark taupe","#5A4C42"},
+    {"Cork","#BC9B5D"}, {"Olive","#C1BE42"}, {"Medium green","#A1C48C"},
+    {"Grime","#7F8E64"}, {"Sand green","#789082"}, {"Sand blue","#74869D"},
+    {"Lime green","#00FF00"}, {"Pastel green","#CCFFCC"}, {"New Yeller","#FFFF00"},
+    {"Pastel yellow","#FFFFCC"}, {"Really black","#111111"}, {"Black","#1B2A35"},
+    {"Dark stone grey","#635F62"}, {"Medium stone grey","#A3A2A5"}, {"Mid gray","#CDCDCD"},
+    {"Light stone grey","#E5E4DF"}, {"White","#F2F3F3"}, {"Institutional white","#F8F8F8"},
+};
+
+// Resolves a BrickColor name to its preview hex, falling back to grey.
+QColor HexForBrickName(const QString& name) {
+    for (const auto& entry : kBodyColors) {
+        if (name == QLatin1String(entry.name))
+            return QColor(entry.hex);
+    }
+    return QColor("#A3A2A5"); // Medium stone grey
+}
+}
 
 LocalPlayerDialog::LocalPlayerDialog(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Local Player Settings");
@@ -57,10 +96,8 @@ void LocalPlayerDialog::InitWidgets() {
     mIdInput = new QLineEdit;
     mNameInput = new QLineEdit;
     mDisplayNameInput = new QLineEdit;
-    mAvatarTypeInput = new QComboBox;
-    mAvatarTypeInput->addItems({"R6", "R15"});
 
-    mIdInput->setText(QString::number(reg->GetKeyValue<int64_t>("user.id").value_or(5)));
+    mIdInput->setText(QString::number(reg->GetKeyValue<int64_t>("user.id").value_or(1000)));
     mNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.name").value_or("Player")));
     mDisplayNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.display_name").value_or("Player")));
 
@@ -68,8 +105,8 @@ void LocalPlayerDialog::InitWidgets() {
     mFormLayout->addRow("User Id", mIdInput);
     mFormLayout->addRow("Name", mNameInput);
     mFormLayout->addRow("Display Name", mDisplayNameInput);
-    mFormLayout->addRow("Avatar Type", mAvatarTypeInput);
-    
+
+    // Left column: identity form sitting above the body-part swatches.
     QVBoxLayout* leftColumn = new QVBoxLayout;
     leftColumn->addLayout(mFormLayout);
     leftColumn->addWidget(BuildAvatarBody());
@@ -97,21 +134,19 @@ QWidget* LocalPlayerDialog::BuildAvatarBody() {
     grid->setHorizontalSpacing(4);
     grid->setVerticalSpacing(2);
 
-    const QColor yellow("#F5CD30");
-    const QColor blue("#0D69AC");
-    const QColor green("#4B974B");
-
-    AddBodyPart(grid, "head",     "Head",      0, 1, 48, 48, yellow);
-    AddBodyPart(grid, "leftArm",  "Left Arm",  1, 0, 36, 72, yellow);
-    AddBodyPart(grid, "torso",    "Torso",     1, 1, 72, 72, blue);
-    AddBodyPart(grid, "rightArm", "Right Arm", 1, 2, 36, 72, yellow);
+    // Registry defaults from Registry::Open(): yellow head/arms, blue torso,
+    // yellowish-green legs
+    AddBodyPart(grid, "head",      "Head",      0, 1, 48, 48, "Bright yellow");
+    AddBodyPart(grid, "left_arm",  "Left Arm",  1, 0, 36, 72, "Bright yellow");
+    AddBodyPart(grid, "torso",     "Torso",     1, 1, 72, 72, "Bright blue");
+    AddBodyPart(grid, "right_arm", "Right Arm", 1, 2, 36, 72, "Bright yellow");
 
     QHBoxLayout* legs = new QHBoxLayout;
     legs->setSpacing(4);
-    AddBodyPart(grid, "leftLeg",  "Left Leg",  -1, -1, 36, 72, green);
-    AddBodyPart(grid, "rightLeg", "Right Leg", -1, -1, 36, 72, green);
-    legs->addWidget(mBodyParts["leftLeg"].button);
-    legs->addWidget(mBodyParts["rightLeg"].button);
+    AddBodyPart(grid, "left_leg",  "Left Leg",  -1, -1, 36, 72, "Br. yellowish green");
+    AddBodyPart(grid, "right_leg", "Right Leg", -1, -1, 36, 72, "Br. yellowish green");
+    legs->addWidget(mBodyParts["left_leg"].button);
+    legs->addWidget(mBodyParts["right_leg"].button);
     grid->addLayout(legs, 2, 1, Qt::AlignHCenter | Qt::AlignTop);
 
     grid->setColumnStretch(0, 1);
@@ -120,15 +155,15 @@ QWidget* LocalPlayerDialog::BuildAvatarBody() {
 }
 
 void LocalPlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
-                                    int row, int col, int w, int h, const QColor& defaultColor) {
+                                    int row, int col, int w, int h, const QString& defaultColorName) {
     AvatarBodyPart part;
     part.key = key;
     part.label = label;
-    part.color = defaultColor;
+    part.colorName = defaultColorName;
+    part.color = HexForBrickName(defaultColorName);
     part.button = new QPushButton;
     part.button->setFixedSize(w, h);
     part.button->setCursor(Qt::PointingHandCursor);
-    part.button->setToolTip(QString("%1 - click to recolor").arg(label));
     mBodyParts.insert(key, part);
 
     AvatarBodyPart& stored = mBodyParts[key];
@@ -142,6 +177,7 @@ void LocalPlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const
 }
 
 void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
+    part.button->setToolTip(QString("%1: %2 — click to recolor").arg(part.label, part.colorName));
     part.button->setStyleSheet(QString(
         "QPushButton { background-color: %1; border: 1px solid #1b1b1b; border-radius: 3px; }"
         "QPushButton:hover { border: 1px solid #ffffff; }")
@@ -149,32 +185,82 @@ void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
 }
 
 void LocalPlayerDialog::PickBodyColor(AvatarBodyPart& part) {
-    QColor chosen = QColorDialog::getColor(part.color, this,
-        QString("Pick %1 Color").arg(part.label));
-    if (!chosen.isValid())
+    // A grid of BrickColor swatches, the same way the classic Roblox editor picks
+    // body colors (and so we only ever store valid BrickColor names)
+    QDialog dlg(this);
+    dlg.setWindowTitle(QString("Pick %1 Color").arg(part.label));
+    QGridLayout* grid = new QGridLayout(&dlg);
+    grid->setSpacing(2);
+
+    QString result;
+    const int columns = 8;
+    int i = 0;
+    for (const auto& entry : kBodyColors) {
+        const QString name = QString::fromLatin1(entry.name);
+        QPushButton* swatch = new QPushButton;
+        swatch->setFixedSize(28, 28);
+        swatch->setCursor(Qt::PointingHandCursor);
+        swatch->setToolTip(name);
+        const bool selected = (name == part.colorName);
+        swatch->setStyleSheet(QString(
+            "QPushButton { background-color: %1; border: %2; border-radius: 3px; }"
+            "QPushButton:hover { border: 2px solid #ffffff; }")
+            .arg(entry.hex, selected ? "2px solid #ffffff" : "1px solid #1b1b1b"));
+        connect(swatch, &QPushButton::clicked, [&dlg, &result, name]() {
+            result = name;
+            dlg.accept();
+        });
+        grid->addWidget(swatch, i / columns, i % columns);
+        ++i;
+    }
+
+    if (dlg.exec() != QDialog::Accepted || result.isEmpty())
         return;
-    part.color = chosen;
+    part.colorName = result;
+    part.color = HexForBrickName(result);
     ApplyBodyColor(part);
+}
+
+QLineEdit* LocalPlayerDialog::MakeAssetField(const QString& regKey) {
+    QLineEdit* field = new QLineEdit;
+    field->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), field));
+    field->setPlaceholderText("0 (none)");
+    mAssetFields.insert(regKey, field);
+    return field;
+}
+
+QDoubleSpinBox* LocalPlayerDialog::MakeScaleField(const QString& regKey) {
+    QDoubleSpinBox* field = new QDoubleSpinBox;
+    field->setRange(0.0, 2.0);
+    field->setSingleStep(0.05);
+    field->setDecimals(2);
+    mScaleFields.insert(regKey, field);
+    return field;
 }
 
 QWidget* LocalPlayerDialog::BuildItemEditor() {
     QTabWidget* tabs = new QTabWidget;
+    tabs->setMinimumWidth(280);
 
-    const QList<QPair<QString, QString>> categories = {
-        {"hats",        "Hats"},
-        {"faces",       "Faces"},
-        {"accessories", "Accessories"},
-        {"gear",        "Gear"},
-        {"clothing",    "Clothing"},
-    };
+    // Clothing: single-asset fields
+    {
+        QWidget* page = new QWidget;
+        QFormLayout* form = new QFormLayout(page);
+        form->addRow("Shirt",   MakeAssetField("user.appearance.shirt"));
+        form->addRow("Pants",   MakeAssetField("user.appearance.pants"));
+        form->addRow("T-Shirt", MakeAssetField("user.appearance.tshirt"));
+        form->addRow("Face",    MakeAssetField("user.appearance.face"));
+        tabs->addTab(page, "Clothing");
+    }
 
-    for (const auto& [key, label] : categories) {
+    // Accessories: list backed by the user.appearance.accessories table
+    {
         QWidget* page = new QWidget;
         QVBoxLayout* pageLayout = new QVBoxLayout(page);
 
         QListWidget* list = new QListWidget;
         list->setSelectionMode(QAbstractItemView::ExtendedSelection);
-        pageLayout->addWidget(new QLabel(QString("Equipped %1 (asset ids)").arg(label)));
+        pageLayout->addWidget(new QLabel("Equipped accessories (asset ids)"));
         pageLayout->addWidget(list);
 
         QHBoxLayout* buttons = new QHBoxLayout;
@@ -185,10 +271,9 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
         buttons->addStretch();
         pageLayout->addLayout(buttons);
 
-        AvatarItemCategory category{key, label, list};
+        AvatarItemCategory category{"user.appearance.accessories", "Accessories", list};
         mItemCategories.append(category);
         int index = mItemCategories.size() - 1;
-
         connect(addButton, &QPushButton::clicked, [this, index]() {
             AddItemToCategory(mItemCategories[index]);
         });
@@ -196,19 +281,63 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
             RemoveSelectedItem(mItemCategories[index]);
         });
 
-        tabs->addTab(page, label);
+        tabs->addTab(page, "Accessories");
     }
 
-    tabs->setMinimumWidth(260);
+    // Body: per-part mesh/package asset overrides
+    {
+        QWidget* page = new QWidget;
+        QFormLayout* form = new QFormLayout(page);
+        form->addRow("Head",      MakeAssetField("user.appearance.body.head"));
+        form->addRow("Torso",     MakeAssetField("user.appearance.body.torso"));
+        form->addRow("Left Arm",  MakeAssetField("user.appearance.body.left_arm"));
+        form->addRow("Right Arm", MakeAssetField("user.appearance.body.right_arm"));
+        form->addRow("Left Leg",  MakeAssetField("user.appearance.body.left_leg"));
+        form->addRow("Right Leg", MakeAssetField("user.appearance.body.right_leg"));
+        tabs->addTab(page, "Body");
+    }
+
+    // Animation: per-state animation asset ids
+    {
+        QWidget* page = new QWidget;
+        QFormLayout* form = new QFormLayout(page);
+        form->addRow("Climb", MakeAssetField("user.appearance.animation.climb"));
+        form->addRow("Fall",  MakeAssetField("user.appearance.animation.fall"));
+        form->addRow("Idle",  MakeAssetField("user.appearance.animation.idle"));
+        form->addRow("Jump",  MakeAssetField("user.appearance.animation.jump"));
+        form->addRow("Run",   MakeAssetField("user.appearance.animation.run"));
+        form->addRow("Swim",  MakeAssetField("user.appearance.animation.swim"));
+        form->addRow("Walk",  MakeAssetField("user.appearance.animation.walk"));
+        tabs->addTab(page, "Animation");
+    }
+
+    // Scale: R15 body proportion sliders
+    {
+        QWidget* page = new QWidget;
+        QFormLayout* form = new QFormLayout(page);
+        form->addRow("Height",     MakeScaleField("user.appearance.scale.height"));
+        form->addRow("Width",      MakeScaleField("user.appearance.scale.width"));
+        form->addRow("Head",       MakeScaleField("user.appearance.scale.head"));
+        form->addRow("Depth",      MakeScaleField("user.appearance.scale.depth"));
+        form->addRow("Proportion", MakeScaleField("user.appearance.scale.proportion"));
+        form->addRow("Body Type",  MakeScaleField("user.appearance.scale.body_type"));
+        tabs->addTab(page, "Scale");
+    }
+
     return tabs;
 }
 
 void LocalPlayerDialog::AddItemToCategory(AvatarItemCategory& category) {
     bool ok = false;
-    int64_t assetId = QInputDialog::getInt(this,
+    // Asset ids can exceed 32 bits, so prompt for text and validate as int64.
+    QString text = QInputDialog::getText(this,
         QString("Add %1").arg(category.label),
-        "Asset Id:", 0, 0, 2147483647, 1, &ok);
-    if (!ok || assetId <= 0)
+        "Asset Id:", QLineEdit::Normal, QString(), &ok);
+    if (!ok)
+        return;
+    bool valid = false;
+    qlonglong assetId = text.trimmed().toLongLong(&valid);
+    if (!valid || assetId <= 0)
         return;
     category.list->addItem(QString::number(assetId));
 }
@@ -219,50 +348,66 @@ void LocalPlayerDialog::RemoveSelectedItem(AvatarItemCategory& category) {
 
 void LocalPlayerDialog::LoadFromRegistry() {
     Registry* reg = gApp->GetCore()->GetRegistry();
-
-    QString type = QString::fromStdString(
-        reg->GetKeyValue<std::string>(kAvatarType).value_or("R6"));
-    int typeIndex = mAvatarTypeInput->findText(type);
-    mAvatarTypeInput->setCurrentIndex(typeIndex >= 0 ? typeIndex : 0);
-
+    
     for (auto it = mBodyParts.begin(); it != mBodyParts.end(); ++it) {
-        auto stored = reg->GetKeyValue<std::string>(kColorPrefix + it.key().toStdString());
-        if (stored.has_value()) {
-            QColor color(QString::fromStdString(*stored));
-            if (color.isValid()) {
-                it->color = color;
-                ApplyBodyColor(*it);
-            }
-        }
+        auto name = reg->GetKeyValue<std::string>("user.appearance.color." + it.key().toStdString());
+        if (!name.has_value())
+            continue;
+        it->colorName = QString::fromStdString(*name);
+        it->color = HexForBrickName(it->colorName);
+        ApplyBodyColor(*it);
     }
 
+    for (auto it = mAssetFields.begin(); it != mAssetFields.end(); ++it) {
+        int64_t id = reg->GetKeyValue<int64_t>(it.key().toStdString()).value_or(0);
+        it.value()->setText(id != 0 ? QString::number(id) : QString());
+    }
+
+    // Scales.
+    for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
+        it.value()->setValue(reg->GetKeyValue<double>(it.key().toStdString()).value_or(0.0));
+
+    // Accessories table.
     for (AvatarItemCategory& category : mItemCategories) {
-        auto stored = reg->GetKeyValue<std::string>(kItemsPrefix + category.key.toStdString());
-        if (!stored.has_value())
+        auto table = reg->GetKeyValue<sol::table>(category.key.toStdString());
+        if (!table.has_value())
             continue;
-        const QString csv = QString::fromStdString(*stored);
-        if (csv.isEmpty())
-            continue;
-        for (const QString& id : csv.split(',', Qt::SkipEmptyParts))
-            category.list->addItem(id.trimmed());
+        // Walk the array part in order; skip any non-numeric entries defensively.
+        const std::size_t count = table->size();
+        for (std::size_t i = 1; i <= count; ++i) {
+            sol::object obj = (*table)[i];
+            if (obj.get_type() != sol::type::number)
+                continue;
+            category.list->addItem(QString::number(obj.as<int64_t>()));
+        }
     }
 }
 
 void LocalPlayerDialog::SaveToRegistry() {
-    Registry* reg = gApp->GetCore()->GetRegistry();
+    Core* core = gApp->GetCore();
+    Registry* reg = core->GetRegistry();
 
     reg->SetKeyValue("user.id", mIdInput->text().toLongLong());
     reg->SetKeyValue("user.name", mNameInput->text().toStdString());
     reg->SetKeyValue("user.display_name", mDisplayNameInput->text().toStdString());
-    reg->SetKeyValue(kAvatarType, mAvatarTypeInput->currentText().toStdString());
 
+    // Body colors (BrickColor names)
     for (auto it = mBodyParts.begin(); it != mBodyParts.end(); ++it)
-        reg->SetKeyValue(kColorPrefix + it.key().toStdString(), it->color.name().toStdString());
+        reg->SetKeyValue("user.appearance.color." + it.key().toStdString(), it->colorName.toStdString());
 
+    // Single-asset fields
+    for (auto it = mAssetFields.begin(); it != mAssetFields.end(); ++it)
+        reg->SetKeyValue<int64_t>(it.key().toStdString(), it.value()->text().toLongLong());
+
+    // Scales.
+    for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
+        reg->SetKeyValue<double>(it.key().toStdString(), it.value()->value());
+
+    // Accessories table.
     for (const AvatarItemCategory& category : mItemCategories) {
-        QStringList ids;
+        sol::table table = core->GetLuaState()->create_table();
         for (int i = 0; i < category.list->count(); ++i)
-            ids << category.list->item(i)->text();
-        reg->SetKeyValue(kItemsPrefix + category.key.toStdString(), ids.join(',').toStdString());
+            table[i + 1] = category.list->item(i)->text().toLongLong();
+        reg->SetKeyValue(category.key.toStdString(), table);
     }
 }

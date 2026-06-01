@@ -30,25 +30,26 @@
 #include <QLineEdit>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include <QComboBox>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QListWidget>
+#include <QDoubleSpinBox>
 #include <QColor>
 #include <QMap>
 
 namespace NoobWarrior {
 struct AvatarBodyPart {
-    QString key;          // registry sub-key, e.g. "head"
-    QString label;        // human readable name shown in the color picker title
-    QPushButton* button;  // swatch button the user clicks to recolor
-    QColor color;         // currently selected colour
+    QString key;
+    QString label;
+    QPushButton* button;
+    QString colorName;
+    QColor color;
 };
 
 struct AvatarItemCategory {
-    QString key;          // registry sub-key, e.g. "hats"
-    QString label;        // tab title
-    QListWidget* list;    // equipped asset ids
+    QString key;
+    QString label;
+    QListWidget* list;
 };
 
 class LocalPlayerDialog : public QDialog {
@@ -62,10 +63,12 @@ protected:
     QWidget* BuildAvatarBody();
     QWidget* BuildItemEditor();
     void AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
-                     int row, int col, int w, int h, const QColor& defaultColor);
+                     int row, int col, int w, int h, const QString& defaultColorName);
     void PickBodyColor(AvatarBodyPart& part);
-    // Repaints a swatch button to reflect part.color.
     void ApplyBodyColor(const AvatarBodyPart& part);
+
+    QLineEdit* MakeAssetField(const QString& regKey);
+    QDoubleSpinBox* MakeScaleField(const QString& regKey);
 
     void AddItemToCategory(AvatarItemCategory& category);
     void RemoveSelectedItem(AvatarItemCategory& category);
@@ -80,10 +83,11 @@ private:
     QLineEdit* mIdInput;
     QLineEdit* mNameInput;
     QLineEdit* mDisplayNameInput;
-    QComboBox* mAvatarTypeInput;
 
     QMap<QString, AvatarBodyPart> mBodyParts;
     QList<AvatarItemCategory> mItemCategories;
+    QMap<QString, QLineEdit*> mAssetFields;
+    QMap<QString, QDoubleSpinBox*> mScaleFields;
 
     QDialogButtonBox* mButtonBox;
 };
