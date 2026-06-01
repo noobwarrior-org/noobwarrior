@@ -37,6 +37,8 @@
 #include "HttpServer/Emulator/ServerEmulator.h"
 #include "Roblox/FileFormat/RobloxFile.h"
 #include "Roblox/Api/Asset.h"
+#include "Roblox/DataType/Color3.h"
+#include "Roblox/DataType/BrickColor.h"
 #include "Engine.h"
 #include "Keychain/MasterKeychain.h"
 #include "Keychain/EmuKeychain.h"

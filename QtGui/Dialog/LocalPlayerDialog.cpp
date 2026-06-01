@@ -26,6 +26,7 @@
 #include "../Application.h"
 
 #include <NoobWarrior/Lua/LuaState.h>
+#include <NoobWarrior/Roblox/DataType/BrickColor.h>
 
 #include <QRegularExpressionValidator>
 #include <QRegularExpression>
@@ -38,44 +39,13 @@
 
 using namespace NoobWarrior;
 
-namespace {
-struct BrickColorEntry { const char* name; const char* hex; };
-const BrickColorEntry kBodyColors[] = {
-    {"Dirt brown","#564236"}, {"Reddish brown","#694028"}, {"Brown","#7C5C46"},
-    {"Sand red","#957977"}, {"Linen","#AF9483"}, {"Burlap","#C7AC78"},
-    {"Brick yellow","#D7C59A"}, {"Medium red","#DA867A"}, {"Dusty Rose","#A34B4B"},
-    {"CGA brown","#AA5500"}, {"Dark orange","#A05F35"}, {"Nougat","#CC8E69"},
-    {"Light orange","#EAB892"}, {"Pastel brown","#FFCC99"}, {"Neon orange","#D5733D"},
-    {"Bright orange","#DA8541"}, {"Br. yellowish orange","#E29B40"}, {"Deep orange","#FFAF00"},
-    {"Bright yellow","#F5CD30"}, {"Daisy orange","#F8D96D"}, {"Cool yellow","#FDEA8D"},
-    {"Earth green","#27462D"}, {"Camo","#3A7D15"}, {"Dark green","#287F47"},
-    {"Bright green","#4B974B"}, {"Shamrock","#5B9A4C"}, {"Moss","#7C9C6B"},
-    {"Br. yellowish green","#A4BD47"}, {"Navy blue","#002060"}, {"Deep blue","#2154B9"},
-    {"Really blue","#0000FF"}, {"Bright blue","#0D69AC"}, {"Steel blue","#527CAE"},
-    {"Medium blue","#6E99CA"}, {"Light blue","#B4D2E4"}, {"Bright bluish green","#008F9C"},
-    {"Teal","#12EED4"}, {"Pastel blue-green","#9FF3E9"}, {"Toothpaste","#00FFFF"},
-    {"Cyan","#04AFEC"}, {"Pastel Blue","#80BBDC"}, {"Pastel light blue","#AFDDFF"},
-    {"Bright violet","#6B327C"}, {"Lavender","#8C5B9F"}, {"Lilac","#A75E9B"},
-    {"Magenta","#AA00AA"}, {"Royal purple","#6225D1"}, {"Alder","#B480FF"},
-    {"Pastel violet","#B1A7FF"}, {"Bright red","#C4281C"}, {"Really red","#FF0000"},
-    {"Hot pink","#FF00BF"}, {"Pink","#FF66CC"}, {"Carnation pink","#FF98DC"},
-    {"Light reddish violet","#E8BAC8"}, {"Pastel orange","#FFC9C9"}, {"Dark taupe","#5A4C42"},
-    {"Cork","#BC9B5D"}, {"Olive","#C1BE42"}, {"Medium green","#A1C48C"},
-    {"Grime","#7F8E64"}, {"Sand green","#789082"}, {"Sand blue","#74869D"},
-    {"Lime green","#00FF00"}, {"Pastel green","#CCFFCC"}, {"New Yeller","#FFFF00"},
-    {"Pastel yellow","#FFFFCC"}, {"Really black","#111111"}, {"Black","#1B2A35"},
-    {"Dark stone grey","#635F62"}, {"Medium stone grey","#A3A2A5"}, {"Mid gray","#CDCDCD"},
-    {"Light stone grey","#E5E4DF"}, {"White","#F2F3F3"}, {"Institutional white","#F8F8F8"},
-};
-
 // Resolves a BrickColor name to its preview hex, falling back to grey.
-QColor HexForBrickName(const QString& name) {
-    for (const auto& entry : kBodyColors) {
+static QColor HexForBrickName(const QString& name) {
+    for (const auto& entry : Roblox::BrickColor::Palette) {
         if (name == QLatin1String(entry.name))
             return QColor(entry.hex);
     }
     return QColor("#A3A2A5"); // Medium stone grey
-}
 }
 
 LocalPlayerDialog::LocalPlayerDialog(QWidget *parent) : QDialog(parent) {
@@ -185,8 +155,6 @@ void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
 }
 
 void LocalPlayerDialog::PickBodyColor(AvatarBodyPart& part) {
-    // A grid of BrickColor swatches, the same way the classic Roblox editor picks
-    // body colors (and so we only ever store valid BrickColor names)
     QDialog dlg(this);
     dlg.setWindowTitle(QString("Pick %1 Color").arg(part.label));
     QGridLayout* grid = new QGridLayout(&dlg);
@@ -195,7 +163,7 @@ void LocalPlayerDialog::PickBodyColor(AvatarBodyPart& part) {
     QString result;
     const int columns = 8;
     int i = 0;
-    for (const auto& entry : kBodyColors) {
+    for (const auto& entry : Roblox::BrickColor::Palette) {
         const QString name = QString::fromLatin1(entry.name);
         QPushButton* swatch = new QPushButton;
         swatch->setFixedSize(28, 28);

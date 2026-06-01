@@ -169,6 +169,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/RequestAuthHandler.cpp
     Source/HttpServer/Emulator/GameIconHandler.cpp
     Source/HttpServer/Emulator/OAuthAuthorizeHandler.cpp
+    Source/Roblox/DataType/BrickColor.cpp
+    Source/Roblox/DataType/Color3.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp

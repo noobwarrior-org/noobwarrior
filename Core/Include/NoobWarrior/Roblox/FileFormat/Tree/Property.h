@@ -28,7 +28,7 @@
 #include <any>
 
 namespace NoobWarrior::Roblox {
-enum PropertyType {
+enum class PropertyType {
     Unknown,
     String,
     Bool,
