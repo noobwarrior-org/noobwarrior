@@ -3,6 +3,7 @@
 [ext_resource type="Shader" uid="uid://bxhwo4y5tvome" path="res://gaussian_blur.gdshader" id="1_226b0"]
 [ext_resource type="Script" uid="uid://b84qqvrpt4ep5" path="res://tenfoot.gd" id="1_yt24d"]
 [ext_resource type="Script" uid="uid://b0ix71xx01jfc" path="res://fade_out.gd" id="2_hsclx"]
+[ext_resource type="Theme" uid="uid://d30y7dvx62g51" path="res://theme.tres" id="3_h52sh"]
 [ext_resource type="Texture2D" uid="uid://dt1vw8s6cj48c" path="res://textures/sparkle.png" id="4_hsclx"]
 [ext_resource type="AudioStream" uid="uid://gj7ho8tb3hkn" path="res://sounds/music/music1.ogg" id="4_qwma8"]
 
@@ -81,6 +82,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("3_h52sh")
 script = ExtResource("1_yt24d")
 
 [node name="Music" type="AudioStreamPlayer" parent="CanvasLayer/Ui" unique_id=1890976560]
