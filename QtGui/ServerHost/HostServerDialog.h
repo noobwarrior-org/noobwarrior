@@ -41,6 +41,7 @@
 #include <QTreeWidgetItem>
 #include <QFormLayout>
 #include <QCheckBox>
+#include <QComboBox>
 
 namespace NoobWarrior {
 class HostServerDialog : public QDialog {
@@ -62,6 +63,7 @@ private:
     QLabel* mServerSettingsInfoLabel;
 
     QLineEdit* mPortInput;
+    QComboBox* mMasterServerBox;
     QCheckBox* mPublicInput;
 
     QComboBox* mEngineCombo;

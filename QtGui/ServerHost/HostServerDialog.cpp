@@ -84,14 +84,40 @@ void HostServerDialog::InitWidgets() {
     mPortInput = new QLineEdit("53640");
     mServerSettingsFormLayout->addRow("Game Server Port", mPortInput);
 
-    mPublicInput = new QCheckBox();
-    mServerSettingsFormLayout->addRow("Public on Master Server", mPublicInput);
+    mMasterServerBox = new QComboBox();
+    mMasterServerBox->addItem("None", -1);
+    mServerSettingsFormLayout->addRow("Master Server", mMasterServerBox);
 
-    mServerSettingsInfoLabel = new QLabel(
-        QString(
-        "Open TCP port %1 and UDP port %2 on your router in order for the server to be accessible online. Make sure your friends join through port %3."
-        ).arg(8080).arg(8081).arg(8080));
+    mPublicInput = new QCheckBox();
+    auto updatePublicInput = [this]() {
+        if (mMasterServerBox->currentData(Qt::UserRole).value<int>() == -1) {
+            mPublicInput->setChecked(false);
+            mPublicInput->setDisabled(true);
+        } else {
+            mPublicInput->setDisabled(false);
+        }
+    };
+    updatePublicInput();
+    connect(mMasterServerBox, &QComboBox::currentIndexChanged, [updatePublicInput]() {
+        updatePublicInput();
+    });
+    mServerSettingsFormLayout->addRow("Public", mPublicInput);
+
+    mServerSettingsInfoLabel = new QLabel();
     mServerSettingsInfoLabel->setWordWrap(true);
+    mServerSettingsInfoLabel->setStyleSheet("QLabel { color: orange; }");
+    auto updateText = [this]() {
+        auto emu_https_port = gApp->GetCore()->GetRegistry()->GetKeyValue<uint16_t>("emu.https_port").value_or(53640);
+        mServerSettingsInfoLabel->setText(
+            QString(
+            "Open TCP port %1 and UDP port %2 on your router in order for the server to be accessible online. Make sure your friends join through port %3."
+            ).arg(emu_https_port).arg(mPortInput->text()).arg(emu_https_port)
+        );
+    };
+    updateText();
+    connect(mPortInput, &QLineEdit::textChanged, [updateText]() {
+        updateText();
+    });
     mServerSettingsLayout->addWidget(mServerSettingsInfoLabel);
 
     auto* engineRow = new QHBoxLayout();

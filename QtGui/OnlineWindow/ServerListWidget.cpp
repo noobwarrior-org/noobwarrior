@@ -67,7 +67,7 @@ void ServerListWidget::RefreshFromMasters() {
         return;
 
     Registry* reg = gApp->GetCore()->GetRegistry();
-    std::optional<sol::table> masters = reg->GetKeyValue<sol::table>("gui.master_servers");
+    std::optional<sol::table> masters = reg->GetKeyValue<sol::table>("master_servers");
     if (!masters.has_value())
         return;
 

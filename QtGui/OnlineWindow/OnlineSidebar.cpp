@@ -47,7 +47,7 @@ void OnlineSidebar::InitWidgets() {
     mModel->invisibleRootItem()->appendRow(favoritesRow);
     mModel->invisibleRootItem()->appendRow(recentsRow);
     
-    std::optional<nlohmann::json> servers = gApp->GetCore()->GetRegistry()->GetKeyValue<nlohmann::json>("gui.master_servers");
+    std::optional<nlohmann::json> servers = gApp->GetCore()->GetRegistry()->GetKeyValue<nlohmann::json>("master_servers");
     if (servers.has_value()) {
         for (auto &server : servers.value()) {
             cpr::Get(cpr::Url{server["url"].get<std::string>() + "/autodiscover"});

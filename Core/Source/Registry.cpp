@@ -41,7 +41,7 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("gui.theme", "default");
 
     sol::table master_servers_tbl = mLua->create_table();
-    SetKeyValueIfNotSet("gui.master_servers", master_servers_tbl);
+    SetKeyValueIfNotSet("master_servers", master_servers_tbl);
 
     sol::table databases_tbl = mLua->create_table();
     SetKeyValueIfNotSet("databases", databases_tbl);
@@ -132,10 +132,10 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
-    SetKeyValueIfNotSet("emu.http_port", 8080);
+    SetKeyValueIfNotSet<uint16_t>("emu.http_port", 8080);
     SetKeyComment("emu.http_port", "The port that the HTTP server emulator should listen on.");
 
-    SetKeyValueIfNotSet("emu.https_port", 53640);
+    SetKeyValueIfNotSet<uint16_t>("emu.https_port", 53640);
     SetKeyComment("emu.https_port", "The port that the HTTPS server emulator should listen on.");
 
     SetKeyValueIfNotSet("emu.asset_grab_mode", false);
