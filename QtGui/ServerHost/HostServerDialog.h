@@ -29,7 +29,6 @@
 #include "Sdk/Item/ItemListWidget.h"
 #include "Sdk/Item/UniverseTreeWidget.h"
 #include "PlaceInfoCardWidget.h"
-#include "ServerSettingsWidget.h"
 
 #include <QComboBox>
 #include <QDialog>
@@ -40,6 +39,8 @@
 #include <QStackedWidget>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <QFormLayout>
+#include <QCheckBox>
 
 namespace NoobWarrior {
 class HostServerDialog : public QDialog {
@@ -54,7 +55,15 @@ private:
     EmuDbListWidget* mDbListWidget;
     UniverseTreeWidget* mUniverseTreeWidget;
     PlaceInfoCardWidget* mPlaceInfoCardWidget;
-    ServerSettingsWidget* mServerSettingsWidget;
+
+    QFrame* mServerSettingsFrame;
+    QVBoxLayout* mServerSettingsLayout;
+    QFormLayout* mServerSettingsFormLayout;
+    QLabel* mServerSettingsInfoLabel;
+
+    QLineEdit* mPortInput;
+    QCheckBox* mPublicInput;
+
     QComboBox* mEngineCombo;
     QDialogButtonBox* mButtonBox;
     QPushButton* mStartServer;

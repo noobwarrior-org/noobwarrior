@@ -21,6 +21,10 @@
 // File: NoobWarrior.cpp
 // Started by: Hattozo
 // Started on: 6/17/2025
+// Description: I Don't know why this doesn't have a description but it has one now
+// This implements the Core object for noobWarrior, the main portion of the library.
+// You should be initializing it if you want to use noobWarrior in your program.
+// See the library version in Macros.h
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/NoobWarrior.h>

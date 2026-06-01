@@ -26,7 +26,6 @@
 #include "../Application.h"
 #include "PlaceInfoCardWidget.h"
 #include "Sdk/Item/UniverseTreeWidget.h"
-#include "ServerSettingsWidget.h"
 
 #include <QLabel>
 #include <QMessageBox>
@@ -73,7 +72,27 @@ void HostServerDialog::InitWidgets() {
         EmuDb* db = mDbListWidget->GetSelectedDatabase();
         mPlaceInfoCardWidget->Refresh(db, current->data(0, Qt::UserRole).toLongLong());
     });
-    mServerSettingsWidget = new ServerSettingsWidget();
+
+    mServerSettingsFrame = new QFrame();
+    mServerSettingsFrame->setFrameStyle(QFrame::Panel | QFrame::Sunken);
+
+    mServerSettingsLayout = new QVBoxLayout(mServerSettingsFrame);
+    mServerSettingsFormLayout = new QFormLayout();
+
+    mServerSettingsLayout->addLayout(mServerSettingsFormLayout);
+
+    mPortInput = new QLineEdit("53640");
+    mServerSettingsFormLayout->addRow("Game Server Port", mPortInput);
+
+    mPublicInput = new QCheckBox();
+    mServerSettingsFormLayout->addRow("Public on Master Server", mPublicInput);
+
+    mServerSettingsInfoLabel = new QLabel(
+        QString(
+        "Open TCP port %1 and UDP port %2 on your router in order for the server to be accessible online. Make sure your friends join through port %3."
+        ).arg(8080).arg(8081).arg(8080));
+    mServerSettingsInfoLabel->setWordWrap(true);
+    mServerSettingsLayout->addWidget(mServerSettingsInfoLabel);
 
     auto* engineRow = new QHBoxLayout();
     engineRow->addWidget(new QLabel("Host engine:"));
@@ -90,7 +109,7 @@ void HostServerDialog::InitWidgets() {
     mCloseButton = mButtonBox->addButton("Close", QDialogButtonBox::RejectRole);
 
     mLayout->addWidget(mPlaceInfoCardWidget);
-    mLayout->addWidget(mServerSettingsWidget);
+    mLayout->addWidget(mServerSettingsFrame);
     mLayout->addLayout(engineRow);
     mLayout->addWidget(mButtonBox);
     mMainLayout->addLayout(mLayout);
