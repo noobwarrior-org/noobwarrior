@@ -50,6 +50,9 @@ public:
 
     bool EntryExists(const std::string &path) override;
     Response DeleteEntry(const std::string &path) override;
+
+    Response WriteFile(const std::string &path, const std::vector<unsigned char> &data) override;
+    Response CreateDirectories(const std::string &path) override;
 protected:
     std::filesystem::path ConstructRealPath(std::string submittedPath);
     std::string GetRelativePath(const std::filesystem::path &fullPath) const;

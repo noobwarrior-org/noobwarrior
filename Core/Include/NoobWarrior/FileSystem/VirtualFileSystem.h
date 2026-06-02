@@ -115,6 +115,23 @@ public:
 
     virtual bool EntryExists(const std::string &path) = 0;
     virtual Response DeleteEntry(const std::string &path) = 0;
+
+    /**
+     * @brief Writes a whole buffer to a file, creating/overwriting it (and any missing parent
+     * directories). Not all file systems are writable; the default implementation reports
+     * Failed so read-only backends (e.g. Zip) don't need to override it.
+     */
+    virtual Response WriteFile(const std::string &path, const std::vector<unsigned char> &data) {
+        return Response::Failed;
+    }
+
+    /**
+     * @brief Creates a directory (and any missing parents). Default implementation reports
+     * Failed for read-only file systems.
+     */
+    virtual Response CreateDirectories(const std::string &path) {
+        return Response::Failed;
+    }
 protected:
     int mFailCode { 0 };
 };

@@ -56,6 +56,8 @@
 
 #include <functional>
 #include <vector>
+#include <map>
+#include <memory>
 
 namespace NoobWarrior {
 struct Init {
@@ -165,6 +167,20 @@ public:
 
     void CreateStandardUserDataDirectories();
 
+    /**
+     * @brief Returns the real on-disk directory a plugin may use for persistent storage,
+     * located at <UserDataDir>/plugindata/<identifier>. The directory is created if it does
+     * not already exist. Used e.g. to open a plugin-owned SqlDb by path.
+     */
+    std::filesystem::path GetPluginDataDir(const std::string &identifier);
+
+    /**
+     * @brief Returns a writable VFS rooted at a plugin's plugindata directory (see
+     * GetPluginDataDir). The VFS is owned by Core and cached per identifier. This backs the
+     * plugindata:// URL protocol.
+     */
+    VirtualFileSystem* GetPluginDataVfs(const std::string &identifier);
+
     int StartServerEmulator();
     int StopServerEmulator();
     void RestartServerEmulator();
@@ -216,6 +232,10 @@ private:
     Registry*                       mRegistry;
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
+
+    // Writable VFSs rooted at each plugin's plugindata directory, created lazily and keyed
+    // by plugin identifier. Backs GetPluginDataVfs / the plugindata:// protocol.
+    std::map<std::string, std::unique_ptr<VirtualFileSystem>> mPluginDataVfsCache;
 
     ServerEmulator*                 mServerEmulator;
 

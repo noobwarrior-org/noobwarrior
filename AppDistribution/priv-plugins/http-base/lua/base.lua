@@ -11,19 +11,19 @@ _G.HTTP_BASE_VER = "0.1"
 local http_base = {}
 
 local SESSION_COOKIE = "NWSESSID"
-local session_store = {} -- { [id] = { data = {}, last_used = number } }
-local _session_id_counter = 0
+local SESSION_STORE = {} -- { [id] = { data = {}, last_used = number } }
+local _SESSION_ID_COUNTER = 0
 math.randomseed(os.time())
 
 local function generate_session_id()
-    _session_id_counter = _session_id_counter + 1
+    _SESSION_ID_COUNTER = _SESSION_ID_COUNTER + 1
     local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     local id = ""
     for i = 1, 40 do
         local r = math.random(1, #chars)
         id = id .. string.sub(chars, r, r)
     end
-    return id .. tostring(_session_id_counter)
+    return id .. tostring(_SESSION_ID_COUNTER)
 end
 
 local file_extension_map = {
@@ -144,22 +144,22 @@ function http_base.AttachToServer(srv, params)
                 if session_started then return end
                 session_started = true
                 local sid = cookies_tbl[SESSION_COOKIE]
-                if sid and session_store[sid] then
+                if sid and SESSION_STORE[sid] then
                     session_id = sid
-                    session_store[sid].last_used = os.time()
-                    for k, v in pairs(session_store[sid].data) do
+                    SESSION_STORE[sid].last_used = os.time()
+                    for k, v in pairs(SESSION_STORE[sid].data) do
                         rawset(session_tbl, k, v)
                     end
                 else
                     session_id = generate_session_id()
-                    session_store[session_id] = { data = {}, last_used = os.time() }
+                    SESSION_STORE[session_id] = { data = {}, last_used = os.time() }
                     req:AddHeader("Set-Cookie", string.format("%s=%s; Path=/; HttpOnly", SESSION_COOKIE, session_id))
                 end
             end
 
             local function session_destroy()
                 if session_id then
-                    session_store[session_id] = nil
+                    SESSION_STORE[session_id] = nil
                     req:AddHeader("Set-Cookie", string.format("%s=deleted; Max-Age=0; Path=/; HttpOnly", SESSION_COOKIE))
                     session_id = nil
                     for k in pairs(session_tbl) do session_tbl[k] = nil end
@@ -198,12 +198,18 @@ function http_base.AttachToServer(srv, params)
                     ["_ENV"] = {},
                     ["session_destroy"] = session_destroy,
                     ["header"] = function(h, replace, rc)
+                        if replace == nil then
+                            replace = true
+                        end
                         local status = string.match(h, "^HTTP/%S+ (%d+)")
                         if status then
                             response_code = tonumber(status)
                         else
                             local key, value = string.match(h, "([^:]+):%s*(.*)")
-                            if key and value then req:AddHeader(key, value) end
+                            if key and value then
+                                if replace then req:RemoveHeader(key) end
+                                req:AddHeader(key, value)
+                            end
                         end
                         if rc ~= nil then response_code = rc end
                     end,
@@ -243,10 +249,10 @@ function http_base.AttachToServer(srv, params)
             end)
 
             -- persist any _SESSION mutations back to the store
-            if session_id and session_store[session_id] then
-                session_store[session_id].data = {}
+            if session_id and SESSION_STORE[session_id] then
+                SESSION_STORE[session_id].data = {}
                 for k, v in pairs(session_tbl) do
-                    session_store[session_id].data[k] = v
+                    SESSION_STORE[session_id].data[k] = v
                 end
             end
 

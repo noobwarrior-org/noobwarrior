@@ -148,6 +148,11 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     reqTbl["AddHeader"] = [req](sol::table self, std::string key, std::string val) {
         evhttp_add_header(evhttp_request_get_output_headers(req), key.c_str(), val.c_str());
     };
+    reqTbl["RemoveHeader"] = [req](sol::table self, std::string key) {
+        // evhttp keeps duplicates, so remove every existing entry for this key.
+        evkeyvalq* outHeaders = evhttp_request_get_output_headers(req);
+        while (evhttp_remove_header(outHeaders, key.c_str()) == 0) {}
+    };
     reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::string reason, std::string data) {
         if (sentReply)
             return;
@@ -170,8 +175,8 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         char *data = new char[len + 1];
         evbuffer_copyout(buf, data, len);
         data[len] = '\0';
-
-        reqTbl["PostBody"] = std::string(data);
+        
+        reqTbl["PostBody"] = std::string(data, len);
 
         delete[] data;
     }

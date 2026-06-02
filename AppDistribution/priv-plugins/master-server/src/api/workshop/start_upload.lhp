@@ -1,0 +1,87 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to upload to the workshop")
+end
+
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local ok, body = pcall(json.parse, _RAW_POST)
+if not ok or type(body) ~= "table" then
+    http_response_code(400)
+    die("Malformed JSON")
+end
+
+local name = type(body.Name) == "string" and body.Name or ""
+if name:match("^%s*$") then
+    http_response_code(400)
+    die("Name cannot be empty")
+end
+if #name > 64 then
+    http_response_code(400)
+    die("Name cannot be longer than 64 characters")
+end
+
+local description = type(body.Description) == "string" and body.Description or ""
+if #description > 4096 then
+    http_response_code(400)
+    die("Description cannot be longer than 4096 characters")
+end
+
+local kind = type(body.Type) == "string" and body.Type:lower() or ""
+if kind ~= "database" and kind ~= "plugin" then
+    http_response_code(400)
+    die("Type must be either \"database\" or \"plugin\"")
+end
+
+local filename = type(body.Filename) == "string" and body.Filename or ""
+if #filename > 256 then
+    http_response_code(400)
+    die("Filename cannot be longer than 256 characters")
+end
+
+local maxBytes = _G.WorkshopMaxUploadBytes()
+local expected = tonumber(body.Size) or 0
+if expected < 0 then
+    http_response_code(400)
+    die("Size cannot be negative")
+end
+if expected > maxBytes then
+    http_response_code(413)
+    die(string.format("Upload is too large (max %d bytes)", maxBytes))
+end
+
+_G.SweepWorkshopUploads()
+
+local uploadToken = hash.GenerateToken()
+local now = os.time()
+_G.WORKSHOP_UPLOADS[uploadToken] = {
+    Token         = uploadToken,
+    UploaderId    = user.Id,
+    Name          = name,
+    Description   = description,
+    Type          = kind,
+    Filename      = filename,
+    ExpectedBytes = expected,  -- 0 means the client didn't declare a size
+    ReceivedBytes = 0,
+    Chunks        = {},
+    CreatedAt     = now,
+    LastActivity  = now,
+}
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({
+    UploadToken      = uploadToken,
+    ExpectedBytes = expected,
+    MaxBytes      = maxBytes,
+}))

@@ -45,6 +45,7 @@
 #include <curl/curl.h>
 
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #include <openssl/kdf.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
@@ -315,6 +316,13 @@ int LuaState::Open() {
     };
     vfsType["EntryExists"] = &VirtualFileSystem::EntryExists;
     vfsType["DeleteEntry"] = &VirtualFileSystem::DeleteEntry;
+    vfsType["WriteFile"] = [](VirtualFileSystem &vfs, const std::string &path, const std::string &data) -> bool {
+        std::vector<unsigned char> bytes(data.begin(), data.end());
+        return vfs.WriteFile(path, bytes) == VirtualFileSystem::Response::Success;
+    };
+    vfsType["CreateDirectories"] = [](VirtualFileSystem &vfs, const std::string &path) -> bool {
+        return vfs.CreateDirectories(path) == VirtualFileSystem::Response::Success;
+    };
 
     auto overlayFsType = new_usertype<OverlayFileSystem>("OverlayFileSystem", sol::constructors<OverlayFileSystem()>(), sol::base_classes, sol::bases<VirtualFileSystem>());
     auto stdFsType = new_usertype<StdFileSystem>("StdFileSystem", sol::constructors<StdFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
@@ -640,10 +648,15 @@ int LuaState::Open() {
         if (computed.size() != hashHex.size()) return false;
         return CRYPTO_memcmp(computed.data(), hashHex.data(), computed.size()) == 0;
     });
+    hashLib.set_function("Sha256", [](const std::string &data) -> std::string {
+        unsigned char digest[SHA256_DIGEST_LENGTH];
+        SHA256(reinterpret_cast<const unsigned char*>(data.data()), data.size(), digest);
+        return HexEncode(digest, sizeof(digest));
+    });
     set("hash", hashLib);
 
     sol::table coreLib = create_table();
-    coreLib.set_function("GetVersion", []() {
+    coreLib.set_function("GetVersion", []() -> const char* {
         return NOOBWARRIOR_VERSION;
     });
     /* TODO: Should we even expose this in the API
@@ -654,11 +667,20 @@ int LuaState::Open() {
         return mCore->GetUserDataDir();
     }); */
     coreLib["ConsoleAdded"] = mCore->GetConsoleAddedSignal();
-    coreLib.set_function("GetEmuDbManager", [this]() {
+    coreLib.set_function("GetEmuDbManager", [this]() -> EmuDbManager* {
         return mCore->GetEmuDbManager();
     });
-    coreLib.set_function("GetMasterDatabase", [this]() {
+    coreLib.set_function("GetMasterDatabase", [this]() -> EmuDb* {
         return mCore->GetEmuDbManager()->GetMasterDatabase();
+    });
+    // Resolves a URL (e.g. plugindata://master-server@.../master.nwdb) to a real local path.
+    // Useful for opening a plugin-owned SqlDb by path.
+    coreLib.set_function("ResolveLocalPath", [this](const std::string &url) -> std::string {
+        return Url(url).ResolveAsLocalPath(mCore).string();
+    });
+    // Returns the VFS backing a URL (works for plugin:// and plugindata://), or nil.
+    coreLib.set_function("GetVfsForUrl", [this](const std::string &url) -> VirtualFileSystem* {
+        return Url(url).GetVfs(mCore);
     });
     set("core", coreLib);
 

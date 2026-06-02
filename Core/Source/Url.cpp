@@ -44,6 +44,7 @@ PROTOCOL_BEGIN()
     PROTOCOL("userdata", ProtocolType::UserData)
     PROTOCOL("db", ProtocolType::Database)
     PROTOCOL("plugin", ProtocolType::Plugin)
+    PROTOCOL("plugindata", ProtocolType::PluginData)
     PROTOCOL("rbxassetid", ProtocolType::RbxAssetId)
     PROTOCOL("rbxthumb", ProtocolType::RbxThumb)
 PROTOCOL_END()
@@ -226,6 +227,14 @@ std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
             std::string pluginPathStr = pluginPath.generic_string();
             return std::filesystem::path(pluginPathStr + ResolveAsPath());
         }
+    } else if (protocol == ProtocolType::PluginData) {
+        std::filesystem::path dir = core->GetPluginDataDir(GetHostName());
+        // ResolveAsPath() includes a leading '/'; append it as a relative path so it nests
+        // under the plugindata directory rather than replacing it.
+        std::string relative = ResolveAsPath();
+        if (!relative.empty() && relative.front() == '/')
+            relative.erase(relative.begin());
+        return dir / relative;
     } else if (protocol == ProtocolType::File) {
         return ResolveWithoutProtocol();
     } else if (protocol == ProtocolType::Database) {
@@ -266,6 +275,7 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
         Out("Url", "Userdata protocol URLs are WIP");
         return VirtualFileSystem::Response::Failed;
     case ProtocolType::Plugin: break;
+    case ProtocolType::PluginData: break;
     }
 
 #undef NETWORK_UNSUPPORTED
@@ -302,6 +312,8 @@ VirtualFileSystem* Url::GetVfs(Core* core) const {
         if (plugin != nullptr)
             return plugin->GetVfs();
     // fuck u
+    } else if (protocol == ProtocolType::PluginData) {
+        return core->GetPluginDataVfs(GetHostName());
     } else if (protocol == ProtocolType::File) {
 
     } else if (protocol == ProtocolType::Database) {

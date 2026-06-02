@@ -39,6 +39,7 @@ enum class ProtocolType {
     UserData,
     Database,
     Plugin,
+    PluginData,
     RbxAssetId,
     RbxThumb
 };

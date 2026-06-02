@@ -1,0 +1,53 @@
+<?lua
+-- Deletes a workshop submission you uploaded. The backing file is only removed if no other
+-- submission still references the same content hash (see _G.DeleteWorkshopSubmission).
+-- Submission id may be given as ?id=<n> or in a JSON body { Id }.
+-- Reply: JSON { Deleted }
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to manage workshop submissions")
+end
+
+local id = tonumber(_GET["id"])
+if not id and _RAW_POST and not _RAW_POST:match("^%s*$") then
+    local ok, body = pcall(json.parse, _RAW_POST)
+    if ok and type(body) == "table" then
+        id = tonumber(body.Id)
+    end
+end
+if not id then
+    http_response_code(400)
+    die("Missing or invalid submission id")
+end
+
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local rows = _G.MASTERSERVER_DB:QueryTyped("SELECT UploaderId FROM WorkshopSubmission WHERE Id = ?;", id)
+if rows == nil or rows[1] == nil then
+    http_response_code(404)
+    die("Submission not found")
+end
+if rows[1].UploaderId ~= user.Id then
+    http_response_code(403)
+    die("This submission does not belong to you")
+end
+
+local ok, err = _G.DeleteWorkshopSubmission(id)
+if not ok then
+    http_response_code(500)
+    die(err or "Failed to delete submission")
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({ Deleted = id }))
+?>

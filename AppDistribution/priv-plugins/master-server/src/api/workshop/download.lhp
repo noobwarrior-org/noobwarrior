@@ -1,0 +1,65 @@
+<?lua
+-- Streams a stored workshop submission back to the client.
+-- Query: ?id=<SubmissionId>
+-- Reply: the raw .nwdb bytes (application/octet-stream)
+local idParam = tonumber(_GET["id"])
+if not idParam then
+    http_response_code(400)
+    die("Missing or invalid submission id")
+end
+
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local rows = _G.MASTERSERVER_DB:QueryTyped(
+    "SELECT Name, Filename, SizeBytes, Hash FROM WorkshopSubmission WHERE Id = ?;",
+    idParam
+)
+if rows == nil or rows[1] == nil then
+    http_response_code(404)
+    die("Submission not found")
+end
+
+local row = rows[1]
+local vfs = core.GetVfsForUrl(_G.MASTERSERVER_PLUGINDATA .. "/")
+if vfs == nil then
+    http_response_code(500)
+    die("Submission storage is unavailable")
+end
+
+local path = "/submissions/" .. row.Hash .. ".nwdb"
+if not vfs:EntryExists(path) then
+    http_response_code(404)
+    die("Submission file is missing")
+end
+
+-- Read the whole file out of the VFS in chunks.
+local handle = vfs:OpenHandle(path)
+if handle == 0 then
+    http_response_code(500)
+    die("Failed to open submission file")
+end
+
+local parts = {}
+local isReading, chunk = true, nil
+repeat
+    isReading, chunk = vfs:ReadHandleChunk(handle, 65536)
+    if chunk and chunk ~= "" then
+        parts[#parts + 1] = chunk
+    end
+until not isReading
+vfs:CloseHandle(handle)
+
+local filename = row.Filename
+if not filename or filename:match("^%s*$") then
+    filename = (row.Name or "submission") .. ".nwdb"
+end
+-- Strip quotes/newlines so the value can't break out of the header.
+filename = filename:gsub('["\r\n]', "")
+
+header("Content-Type: application/octet-stream")
+header(string.format("Content-Disposition: attachment; filename=\"%s\"", filename))
+http_response_code(200)
+die(table.concat(parts))

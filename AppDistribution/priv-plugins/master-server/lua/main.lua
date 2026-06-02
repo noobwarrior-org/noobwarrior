@@ -29,20 +29,8 @@ core.ConsoleAdded:Connect(function(console)
     end, "Master server commands.")
 end)
 
-master_db = SqlDb.new(":memory:", "MasterDb")
-master_db:Query([[CREATE TABLE contacts (
-	contact_id INTEGER PRIMARY KEY,
-	first_name TEXT NOT NULL,
-	last_name TEXT NOT NULL,
-	email TEXT NOT NULL UNIQUE,
-	phone TEXT NOT NULL UNIQUE
-);]])
--- master_db:Query("INSERT INTO contacts (contact_id, first_name, last_name, email, phone) VALUES (1, 'mr', 'poop', 'poop@gmail.com', '0000000000');")
-master_db:QueryTyped("INSERT INTO contacts (contact_id, first_name, last_name, email, phone) VALUES (?, ?, ?, ?, ?)", 1, "mr", "poop", "poop@gmail.com", "0000000000")
-local rows = master_db:Query("SELECT * FROM contacts;")
-for k, v in pairs(rows) do
-    print("Row " .. k .. ": Contact Id: " .. tostring(v.contact_id) .. ", First Name: " .. v.first_name .. ", Last Name: " .. v.last_name .. ", Email: " .. v.email .. ", Phone: " .. v.phone)
-end
+_G.MASTERSERVER_PLUGINDATA = "plugindata://master-server@noobwarrior.org"
+_G.MASTERSERVER_DB = SqlDb.new(core.ResolveLocalPath(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb"), "MasterServerDb")
 
 _G.EMU_SERVERS = {}
 
@@ -55,6 +43,78 @@ function _G.SweepEmuServers()
             _G.EMU_SERVERS[key] = nil
         end
     end
+end
+
+_G.WORKSHOP_UPLOADS = {} -- in-progress upload sessions
+local WORKSHOP_UPLOAD_TIMEOUT = 600  -- seconds of inactivity before a session is swept
+
+-- Maximum size, in bytes, a single upload is allowed to reach.
+function _G.WorkshopMaxUploadBytes()
+    local mb = tonumber(reg.GetKeyValue("master.workshop.max_upload_mb")) or 4096
+    return math.floor(mb * 1024 * 1024)
+end
+
+-- Drop upload sessions we haven't heard from in a while so abandoned uploads
+-- don't leak memory.
+function _G.SweepWorkshopUploads()
+    local now = os.time()
+    for id, up in pairs(_G.WORKSHOP_UPLOADS) do
+        if now - up.LastActivity > WORKSHOP_UPLOAD_TIMEOUT then
+            _G.WORKSHOP_UPLOADS[id] = nil
+        end
+    end
+end
+
+-- Resolve the signed-in user from a .LOGINSESSION token, or nil if the token is
+-- missing/expired. Mirrors the lookup done in header.lhp.
+function _G.ResolveSessionUser(token)
+    if not token or token:match("^%s*$") then return nil end
+    local db = core.GetMasterDatabase()
+    if db == nil then return nil end
+    local rows = db:QueryTyped(
+        "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
+        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+        token
+    )
+    if rows == nil or rows[1] == nil then return nil end
+    return rows[1]
+end
+
+function _G.EnsureWorkshopSchema(db)
+    db:Query([[CREATE TABLE IF NOT EXISTS WorkshopSubmission (
+    Id               INTEGER PRIMARY KEY,
+    UploaderId       INTEGER NOT NULL,
+    Name             TEXT    NOT NULL,
+    Description      TEXT,
+    Type             TEXT    NOT NULL,
+    Filename         TEXT,
+    SizeBytes        INTEGER NOT NULL,
+    Hash             TEXT    NOT NULL,
+    CreatedTimestamp INTEGER NOT NULL DEFAULT (unixepoch())
+);]])
+end
+
+_G.EnsureWorkshopSchema(_G.MASTERSERVER_DB)
+
+function _G.DeleteWorkshopSubmission(id)
+    local db = _G.MASTERSERVER_DB
+    if db == nil then return false, "No master server database available" end
+
+    local rows = db:QueryTyped("SELECT Hash FROM WorkshopSubmission WHERE Id = ?;", id)
+    if rows == nil or rows[1] == nil then return false, "Submission not found" end
+    local hashVal = rows[1].Hash
+
+    db:QueryTyped("DELETE FROM WorkshopSubmission WHERE Id = ?;", id)
+
+    local stillReferenced = db:QueryTyped("SELECT 1 FROM WorkshopSubmission WHERE Hash = ? LIMIT 1;", hashVal)
+    if stillReferenced == nil or stillReferenced[1] == nil then
+        local vfs = core.GetVfsForUrl(_G.MASTERSERVER_PLUGINDATA .. "/")
+        local path = "/submissions/" .. hashVal .. ".nwdb"
+        if vfs ~= nil and vfs:EntryExists(path) then
+            vfs:DeleteEntry(path)
+        end
+    end
+    return true
 end
 
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
@@ -74,7 +134,11 @@ local sitemap = {
     ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp",
     ["/v1/servers"] = "plugin://master-server@noobwarrior.org/src/api/servers.lhp",
     ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp",
-    ["/v1/workshop/submit"] = "plugin://master-server@noobwarrior.org/src/api/workshop/submit.lhp"
+    ["/v1/workshop/start-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/start_upload.lhp",
+    ["/v1/workshop/stream-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/stream_upload.lhp",
+    ["/v1/workshop/end-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/end_upload.lhp",
+    ["/v1/workshop/download"] = "plugin://master-server@noobwarrior.org/src/api/workshop/download.lhp",
+    ["/v1/workshop/delete"] = "plugin://master-server@noobwarrior.org/src/api/workshop/delete.lhp"
 }
 
 master = http_base.CreateServer({

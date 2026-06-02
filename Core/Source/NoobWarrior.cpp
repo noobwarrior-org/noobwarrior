@@ -30,6 +30,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/FileSystem/StdFileSystem.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Url.h>
 #include <NoobWarrior/Paths.h>
@@ -283,6 +284,7 @@ void Core::CreateStandardUserDataDirectories() {
 #define NW_CREATE(path) std::filesystem::create_directories(GetUserDataDir() / path);
     NW_CREATE(NW_PATH_DATABASES)
     NW_CREATE(NW_PATH_PLUGINS)
+    NW_CREATE(NW_PATH_PLUGINDATA)
     NW_CREATE(NW_PATH_ENGINES)
     NW_CREATE(NW_PATH_TEMP)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
@@ -294,6 +296,28 @@ void Core::CreateStandardUserDataDirectories() {
     NW_CREATE(NW_PATH_WINE_PREFIX)
 #endif
 #undef NW_CREATE
+}
+
+std::filesystem::path Core::GetPluginDataDir(const std::string &identifier) {
+    std::filesystem::path dir = GetUserDataDir() / NW_PATH_PLUGINDATA / identifier;
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+VirtualFileSystem* Core::GetPluginDataVfs(const std::string &identifier) {
+    auto it = mPluginDataVfsCache.find(identifier);
+    if (it != mPluginDataVfsCache.end())
+        return it->second.get();
+
+    std::filesystem::path dir = GetPluginDataDir(identifier);
+    auto vfs = std::make_unique<StdFileSystem>(dir);
+    if (vfs->Fail()) {
+        Out("Core", "Failed to create plugindata VFS for \"{}\"", identifier);
+        return nullptr;
+    }
+    VirtualFileSystem* ptr = vfs.get();
+    mPluginDataVfsCache.emplace(identifier, std::move(vfs));
+    return ptr;
 }
 
 int Core::StartServerEmulator() {

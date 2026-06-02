@@ -174,3 +174,36 @@ VirtualFileSystem::Response StdFileSystem::DeleteEntry(const std::string &path) 
     std::filesystem::path real_path = ConstructRealPath(path);
     return std::filesystem::remove(real_path) ? Response::Success : Response::Failed;
 }
+
+VirtualFileSystem::Response StdFileSystem::WriteFile(const std::string &path, const std::vector<unsigned char> &data) {
+    if (Fail())
+        return Response::FileSystemFailed;
+
+    std::filesystem::path real_path = ConstructRealPath(path);
+    std::error_code ec;
+    if (real_path.has_parent_path())
+        std::filesystem::create_directories(real_path.parent_path(), ec);
+
+    std::ofstream stream(real_path, std::ios::out | std::ios::binary | std::ios::trunc);
+    if (stream.fail()) {
+        Out("StdFileSystem", "Failed to open file \"{}\" for writing", path);
+        return Response::Failed;
+    }
+    if (!data.empty())
+        stream.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    stream.close();
+    if (stream.fail()) {
+        Out("StdFileSystem", "Failed to write file \"{}\"", path);
+        return Response::Failed;
+    }
+    return Response::Success;
+}
+
+VirtualFileSystem::Response StdFileSystem::CreateDirectories(const std::string &path) {
+    if (Fail())
+        return Response::FileSystemFailed;
+    std::filesystem::path real_path = ConstructRealPath(path);
+    std::error_code ec;
+    std::filesystem::create_directories(real_path, ec);
+    return ec ? Response::Failed : Response::Success;
+}
