@@ -58,6 +58,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mPlaceLauncherHandler(),
     mJoinScriptJsonHandler(),
     mGameJoinHandler(this),
+    mAuthTicketRedeemHandler(this),
     mAppBehaviorsHandler(R"({"results":[]})"),
     mAvatarRulesHandler(AvatarRules_json),
     mAvatarHandler(R"({"scales":{"height":1.0,"width":1.0,"head":1.0,"depth":1.0,"proportion":0.0,"bodyType":0.0},"playerAvatarType":"R6","bodyColors":{"headColorId":1001,"torsoColorId":1001,"rightArmColorId":1001,"leftArmColorId":1001,"rightLegColorId":1001,"leftLegColorId":1001},"assets":[],"defaultShirtApplied":true,"defaultPantsApplied":true,"emotes":[{"assetId":3576686446,"assetName":"Hello","position":1},{"assetId":3360686498,"assetName":"Stadium","position":2},{"assetId":3576823880,"assetName":"Point2","position":3},{"assetId":3576968026,"assetName":"Shrug","position":4}]})"),
@@ -69,7 +70,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mPlaceDetailsHandler(R"([{"placeId":1818,"name":"noobWarrior Place","description":"","sourceName":"noobWarrior Place","sourceDescription":"","url":"","builder":"Player","builderId":1,"hasVerifiedBadge":false,"isPlayable":true,"reasonProhibited":"None","reasonProhibitedMessage":"","universeId":1,"universeRootPlaceId":1818,"price":0,"imageToken":""}])"),
     mOmniRecHandler(R"({"sorts":[{"sortId":"recommended","topic":"Recommended For You","topicId":1,"treatmentType":"Carousel","recommendationList":[{"contentType":"Game","contentId":1818,"contentStringId":"1818"}],"nextSortToken":"","contentTypeFiltersToExclude":[]}],"contentMetadata":{"Game":{"1818":{"universeId":1,"rootPlaceId":1818,"name":"Crossroads","playerCount":1,"totalUpVotes":1,"totalDownVotes":0,"creatorName":"Player","creatorId":1,"creatorType":"User","creatorHasVerifiedBadge":false,"isSponsored":false,"nativeAdData":"","isShowSponsoredLabel":false,"price":null,"analyticsIdentifier":null,"gameDescription":"noobWarrior team test","genre":"All"}}},"nextPageToken":""})"),
     mGamesSortsHandler(GamesSorts_json),
-    mGamesListHandler(R"({"games":[{"creatorId":1,"creatorName":"Player","creatorType":"User","creatorHasVerifiedBadge":false,"totalUpVotes":1,"totalDownVotes":0,"universeId":1,"name":"Crossroads","placeId":1818,"playerCount":1,"imageToken":null,"isSponsored":false,"nativeAdData":"","isShowSponsoredLabel":false,"price":null,"analyticsIdentifier":null,"gameDescription":"noobWarrior team test","genre":"All"}],"suggestedKeyword":null,"correctedKeyword":null,"filteredKeyword":null,"hasMoreRows":false,"nextPageExclusiveStartId":null,"featuredSearchUniverseId":null,"emphasis":false,"cutOffIndex":null,"algorithm":null,"algorithmQueryType":null,"suggestionAlgorithm":null,"relatedGames":[],"esDebugInfo":null})"),
+    mGamesListHandler(R"({"games":[{"creatorId":1,"creatorName":"Player","creatorType":"User","creatorHasVerifiedBadge":false,"totalUpVotes":1,"totalDownVotes":0,"universeId":1,"name":"noobWarrior Server","placeId":1818,"playerCount":1,"imageToken":null,"isSponsored":false,"nativeAdData":"","isShowSponsoredLabel":false,"price":null,"analyticsIdentifier":null,"gameDescription":"noobWarrior team test","genre":"All"}],"suggestedKeyword":null,"correctedKeyword":null,"filteredKeyword":null,"hasMoreRows":false,"nextPageExclusiveStartId":null,"featuredSearchUniverseId":null,"emphasis":false,"cutOffIndex":null,"algorithm":null,"algorithmQueryType":null,"suggestionAlgorithm":null,"relatedGames":[],"esDebugInfo":null})"),
     mAvatarFetchHandler(R"({"resolvedAvatarType":"R6","equippedGearVersionIds":[],"backpackGearVersionIds":[],"assetAndAssetTypeIds":[{"assetId":855776103,"assetTypeId":11},{"assetId":855783877,"assetTypeId":12}],"animationAssetIds":{},"bodyColor3s":{"headColor3":"A3A2A5","torsoColor3":"4B974B","rightArmColor3":"A3A2A5","leftArmColor3":"A3A2A5","rightLegColor3":"6E99CA","leftLegColor3":"6E99CA"},"scales":{"height":1.0,"width":1.0,"head":1.0,"depth":1.0,"proportion":0.0,"bodyType":0.0},"emotes":[]})"),
     mUniversalAppConfigStudioHandler(),
     mMySettingsJsonHandler(),
@@ -133,6 +134,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/join-game", &mGameJoinHandler);
     SetRequestHandler("/universal-app-configuration/v1/behaviors/app-policy/content", &mAppBehaviorsHandler);
     SetRequestHandler("/universal-app-configuration/v1/behaviors/app-patch/content", &mAppBehaviorsHandler);
+    SetRequestHandler("/v1/authentication-ticket/redeem", &mAuthTicketRedeemHandler);
     SetRequestHandler("/v1/avatar-rules", &mAvatarRulesHandler);
     SetRequestHandler("/v1/avatar", &mAvatarHandler);
     SetRequestHandler("/v1/users/authenticated/app-launch-info", &mAppLaunchInfoHandler);
@@ -147,6 +149,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/games/list", &mGamesListHandler);
     SetRequestHandler("/v2/avatar/avatar-fetch", &mAvatarFetchHandler);
     SetRequestHandler("/v1/avatar-fetch", &mAvatarFetchHandler);
+    SetRequestHandler("/v1/avatar-fetch/", &mAvatarFetchHandler);
 
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 

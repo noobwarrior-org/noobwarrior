@@ -51,6 +51,7 @@
 #include "StaticJsonHandler.h"
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
+#include "AuthTicketRedeemHandler.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -120,6 +121,7 @@ private:
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
     GameJoinHandler mGameJoinHandler;
+    AuthTicketRedeemHandler mAuthTicketRedeemHandler;
     StaticJsonHandler mAppBehaviorsHandler;
     StaticJsonHandler mAvatarRulesHandler;
     StaticJsonHandler mAvatarHandler;

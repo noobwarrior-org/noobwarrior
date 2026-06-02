@@ -120,30 +120,6 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         }
     }
     mServer->mRouteParams.clear();
-    
-    if (path.find("client-version") == std::string::npos) {
-        const char *p = path.c_str();
-        while (*p == '/') p++;
-        static const char *kApiPrefixes[] = {
-            "v2/", "v1.0/", "v1.1/", "universal-app-configuration/",
-            "games-autocomplete/", "discovery-api/", "maintenance-status/",
-            "product-experimentation-platform/", "client/", "studio/", "timespent/",
-            "web/", "gamejoin/", "game-join/", "presence/", "contacts/", "account/",
-            "user-agreements/", "account-security-service/", "account-settings/",
-            "premiumfeatures/", "notifications/", "metrics/", "points/",
-        };
-        for (const char *prefix : kApiPrefixes) {
-            if (std::strncmp(p, prefix, std::strlen(prefix)) == 0) {
-                Out("RootHandler", "  -> benign {{}} API stub");
-                evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
-                evbuffer* stub = evbuffer_new();
-                evbuffer_add(stub, "{}", 2);
-                evhttp_send_reply(req, HTTP_OK, nullptr, stub);
-                evbuffer_free(stub);
-                return;
-            }
-        }
-    }
 
     sol::table reqTbl = mServer->GetCore()->GetLuaState()->create_table();
     reqTbl["Uri"] = uri;
