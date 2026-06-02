@@ -90,7 +90,7 @@ void PluginManager::MountPlugins() {
         if (!fileNameElement.is_string()) continue;
         auto fileName = fileNameElement.get<std::string>();
 
-        std::filesystem::path installPath = mCore->GetInstallationDir() / NW_PATH_PLUGINS / fileName;
+        std::filesystem::path installPath = mCore->GetInstallDataDir() / NW_PATH_PLUGINS / fileName;
         std::filesystem::path userPath = mCore->GetUserDataDir() / NW_PATH_PLUGINS / fileName;
 
         if (std::filesystem::exists(userPath) && Mount(userPath) == Plugin::Response::Success) {
@@ -144,11 +144,11 @@ static std::vector<std::filesystem::path> GetEntriesInDir(const std::filesystem:
 }
 
 std::vector<std::filesystem::path> PluginManager::GetPrivilegedPluginPaths() {
-    return GetEntriesInDir(mCore->GetInstallationDir() / NW_PATH_PRIVILEGED_PLUGINS);
+    return GetEntriesInDir(mCore->GetInstallDataDir() / NW_PATH_PRIVILEGED_PLUGINS);
 }
 
 std::vector<std::filesystem::path> PluginManager::GetPluginPaths() {
-    auto installEntries = GetEntriesInDir(mCore->GetInstallationDir() / NW_PATH_PLUGINS);
+    auto installEntries = GetEntriesInDir(mCore->GetInstallDataDir() / NW_PATH_PLUGINS);
     auto userEntries = GetEntriesInDir(mCore->GetUserDataDir() / NW_PATH_PLUGINS);
     std::vector<std::filesystem::path> paths;
     paths.insert(paths.end(), installEntries.begin(), installEntries.end());
@@ -200,7 +200,7 @@ std::vector<Plugin::Properties> PluginManager::GetPrivilegedPluginProperties() {
 void PluginManager::MountPrivilegedPlugins() {
     int loaded = 0;
 
-    std::filesystem::path privPluginsPath = mCore->GetInstallationDir() / NW_PATH_PRIVILEGED_PLUGINS;
+    std::filesystem::path privPluginsPath = mCore->GetInstallDataDir() / NW_PATH_PRIVILEGED_PLUGINS;
     std::filesystem::path loadListPath = privPluginsPath / "loadlist.lua";
     if (!std::filesystem::exists(loadListPath)) {
         return;

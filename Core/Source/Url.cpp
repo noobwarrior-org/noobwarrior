@@ -265,15 +265,9 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
     case ProtocolType::Database:
         Out("Url", "Database protocol URLs are WIP");
         return VirtualFileSystem::Response::Failed;
-    case ProtocolType::File:
-        Out("Url", "File protocol URLs are WIP");
-        return VirtualFileSystem::Response::Failed;
-     case ProtocolType::InstallData:
-        Out("Url", "Installdata protocol URLs are WIP");
-        return VirtualFileSystem::Response::Failed;
-    case ProtocolType::UserData:
-        Out("Url", "Userdata protocol URLs are WIP");
-        return VirtualFileSystem::Response::Failed;
+    case ProtocolType::File: break;
+    case ProtocolType::InstallData: break;
+    case ProtocolType::UserData: break;
     case ProtocolType::Plugin: break;
     case ProtocolType::PluginData: break;
     }
@@ -315,13 +309,13 @@ VirtualFileSystem* Url::GetVfs(Core* core) const {
     } else if (protocol == ProtocolType::PluginData) {
         return core->GetPluginDataVfs(GetHostName());
     } else if (protocol == ProtocolType::File) {
-
+        return core->GetFileVfs();
     } else if (protocol == ProtocolType::Database) {
 
     } else if (protocol == ProtocolType::InstallData) {
-
+        return core->GetInstallDataVfs();
     } else if (protocol == ProtocolType::UserData) {
-
+        return core->GetUserDataVfs();
     }
     return nullptr;
 }

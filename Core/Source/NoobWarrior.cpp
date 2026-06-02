@@ -37,6 +37,7 @@
 
 #include <event.h>
 #include <event2/thread.h>
+#include <filesystem>
 #include <sqlite3.h>
 
 #include <openssl/ssl.h>
@@ -114,6 +115,16 @@ Core::Core(Init init) :
     RegistryReturnCode = mRegistry->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
+
+    VirtualFileSystem::Response res1 = VirtualFileSystem::New(&mFileVfs, std::filesystem::current_path().root_path());
+    VirtualFileSystem::Response res2 = VirtualFileSystem::New(&mInstallDataVfs, GetInstallDataDir());
+    VirtualFileSystem::Response res3 = VirtualFileSystem::New(&mUserDataVfs, GetUserDataDir());
+    if (res1 != VirtualFileSystem::Response::Success ||
+        res2 != VirtualFileSystem::Response::Success ||
+        res3 != VirtualFileSystem::Response::Success)
+    {
+        Out("Core", "One of the virtual file systems failed to initialize. Continuing...");
+    }
 
     GetEmuDbManager()->MountDatabases();
     GetEmuDbManager()->MountMasterDbIfNotAlreadyMounted();
@@ -239,8 +250,8 @@ const Init& Core::GetInit() {
     return mInit;
 }
 
-std::filesystem::path Core::GetInstallationDir() const {
-    assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallationDir()");
+std::filesystem::path Core::GetInstallDataDir() const {
+    assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallDataDir()");
 
     auto exePath = std::filesystem::path(mInit.ArgVec[0]);
     auto path = exePath.parent_path();
@@ -277,7 +288,7 @@ std::filesystem::path Core::GetUserDataDir() {
         return user_data_path;
 #endif
     }
-    return GetInstallationDir();
+    return GetInstallDataDir();
 }
 
 void Core::CreateStandardUserDataDirectories() {
@@ -318,6 +329,18 @@ VirtualFileSystem* Core::GetPluginDataVfs(const std::string &identifier) {
     VirtualFileSystem* ptr = vfs.get();
     mPluginDataVfsCache.emplace(identifier, std::move(vfs));
     return ptr;
+}
+
+VirtualFileSystem* Core::GetFileVfs() {
+    return mFileVfs;
+}
+
+VirtualFileSystem* Core::GetInstallDataVfs() {
+    return mInstallDataVfs;
+}
+
+VirtualFileSystem* Core::GetUserDataVfs() {
+    return mUserDataVfs;
 }
 
 int Core::StartServerEmulator() {

@@ -49,7 +49,7 @@ if _G.MASTERSERVER_DB == nil then
     die("No master server database available")
 end
 
-local vfs = core.GetVfsForUrl(_G.MASTERSERVER_PLUGINDATA .. "/")
+local vfs = url.GetVfs(_G.MASTERSERVER_PLUGINDATA .. "/")
 if vfs == nil then
     _G.WORKSHOP_UPLOADS[uploadToken] = nil
     http_response_code(500)

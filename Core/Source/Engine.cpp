@@ -299,7 +299,7 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
 #endif
 
 EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params) {
-    const std::filesystem::path &injectorPath = GetInstallationDir() / (arch == EngineArchitecture::x86_64 ? "noobhook_x86-64_injector.exe" : "noobhook_x86_injector.exe");
+    const std::filesystem::path &injectorPath = GetInstallDataDir() / (arch == EngineArchitecture::x86_64 ? "noobhook_x86-64_injector.exe" : "noobhook_x86_injector.exe");
     if (!std::filesystem::exists(injectorPath)) {
         Out("Inject", "Failed to create injector process: Injector process doesn't exist!");
         return EngineLaunchResponse::FailedToCreateProcess;

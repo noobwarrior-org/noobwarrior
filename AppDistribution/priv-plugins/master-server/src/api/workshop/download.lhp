@@ -23,7 +23,7 @@ if rows == nil or rows[1] == nil then
 end
 
 local row = rows[1]
-local vfs = core.GetVfsForUrl(_G.MASTERSERVER_PLUGINDATA .. "/")
+local vfs = url.GetVfs(_G.MASTERSERVER_PLUGINDATA .. "/")
 if vfs == nil then
     http_response_code(500)
     die("Submission storage is unavailable")

@@ -158,7 +158,7 @@ public:
 
     const Init& GetInit();
 
-    std::filesystem::path GetInstallationDir() const;
+    std::filesystem::path GetInstallDataDir() const;
 
     /**
      * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
@@ -180,6 +180,10 @@ public:
      * plugindata:// URL protocol.
      */
     VirtualFileSystem* GetPluginDataVfs(const std::string &identifier);
+
+    VirtualFileSystem* GetFileVfs();
+    VirtualFileSystem* GetInstallDataVfs();
+    VirtualFileSystem* GetUserDataVfs();
 
     int StartServerEmulator();
     int StopServerEmulator();
@@ -236,6 +240,10 @@ private:
     // Writable VFSs rooted at each plugin's plugindata directory, created lazily and keyed
     // by plugin identifier. Backs GetPluginDataVfs / the plugindata:// protocol.
     std::map<std::string, std::unique_ptr<VirtualFileSystem>> mPluginDataVfsCache;
+
+    VirtualFileSystem*              mFileVfs;
+    VirtualFileSystem*              mInstallDataVfs;
+    VirtualFileSystem*              mUserDataVfs;
 
     ServerEmulator*                 mServerEmulator;
 

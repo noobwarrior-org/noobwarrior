@@ -30,7 +30,7 @@ core.ConsoleAdded:Connect(function(console)
 end)
 
 _G.MASTERSERVER_PLUGINDATA = "plugindata://master-server@noobwarrior.org"
-_G.MASTERSERVER_DB = SqlDb.new(core.ResolveLocalPath(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb"), "MasterServerDb")
+_G.MASTERSERVER_DB = SqlDb.new(url.ResolveAsLocalPath(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb"), "MasterServerDb")
 
 _G.EMU_SERVERS = {}
 
@@ -108,7 +108,7 @@ function _G.DeleteWorkshopSubmission(id)
 
     local stillReferenced = db:QueryTyped("SELECT 1 FROM WorkshopSubmission WHERE Hash = ? LIMIT 1;", hashVal)
     if stillReferenced == nil or stillReferenced[1] == nil then
-        local vfs = core.GetVfsForUrl(_G.MASTERSERVER_PLUGINDATA .. "/")
+        local vfs = url.GetVfs(_G.MASTERSERVER_PLUGINDATA .. "/")
         local path = "/submissions/" .. hashVal .. ".nwdb"
         if vfs ~= nil and vfs:EntryExists(path) then
             vfs:DeleteEntry(path)

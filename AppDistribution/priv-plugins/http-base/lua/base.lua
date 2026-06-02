@@ -102,7 +102,7 @@ end
 function http_base.AttachToServer(srv, params)
     if params.Sitemap then
         for uri, entry in pairs(params.Sitemap) do
-            params.Sitemap[uri] = core.ResolveUrlFromCaller(entry)
+            params.Sitemap[uri] = url.ResolveFromCaller(entry)
         end
     end
     srv.OnRequest:Connect(function(req)
