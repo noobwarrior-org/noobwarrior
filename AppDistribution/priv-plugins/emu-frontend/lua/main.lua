@@ -23,13 +23,13 @@ end)
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
-    ["/"] = "plugin://emu-frontend@noobwarrior.org/src/index.lhp",
-    ["/login"] = "plugin://emu-frontend@noobwarrior.org/src/login.lhp",
-    ["/register"] = "plugin://emu-frontend@noobwarrior.org/src/register.lhp",
-    ["/servers"] = "plugin://emu-frontend@noobwarrior.org/src/servers.lhp",
-    ["/forums"] = "plugin://emu-frontend@noobwarrior.org/src/forums.lhp",
-    ["/control-panel"] = "plugin://emu-frontend@noobwarrior.org/src/controlpanel.lhp",
-    ["/users/:userId/profile"] = "plugin://emu-frontend@noobwarrior.org/src/profile.lhp"
+    ["/"] = "/src/index.lhp",
+    ["/login"] = "/src/login.lhp",
+    ["/register"] = "/src/register.lhp",
+    ["/servers"] = "/src/servers.lhp",
+    ["/forums"] = "/src/forums.lhp",
+    ["/control-panel"] = "/src/controlpanel.lhp",
+    ["/users/:userId/profile"] = "/src/profile.lhp"
 }
 
 http_base.AttachToServer(emu, {

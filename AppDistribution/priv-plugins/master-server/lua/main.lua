@@ -120,25 +120,25 @@ end
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
-    ["/"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
-    ["/home"] = "plugin://master-server@noobwarrior.org/src/index.lhp",
-    ["/login"] = "plugin://master-server@noobwarrior.org/src/login.lhp",
-    ["/register"] = "plugin://master-server@noobwarrior.org/src/register.lhp",
-    ["/workshop"] = "plugin://master-server@noobwarrior.org/src/workshop.lhp",
-    ["/control-panel"] = "plugin://master-server@noobwarrior.org/src/controlpanel.lhp",
-    ["/profile"] = "plugin://master-server@noobwarrior.org/src/profile.lhp",
+    ["/"] = "/src/index.lhp",
+    ["/home"] = "/src/index.lhp",
+    ["/login"] = "/src/login.lhp",
+    ["/register"] = "/src/register.lhp",
+    ["/workshop"] = "/src/workshop.lhp",
+    ["/control-panel"] = "/src/controlpanel.lhp",
+    ["/profile"] = "/src/profile.lhp",
 
     -- API
-    ["/v1/login"] = "plugin://master-server@noobwarrior.org/src/api/login.lhp",
-    ["/v1/create-account"] = "plugin://master-server@noobwarrior.org/src/api/create_account.lhp",
-    ["/v1/logout"] = "plugin://master-server@noobwarrior.org/src/api/logout.lhp",
-    ["/v1/servers"] = "plugin://master-server@noobwarrior.org/src/api/servers.lhp",
-    ["/v1/emu-ping"] = "plugin://master-server@noobwarrior.org/src/api/emu-ping.lhp",
-    ["/v1/workshop/start-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/start_upload.lhp",
-    ["/v1/workshop/stream-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/stream_upload.lhp",
-    ["/v1/workshop/end-upload"] = "plugin://master-server@noobwarrior.org/src/api/workshop/end_upload.lhp",
-    ["/v1/workshop/download"] = "plugin://master-server@noobwarrior.org/src/api/workshop/download.lhp",
-    ["/v1/workshop/delete"] = "plugin://master-server@noobwarrior.org/src/api/workshop/delete.lhp"
+    ["/v1/login"] = "/src/api/login.lhp",
+    ["/v1/create-account"] = "/src/api/create_account.lhp",
+    ["/v1/logout"] = "/src/api/logout.lhp",
+    ["/v1/servers"] = "/src/api/servers.lhp",
+    ["/v1/emu-ping"] = "/src/api/emu-ping.lhp",
+    ["/v1/workshop/start-upload"] = "/src/api/workshop/start_upload.lhp",
+    ["/v1/workshop/stream-upload"] = "/src/api/workshop/stream_upload.lhp",
+    ["/v1/workshop/end-upload"] = "/src/api/workshop/end_upload.lhp",
+    ["/v1/workshop/download"] = "/src/api/workshop/download.lhp",
+    ["/v1/workshop/delete"] = "/src/api/workshop/delete.lhp"
 }
 
 master = http_base.CreateServer({

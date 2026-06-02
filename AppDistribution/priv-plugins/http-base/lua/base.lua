@@ -100,6 +100,11 @@ local function match_sitemap(sitemap, uri)
 end
 
 function http_base.AttachToServer(srv, params)
+    if params.Sitemap then
+        for uri, entry in pairs(params.Sitemap) do
+            params.Sitemap[uri] = core.ResolveUrlFromCaller(entry)
+        end
+    end
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}
         local post_tbl = {}
