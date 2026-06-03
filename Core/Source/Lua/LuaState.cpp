@@ -346,7 +346,7 @@ int LuaState::Open() {
     auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::no_constructor);
     sqlDbType["new"] = [this](std::string url, std::string logName) {
         std::filesystem::path path = Url(url).ResolveAsLocalPath(mCore);
-        return std::make_unique<SqlDb>(path, !logName.empty() ? logName : "SqlDb");
+        return std::make_unique<SqlDb>(path.string(), !logName.empty() ? logName : "SqlDb");
     };
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
@@ -405,7 +405,7 @@ int LuaState::Open() {
     auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::no_constructor, sol::base_classes, sol::bases<SqlDb>());
     emuDbType["new"] = [this](std::string url, sol::variadic_args va) {
         std::filesystem::path path = Url(url).ResolveAsLocalPath(mCore);
-        return std::make_unique<EmuDb>(path, va.size() > 0 ? va.get<bool>(0) : false);
+        return std::make_unique<EmuDb>(path.string(), va.size() > 0 ? va.get<bool>(0) : false);
     };
     emuDbType["MarkDirty"] = &EmuDb::MarkDirty;
 
