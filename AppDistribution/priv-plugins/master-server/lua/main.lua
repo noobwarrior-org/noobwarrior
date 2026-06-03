@@ -34,7 +34,7 @@ if not createDirSuccess then
     print("Failed to create directory \"master\" in plugindata")
 end
 _G.MASTERSERVER_PLUGINDATA = "plugindata://master"
-_G.MASTERSERVER_DB = SqlDb.new(url.ResolveAsLocalPath(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb"), "MasterServerDb")
+_G.MASTERSERVER_DB = SqlDb.new(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb", "MasterServerDb")
 
 _G.EMU_SERVERS = {}
 

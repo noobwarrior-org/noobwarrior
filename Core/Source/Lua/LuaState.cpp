@@ -343,7 +343,11 @@ int LuaState::Open() {
     auto stdFsType = new_usertype<StdFileSystem>("StdFileSystem", sol::constructors<StdFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
     auto zipFsType = new_usertype<ZipFileSystem>("ZipFileSystem", sol::constructors<ZipFileSystem(const std::filesystem::path&)>(), sol::base_classes, sol::bases<VirtualFileSystem>());
 
-    auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::constructors<SqlDb(), SqlDb(const std::string&, const std::string&)>());
+    auto sqlDbType = new_usertype<SqlDb>("SqlDb", sol::no_constructor);
+    sqlDbType["new"] = [this](std::string url, std::string logName) {
+        std::filesystem::path path = Url(url).ResolveAsLocalPath(mCore);
+        return std::make_unique<SqlDb>(path, !logName.empty() ? logName : "SqlDb");
+    };
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
 
@@ -398,7 +402,11 @@ int LuaState::Open() {
         return rowsTbl;
     };
 
-    auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::constructors<EmuDb(), EmuDb(const std::string&, bool)>(), sol::base_classes, sol::bases<SqlDb>());
+    auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::no_constructor, sol::base_classes, sol::bases<SqlDb>());
+    emuDbType["new"] = [this](std::string url, sol::variadic_args va) {
+        std::filesystem::path path = Url(url).ResolveAsLocalPath(mCore);
+        return std::make_unique<EmuDb>(path, va.size() > 0 ? va.get<bool>(0) : false);
+    };
     emuDbType["MarkDirty"] = &EmuDb::MarkDirty;
 
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
