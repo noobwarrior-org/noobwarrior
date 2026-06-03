@@ -22,6 +22,7 @@
 // Started by: Hattozo
 // Started on: 1/10/2026
 // Description: Url class that supports a bunch of cool custom protocols and shit
+#include "NoobWarrior/Paths.h"
 #include <NoobWarrior/Url.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
@@ -227,24 +228,19 @@ std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
             std::string pluginPathStr = pluginPath.generic_string();
             return std::filesystem::path(pluginPathStr + ResolveAsPath());
         }
-    } else if (protocol == ProtocolType::PluginData) {
-        std::string absPath = (core->GetUserDataDir() / NW_PATH_PLUGINDATA / GetHostName()).string() + ResolveAsPath();
-#if defined(_WIN32)
-        std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
-#endif
-        return absPath;
     } else if (protocol == ProtocolType::File) {
         return ResolveWithoutProtocol();
     } else if (protocol == ProtocolType::Database) {
 
-    } else if (protocol == ProtocolType::InstallData) {
-        std::string absPath = (core->GetInstallDataDir() / GetHostName()).string() + ResolveAsPath();
-#if defined(_WIN32)
-        std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
-#endif
-        return absPath;
-    } else if (protocol == ProtocolType::UserData) {
-        std::string absPath = (core->GetUserDataDir() / GetHostName()).string() + ResolveAsPath();
+    } else if (protocol == ProtocolType::InstallData || protocol == ProtocolType::UserData || protocol == ProtocolType::PluginData) {
+        std::filesystem::path dir;
+        switch (protocol) {
+        case ProtocolType::InstallData: dir = core->GetInstallDataDir(); break;
+        case ProtocolType::UserData: dir = core->GetUserDataDir(); break;
+        case ProtocolType::PluginData: dir = core->GetUserDataDir() / NW_PATH_PLUGINDATA; break;
+        default: break;
+        }
+        std::string absPath = (dir / GetHostName()).string() + ResolveAsPath();
 #if defined(_WIN32)
         std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
 #endif
