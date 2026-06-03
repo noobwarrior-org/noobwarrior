@@ -1,0 +1,26 @@
+<?lua
+startRenderTime = os.clock()
+local function AddNavbarButton(url, name)
+   echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
+end
+?>
+<!DOCTYPE html>
+<html>
+    <head>
+        <?lua include("plugin://http-base@noobwarrior.org/src/shared.lhp") ?>
+        <title><?lua echo(pageTitle or "Untitled Page") ?></title>
+    </head>
+    <body>
+        <br>
+        <div class="main">
+            <div class="header">
+                <img src="/img/icon1024.png" alt="Server emulator logo" width="64" height="64"><p>noobWarrior</p>
+            </div>
+            <ul class="navbar">
+                <div class="navbar-left">
+                <?lua
+                    AddNavbarButton("/", "Home")
+                ?>
+                </div>
+            </ul>
+            <div class="content">

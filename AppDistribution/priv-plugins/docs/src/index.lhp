@@ -1,0 +1,6 @@
+<?lua
+pageTitle = "noobWarrior Documentation"
+include("header.lhp")
+?>
+
+<?lua include("footer.lhp") ?>
