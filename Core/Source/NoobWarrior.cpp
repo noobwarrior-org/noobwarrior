@@ -119,9 +119,11 @@ Core::Core(Init init) :
     VirtualFileSystem::Response res1 = VirtualFileSystem::New(&mFileVfs, std::filesystem::current_path().root_path());
     VirtualFileSystem::Response res2 = VirtualFileSystem::New(&mInstallDataVfs, GetInstallDataDir());
     VirtualFileSystem::Response res3 = VirtualFileSystem::New(&mUserDataVfs, GetUserDataDir());
+    VirtualFileSystem::Response res4 = VirtualFileSystem::New(&mPluginDataVfs, GetUserDataDir() / NW_PATH_PLUGINDATA);
     if (res1 != VirtualFileSystem::Response::Success ||
         res2 != VirtualFileSystem::Response::Success ||
-        res3 != VirtualFileSystem::Response::Success)
+        res3 != VirtualFileSystem::Response::Success ||
+        res4 != VirtualFileSystem::Response::Success)
     {
         Out("Core", "One of the virtual file systems failed to initialize. Continuing...");
     }
@@ -309,28 +311,6 @@ void Core::CreateStandardUserDataDirectories() {
 #undef NW_CREATE
 }
 
-std::filesystem::path Core::GetPluginDataDir(const std::string &identifier) {
-    std::filesystem::path dir = GetUserDataDir() / NW_PATH_PLUGINDATA / identifier;
-    std::filesystem::create_directories(dir);
-    return dir;
-}
-
-VirtualFileSystem* Core::GetPluginDataVfs(const std::string &identifier) {
-    auto it = mPluginDataVfsCache.find(identifier);
-    if (it != mPluginDataVfsCache.end())
-        return it->second.get();
-
-    std::filesystem::path dir = GetPluginDataDir(identifier);
-    auto vfs = std::make_unique<StdFileSystem>(dir);
-    if (vfs->Fail()) {
-        Out("Core", "Failed to create plugindata VFS for \"{}\"", identifier);
-        return nullptr;
-    }
-    VirtualFileSystem* ptr = vfs.get();
-    mPluginDataVfsCache.emplace(identifier, std::move(vfs));
-    return ptr;
-}
-
 VirtualFileSystem* Core::GetFileVfs() {
     return mFileVfs;
 }
@@ -341,6 +321,10 @@ VirtualFileSystem* Core::GetInstallDataVfs() {
 
 VirtualFileSystem* Core::GetUserDataVfs() {
     return mUserDataVfs;
+}
+
+VirtualFileSystem* Core::GetPluginDataVfs() {
+    return mPluginDataVfs;
 }
 
 int Core::StartServerEmulator() {

@@ -674,11 +674,14 @@ int LuaState::Open() {
     coreLib.set_function("GetVersion", []() -> const char* {
         return NOOBWARRIOR_VERSION;
     });
-    coreLib.set_function("GetInstallDataDir", [this]() -> std::string {
-        return mCore->GetInstallDataDir().string();
+    coreLib.set_function("GetInstallDataDir", [this]() -> VirtualFileSystem* {
+        return mCore->GetInstallDataVfs();
     });
-    coreLib.set_function("GetUserDataDir", [this]() -> std::string {
-        return mCore->GetUserDataDir().string();
+    coreLib.set_function("GetUserDataDir", [this]() -> VirtualFileSystem* {
+        return mCore->GetUserDataVfs();
+    });
+    coreLib.set_function("GetPluginDataDir", [this]() -> VirtualFileSystem* {
+        return mCore->GetPluginDataVfs();
     });
     coreLib["ConsoleAdded"] = mCore->GetConsoleAddedSignal();
     coreLib.set_function("GetEmuDbManager", [this]() -> EmuDbManager* {

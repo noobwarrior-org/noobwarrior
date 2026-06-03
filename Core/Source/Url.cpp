@@ -228,21 +228,27 @@ std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
             return std::filesystem::path(pluginPathStr + ResolveAsPath());
         }
     } else if (protocol == ProtocolType::PluginData) {
-        std::filesystem::path dir = core->GetPluginDataDir(GetHostName());
-        // ResolveAsPath() includes a leading '/'; append it as a relative path so it nests
-        // under the plugindata directory rather than replacing it.
-        std::string relative = ResolveAsPath();
-        if (!relative.empty() && relative.front() == '/')
-            relative.erase(relative.begin());
-        return dir / relative;
+        std::string absPath = (core->GetUserDataDir() / NW_PATH_PLUGINDATA / GetHostName()).string() + ResolveAsPath();
+#if defined(_WIN32)
+        std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
+#endif
+        return absPath;
     } else if (protocol == ProtocolType::File) {
         return ResolveWithoutProtocol();
     } else if (protocol == ProtocolType::Database) {
 
     } else if (protocol == ProtocolType::InstallData) {
-
+        std::string absPath = (core->GetInstallDataDir() / GetHostName()).string() + ResolveAsPath();
+#if defined(_WIN32)
+        std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
+#endif
+        return absPath;
     } else if (protocol == ProtocolType::UserData) {
-
+        std::string absPath = (core->GetUserDataDir() / GetHostName()).string() + ResolveAsPath();
+#if defined(_WIN32)
+        std::replace(absPath.begin(), absPath.end(), '/', '\\'); // fck windows
+#endif
+        return absPath;
     }
     return "";
 }
@@ -307,7 +313,7 @@ VirtualFileSystem* Url::GetVfs(Core* core) const {
             return plugin->GetVfs();
     // fuck u
     } else if (protocol == ProtocolType::PluginData) {
-        return core->GetPluginDataVfs(GetHostName());
+        return core->GetPluginDataVfs();
     } else if (protocol == ProtocolType::File) {
         return core->GetFileVfs();
     } else if (protocol == ProtocolType::Database) {
