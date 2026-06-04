@@ -1,5 +1,6 @@
 package org.noobwarrior
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.SoundEffectConstants
 import androidx.activity.ComponentActivity
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -155,6 +157,7 @@ fun Category(
 fun MainUi() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -247,7 +250,11 @@ fun MainUi() {
                         description = "Configure how noobWarrior works",
                         icon = painterResource(id = R.drawable.settings_24px),
                         iconContainerColor = cs.surfaceContainerHighest,
-                        iconContentColor = cs.onSurfaceVariant
+                        iconContentColor = cs.onSurfaceVariant,
+                        onClick = {
+                            val intent = Intent(context, SettingsActivity::class.java)
+                            context.startActivity(intent)
+                        }
                     ),
                     CategoryAction(
                         name = "About",
