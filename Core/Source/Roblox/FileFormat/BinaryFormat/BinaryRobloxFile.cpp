@@ -26,6 +26,12 @@
 
 using namespace NoobWarrior::Roblox;
 
+BinaryRobloxFile::BinaryRobloxFile() {}
+
+FileResponse BinaryRobloxFile::ReadFile(std::vector<unsigned char> buffer) {
+    return FileResponse::Failed;
+}
+
 void BinaryRobloxFile::Save() {
 
 }

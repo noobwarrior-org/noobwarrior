@@ -67,6 +67,20 @@ bool Instance::SetParent(Instance* inst) {
     return true;
 }
 
+bool Instance::IsAncestorOf(Instance* descendant) {
+    if (descendant == nullptr) return false;
+    Instance* at = descendant->GetParent();
+    while (at != nullptr) {
+        if (at == this) return true;
+        at = at->GetParent();
+    }
+    return false;
+}
+
+bool Instance::IsDescendantOf(Instance* ancestor) {
+    return ancestor != nullptr && ancestor->IsAncestorOf(this);
+}
+
 std::string Instance::GetFullName(const std::string &separator) {
     std::string fullName = Name;
     Instance* at = GetParent();

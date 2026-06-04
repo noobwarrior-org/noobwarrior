@@ -45,7 +45,7 @@
 #include <optional>
 #include <unordered_map>
 
-#if defined(__unix__) || defined(__APPLE__) || defined(__ANDROID__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
 #include <spawn.h>
 #include <sys/wait.h>
 extern char** environ;
@@ -374,7 +374,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     CloseHandle(pi.hThread);
 
     return EngineLaunchResponse::Success;
-#elif defined(__unix__) || defined(__APPLE__)
+#elif (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
     pid_t pid = 0;
     std::filesystem::path wine_root   = GetUserDataDir() / NW_PATH_WINE_ROOT;
     std::filesystem::path wine_prefix_dir = GetUserDataDir() / NW_PATH_WINE_PREFIX;

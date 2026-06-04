@@ -95,14 +95,14 @@ std::vector<FSEntryInfo> StdFileSystem::GetEntriesInDirectory(const std::string 
 FSEntryHandle StdFileSystem::OpenHandle(const std::string &path) {
     if (Fail()) {
         Out("StdFileSystem", "Failed to open handle for file \"{}\" because the zip filesystem failed to initialize.", path);
-        return NULL;
+        return 0;
     }
 
     std::filesystem::path real_path = ConstructRealPath(path);
     auto stream = std::make_shared<std::fstream>(real_path, std::ios::in | std::ios::binary);
     if (stream->fail()) {
         Out("StdFileSystem", "Failed to open handle for file \"{}\"", path);
-        return NULL;
+        return 0;
     }
 
     int id = 1;

@@ -6,11 +6,40 @@ set(CPM_SOURCE_CACHE "${CMAKE_SOURCE_DIR}/.cache/cpm")
 include("${CMAKE_SOURCE_DIR}/ThirdParty/cmake/CPM.cmake")
 
 if (ANDROID)
+    CPMAddPackage(
+        NAME openssl-cmake
+        GIT_REPOSITORY "https://github.com/viaduck/openssl-cmake.git"
+        GIT_TAG "4edd36a8dab5f85a8f92650b5bdf6e0cab13aab8"
+        OPTIONS
+        "OPENSSL_BUILD_VERSION 3.5.0"
+        "OPENSSL_INSTALL OFF"
+    )
+    if (TARGET ssl AND NOT TARGET OpenSSL::SSL)
+        add_library(OpenSSL::SSL ALIAS ssl)
+    endif()
+    if (TARGET crypto AND NOT TARGET OpenSSL::Crypto)
+        add_library(OpenSSL::Crypto ALIAS crypto)
+    endif()
+
+    # FindOpenSSL shim: accepts the viaduck targets above and short-circuits the system-path search.
+    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/ThirdParty/cmake")
+endif()
+
+if (ANDROID)
+    # We never run cmake --install on Android; suppressing install rules avoids a libevent
+    # generate-step error where event_openssl_static tries to export viaduck's non-exported ssl target.
+    set(CMAKE_SKIP_INSTALL_RULES ON)
+
     # fake it til you make it
     set(FAKE_PKG_CONFIG "${CMAKE_SOURCE_DIR}/ThirdParty/pkgconfig/fake-pkg-config.sh")
     file(CHMOD "${FAKE_PKG_CONFIG}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
     set(PKG_CONFIG_EXECUTABLE "${FAKE_PKG_CONFIG}" CACHE FILEPATH "pkg-config executable" FORCE)
+
+    # libevent (and likely a few other deps) probe for pipe2/accept4/etc with check_function_exists,
+    # which succeeds because the symbols exist in Bionic libc — but the DECLARATIONS in Bionic's
+    # <unistd.h> are gated behind _GNU_SOURCE. Define it globally so feature-detected calls compile.
+    add_compile_definitions(_GNU_SOURCE)
 endif()
 
 option(NOOBWARRIOR_LIBTYPE_STATIC "Compile noobWarrior as a static library" ON)

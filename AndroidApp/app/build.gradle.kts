@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "org.noobwarrior"
-        minSdk = 23
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -46,6 +46,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("../../CMakeLists.txt")
+            version = "4.1.2"
         }
     }
 }

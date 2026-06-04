@@ -21,16 +21,31 @@ CPMAddPackage(
     OPTIONS "ZSTD_BUILD_STATIC ON"
 )
 
+# use old ass curl if we on android cuz google sux
+if (ANDROID)
+    set(_NW_CURL_REV "curl-8_11_0")
+    set(_NW_CURL_SCHANNEL    OFF)
+    set(_NW_CURL_SECTRANSP   OFF)
+    set(_NW_CURL_DISABLE_NTLM ON)
+else()
+    set(_NW_CURL_REV "85a895c")
+    set(_NW_CURL_SCHANNEL    ON)
+    set(_NW_CURL_SECTRANSP   ON)
+    set(_NW_CURL_DISABLE_NTLM OFF)
+endif()
 CPMAddPackage(
-    URI "gh:curl/curl#85a895c"
+    URI "gh:curl/curl#${_NW_CURL_REV}"
     OPTIONS
     "BUILD_CURL_EXE OFF"
+    "BUILD_EXAMPLES OFF"
+    "BUILD_TESTING OFF"
     "BUILD_SHARED_LIBS OFF"
     "CURL_DISABLE_INSTALL ON"
     "CURL_ENABLE_EXPORT_TARGET OFF"
     "CURL_USE_OPENSSL ON"
-    "CURL_USE_SCHANNEL ON"
-    "CURL_USE_SECTRANSP ON"
+    "CURL_USE_SCHANNEL ${_NW_CURL_SCHANNEL}"
+    "CURL_USE_SECTRANSP ${_NW_CURL_SECTRANSP}"
+    "CURL_DISABLE_NTLM ${_NW_CURL_DISABLE_NTLM}"
     "CURL_USE_ZLIB OFF"
     "CURL_ZLIB OFF"
     "CURL_USE_LIBPSL OFF"
@@ -82,12 +97,25 @@ CPMAddPackage("gh:nlohmann/json#v3.11.3")
 
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
-    OPTIONS "EVENT__LIBRARY_TYPE STATIC" "EVENT__DISABLE_OPENSSL OFF"
+    OPTIONS
+    "EVENT__LIBRARY_TYPE STATIC"
+    "EVENT__DISABLE_OPENSSL OFF"
+    "EVENT__DISABLE_TESTS ON"
+    "EVENT__DISABLE_REGRESS ON"
+    "EVENT__DISABLE_SAMPLES ON"
 )
 
 CPMAddPackage(
     URI "gh:nih-at/libzip#e16526d"
-    OPTIONS "BUILD_SHARED_LIBS OFF" "LIBZIP_DO_INSTALL OFF" "ENABLE_ZSTD OFF"
+    OPTIONS
+    "BUILD_SHARED_LIBS OFF"
+    "LIBZIP_DO_INSTALL OFF"
+    "ENABLE_ZSTD OFF"
+    "BUILD_TOOLS OFF"
+    "BUILD_REGRESS OFF"
+    "BUILD_EXAMPLES OFF"
+    "BUILD_DOC OFF"
+    "BUILD_OSSFUZZ OFF"
 )
 
 CPMAddPackage(
@@ -176,6 +204,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
+    Source/Roblox/FileFormat/Tree/RbxObject.cpp
     Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/algorithm/base64.cpp
 )
@@ -200,12 +229,16 @@ target_link_libraries(NoobWarrior.Core PUBLIC
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if (ANDROID)
-    # TODO: replace with an Android Keystore-backed keychain (OsKeychainAndroid.cpp) once the JNI bridge lands.
-    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainGeneric.cpp)
+    # TODO: replace with an Android Keystore-backed keychain (OsKeychainAndroid.cpp).
+    target_sources(NoobWarrior.Core PRIVATE
+        Source/Keychain/OsKeychainGeneric.cpp
+        Source/JniBridge.cpp)
 
     target_link_libraries(NoobWarrior.Core
         PRIVATE
-            event_pthreads)
+            event_pthreads
+            log
+            android)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainWin.cpp)
 

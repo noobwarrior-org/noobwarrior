@@ -27,6 +27,7 @@
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
+#include <netinet/in.h>
 
 using namespace NoobWarrior;
 

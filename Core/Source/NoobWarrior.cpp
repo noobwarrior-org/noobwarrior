@@ -42,6 +42,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/rsa.h>
 #include <openssl/x509v3.h>
 
 #if defined(_WIN32)
@@ -89,10 +90,13 @@ Core::Core(Init init) :
     }
 #endif
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+    // These explicit init calls were removed in OpenSSL 3; initialisation is now automatic.
     SSL_library_init();
     ERR_load_crypto_strings();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+#endif
 
     Out("Core", std::format("noobWarrior is{}in portable mode", mInit.Portable ? " " : " not "));
 
@@ -314,7 +318,7 @@ void Core::CreateStandardUserDataDirectories() {
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS_ENGINES)
     NW_CREATE(NW_PATH_SSL)
-#if defined(__unix__) || defined(__APPLE__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
     NW_CREATE(NW_PATH_WINE)
     NW_CREATE(NW_PATH_WINE_ROOT)
     NW_CREATE(NW_PATH_WINE_PREFIX)
@@ -440,7 +444,7 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
 }
 
 std::string Core::GetWinePath(const std::filesystem::path &path) {
-#if defined(__unix__) || defined(__APPLE__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
     std::filesystem::path absPath = std::filesystem::absolute(path);
     std::string str = absPath.generic_string();
     std::replace(str.begin(), str.end(), '/', '\\');
@@ -474,19 +478,16 @@ void Core::AutocreateCert() {
     }
 
     EVP_PKEY *pkey = NULL;
-    RSA *rsa = NULL;
     X509 *x509 = NULL;
     FILE *fcrt = NULL, *fkey = NULL;
 
-    pkey = EVP_PKEY_new();
-    rsa = RSA_generate_key(2048, RSA_F4, NULL, NULL);
-    EVP_PKEY_assign_RSA(pkey, rsa);
+    pkey = EVP_RSA_gen(2048);
 
     x509 = X509_new();
     X509_set_version(x509, 2); // X.509 v3 — required for extensions below
     ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
-    X509_gmtime_adj(X509_get_notBefore(x509), 0);
-    X509_gmtime_adj(X509_get_notAfter(x509), 315576000L); // 10 years
+    X509_gmtime_adj(X509_getm_notBefore(x509), 0);
+    X509_gmtime_adj(X509_getm_notAfter(x509), 315576000L); // 10 years
     X509_set_pubkey(x509, pkey);
 
     X509_NAME *name = X509_get_subject_name(x509);
