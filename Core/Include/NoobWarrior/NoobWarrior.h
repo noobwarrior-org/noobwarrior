@@ -73,6 +73,13 @@ struct Init {
        If you are not using noobWarrior as a simple library, you should probably just set this to an empty string
        so that it uses the root directory of the executable. */
     std::string InstallDataRelativePath               { "noobwarrior" };
+    /* Absolute path to the user-data directory. If non-empty, GetUserDataDir() returns this verbatim
+       instead of deriving a path from the OS. Required on platforms where argv[0] isn't meaningful
+       and there's no $HOME (e.g. Android, where Java must hand us the app's filesDir). */
+    std::string UserDataDir                           {};
+    /* Absolute path to the install-data directory. If non-empty, GetInstallDataDir() returns this
+       verbatim and skips the argv[0] derivation. Required on platforms with no argv[0] (Android). */
+    std::string InstallDataDir                        {};
 };
 
 enum class AssetFileNameStyle {

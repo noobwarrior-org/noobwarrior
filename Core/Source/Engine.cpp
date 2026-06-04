@@ -45,7 +45,7 @@
 #include <optional>
 #include <unordered_map>
 
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(__unix__) || defined(__APPLE__) || defined(__ANDROID__)
 #include <spawn.h>
 #include <sys/wait.h>
 extern char** environ;
@@ -429,6 +429,9 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     }
     Out("Inject", "Launched Wine process with PID {}", pid);
     return EngineLaunchResponse::Success;
+#else
+    // Android and other platforms: PE engines aren't launchable here.
+    return EngineLaunchResponse::FailedToCreateProcess;
 #endif
 }
 

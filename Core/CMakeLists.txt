@@ -199,8 +199,14 @@ target_link_libraries(NoobWarrior.Core PUBLIC
 )
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
-# some code here borrowed from https://github.com/hrantzsch/keychain/blob/master/CMakeLists.txt
-if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+if (ANDROID)
+    # TODO: replace with an Android Keystore-backed keychain (OsKeychainAndroid.cpp) once the JNI bridge lands.
+    target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainGeneric.cpp)
+
+    target_link_libraries(NoobWarrior.Core
+        PRIVATE
+            event_pthreads)
+elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainWin.cpp)
 
     target_link_libraries(NoobWarrior.Core

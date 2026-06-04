@@ -19,10 +19,6 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += listOf(
-                    "-DNOOBWARRIOR_LIBTYPE_STATIC=OFF",
-                    "-DNOOBWARRIOR_TARGET_NOGUI=OFF",
-                    "-DNOOBWARRIOR_TARGET_QTGUI=OFF",
-                    "-DNOOBWARRIOR_TARGET_GAMELAUNCHER=OFF",
                     "-DANDROID_STL=c++_shared"
                 )
             }
@@ -49,7 +45,7 @@ android {
 
     externalNativeBuild {
         cmake {
-//            path = file("../../CMakeLists.txt")
+            path = file("../../CMakeLists.txt")
         }
     }
 }

@@ -50,7 +50,7 @@
 #include <shlobj.h>
 #endif
 
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(__unix__) || defined(__APPLE__) || defined(__ANDROID__)
 #include <spawn.h>
 #include <sys/wait.h>
 extern char** environ;
@@ -101,7 +101,7 @@ Core::Core(Init init) :
     
 #if defined(_WIN32)
     evthread_use_windows_threads();
-#elif defined(__unix__) || defined(__APPLE__)
+#elif defined(__unix__) || defined(__APPLE__) || defined(__ANDROID__)
     evthread_use_pthreads();
 #endif
 
@@ -253,6 +253,12 @@ const Init& Core::GetInit() {
 }
 
 std::filesystem::path Core::GetInstallDataDir() const {
+    if (!mInit.InstallDataDir.empty()) {
+        std::filesystem::path path(mInit.InstallDataDir);
+        std::filesystem::create_directories(path);
+        return path;
+    }
+
     assert(mInit.ArgCount > 0 && "You must pass in your argc to ArgCount in order to use GetInstallDataDir()");
 
     auto exePath = std::filesystem::path(mInit.ArgVec[0]);
@@ -261,7 +267,7 @@ std::filesystem::path Core::GetInstallDataDir() const {
         std::filesystem::create_directories(path / mInit.InstallDataRelativePath);
         path /= mInit.InstallDataRelativePath;
     }
-    
+
 #if defined(__APPLE__)
     // Are we part of an app bundle?
     if (path.filename().compare("MacOS") == 0)
@@ -271,6 +277,11 @@ std::filesystem::path Core::GetInstallDataDir() const {
 }
 
 std::filesystem::path Core::GetUserDataDir() {
+    if (!mInit.UserDataDir.empty()) {
+        std::filesystem::path path(mInit.UserDataDir);
+        std::filesystem::create_directories(path);
+        return path;
+    }
     if (!mInit.Portable) {
 #if defined(_WIN32)
         WCHAR *path;
