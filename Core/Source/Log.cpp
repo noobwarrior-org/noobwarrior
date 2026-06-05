@@ -24,10 +24,33 @@
 // Description:
 #include <NoobWarrior/Log.h>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 using namespace NoobWarrior;
 
 std::mutex NoobWarrior::gLog_Mutex;
 bool NoobWarrior::gLog_PrintToStdOut = true;
+
+#ifdef __ANDROID__
+namespace {
+struct LogcatStreambuf : public std::streambuf {
+    std::string mLine;
+    int overflow(int c) override {
+        if (c == '\n' || c == EOF) {
+            __android_log_print(ANDROID_LOG_INFO, "noobwarrior", "%s", mLine.c_str());
+            mLine.clear();
+        } else {
+            mLine += static_cast<char>(c);
+        }
+        return c;
+    }
+};
+static LogcatStreambuf sLogcatBuf;
+static struct LogcatInstall { LogcatInstall() { std::cout.rdbuf(&sLogcatBuf); } } sInstall;
+} // namespace
+#endif
 
 static const char* MapLevelToString(Level lv) {
     switch (lv) {

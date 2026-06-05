@@ -96,10 +96,10 @@ class EmuService : Service() {
             Intent(this, EmuService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val text = if (port > 0) "Listening on localhost:$port" else "Starting server…"
+        val text = if (port > 0) "Server emulator listening on localhost:$port" else "Starting server emulator..."
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.globe_24px)
-            .setContentTitle("noobWarrior emulator")
+            .setContentTitle("noobWarrior")
             .setContentText(text)
             .setOngoing(true)
             .addAction(0, "Stop", stopIntent)

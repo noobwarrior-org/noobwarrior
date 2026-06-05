@@ -3,6 +3,7 @@ package org.noobwarrior
 import android.content.Intent
 import android.os.Bundle
 import android.view.SoundEffectConstants
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -191,15 +192,22 @@ fun MainUi() {
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            val port = NoobWarrior.nativeHttpPort()
+            val serverRunning = NoobWarrior.nativeIsServerRunning()
+            val serverStatus = if (serverRunning) "Running on localhost:$port" else "Server not running"
+
             Category(
                 name = "Play",
                 actions = listOf(
                     CategoryAction(
                         name = "Online",
-                        description = "The main function of the app",
+                        description = serverStatus,
                         icon = painterResource(id = R.drawable.globe_24px),
                         iconContainerColor = cs.primaryContainer,
-                        iconContentColor = cs.onPrimaryContainer
+                        iconContentColor = cs.onPrimaryContainer,
+                        onClick = {
+                            Toast.makeText(context, NoobWarrior.nativePing(), Toast.LENGTH_SHORT).show()
+                        }
                     ),
                     CategoryAction(
                         name = "Start Game Server",

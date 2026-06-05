@@ -66,7 +66,7 @@ Java_org_noobwarrior_NoobWarrior_nativeInit(JNIEnv* env, jobject, jstring jDataD
     init.InstallDataDir         = init.UserDataDir;
     init.AutoStartServerEmulator = false; // EmuService starts the HTTP server
     init.EnableKeychain         = false;  // OsKeychainGeneric is a no-op; revisit when Keystore lands
-    init.AutocreateCert         = false;  // pending Android cert plumbing
+    init.AutocreateCert         = true;
     init.LoadPlugins            = false;  // pending plugin asset packaging
 
     try {
@@ -115,8 +115,11 @@ Java_org_noobwarrior_NoobWarrior_nativeStartServer(JNIEnv*, jobject) {
         core = gCore.get();
     }
 
-    if (core->StartServerEmulator() != 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "noobwarrior", "StartServerEmulator failed");
+    // StartServerEmulator returns the result of StartSecure, which returns 1 on success.
+    // Negative values are error codes; 0 means already running; 1 means started OK.
+    int startResult = core->StartServerEmulator();
+    if (startResult < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "noobwarrior", "StartServerEmulator failed (code %d)", startResult);
         return JNI_FALSE;
     }
 
