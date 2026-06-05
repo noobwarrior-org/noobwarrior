@@ -27,7 +27,12 @@
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
+#if !defined(_WIN32)
 #include <netinet/in.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 using namespace NoobWarrior;
 
