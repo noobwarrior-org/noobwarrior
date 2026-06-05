@@ -49,6 +49,8 @@ RegistryResponse Registry::Open() {
     sol::table plugins_tbl = mLua->create_table();
     SetKeyValueIfNotSet("plugins", plugins_tbl);
 
+    SetKeyValueIfNotSet("debug.log_http_server_requests", false);
+
     SetKeyValueIfNotSet("internet.roblox.asset_delivery", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
     SetKeyValueIfNotSet("internet.roblox.badge_details", "https://badges.roblox.com/v1/badges/{}");
