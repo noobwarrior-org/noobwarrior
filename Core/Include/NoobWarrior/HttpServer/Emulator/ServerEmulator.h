@@ -52,6 +52,7 @@
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
+#include "AvatarFetchHandler.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -133,7 +134,7 @@ private:
     StaticJsonHandler mPlaceDetailsHandler;
     StaticJsonHandler mOmniRecHandler;
     StaticJsonHandler mGamesSortsHandler;
-    StaticJsonHandler mAvatarFetchHandler;
+    AvatarFetchHandler mAvatarFetchHandler;
     StaticJsonHandler mGamesListHandler;
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
