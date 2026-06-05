@@ -12,6 +12,7 @@ if (ANDROID)
         GIT_TAG "4edd36a8dab5f85a8f92650b5bdf6e0cab13aab8"
         OPTIONS
         "OPENSSL_BUILD_VERSION 3.5.0"
+        "OPENSSL_USE_STATIC_LIBS ON"
         "OPENSSL_INSTALL OFF"
     )
     if (TARGET ssl AND NOT TARGET OpenSSL::SSL)

@@ -40,7 +40,6 @@ android {
     }
     buildFeatures {
         compose = true
-        prefab = true
     }
 
     externalNativeBuild {
@@ -52,8 +51,6 @@ android {
 }
 
 dependencies {
-    implementation(libs.curl)
-    implementation(libs.openssl)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
