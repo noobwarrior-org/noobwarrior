@@ -42,6 +42,17 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("main") {
+            // Bundle AppDistribution/plugins and priv-plugins as assets so NoobWarriorApp can
+            // extract them to filesDir at runtime. The asset path mirrors the on-disk layout
+            // Core expects: plugins/ and priv-plugins/ relative to InstallDataDir.
+            assets.srcDirs(
+                "../../AppDistribution"
+            )
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("../../CMakeLists.txt")

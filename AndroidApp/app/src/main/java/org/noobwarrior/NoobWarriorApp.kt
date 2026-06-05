@@ -14,6 +14,7 @@ class NoobWarriorApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppDistribution.extractIfNeeded(this)
         val ok = NoobWarrior.nativeInit(filesDir.absolutePath)
         Log.i(TAG, "Core init ${if (ok) "ok" else "FAILED"} (dataDir=${filesDir.absolutePath})")
         if (ok) EmuService.start(this)

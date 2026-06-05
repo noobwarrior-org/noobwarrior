@@ -67,7 +67,7 @@ Java_org_noobwarrior_NoobWarrior_nativeInit(JNIEnv* env, jobject, jstring jDataD
     init.AutoStartServerEmulator = false; // EmuService starts the HTTP server
     init.EnableKeychain         = false;  // OsKeychainGeneric is a no-op; revisit when Keystore lands
     init.AutocreateCert         = true;
-    init.LoadPlugins            = false;  // pending plugin asset packaging
+    init.LoadPlugins            = true;
 
     try {
         gCore = std::make_unique<Core>(std::move(init));
