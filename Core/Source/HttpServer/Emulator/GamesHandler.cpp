@@ -25,20 +25,32 @@
 #include <NoobWarrior/HttpServer/Emulator/GamesHandler.h>
 #include <nlohmann/json.hpp>
 
+#include <cstdlib>
+#include <string>
+#include <vector>
+
 using namespace NoobWarrior;
 
-GamesHandler::GamesHandler() {}
+GamesHandler::GamesHandler(EmuDbManager *dbm) : mEmuDbManager(dbm) {}
 
-void GamesHandler::OnRequest(evhttp_request *req, void *userdata) {
+// Builds the per-game object for /v1/games, drawing the universe's root place, name and creator
+// from the mounted databases and falling back to neutral defaults when the universe isn't stored.
+static nlohmann::json BuildGame(EmuDbManager *dbm, int64_t universeId) {
+    int64_t rootPlaceId = dbm->GetStartPlaceIdForUniverse(universeId).value_or(universeId);
+    std::string name = dbm->GetItemName(ItemType::Universe, universeId).value_or("noobWarrior Place");
+
+    int64_t creatorId = dbm->GetCreatorUserId(ItemType::Universe, universeId).value_or(1);
+    std::string creatorName = dbm->GetItemName(ItemType::User, creatorId).value_or("Player");
+
     nlohmann::json game;
-    game["id"] = 1;
-    game["rootPlaceId"] = 1818;
-    game["name"] = "noobWarrior Place";
+    game["id"] = universeId;
+    game["rootPlaceId"] = rootPlaceId;
+    game["name"] = name;
     game["description"] = "";
-    game["sourceName"] = "noobWarrior Place";
+    game["sourceName"] = name;
     game["sourceDescription"] = "";
-    game["creator"]["id"] = 1;
-    game["creator"]["name"] = "Player";
+    game["creator"]["id"] = creatorId;
+    game["creator"]["name"] = creatorName;
     game["creator"]["type"] = "User";
     game["creator"]["isRNVAccount"] = false;
     game["creator"]["hasVerifiedBadge"] = false;
@@ -59,14 +71,50 @@ void GamesHandler::OnRequest(evhttp_request *req, void *userdata) {
     game["isAllGenre"] = true;
     game["isFavoritedByUser"] = false;
     game["favoritedCount"] = 0;
+    return game;
+}
+
+void GamesHandler::OnRequest(evhttp_request *req, void *userdata) {
+    // Roblox asks for one or more universes at once: /v1/games?universeIds=1818,1819
+    std::vector<int64_t> universeIds;
+    const char* uri = evhttp_request_get_uri(req);
+    evkeyvalq headers;
+    if (uri != nullptr && evhttp_parse_query(uri, &headers) == 0) {
+        if (const char* idsStr = evhttp_find_header(&headers, "universeIds")) {
+            std::string ids = idsStr;
+            size_t start = 0;
+            while (start <= ids.size()) {
+                size_t comma = ids.find(',', start);
+                std::string token = ids.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+                if (!token.empty()) {
+                    char* endPtr;
+                    int64_t id = strtoll(token.c_str(), &endPtr, 10);
+                    if (*endPtr == '\0')
+                        universeIds.push_back(id);
+                }
+                if (comma == std::string::npos) break;
+                start = comma + 1;
+            }
+        }
+        evhttp_clear_headers(&headers);
+    }
+
+    // No (or unparsable) universeIds: keep returning a single placeholder game so older callers
+    // that hit /v1/games bare don't get an empty list.
+    if (universeIds.empty())
+        universeIds.push_back(1);
+
+    nlohmann::json data = nlohmann::json::array();
+    for (int64_t universeId : universeIds)
+        data.push_back(BuildGame(mEmuDbManager, universeId));
 
     nlohmann::json j;
-    j["data"] = nlohmann::json::array({game});
+    j["data"] = std::move(data);
 
     const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* buf = evbuffer_new();
-    evbuffer_add_printf(buf, "%s", body.c_str());
+    evbuffer_add(buf, body.data(), body.size());
     evhttp_send_reply(req, HTTP_OK, nullptr, buf);
     evbuffer_free(buf);
 }

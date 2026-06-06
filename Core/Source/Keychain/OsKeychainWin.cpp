@@ -153,12 +153,6 @@ void updateError(OsKeychain::Error &err) {
                                            : OsKeychain::ErrorType::GenericError;
 }
 
-/*! /brief Create the target name used to lookup and store credentials
- *
- * The result is wrapped in a ScopedLpwstr. If `chunkSuffix` is non-empty it
- * is appended to the base target name — used to spread an oversized blob
- * across multiple Windows credentials.
- */
 ScopedLpwstr makeTargetName(const std::string &package,
                             const std::string &service, const std::string &user,
                             const std::string &chunkSuffix,
@@ -218,10 +212,7 @@ static void deleteChunksFrom(const std::string &package,
             makeTargetName(package, service, user, makeChunkSuffix(i), scratch);
         if (scratch) return;
         if (::CredDelete(chunkTarget.get(), kCredType, 0) == FALSE) {
-            // Stop on the first missing chunk — there cannot be more beyond it.
             if (::GetLastError() == ERROR_NOT_FOUND) return;
-            // For any other failure, stop quietly — this is best-effort cleanup
-            // and surfacing the error would mask the caller's primary result.
             return;
         }
     }
@@ -249,8 +240,6 @@ void OsKeychain::SetPassword(const std::string &package, const std::string &serv
         return;
     }
 
-    // Small enough to live in a single credential — preserves the original
-    // on-disk layout for callers whose data fits.
     if (password.size() <= CRED_MAX_CREDENTIAL_BLOB_SIZE) {
         if (!writeCredentialBlob(target_name.get(), user_name.get(),
                                  password.data(), password.size(), err)) {
@@ -328,7 +317,6 @@ std::string OsKeychain::GetPassword(const std::string &package, const std::strin
         const DWORD chunkErr = ::GetLastError();
         if (chunkErr == ERROR_NOT_FOUND) {
             if (i == 0) {
-                // No unchunked credential and no chunks — report NotFound.
                 updateError(err);
             }
             return password;

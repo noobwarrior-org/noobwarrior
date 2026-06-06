@@ -22,10 +22,17 @@
 // Started by: Hattozo
 // Started on: 2/16/2026
 // Description: Main file for unit testing
+#include <cpr/cpr.h>
+
 #include <gtest/gtest.h>
 #include <NoobWarrior.hpp>
 
+#include <zlib.h>
+
+#include <atomic>
+#include <chrono>
 #include <stdlib.h>
+#include <thread>
 
 using namespace NoobWarrior;
 
@@ -353,6 +360,106 @@ TEST(Database, RenderThumbnailForAsset) {
         << "RenderThumbnailForAsset should report failure until RCC rendering is implemented.";
     EXPECT_EQ(SqlDb::Response::NotFound, sEmuDb->RenderThumbnailForAsset(999999))
         << "RenderThumbnailForAsset should report NotFound for a missing asset.";
+}
+
+TEST(Database, UniversePlaceMapping) {
+    // Self-contained DB so this test doesn't depend on the shared sEmuDb's state/order. This covers
+    // the lookups behind the /universes/v1/places/{id}/universe, /v1/games and place-details handlers.
+    EmuDb db(":memory:");
+    ASSERT_EQ(false, db.Fail());
+
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 99}, {"Name", "Hattozo"}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 1818}, {"Name", "My Place"}, {"Type", static_cast<int>(Roblox::AssetType::Place)}, {"UserId", 99}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 2020}, {"Name", "Other Place"}, {"Type", static_cast<int>(Roblox::AssetType::Place)}, {"UserId", 99}
+    }));
+    // Universe 8 reaches its place both ways (junction row + StartPlaceId); universe 9 only via StartPlaceId.
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Universe, {
+        {"Id", 8}, {"Name", "My Game"}, {"StartPlaceId", 1818}, {"UserId", 99}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Universe, {
+        {"Id", 9}, {"Name", "Other Game"}, {"StartPlaceId", 2020}, {"UserId", 99}
+    }));
+    ASSERT_EQ(true, db.ExecStatement("INSERT INTO UniversePlace (Id, PlaceId) VALUES (8, 1818);"));
+
+    // place -> universe, via the junction table and via StartPlaceId
+    auto viaJunction = db.GetUniverseIdForPlace(1818);
+    ASSERT_TRUE(viaJunction.has_value());
+    EXPECT_EQ(8, viaJunction.value()) << "Place 1818 should resolve to universe 8 (UniversePlace link).";
+
+    auto viaStartPlace = db.GetUniverseIdForPlace(2020);
+    ASSERT_TRUE(viaStartPlace.has_value());
+    EXPECT_EQ(9, viaStartPlace.value()) << "Place 2020 should resolve to universe 9 (Universe.StartPlaceId).";
+
+    // universe -> root place
+    auto rootPlace = db.GetStartPlaceIdForUniverse(8);
+    ASSERT_TRUE(rootPlace.has_value());
+    EXPECT_EQ(1818, rootPlace.value());
+
+    // names and creator
+    EXPECT_EQ("My Game", db.GetItemName(ItemType::Universe, 8).value_or(""));
+    EXPECT_EQ("My Place", db.GetItemName(ItemType::Asset, 1818).value_or(""));
+    EXPECT_EQ("Hattozo", db.GetItemName(ItemType::User, 99).value_or(""));
+    EXPECT_EQ(99, db.GetCreatorUserId(ItemType::Universe, 8).value_or(-1));
+    EXPECT_EQ(99, db.GetCreatorUserId(ItemType::Asset, 2020).value_or(-1));
+
+    // misses return nullopt rather than a bogus value
+    EXPECT_FALSE(db.GetUniverseIdForPlace(424242).has_value());
+    EXPECT_FALSE(db.GetStartPlaceIdForUniverse(424242).has_value());
+    EXPECT_FALSE(db.GetItemName(ItemType::Universe, 424242).has_value());
+}
+
+TEST(Database, ToolboxAssetSearch) {
+    // Backs the toolbox-service search/details and the legacy /IDE/Toolbox endpoints.
+    EmuDb db(":memory:");
+    ASSERT_EQ(false, db.Fail());
+
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {{"Id", 99}, {"Name", "Hattozo"}}));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 101}, {"Name", "Cool Car"}, {"Description", "vroom"},
+        {"Type", static_cast<int>(Roblox::AssetType::Model)}, {"UserId", 99}, {"Created", 1420070400}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 102}, {"Name", "Cool Sound"}, {"Type", static_cast<int>(Roblox::AssetType::Audio)}, {"UserId", 99}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 103}, {"Name", "Cooler Car"}, {"Type", static_cast<int>(Roblox::AssetType::Model)}, {"UserId", 99}
+    }));
+
+    // type filter: only the two Models, newest id first
+    std::vector<int64_t> models = db.SearchAssetIds(Roblox::AssetType::Model, "", 30, 0);
+    ASSERT_EQ(2u, models.size());
+    EXPECT_EQ(103, models[0]);
+    EXPECT_EQ(101, models[1]);
+
+    // keyword filter narrows within the type
+    std::vector<int64_t> cooler = db.SearchAssetIds(Roblox::AssetType::Model, "Cooler", 30, 0);
+    ASSERT_EQ(1u, cooler.size());
+    EXPECT_EQ(103, cooler[0]);
+
+    // a different type doesn't bleed in
+    std::vector<int64_t> audio = db.SearchAssetIds(Roblox::AssetType::Audio, "", 30, 0);
+    ASSERT_EQ(1u, audio.size());
+    EXPECT_EQ(102, audio[0]);
+
+    // limit is honored
+    EXPECT_EQ(1u, db.SearchAssetIds(Roblox::AssetType::Model, "", 1, 0).size());
+
+    // summary fields
+    auto summary = db.GetAssetSummary(101);
+    ASSERT_TRUE(summary.has_value());
+    EXPECT_EQ("Cool Car", summary->Name);
+    EXPECT_EQ("vroom", summary->Description);
+    EXPECT_EQ(static_cast<int>(Roblox::AssetType::Model), summary->Type);
+    ASSERT_TRUE(summary->UserId.has_value());
+    EXPECT_EQ(99, summary->UserId.value());
+    EXPECT_EQ(1420070400, summary->Created);
+
+    EXPECT_FALSE(db.GetAssetSummary(999999).has_value());
 }
 
 TEST(Database, DeleteAsset) {

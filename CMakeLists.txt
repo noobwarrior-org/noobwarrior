@@ -27,8 +27,6 @@ if (ANDROID)
 endif()
 
 if (ANDROID)
-    # We never run cmake --install on Android; suppressing install rules avoids a libevent
-    # generate-step error where event_openssl_static tries to export viaduck's non-exported ssl target.
     set(CMAKE_SKIP_INSTALL_RULES ON)
 
     # fake it til you make it
@@ -37,9 +35,6 @@ if (ANDROID)
 
     set(PKG_CONFIG_EXECUTABLE "${FAKE_PKG_CONFIG}" CACHE FILEPATH "pkg-config executable" FORCE)
 
-    # libevent (and likely a few other deps) probe for pipe2/accept4/etc with check_function_exists,
-    # which succeeds because the symbols exist in Bionic libc — but the DECLARATIONS in Bionic's
-    # <unistd.h> are gated behind _GNU_SOURCE. Define it globally so feature-detected calls compile.
     add_compile_definitions(_GNU_SOURCE)
 endif()
 

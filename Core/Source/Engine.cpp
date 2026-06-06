@@ -192,7 +192,7 @@ std::vector<Engine> Core::GetInstalledEngines() {
                 engine->Version);
             engines.push_back(*engine);
         } else {
-            Out("Engine", "Skipping \"{}\" — no recognised Roblox executable found inside",
+            Out("Engine", "Skipping \"{}\" - no recognised Roblox executable found inside",
                 entry.path().filename().string());
         }
     }
@@ -494,11 +494,6 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
 
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
-//
-// Lifecycle of a launched process is *not* tracked here — noobHook POSTs to
-// /v1/process-ping on attach (Hello) and detach (Goodbye), and the ServerEmulator
-// maintains its running-instance list off those events. So this function only has
-// to set up the config, spawn the injector, and return.
 EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     if (!IsEngineInManifest(params.Engine))
         return EngineLaunchResponse::NotInstalled;

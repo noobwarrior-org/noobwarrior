@@ -39,7 +39,6 @@ object AppDistribution {
             }
             return
         }
-        // It's a directory — recurse.
         for (entry in entries) {
             extractDir(ctx, "$assetPath/$entry", destRoot)
         }

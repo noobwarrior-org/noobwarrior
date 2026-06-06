@@ -1038,6 +1038,111 @@ SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<un
     return SqlDb::Response::MissingBlob;
 }
 
+std::optional<int64_t> EmuDb::GetUniverseIdForPlace(int64_t placeId) {
+	if (Fail()) return std::nullopt;
+
+	// A place can belong to a universe explicitly, via the UniversePlace junction table...
+	{
+		Statement stmt = PrepareStatement("SELECT Id FROM UniversePlace WHERE PlaceId = ? LIMIT 1;");
+		if (!stmt.Fail()) {
+			stmt.Bind(1, placeId);
+			if (stmt.Step() == SQLITE_ROW)
+				return stmt.GetInt64FromColumnIndex(0);
+		}
+	}
+
+	// ...or by being the start (root) place of a universe.
+	{
+		Statement stmt = PrepareStatement("SELECT Id FROM Universe WHERE StartPlaceId = ? LIMIT 1;");
+		if (!stmt.Fail()) {
+			stmt.Bind(1, placeId);
+			if (stmt.Step() == SQLITE_ROW)
+				return stmt.GetInt64FromColumnIndex(0);
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<int64_t> EmuDb::GetStartPlaceIdForUniverse(int64_t universeId) {
+	if (Fail()) return std::nullopt;
+
+	Statement stmt = PrepareStatement("SELECT StartPlaceId FROM Universe WHERE Id = ?;");
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, universeId);
+	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
+		return stmt.GetInt64FromColumnIndex(0);
+	return std::nullopt;
+}
+
+std::optional<std::string> EmuDb::GetItemName(ItemType type, int64_t id) {
+	if (Fail()) return std::nullopt;
+
+	Statement stmt = PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", GetTableNameFromItemType(type)));
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, id);
+	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
+		return stmt.GetStringFromColumnIndex(0);
+	return std::nullopt;
+}
+
+std::optional<int64_t> EmuDb::GetCreatorUserId(ItemType type, int64_t id) {
+	if (Fail()) return std::nullopt;
+
+	Statement stmt = PrepareStatement(std::format("SELECT UserId FROM {} WHERE Id = ?;", GetTableNameFromItemType(type)));
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, id);
+	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
+		return stmt.GetInt64FromColumnIndex(0);
+	return std::nullopt;
+}
+
+std::vector<int64_t> EmuDb::SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset) {
+	std::vector<int64_t> ids;
+	if (Fail()) return ids;
+	if (limit <= 0) limit = 30;
+	if (offset < 0) offset = 0;
+
+	std::string sql = "SELECT Id FROM Asset WHERE 1=1";
+	if (type != Roblox::AssetType::None) sql += " AND Type = ?";
+	if (!keyword.empty()) sql += " AND Name LIKE ?";
+	sql += " ORDER BY Id DESC LIMIT ? OFFSET ?;";
+
+	Statement stmt = PrepareStatement(sql);
+	if (stmt.Fail()) return ids;
+
+	int idx = 1;
+	if (type != Roblox::AssetType::None) stmt.Bind(idx++, static_cast<int>(type));
+	if (!keyword.empty()) stmt.Bind(idx++, "%" + keyword + "%");
+	stmt.Bind(idx++, limit);
+	stmt.Bind(idx++, offset);
+
+	while (stmt.Step() == SQLITE_ROW)
+		ids.push_back(stmt.GetInt64FromColumnIndex(0));
+	return ids;
+}
+
+std::optional<EmuDb::AssetSummary> EmuDb::GetAssetSummary(int64_t id) {
+	if (Fail()) return std::nullopt;
+
+	Statement stmt = PrepareStatement("SELECT Id, Name, Description, Type, UserId, GroupId, Created, Updated FROM Asset WHERE Id = ?;");
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, id);
+	if (stmt.Step() != SQLITE_ROW)
+		return std::nullopt;
+
+	AssetSummary summary;
+	summary.Id = stmt.GetInt64FromColumnIndex(0);
+	summary.Name = stmt.GetStringFromColumnIndex(1);
+	summary.Description = stmt.IsColumnIndexNull(2) ? "" : stmt.GetStringFromColumnIndex(2);
+	summary.Type = stmt.GetIntFromColumnIndex(3);
+	if (!stmt.IsColumnIndexNull(4)) summary.UserId = stmt.GetInt64FromColumnIndex(4);
+	if (!stmt.IsColumnIndexNull(5)) summary.GroupId = stmt.GetInt64FromColumnIndex(5);
+	if (!stmt.IsColumnIndexNull(6)) summary.Created = stmt.GetInt64FromColumnIndex(6);
+	if (!stmt.IsColumnIndexNull(7)) summary.Updated = stmt.GetInt64FromColumnIndex(7);
+	return summary;
+}
+
 SqlDb::Response EmuDb::AddAssetLink(const std::string &table, int64_t ownerId, int64_t assetId) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

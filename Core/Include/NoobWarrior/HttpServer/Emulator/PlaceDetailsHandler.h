@@ -24,11 +24,14 @@
 // Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 namespace NoobWarrior {
 class PlaceDetailsHandler : public Handler {
 public:
-    PlaceDetailsHandler();
+    PlaceDetailsHandler(EmuDbManager *dbm);
     void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    EmuDbManager *mEmuDbManager;
 };
 }

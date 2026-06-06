@@ -57,6 +57,10 @@
 #include "GamesHandler.h"
 #include "UserChannelHandler.h"
 #include "PlaceDetailsHandler.h"
+#include "PlaceUniverseHandler.h"
+#include "ToolboxServiceHandler.h"
+#include "IdeToolboxHandler.h"
+#include "ThumbnailHandler.h"
 #include "OmniRecHandler.h"
 #include "GamesListHandler.h"
 #include "GamesSortsHandler.h"
@@ -148,6 +152,10 @@ private:
     GamesHandler mGamesHandler;
     UserChannelHandler mUserChannelHandler;
     PlaceDetailsHandler mPlaceDetailsHandler;
+    PlaceUniverseHandler mPlaceUniverseHandler;
+    ToolboxServiceHandler mToolboxServiceHandler;
+    IdeToolboxHandler mIdeToolboxHandler;
+    ThumbnailHandler mThumbnailHandler;
     OmniRecHandler mOmniRecHandler;
     GamesSortsHandler mGamesSortsHandler;
     AvatarFetchHandler mAvatarFetchHandler;

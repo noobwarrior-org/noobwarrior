@@ -18,20 +18,27 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: GamesHandler.h
+// File: ToolboxServiceHandler.h
 // Started by: Hattozo
 // Started on: 6/6/2026
-// Description:
+// Description: Modern /toolbox-service/v1 endpoints (home configuration, category search, item details).
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 namespace NoobWarrior {
-class GamesHandler : public Handler {
+class HttpServer;
+class ToolboxServiceHandler : public Handler {
 public:
-    GamesHandler(EmuDbManager *dbm);
+    ToolboxServiceHandler(HttpServer *srv, EmuDbManager *dbm);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
+    void HandleConfiguration(evhttp_request *req);
+    void HandleSearch(evhttp_request *req);
+    void HandleSection(evhttp_request *req);
+    void HandleItemDetails(evhttp_request *req);
+
+    HttpServer *mHttpServer;
     EmuDbManager *mEmuDbManager;
 };
 }

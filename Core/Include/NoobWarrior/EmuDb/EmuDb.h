@@ -89,6 +89,7 @@
 #include <sqlite3.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -197,6 +198,44 @@ public:
     SqlDb::Response RenderThumbnailForAsset(int64_t id, int version = 0);
 
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
+
+    /* Universe/place functions */
+
+    // Resolves the universe a place belongs to. A place is linked to a universe either explicitly
+    // (the UniversePlace junction table) or by being that universe's start place (Universe.StartPlaceId).
+    // Returns std::nullopt if neither link exists in this database.
+    std::optional<int64_t> GetUniverseIdForPlace(int64_t placeId);
+
+    // Returns a universe's start (root) place id, or std::nullopt if the universe isn't in this
+    // database or has no start place set.
+    std::optional<int64_t> GetStartPlaceIdForUniverse(int64_t universeId);
+
+    // Returns the Name column of an item, or std::nullopt when the row is absent or its name is NULL.
+    std::optional<std::string> GetItemName(ItemType type, int64_t id);
+
+    // Returns the owning user's id for an item that has a UserId column (Asset, Universe, ...), or
+    // std::nullopt when the row is absent or unowned by a user.
+    std::optional<int64_t> GetCreatorUserId(ItemType type, int64_t id);
+
+    // The columns the toolbox/marketplace endpoints need to describe a single asset.
+    struct AssetSummary {
+        int64_t Id {0};
+        std::string Name;
+        std::string Description;
+        int Type {0};                 // Roblox::AssetType value (also the API "typeId")
+        std::optional<int64_t> UserId;
+        std::optional<int64_t> GroupId;
+        int64_t Created {0};          // unix epoch seconds (0 if unset)
+        int64_t Updated {0};          // unix epoch seconds (0 if unset)
+    };
+
+    // Returns the ids of assets matching a toolbox-style query: an optional asset type
+    // (Roblox::AssetType::None matches any) and an optional name keyword (substring match), newest
+    // first. limit <= 0 falls back to a sane default.
+    std::vector<int64_t> SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset);
+
+    // Reads the descriptive columns of a single asset, or std::nullopt when it isn't in this database.
+    std::optional<AssetSummary> GetAssetSummary(int64_t id);
 
     /* Bundle functions */
     SqlDb::Response AddAssetToBundle(int64_t bundleId, int64_t assetId);

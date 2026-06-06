@@ -17,13 +17,23 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
- // === noobWarrior ===
- // File: FixStudioUnableToConnect.cpp
- // Started by: Hattozo
- // Started on: 5/19/2026
- // Description: Fixes "Studio is unable to connect. Please check your internet connection and try again." error
-#include "Patches.h"
-#include <windows.h>
+// === noobWarrior ===
+// File: PlaceUniverseHandler.h
+// Started by: Hattozo
+// Started on: 6/6/2026
+// Description: Resolves a place id to the universe it belongs to (apis.roblox.com/universes/v1/places/{placeId}/universe).
+#pragma once
+#include <NoobWarrior/HttpServer/Base/Handler.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
-void NoobHook::Patches::FixStudioUnableToConnect() {
+namespace NoobWarrior {
+class HttpServer;
+class PlaceUniverseHandler : public Handler {
+public:
+    PlaceUniverseHandler(HttpServer *srv, EmuDbManager *dbm);
+    void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    HttpServer *mHttpServer;
+    EmuDbManager *mEmuDbManager;
+};
 }

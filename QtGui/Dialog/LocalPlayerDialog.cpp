@@ -147,7 +147,7 @@ void LocalPlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const
 }
 
 void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
-    part.button->setToolTip(QString("%1: %2 — click to recolor").arg(part.label, part.colorName));
+    part.button->setToolTip(QString("%1: %2").arg(part.label, part.colorName));
     part.button->setStyleSheet(QString(
         "QPushButton { background-color: %1; border: 1px solid #1b1b1b; border-radius: 3px; }"
         "QPushButton:hover { border: 1px solid #ffffff; }")

@@ -34,6 +34,7 @@
 
 #include <sol/sol.hpp>
 
+#include <unordered_set>
 #include <vector>
 
 using namespace NoobWarrior;
@@ -170,4 +171,74 @@ SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::ve
             return res;
     }
     return SqlDb::Response::NotFound;
+}
+
+std::optional<int64_t> EmuDbManager::GetUniverseIdForPlace(int64_t placeId) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto universeId = db->GetUniverseIdForPlace(placeId))
+            return universeId;
+    }
+    return std::nullopt;
+}
+
+std::optional<int64_t> EmuDbManager::GetStartPlaceIdForUniverse(int64_t universeId) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto placeId = db->GetStartPlaceIdForUniverse(universeId))
+            return placeId;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> EmuDbManager::GetItemName(ItemType type, int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto name = db->GetItemName(type, id))
+            return name;
+    }
+    return std::nullopt;
+}
+
+std::optional<int64_t> EmuDbManager::GetCreatorUserId(ItemType type, int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto userId = db->GetCreatorUserId(type, id))
+            return userId;
+    }
+    return std::nullopt;
+}
+
+std::vector<int64_t> EmuDbManager::SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset) {
+    if (limit <= 0) limit = 30;
+    if (offset < 0) offset = 0;
+
+    // Pull enough from each database to satisfy offset+limit, then merge in mount-priority order
+    // while dropping ids already seen in a higher-priority database.
+    std::vector<int64_t> merged;
+    std::unordered_set<int64_t> seen;
+    for (EmuDb* db : mMountedDatabases) {
+        for (int64_t id : db->SearchAssetIds(type, keyword, limit + offset, 0)) {
+            if (seen.insert(id).second)
+                merged.push_back(id);
+        }
+    }
+
+    std::vector<int64_t> out;
+    for (size_t i = static_cast<size_t>(offset); i < merged.size() && out.size() < static_cast<size_t>(limit); i++)
+        out.push_back(merged[i]);
+    return out;
+}
+
+std::optional<EmuDb::AssetSummary> EmuDbManager::GetAssetSummary(int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto summary = db->GetAssetSummary(id))
+            return summary;
+    }
+    return std::nullopt;
+}
+
+std::vector<unsigned char> EmuDbManager::RetrieveImageData(ItemType type, int64_t id) {
+    if (EmuDb* db = GetFirstDbWhereItemExists(type, id))
+        return db->RetrieveImageData(type, id);
+    // No database actually has the item; let the highest-priority one return its placeholder icon.
+    if (!mMountedDatabases.empty())
+        return mMountedDatabases.front()->RetrieveImageData(type, id);
+    return {};
 }

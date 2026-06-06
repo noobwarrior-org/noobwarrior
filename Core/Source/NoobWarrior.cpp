@@ -484,7 +484,7 @@ void Core::AutocreateCert() {
     pkey = EVP_RSA_gen(2048);
 
     x509 = X509_new();
-    X509_set_version(x509, 2); // X.509 v3 — required for extensions below
+    X509_set_version(x509, 2);
     ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
     X509_gmtime_adj(X509_getm_notBefore(x509), 0);
     X509_gmtime_adj(X509_getm_notAfter(x509), 315576000L); // 10 years

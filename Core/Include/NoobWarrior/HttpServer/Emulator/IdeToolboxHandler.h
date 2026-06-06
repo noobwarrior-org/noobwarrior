@@ -17,13 +17,24 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
- // === noobWarrior ===
- // File: FixStudioUnableToConnect.cpp
- // Started by: Hattozo
- // Started on: 5/19/2026
- // Description: Fixes "Studio is unable to connect. Please check your internet connection and try again." error
-#include "Patches.h"
-#include <windows.h>
+// === noobWarrior ===
+// File: IdeToolboxHandler.h
+// Started by: Hattozo
+// Started on: 6/6/2026
+// Description: Legacy Studio toolbox endpoints: /IDE/Toolbox/Items.aspx (JSON) and /IDE/ClientToolbox.aspx (HTML).
+#pragma once
+#include <NoobWarrior/HttpServer/Base/Handler.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
-void NoobHook::Patches::FixStudioUnableToConnect() {
+namespace NoobWarrior {
+class IdeToolboxHandler : public Handler {
+public:
+    IdeToolboxHandler(EmuDbManager *dbm);
+    void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    void HandleItemsJson(evhttp_request *req);
+    void HandleClientToolboxHtml(evhttp_request *req);
+
+    EmuDbManager *mEmuDbManager;
+};
 }

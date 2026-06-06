@@ -53,8 +53,26 @@ public:
     EmuDb* GetDbFromFilePath(const std::filesystem::path &path);
     EmuDb* GetDbFromFileName(const std::string &name);
     EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
-    
+
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
+
+    // Universe/place lookups across every mounted database, honoring mount priority (the first
+    // database with a match wins). Each returns std::nullopt when no mounted database knows about it.
+    std::optional<int64_t> GetUniverseIdForPlace(int64_t placeId);
+    std::optional<int64_t> GetStartPlaceIdForUniverse(int64_t universeId);
+    std::optional<std::string> GetItemName(ItemType type, int64_t id);
+    std::optional<int64_t> GetCreatorUserId(ItemType type, int64_t id);
+
+    // Toolbox/marketplace asset queries spanning every mounted database. SearchAssetIds merges the
+    // per-database matches (mount priority order, de-duplicated) before applying offset/limit;
+    // GetAssetSummary returns the first mounted database's copy of the asset.
+    std::vector<int64_t> SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset);
+    std::optional<EmuDb::AssetSummary> GetAssetSummary(int64_t id);
+
+    // Image/thumbnail bytes for an item, from the first mounted database that has it (falling back to
+    // the highest-priority database, which yields a placeholder icon on a miss). Empty only when no
+    // database is mounted.
+    std::vector<unsigned char> RetrieveImageData(ItemType type, int64_t id);
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;
