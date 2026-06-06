@@ -37,8 +37,6 @@
 #include <string>
 #include <vector>
 
-#include "ToolboxHomeConfig.inc.cpp"
-
 using namespace NoobWarrior;
 
 // Pulls every integer value for a query key out of the raw URI, handling both the repeated
@@ -146,15 +144,27 @@ void ToolboxServiceHandler::OnRequest(evhttp_request *req, void *userdata) {
 }
 
 void ToolboxServiceHandler::HandleConfiguration(evhttp_request *req) {
-    // Serve the real captured home configuration (sections/category tree) for this asset type so the
-    // toolbox home view renders its category navigation. Unknown types get a minimal default.
-    const char* config = GetToolboxHomeConfig(mHttpServer->GetRouteParam("assetType"));
+    static constexpr const char* kConfig = R"({"sections":[{"displayName":"Essential","name":"essential"}]})";
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* buf = evbuffer_new();
-    evbuffer_add(buf, config, strlen(config));
+    evbuffer_add(buf, kConfig, strlen(kConfig));
     evhttp_send_reply(req, HTTP_OK, nullptr, buf);
     evbuffer_free(buf);
+}
+
+// Asset ids shown for a toolbox category. The Decals tab (type 13) also surfaces raw Image assets
+// (type 1), since grabbed images usually have no Decal wrapper and would otherwise never appear.
+static std::vector<int64_t> SearchToolboxAssets(EmuDbManager* dbm, Roblox::AssetType type,
+                                                const std::string& keyword, int limit) {
+    std::vector<int64_t> ids = dbm->SearchAssetIds(type, keyword, limit, 0);
+    if (type == Roblox::AssetType::Decal) {
+        for (int64_t id : dbm->SearchAssetIds(Roblox::AssetType::Image, keyword, limit, 0)) {
+            if (static_cast<int>(ids.size()) >= limit) break;
+            ids.push_back(id);
+        }
+    }
+    return ids;
 }
 
 void ToolboxServiceHandler::HandleSearch(evhttp_request *req) {
@@ -175,7 +185,7 @@ void ToolboxServiceHandler::HandleSearch(evhttp_request *req) {
     }
     if (limit > 100) limit = 100; // guard against an enormous page
 
-    std::vector<int64_t> ids = mEmuDbManager->SearchAssetIds(type, keyword, limit, 0);
+    std::vector<int64_t> ids = SearchToolboxAssets(mEmuDbManager, type, keyword, limit);
 
     nlohmann::json data = nlohmann::json::array();
     for (int64_t id : ids) {
@@ -215,7 +225,7 @@ void ToolboxServiceHandler::HandleSection(evhttp_request *req) {
     }
     if (limit > 100) limit = 100;
 
-    std::vector<int64_t> ids = mEmuDbManager->SearchAssetIds(type, "", limit, 0);
+    std::vector<int64_t> ids = SearchToolboxAssets(mEmuDbManager, type, "", limit);
 
     nlohmann::json data = nlohmann::json::array();
     for (int64_t id : ids) {
@@ -234,14 +244,28 @@ void ToolboxServiceHandler::HandleSection(evhttp_request *req) {
 void ToolboxServiceHandler::HandleItemDetails(evhttp_request *req) {
     std::vector<int64_t> ids = ParseIdParams(evhttp_request_get_uri(req), "assetIds");
 
-    nlohmann::json data = nlohmann::json::array();
+    // The toolbox wants an entry for every requested id, and a batch is single-type (the Audio tab
+    // asks about Studio's built-in default sounds we don't have). Pre-scan to learn the batch's type
+    // so the ids we lack get type-shaped (e.g. audio) entries instead of breaking rendering.
+    std::vector<std::optional<EmuDb::AssetSummary>> summaries;
+    summaries.reserve(ids.size());
+    int fallbackType = 0;
     for (int64_t id : ids) {
-        std::optional<EmuDb::AssetSummary> summary = mEmuDbManager->GetAssetSummary(id);
+        summaries.push_back(mEmuDbManager->GetAssetSummary(id));
+        if (fallbackType == 0 && summaries.back().has_value())
+            fallbackType = summaries.back()->Type;
+    }
 
-        int typeId = 0;
-        std::string name = std::to_string(id);
+    nlohmann::json data = nlohmann::json::array();
+    for (size_t i = 0; i < ids.size(); i++) {
+        const int64_t id = ids[i];
+        const std::optional<EmuDb::AssetSummary>& summary = summaries[i];
+
+        int typeId;
+        std::string name;
         std::string description;
-        int64_t created = 0, updated = 0;
+        int64_t created;
+        int64_t updated;
         nlohmann::json creator;
         if (summary.has_value()) {
             typeId = summary->Type;
@@ -251,7 +275,12 @@ void ToolboxServiceHandler::HandleItemDetails(evhttp_request *req) {
             updated = summary->Updated;
             creator = BuildCreator(mEmuDbManager, *summary);
         } else {
-            // Still emit an entry so the toolbox doesn't choke on a missing id.
+            // An id we don't have (e.g. a Studio default sound): shape it like the rest of the batch.
+            typeId = fallbackType;
+            name = std::to_string(id);
+            description = "";
+            created = 0;
+            updated = 0;
             creator["id"] = 1;
             creator["name"] = "Player";
             creator["type"] = 1;
@@ -277,15 +306,22 @@ void ToolboxServiceHandler::HandleItemDetails(evhttp_request *req) {
         asset["previewAssets"]["imagePreviewAssets"] = nlohmann::json::array();
         asset["previewAssets"]["videoPreviewAssets"] = nlohmann::json::array();
         if (typeId == static_cast<int>(Roblox::AssetType::Audio)) {
-            // Audio tiles need an audioDetails block; we don't store music metadata, so it's mostly blank.
+            // Superset of the old (2023M) and new audioDetails fields. The 2023M Studio audio parser
+            // reads soundEffectCategory/soundEffectSubCategory/musicGenre (the modern API dropped them
+            // for `tags`); omitting them makes its parser bail and blanks the whole Audio tab.
             nlohmann::json audioDetails;
-            audioDetails["audioType"] = "";
+            audioDetails["audioType"] = "SoundEffect";
             audioDetails["artist"] = "";
             audioDetails["title"] = name;
             audioDetails["musicAlbum"] = "";
             audioDetails["musicGenre"] = "";
+            audioDetails["soundEffectCategory"] = "";
+            audioDetails["soundEffectSubCategory"] = "";
             audioDetails["tags"] = nlohmann::json::array();
             asset["audioDetails"] = std::move(audioDetails);
+            // We don't store real durations, but the audio list drops zero-length sounds, so give a
+            // non-zero placeholder so the tiles actually appear.
+            asset["duration"] = 1;
         } else if (typeId == static_cast<int>(Roblox::AssetType::Model)
                 || typeId == static_cast<int>(Roblox::AssetType::MeshPart)) {
             // Model tiles carry technical details + capabilities; the toolbox reads capabilities to
