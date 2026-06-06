@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ClientSettingsV2Handler.cpp
+// File: ClientSettingsV2StudioHandler.cpp
 // Started by: Hattozo
 // Started on: 5/18/2026
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
-#include <NoobWarrior/HttpServer/Emulator/ClientSettingsV2Handler.h>
+#include <NoobWarrior/HttpServer/Emulator/ClientSettingsV2StudioHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Log.h>
 
@@ -32,9 +32,9 @@
 
 using namespace NoobWarrior;
 
-ClientSettingsV2Handler::ClientSettingsV2Handler(ServerEmulator* server) : mEmu(server) {}
+ClientSettingsV2StudioHandler::ClientSettingsV2StudioHandler(ServerEmulator* server) : mEmu(server) {}
 
-void ClientSettingsV2Handler::OnRequest(evhttp_request *req, void *userdata) {
+void ClientSettingsV2StudioHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
 
@@ -43,7 +43,7 @@ void ClientSettingsV2Handler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("ClientSettingsV2Handler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
+    Out("ClientSettingsV2StudioHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
     nlohmann::json fuckyou = nlohmann::json::parse(PCStudioAppV2_json);
     if (!mEmu->GetRunningGameServers().empty()) {

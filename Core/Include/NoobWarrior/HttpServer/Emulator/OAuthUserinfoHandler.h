@@ -18,20 +18,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ClientSettingsV2Handler.h
+// File: OAuthUserinfoHandler.h
 // Started by: Hattozo
-// Started on: 5/18/2026
-// Description: Returns a JSON object containing application settings (FFlags & DFFlags)
+// Started on: 6/6/2026
+// Description:
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class ServerEmulator;
-class ClientSettingsV2Handler : public Handler {
+class OAuthUserinfoHandler : public Handler {
 public:
-    ClientSettingsV2Handler(ServerEmulator* server);
+    OAuthUserinfoHandler();
     void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    ServerEmulator* mEmu;
 };
 }

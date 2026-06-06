@@ -34,7 +34,7 @@
 #include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
 #include "ClientSettingsHandler.h"
-#include "ClientSettingsV2Handler.h"
+#include "ClientSettingsV2StudioHandler.h"
 #include "NegotiateHandler.h"
 #include "PlaceLauncherHandler.h"
 #include "JoinScriptJsonHandler.h"
@@ -48,7 +48,23 @@
 #include "AssetThumbnailJsonHandler.h"
 #include "GameIconHandler.h"
 #include "UniversalAppConfigStudioHandler.h"
-#include "StaticJsonHandler.h"
+#include "AppBehaviorsHandler.h"
+#include "AvatarHandler.h"
+#include "AvatarRulesHandler.h"
+#include "AppLaunchInfoHandler.h"
+#include "RolesHandler.h"
+#include "LocalesHandler.h"
+#include "GamesHandler.h"
+#include "UserChannelHandler.h"
+#include "PlaceDetailsHandler.h"
+#include "OmniRecHandler.h"
+#include "GamesListHandler.h"
+#include "GamesSortsHandler.h"
+#include "ClientSettingsV2DesktopHandler.h"
+#include "OAuthDiscoveryHandler.h"
+#include "OAuthTokenHandler.h"
+#include "OAuthUserinfoHandler.h"
+#include "StudioLoginHandler.h"
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
@@ -116,26 +132,26 @@ private:
     AssetHandler mAssetHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
-    ClientSettingsV2Handler mClientSettingsV2Handler;
-    StaticJsonHandler mClientSettingsV2DesktopHandler;
+    ClientSettingsV2StudioHandler mClientSettingsV2StudioHandler;
+    ClientSettingsV2DesktopHandler mClientSettingsV2DesktopHandler;
     NegotiateHandler mNegotiateHandler;
     PlaceLauncherHandler mPlaceLauncherHandler;
     JoinScriptJsonHandler mJoinScriptJsonHandler;
     GameJoinHandler mGameJoinHandler;
     AuthTicketRedeemHandler mAuthTicketRedeemHandler;
-    StaticJsonHandler mAppBehaviorsHandler;
-    StaticJsonHandler mAvatarRulesHandler;
-    StaticJsonHandler mAvatarHandler;
-    StaticJsonHandler mAppLaunchInfoHandler;
-    StaticJsonHandler mRolesHandler;
-    StaticJsonHandler mLocalesHandler;
-    StaticJsonHandler mGamesHandler;
-    StaticJsonHandler mUserChannelHandler;
-    StaticJsonHandler mPlaceDetailsHandler;
-    StaticJsonHandler mOmniRecHandler;
-    StaticJsonHandler mGamesSortsHandler;
+    AppBehaviorsHandler mAppBehaviorsHandler;
+    AvatarRulesHandler mAvatarRulesHandler;
+    AvatarHandler mAvatarHandler;
+    AppLaunchInfoHandler mAppLaunchInfoHandler;
+    RolesHandler mRolesHandler;
+    LocalesHandler mLocalesHandler;
+    GamesHandler mGamesHandler;
+    UserChannelHandler mUserChannelHandler;
+    PlaceDetailsHandler mPlaceDetailsHandler;
+    OmniRecHandler mOmniRecHandler;
+    GamesSortsHandler mGamesSortsHandler;
     AvatarFetchHandler mAvatarFetchHandler;
-    StaticJsonHandler mGamesListHandler;
+    GamesListHandler mGamesListHandler;
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
     AuthenticatedUserHandler mAuthenticatedUserHandler;
@@ -143,11 +159,11 @@ private:
     RequestAuthHandler mRequestAuthHandler;
     StudioEditHandler mStudioEditHandler;
     GameIconHandler mGameIconHandler;
-    StaticJsonHandler mOAuthDiscoveryHandler;
+    OAuthDiscoveryHandler mOAuthDiscoveryHandler;
     OAuthAuthorizeHandler mOAuthAuthorizeHandler;
-    StaticJsonHandler mOAuthTokenHandler;
-    StaticJsonHandler mOAuthUserinfoHandler;
-    StaticJsonHandler mStudioLoginHandler;
+    OAuthTokenHandler mOAuthTokenHandler;
+    OAuthUserinfoHandler mOAuthUserinfoHandler;
+    StudioLoginHandler mStudioLoginHandler;
     StudioOpenPlaceHandler mStudioOpenPlaceHandler;
 
     void SetupHandlers() override;

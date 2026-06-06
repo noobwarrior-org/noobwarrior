@@ -183,7 +183,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/AssetHandler.cpp
     Source/HttpServer/Emulator/AssetThumbnailJsonHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsHandler.cpp
-    Source/HttpServer/Emulator/ClientSettingsV2Handler.cpp
+    Source/HttpServer/Emulator/ClientSettingsV2StudioHandler.cpp
+    Source/HttpServer/Emulator/ClientSettingsV2DesktopHandler.cpp
     Source/HttpServer/Emulator/StudioEditHandler.cpp
     Source/HttpServer/Emulator/StudioOpenPlaceHandler.cpp
     Source/HttpServer/Emulator/NegotiateHandler.cpp
@@ -192,6 +193,22 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/GameJoinHandler.cpp
     Source/HttpServer/Emulator/AuthTicketRedeemHandler.cpp
     Source/HttpServer/Emulator/AvatarFetchHandler.cpp
+    Source/HttpServer/Emulator/AppBehaviorsHandler.cpp
+    Source/HttpServer/Emulator/AvatarHandler.cpp
+    Source/HttpServer/Emulator/AvatarRulesHandler.cpp
+    Source/HttpServer/Emulator/AppLaunchInfoHandler.cpp
+    Source/HttpServer/Emulator/RolesHandler.cpp
+    Source/HttpServer/Emulator/LocalesHandler.cpp
+    Source/HttpServer/Emulator/GamesHandler.cpp
+    Source/HttpServer/Emulator/UserChannelHandler.cpp
+    Source/HttpServer/Emulator/PlaceDetailsHandler.cpp
+    Source/HttpServer/Emulator/OmniRecHandler.cpp
+    Source/HttpServer/Emulator/GamesListHandler.cpp
+    Source/HttpServer/Emulator/GamesSortsHandler.cpp
+    Source/HttpServer/Emulator/OAuthDiscoveryHandler.cpp
+    Source/HttpServer/Emulator/OAuthTokenHandler.cpp
+    Source/HttpServer/Emulator/OAuthUserinfoHandler.cpp
+    Source/HttpServer/Emulator/StudioLoginHandler.cpp
     Source/HttpServer/Emulator/UniversalAppConfigStudioHandler.cpp
     Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
     Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp
