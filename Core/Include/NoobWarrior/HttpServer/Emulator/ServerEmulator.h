@@ -61,6 +61,7 @@
 #include "ToolboxServiceHandler.h"
 #include "IdeToolboxHandler.h"
 #include "ThumbnailHandler.h"
+#include "AssetPermissionsHandler.h"
 #include "OmniRecHandler.h"
 #include "GamesListHandler.h"
 #include "GamesSortsHandler.h"
@@ -156,6 +157,7 @@ private:
     ToolboxServiceHandler mToolboxServiceHandler;
     IdeToolboxHandler mIdeToolboxHandler;
     ThumbnailHandler mThumbnailHandler;
+    AssetPermissionsHandler mAssetPermissionsHandler;
     OmniRecHandler mOmniRecHandler;
     GamesSortsHandler mGamesSortsHandler;
     AvatarFetchHandler mAvatarFetchHandler;

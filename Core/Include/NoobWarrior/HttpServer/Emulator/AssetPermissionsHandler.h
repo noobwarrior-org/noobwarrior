@@ -18,28 +18,19 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ToolboxServiceHandler.h
+// File: AssetPermissionsHandler.h
 // Started by: Hattozo
-// Started on: 6/6/2026
-// Description: Modern /toolbox-service/v1 endpoints (home configuration, category search, item details).
+// Started on: 6/7/2026
+// Description: asset-permissions-api batch check (POST /asset-permissions-api/v1/assets/check-permissions).
+//              The AudioDiscovery plugin gates every track behind a "can this universe use this audio?"
+//              check when a published place (GameId != 0) is open; we grant all so the audio rows render.
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 namespace NoobWarrior {
-class HttpServer;
-class ToolboxServiceHandler : public Handler {
+class AssetPermissionsHandler : public Handler {
 public:
-    ToolboxServiceHandler(HttpServer *srv, EmuDbManager *dbm);
+    AssetPermissionsHandler() = default;
     void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    void HandleConfiguration(evhttp_request *req);
-    void HandleSearch(evhttp_request *req);
-    void HandleSection(evhttp_request *req);
-    void HandleItemDetails(evhttp_request *req);
-    void HandleMarketplace(evhttp_request *req);
-
-    HttpServer *mHttpServer;
-    EmuDbManager *mEmuDbManager;
 };
 }

@@ -144,28 +144,24 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v2/user-channel", &mUserChannelHandler);
     SetRequestHandler("/v1/games/multiget-place-details", &mPlaceDetailsHandler);
     SetRequestHandler("/v1/games/multiget-playability-status", &mPlaceDetailsHandler);
-    // apis.roblox.com/universes/v1/places/{placeId}/universe -> { "universeId": <id> }
     SetRequestHandler("/universes/v1/places/:placeId/universe", &mPlaceUniverseHandler);
     SetRequestHandler("/v1/places/:placeId/universe", &mPlaceUniverseHandler);
 
-    // Modern Studio toolbox (apis.roblox.com/toolbox-service/v1/...). The :category route catches the
-    // per-type search (Models, Audio, Decals, ...); the more specific routes are matched by segment
-    // count, so they don't collide.
     SetRequestHandler("/toolbox-service/v1/home/:assetType/configuration", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/home/:typeId/section/:sectionName/assets", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/items/details", &mToolboxServiceHandler);
+    SetRequestHandler("/toolbox-service/v1/marketplace/:categoryId", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/:category", &mToolboxServiceHandler);
 
-    // Legacy Studio toolbox endpoints.
+    SetRequestHandler("/asset-permissions-api/v1/assets/check-permissions", &mAssetPermissionsHandler);
+
     SetRequestHandler("/IDE/Toolbox/Items.aspx", &mIdeToolboxHandler);
     SetRequestHandler("/ide/toolbox/items.aspx", &mIdeToolboxHandler);
     SetRequestHandler("/IDE/Toolbox/Items", &mIdeToolboxHandler);
     SetRequestHandler("/ide/toolbox/items", &mIdeToolboxHandler);
     SetRequestHandler("/IDE/ClientToolbox.aspx", &mIdeToolboxHandler);
     SetRequestHandler("/ide/clienttoolbox.aspx", &mIdeToolboxHandler);
-
-    // Thumbnails: the batch API the toolbox/avatar UIs use, plus the local image endpoint its
-    // imageUrls point back at.
+    
     SetRequestHandler("/v1/batch", &mThumbnailHandler);
     SetRequestHandler("/emu-thumbnail", &mThumbnailHandler);
     SetRequestHandler("/discovery-api/omni-recommendation", &mOmniRecHandler);
