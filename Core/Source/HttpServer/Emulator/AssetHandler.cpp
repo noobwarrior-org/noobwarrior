@@ -131,6 +131,30 @@ static std::unordered_map<std::string, std::string> materials = {
     {"rbxmtl-woodplanks-reflection.dds", "woodplanks/reflection.dds"}
 };
 
+static std::unordered_map<std::string, std::string> texturePacks = {
+    // Pre2022 table
+    {"7546645012", "foil/diffuse.dds"},        {"7546650097", "brick/diffuse.dds"},
+    {"7546652947", "cobblestone/diffuse.dds"}, {"7546653951", "concrete/diffuse.dds"},
+    {"7547101130", "fabric/diffuse.dds"},      {"7547162198", "diamondplate/diffuse.dds"},
+    {"7547164710", "granite/diffuse.dds"},     {"7547169285", "grass/diffuse.dds"},
+    {"7547171356", "ice/diffuse.dds"},         {"7547177270", "marble/diffuse.dds"},
+    {"7547184629", "corrodedmetal/diffuse.dds"}, {"7547288171", "metal/diffuse.dds"},
+    {"7547291361", "pebble/diffuse.dds"},      {"7547295153", "sand/diffuse.dds"},
+    {"7547298114", "slate/diffuse.dds"},       {"7547303225", "wood/diffuse.dds"},
+    {"7547304948", "glass/diffuse.dds"},       {"7547332968", "woodplanks/diffuse.dds"},
+    // 2022 table
+    {"9475422736", "plastic/diffuse.dds"},     {"9873266399", "foil/diffuse.dds"},
+    {"9873284556", "glass/diffuse.dds"},       {"9873292869", "marble/diffuse.dds"},
+    {"9919719550", "cobblestone/diffuse.dds"}, {"9920482992", "brick/diffuse.dds"},
+    {"9920484334", "concrete/diffuse.dds"},    {"9920517963", "fabric/diffuse.dds"},
+    {"9920550720", "granite/diffuse.dds"},     {"9920552044", "grass/diffuse.dds"},
+    {"9920556429", "ice/diffuse.dds"},         {"9920574966", "metal/diffuse.dds"},
+    {"9920581197", "pebble/diffuse.dds"},      {"9920589512", "corrodedmetal/diffuse.dds"},
+    {"9920591862", "sand/diffuse.dds"},        {"9920600052", "slate/diffuse.dds"},
+    {"9920625499", "wood/diffuse.dds"},        {"9920626896", "woodplanks/diffuse.dds"},
+    {"10237721036", "diamondplate/diffuse.dds"}
+};
+
 using namespace NoobWarrior;
 
 AssetHandler::AssetHandler(ServerEmulator *srv, EmuDbManager *dbm) :
@@ -330,12 +354,17 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (!mServerEmulator->GetRunningInstances().empty()) {
         auto idCppStr = std::string(idStr);
-        if (materials.contains(idCppStr)) {
+        const std::string* relPath = nullptr;
+        if (auto it = materials.find(idCppStr); it != materials.end())
+            relPath = &it->second;
+        else if (auto it = texturePacks.find(idCppStr); it != texturePacks.end())
+            relPath = &it->second;
+        if (relPath != nullptr) {
             std::filesystem::path engineDir = mServerEmulator->GetCore()->GetEngineDirectory({
                 .Side = mServerEmulator->GetRunningInstances().at(0).Side,
                 .Version = mServerEmulator->GetRunningInstances().at(0).Version
             });
-            std::filesystem::path fileDir = engineDir / "PlatformContent" / "pc" / "textures" / materials[idCppStr];
+            std::filesystem::path fileDir = engineDir / "PlatformContent" / "pc" / "textures" / *relPath;
 
             if (!std::filesystem::exists(fileDir)) {
                 evhttp_send_error(req, 500, "Material file doesn't exist");
