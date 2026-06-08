@@ -31,6 +31,8 @@
 
 #include <curl/curl.h>
 
+#include <chrono>
+#include <thread>
 #include <unordered_map>
 
 // For some reason my build of Studio retrieves the material textures over the internet for some God knows what reason
@@ -210,6 +212,15 @@ void AssetHandler::OnClientDisconnect(evhttp_connection *conn, void *arg) {
 }
 
 void AssetHandler::RunProxyWorker() {
+    // One session per worker, reused across fetches. Because every fetch hits the same host
+    // (assetdelivery.roblox.com), curl keeps the TLS connection alive instead of doing a fresh
+    // handshake for each asset, which is the bulk of the per-asset cost.
+    cpr::Session session;
+    session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
+    session.SetTimeout(cpr::Timeout{20000});             // 20s per attempt
+    session.SetConnectTimeout(cpr::ConnectTimeout{10000});
+    curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+
     while (mPoolRunning) {
         std::shared_ptr<ProxyFetch> fetch;
         {
@@ -221,17 +232,28 @@ void AssetHandler::RunProxyWorker() {
             mProxyQueue.pop_front();
         }
 
-        cpr::Session session;
         session.SetUrl(cpr::Url{fetch->Url});
-        session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
-        if (!fetch->Cookie.empty())
-            session.SetHeader(cpr::Header{{"Cookie", fetch->Cookie}});
-        curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
-        cpr::Response response = session.Get();
+        // SetHeader replaces every header, so pass the cookie (or nothing) fresh each time.
+        session.SetHeader(fetch->Cookie.empty() ? cpr::Header{} : cpr::Header{{"Cookie", fetch->Cookie}});
 
-        bool ok = (response.error.code == cpr::ErrorCode::OK);
-        long httpStatus = response.status_code;
-        std::vector<unsigned char> body(response.text.begin(), response.text.end());
+        // Retry transient failures (dropped connections, rate limits, 5xx) before giving up, so a
+        // momentary hiccup under load doesn't turn into a missing asset in Studio.
+        bool ok = false;
+        long httpStatus = 0;
+        std::vector<unsigned char> body;
+        for (int attempt = 0; attempt < kProxyMaxAttempts && mPoolRunning; attempt++) {
+            cpr::Response response = session.Get();
+            ok = (response.error.code == cpr::ErrorCode::OK);
+            httpStatus = response.status_code;
+
+            bool transient = !ok || httpStatus == 429 || httpStatus == 500
+                          || httpStatus == 502 || httpStatus == 503 || httpStatus == 504;
+            if (!transient || attempt == kProxyMaxAttempts - 1) {
+                body.assign(response.text.begin(), response.text.end());
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(150 * (attempt + 1)));
+        }
 
         // The fetch is done; everything else (the reply, the DB write) happens on the event loop.
         mServerEmulator->GetCore()->RunOnEventLoop(

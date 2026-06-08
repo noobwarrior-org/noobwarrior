@@ -106,5 +106,6 @@ private:
     std::unordered_set<std::shared_ptr<ProxyFetch>> mActiveFetches;
 
     static constexpr size_t kProxyThreadCount = 8;
+    static constexpr int    kProxyMaxAttempts = 3; // 1 try + 2 retries on transient failures
 };
 }
