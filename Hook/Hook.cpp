@@ -462,7 +462,7 @@ DWORD WINAPI Thread(LPVOID param) {
     hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
     hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     MH_EnableHook(MH_ALL_HOOKS);
-    
+
 #if defined(_WIN64)
     char exePath[MAX_PATH] = {0};
     GetModuleFileNameA(NULL, exePath, MAX_PATH);
@@ -497,6 +497,9 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
             MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
         }
 
+#if defined(_M_IX86)
+        Patches::InstallClusterNullGuard(); // survive the player's corrupt-union cluster crashes
+#endif
         Out("DllMain", "Applying patches...");
         Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
         Patches::RemoveSignatureCheck();

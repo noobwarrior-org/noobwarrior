@@ -37,4 +37,8 @@ void BypassPlaceIdVerification();
 void FixSettingsKeyMustBeDefined();
 void FixStudioUnableToConnect();
 void FixInsertObjects();
+// First-chance VEH (x86 only) that lets the 0.573 player survive the 2026-format
+// corrupted unions: redirects DeserializedClusterItem::process null-page reads to a
+// zero buffer and aborts the corrupt-union CSG mesh builder via its own epilogue.
+void InstallClusterNullGuard();
 }
