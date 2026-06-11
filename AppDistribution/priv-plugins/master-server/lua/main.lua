@@ -52,14 +52,11 @@ end
 _G.WORKSHOP_UPLOADS = {} -- in-progress upload sessions
 local WORKSHOP_UPLOAD_TIMEOUT = 600  -- seconds of inactivity before a session is swept
 
--- Maximum size, in bytes, a single upload is allowed to reach.
 function _G.WorkshopMaxUploadBytes()
     local mb = tonumber(reg.GetKeyValue("master.workshop.max_upload_mb")) or 4096
     return math.floor(mb * 1024 * 1024)
 end
 
--- Drop upload sessions we haven't heard from in a while so abandoned uploads
--- don't leak memory.
 function _G.SweepWorkshopUploads()
     local now = os.time()
     for id, up in pairs(_G.WORKSHOP_UPLOADS) do
@@ -69,8 +66,6 @@ function _G.SweepWorkshopUploads()
     end
 end
 
--- Resolve the signed-in user from a .LOGINSESSION token, or nil if the token is
--- missing/expired. Mirrors the lookup done in header.lhp.
 function _G.ResolveSessionUser(token)
     if not token or token:match("^%s*$") then return nil end
     local db = core.GetMasterDatabase()
@@ -84,21 +79,11 @@ function _G.ResolveSessionUser(token)
     return rows[1]
 end
 
-function _G.EnsureWorkshopSchema(db)
-    db:Query([[CREATE TABLE IF NOT EXISTS WorkshopSubmission (
-    Id               INTEGER PRIMARY KEY,
-    UploaderId       INTEGER NOT NULL,
-    Name             TEXT    NOT NULL,
-    Description      TEXT,
-    Type             TEXT    NOT NULL,
-    Filename         TEXT,
-    SizeBytes        INTEGER NOT NULL,
-    Hash             TEXT    NOT NULL,
-    CreatedTimestamp INTEGER NOT NULL DEFAULT (unixepoch())
-);]])
+local migrations = require("plugin://master-server@noobwarrior.org/lua/migrations.lua")
+local migrateOk, migrateErr = migrations.MigrateToLatestVersion(_G.MASTERSERVER_DB)
+if not migrateOk then
+    print("Failed to migrate master server database: " .. tostring(migrateErr))
 end
-
-_G.EnsureWorkshopSchema(_G.MASTERSERVER_DB)
 
 function _G.DeleteWorkshopSubmission(id)
     local db = _G.MASTERSERVER_DB

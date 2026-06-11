@@ -1,4 +1,12 @@
 <?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: workshop.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 5/21/2026
+-- ////////////////////////////////////////////////////////////////////////////////
 pageTitle = "Workshop"
 include("header.lhp")
 ?>
@@ -38,13 +46,27 @@ local type = _GET["type"]
 
 if type == nil or type:match("^%s*$") or type == "databases" or type == "plugins" then
     echo([[<h1>Most Popular Submissions</h1>]])
-    echo([[
-        <div class="workshop-submission-card">
-            <img src="https://i.pinimg.com/736x/7f/1e/06/7f1e069f7718a860470d8cfc2dcfd4ad.jpg" alt="Submission" style="width:100%">
-            <a>My Submission</a>
-            <p style="margin: 0; padding-top: 4px; line-height: 1;">Submitted by Hattozo</p>
-        </div>
-    ]])
+    local submissionQuery = _G.MASTERSERVER_DB:Query("SELECT Id, Name, UploaderId FROM WorkshopSubmission;")
+    if submissionQuery ~= nil then
+        for index, row in ipairs(submissionQuery) do
+            local username = "No One!"
+            local userDb = core.GetEmuDbManager():GetFirstDbWhereItemExists(ItemType.User, row.UploaderId)
+            if userDb then
+                local userQuery = userDb:QueryTyped("SELECT Name FROM User WHERE Id = ?;", row.UploaderId)
+                if userQuery ~= nil and userQuery ~= false then
+                    username = userQuery[1].Name
+                end
+            end
+            
+            echo([[
+            <div class="workshop-submission-card">
+                <img src="https://i.pinimg.com/736x/7f/1e/06/7f1e069f7718a860470d8cfc2dcfd4ad.jpg" alt="Submission" style="width:100%">
+                <a>]]) echo(row.Name) echo([[</a>
+                <p style="margin: 0; padding-top: 4px; line-height: 1;">]]) echo("Submitted by "..username) echo([[</p>
+            </div>
+            ]])
+        end
+    end
 elseif type == "my-submissions" then
     echo([[<h1>My Submissions</h1>]])
 elseif type == "upload" then
