@@ -197,6 +197,99 @@ int LuaState::Open() {
         "RbxThumb", ProtocolType::RbxThumb
     );
 
+    new_enum("SqlResponse",
+        "Failed", SqlDb::Response::Failed,
+        "Success", SqlDb::Response::Success,
+        "CantOpen", SqlDb::Response::CantOpen,
+        "DidNothing", SqlDb::Response::DidNothing,
+        "DatabaseFailed", SqlDb::Response::DatabaseFailed,
+        "ConstraintViolation", SqlDb::Response::ConstraintViolation,
+        "Busy", SqlDb::Response::Busy,
+        "Misuse", SqlDb::Response::Misuse,
+        "NotFound", SqlDb::Response::NotFound,
+        "BlobTooLarge", SqlDb::Response::BlobTooLarge,
+        "MissingBlob", SqlDb::Response::MissingBlob,
+        "BlobOpenFailed", SqlDb::Response::BlobOpenFailed,
+        "BlobCompressionFailed", SqlDb::Response::BlobCompressionFailed,
+        "BlobDecompressionFailed", SqlDb::Response::BlobDecompressionFailed
+    );
+
+    new_enum("CompressionType",
+        "None", EmuDb::CompressionType::None,
+        "ZStandard", EmuDb::CompressionType::ZStandard
+    );
+
+    new_enum("AssetType",
+        "None", Roblox::AssetType::None,
+        "Image", Roblox::AssetType::Image,
+        "TShirt", Roblox::AssetType::TShirt,
+        "Audio", Roblox::AssetType::Audio,
+        "Mesh", Roblox::AssetType::Mesh,
+        "Lua", Roblox::AssetType::Lua,
+        "Hat", Roblox::AssetType::Hat,
+        "Place", Roblox::AssetType::Place,
+        "Model", Roblox::AssetType::Model,
+        "Shirt", Roblox::AssetType::Shirt,
+        "Pants", Roblox::AssetType::Pants,
+        "Decal", Roblox::AssetType::Decal,
+        "Head", Roblox::AssetType::Head,
+        "Face", Roblox::AssetType::Face,
+        "Gear", Roblox::AssetType::Gear,
+        "Badge", Roblox::AssetType::Badge,
+        "Animation", Roblox::AssetType::Animation,
+        "Torso", Roblox::AssetType::Torso,
+        "RightArm", Roblox::AssetType::RightArm,
+        "LeftArm", Roblox::AssetType::LeftArm,
+        "LeftLeg", Roblox::AssetType::LeftLeg,
+        "RightLeg", Roblox::AssetType::RightLeg,
+        "Package", Roblox::AssetType::Package,
+        "Gamepass", Roblox::AssetType::Gamepass,
+        "Plugin", Roblox::AssetType::Plugin,
+        "MeshPart", Roblox::AssetType::MeshPart,
+        "HairAccessory", Roblox::AssetType::HairAccessory,
+        "FaceAccessory", Roblox::AssetType::FaceAccessory,
+        "NeckAccessory", Roblox::AssetType::NeckAccessory,
+        "ShoulderAccessory", Roblox::AssetType::ShoulderAccessory,
+        "FrontAccessory", Roblox::AssetType::FrontAccessory,
+        "BackAccessory", Roblox::AssetType::BackAccessory,
+        "WaistAccessory", Roblox::AssetType::WaistAccessory,
+        "ClimbAnimation", Roblox::AssetType::ClimbAnimation,
+        "DeathAnimation", Roblox::AssetType::DeathAnimation,
+        "FallAnimation", Roblox::AssetType::FallAnimation,
+        "IdleAnimation", Roblox::AssetType::IdleAnimation,
+        "JumpAnimation", Roblox::AssetType::JumpAnimation,
+        "RunAnimation", Roblox::AssetType::RunAnimation,
+        "SwimAnimation", Roblox::AssetType::SwimAnimation,
+        "WalkAnimation", Roblox::AssetType::WalkAnimation,
+        "PoseAnimation", Roblox::AssetType::PoseAnimation,
+        "EarAccessory", Roblox::AssetType::EarAccessory,
+        "EyeAccessory", Roblox::AssetType::EyeAccessory,
+        "EmoteAnimation", Roblox::AssetType::EmoteAnimation,
+        "Video", Roblox::AssetType::Video,
+        "TShirtAccessory", Roblox::AssetType::TShirtAccessory,
+        "ShirtAccessory", Roblox::AssetType::ShirtAccessory,
+        "PantsAccessory", Roblox::AssetType::PantsAccessory,
+        "JacketAccessory", Roblox::AssetType::JacketAccessory,
+        "SweaterAccessory", Roblox::AssetType::SweaterAccessory,
+        "ShortsAccessory", Roblox::AssetType::ShortsAccessory,
+        "LeftShoeAccessory", Roblox::AssetType::LeftShoeAccessory,
+        "RightShoeAccessory", Roblox::AssetType::RightShoeAccessory,
+        "DressSkirtAccessory", Roblox::AssetType::DressSkirtAccessory,
+        "FontFamily", Roblox::AssetType::FontFamily,
+        "EyebrowAccessory", Roblox::AssetType::EyebrowAccessory,
+        "EyelashAccessory", Roblox::AssetType::EyelashAccessory,
+        "MoodAnimation", Roblox::AssetType::MoodAnimation,
+        "DynamicHead", Roblox::AssetType::DynamicHead,
+        "FaceMakeup", Roblox::AssetType::FaceMakeup,
+        "LipMakeup", Roblox::AssetType::LipMakeup,
+        "EyeMakeup", Roblox::AssetType::EyeMakeup
+    );
+
+    new_enum("CreatorType",
+        "User", Roblox::CreatorType::User,
+        "Group", Roblox::CreatorType::Group
+    );
+
     auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
     scriptType["new"] = [this](std::string src) {
         return std::make_unique<LuaScript>(this, this->globals(), src);
@@ -401,18 +494,175 @@ int LuaState::Open() {
         }
         return rowsTbl;
     };
+    
+    auto bytesToString = [](const std::vector<unsigned char> &bytes) -> std::string {
+        return std::string(bytes.begin(), bytes.end());
+    };
+    auto stringToBytes = [](const std::string &str) -> std::vector<unsigned char> {
+        return std::vector<unsigned char>(str.begin(), str.end());
+    };
+    auto tableToSqlRow = [](const sol::table &tbl) -> SqlRow {
+        SqlRow row;
+        for (const auto &kv : tbl) {
+            if (kv.first.get_type() != sol::type::string)
+                continue;
+            row.push_back({kv.first.as<std::string>(), kv.second.as<SqlValue>()});
+        }
+        return row;
+    };
+    auto assetSummaryToTable = [this](const EmuDb::AssetSummary &s) -> sol::table {
+        sol::table t = create_table();
+        t["Id"] = s.Id;
+        t["Name"] = s.Name;
+        t["Description"] = s.Description;
+        t["Type"] = s.Type;
+        if (s.UserId.has_value()) t["UserId"] = s.UserId.value();
+        if (s.GroupId.has_value()) t["GroupId"] = s.GroupId.value();
+        t["Created"] = s.Created;
+        t["Updated"] = s.Updated;
+        return t;
+    };
 
     auto emuDbType = new_usertype<EmuDb>("EmuDb", sol::no_constructor, sol::base_classes, sol::bases<SqlDb>());
     emuDbType["new"] = [this](std::string url, sol::variadic_args va) {
         std::filesystem::path path = Url(url).ResolveAsLocalPath(mCore);
         return std::make_unique<EmuDb>(path.string(), va.size() > 0 ? va.get<bool>(0) : false);
     };
+
+    emuDbType["IsZstdCompressed"] = [stringToBytes](const std::string &data) -> bool {
+        return EmuDb::IsZstdCompressed(stringToBytes(data));
+    };
+    emuDbType["RetrieveAssetTypeImageData"] = [bytesToString](Roblox::AssetType type) -> std::string {
+        return bytesToString(EmuDb::RetrieveAssetTypeImageData(type));
+    };
+
+    emuDbType["GetMigrationVersion"] = &EmuDb::GetMigrationVersion;
+    emuDbType["GetMigrationFailMsg"] = &EmuDb::GetMigrationFailMsg;
+    emuDbType["SaveAs"] = [this](EmuDb &db, std::string url) {
+        return db.SaveAs(Url(url).ResolveAsLocalPath(mCore).string());
+    };
+    emuDbType["WriteChangesToDisk"] = &EmuDb::WriteChangesToDisk;
+    emuDbType["IsDirty"] = &EmuDb::IsDirty;
     emuDbType["MarkDirty"] = &EmuDb::MarkDirty;
+    emuDbType["UnmarkDirty"] = &EmuDb::UnmarkDirty;
+
+    /* Meta */
+    emuDbType["GetMetaKeyValue"] = &EmuDb::GetMetaKeyValue;
+    emuDbType["GetTitle"] = &EmuDb::GetTitle;
+    emuDbType["GetDescription"] = &EmuDb::GetDescription;
+    emuDbType["GetVersion"] = &EmuDb::GetVersion;
+    emuDbType["GetAuthor"] = &EmuDb::GetAuthor;
+    emuDbType["GetIcon"] = [bytesToString](EmuDb &db) -> std::string {
+        return bytesToString(db.GetIcon());
+    };
+    emuDbType["GetCompressionType"] = &EmuDb::GetCompressionType;
+    emuDbType["SetMetaKeyValue"] = &EmuDb::SetMetaKeyValue;
+    emuDbType["SetTitle"] = &EmuDb::SetTitle;
+    emuDbType["SetDescription"] = &EmuDb::SetDescription;
+    emuDbType["SetVersion"] = &EmuDb::SetVersion;
+    emuDbType["SetAuthor"] = &EmuDb::SetAuthor;
+    emuDbType["SetIcon"] = [stringToBytes](EmuDb &db, std::string icon) {
+        return db.SetIcon(stringToBytes(icon));
+    };
+
+    /* Generic items */
+    emuDbType["AddBlob"] = [stringToBytes](EmuDb &db, std::string data) -> std::tuple<SqlDb::Response, std::string> {
+        std::string hash;
+        SqlDb::Response res = db.AddBlob(stringToBytes(data), &hash);
+        return {res, hash};
+    };
+    emuDbType["AddItem"] = [tableToSqlRow](EmuDb &db, ItemType type, sol::table row) {
+        return db.AddItem(type, tableToSqlRow(row));
+    };
+    emuDbType["UpdateItem"] = [tableToSqlRow](EmuDb &db, ItemType type, int64_t id, sol::table row) {
+        return db.UpdateItem(type, id, tableToSqlRow(row));
+    };
+    emuDbType["DeleteItem"] = &EmuDb::DeleteItem;
+    emuDbType["DoesItemExist"] = &EmuDb::DoesItemExist;
+
+    /* Asset data */
+    emuDbType["AttachDataToAsset"] = [stringToBytes](EmuDb &db, int64_t id, int version, std::string data) {
+        return db.AttachDataToAsset(id, version, stringToBytes(data));
+    };
+    emuDbType["DetachDataFromAsset"] = &EmuDb::DetachDataFromAsset;
+    emuDbType["AttachBlobHashToAsset"] = &EmuDb::AttachBlobHashToAsset;
+    emuDbType["DetachBlobHashFromAsset"] = &EmuDb::DetachBlobHashFromAsset;
+    emuDbType["AttachThumbnailDataToAsset"] = [stringToBytes](EmuDb &db, int64_t id, std::string data) {
+        return db.AttachThumbnailDataToAsset(id, stringToBytes(data));
+    };
+    emuDbType["AttachHistoricalDataToAsset"] = [tableToSqlRow](EmuDb &db, int64_t id, sol::table row) {
+        return db.AttachHistoricalDataToAsset(id, tableToSqlRow(row));
+    };
+    emuDbType["DetachHistoricalDataFromAsset"] = [tableToSqlRow](EmuDb &db, int64_t id, sol::table row) {
+        return db.DetachHistoricalDataFromAsset(id, tableToSqlRow(row));
+    };
+    emuDbType["AttachMicrotransactionDataToAsset"] = [tableToSqlRow](EmuDb &db, int64_t id, sol::table row) {
+        return db.AttachMicrotransactionDataToAsset(id, tableToSqlRow(row));
+    };
+    emuDbType["DetachMicrotransactionDataFromAsset"] = [tableToSqlRow](EmuDb &db, int64_t id, sol::table row) {
+        return db.DetachMicrotransactionDataFromAsset(id, tableToSqlRow(row));
+    };
+    emuDbType["AddThumbnailToPlace"] = &EmuDb::AddThumbnailToPlace;
+    emuDbType["RemoveThumbnailFromPlace"] = &EmuDb::RemoveThumbnailFromPlace;
+    emuDbType["RenderThumbnailForAsset"] = [](EmuDb &db, int64_t id, sol::variadic_args va) {
+        return db.RenderThumbnailForAsset(id, va.size() > 0 ? va.get<int>(0) : 0);
+    };
+    emuDbType["RetrieveAssetData"] = [bytesToString](EmuDb &db, int64_t id, int version) -> std::tuple<SqlDb::Response, std::string, std::string> {
+        std::vector<unsigned char> data;
+        std::string hash;
+        SqlDb::Response res = db.RetrieveAssetData(id, version, &data, &hash);
+        return {res, bytesToString(data), hash};
+    };
+
+    /* Universe/place lookups */
+    emuDbType["GetUniverseIdForPlace"] = &EmuDb::GetUniverseIdForPlace;
+    emuDbType["GetStartPlaceIdForUniverse"] = &EmuDb::GetStartPlaceIdForUniverse;
+    emuDbType["GetItemName"] = &EmuDb::GetItemName;
+    emuDbType["GetCreatorUserId"] = &EmuDb::GetCreatorUserId;
+    emuDbType["SearchAssetIds"] = &EmuDb::SearchAssetIds;
+    emuDbType["GetAssetSummary"] = [assetSummaryToTable](EmuDb &db, int64_t id) -> sol::object {
+        std::optional<EmuDb::AssetSummary> summary = db.GetAssetSummary(id);
+        if (!summary.has_value())
+            return sol::lua_nil;
+        return assetSummaryToTable(summary.value());
+    };
+
+    /* Bundles/outfits/characters */
+    emuDbType["AddAssetToBundle"] = &EmuDb::AddAssetToBundle;
+    emuDbType["RemoveAssetFromBundle"] = &EmuDb::RemoveAssetFromBundle;
+    emuDbType["AddAssetToOutfit"] = &EmuDb::AddAssetToOutfit;
+    emuDbType["RemoveAssetFromOutfit"] = &EmuDb::RemoveAssetFromOutfit;
+    emuDbType["AddAssetToUserCharacter"] = &EmuDb::AddAssetToUserCharacter;
+    emuDbType["RemoveAssetFromUserCharacter"] = &EmuDb::RemoveAssetFromUserCharacter;
+    emuDbType["RetrieveImageData"] = [bytesToString](EmuDb &db, ItemType type, int64_t id) -> std::string {
+        return bytesToString(db.RetrieveImageData(type, id));
+    };
 
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
     emuDbMgrType["GetMasterDatabase"] = &EmuDbManager::GetMasterDatabase;
     emuDbMgrType["GetMountedDatabases"] = &EmuDbManager::GetMountedDatabases;
     emuDbMgrType["GetFirstDbWhereItemExists"] = &EmuDbManager::GetFirstDbWhereItemExists;
+    emuDbMgrType["GetDbFromFileName"] = &EmuDbManager::GetDbFromFileName;
+    emuDbMgrType["GetUniverseIdForPlace"] = &EmuDbManager::GetUniverseIdForPlace;
+    emuDbMgrType["GetStartPlaceIdForUniverse"] = &EmuDbManager::GetStartPlaceIdForUniverse;
+    emuDbMgrType["GetItemName"] = &EmuDbManager::GetItemName;
+    emuDbMgrType["GetCreatorUserId"] = &EmuDbManager::GetCreatorUserId;
+    emuDbMgrType["SearchAssetIds"] = &EmuDbManager::SearchAssetIds;
+    emuDbMgrType["GetAssetSummary"] = [assetSummaryToTable](EmuDbManager &mgr, int64_t id) -> sol::object {
+        std::optional<EmuDb::AssetSummary> summary = mgr.GetAssetSummary(id);
+        if (!summary.has_value())
+            return sol::lua_nil;
+        return assetSummaryToTable(summary.value());
+    };
+    emuDbMgrType["RetrieveImageData"] = [bytesToString](EmuDbManager &mgr, ItemType type, int64_t id) -> std::string {
+        return bytesToString(mgr.RetrieveImageData(type, id));
+    };
+    emuDbMgrType["RetrieveAssetData"] = [bytesToString](EmuDbManager &mgr, int64_t id, int version) -> std::tuple<SqlDb::Response, std::string, std::string> {
+        std::vector<unsigned char> data;
+        std::string hash;
+        SqlDb::Response res = mgr.RetrieveAssetData(id, version, &data, &hash);
+        return {res, bytesToString(data), hash};
+    };
 
     auto srvType = new_usertype<HttpServer>("HttpServer", sol::no_constructor);
     srvType["new"] = [this](std::string logName) {
