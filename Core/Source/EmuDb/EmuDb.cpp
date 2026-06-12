@@ -629,21 +629,132 @@ SqlDb::Response EmuDb::UpdateItem(ItemType type, int64_t id, SqlRow row) {
 	}
 }
 
+std::vector<std::string> EmuDb::GetTableNames() {
+	std::vector<std::string> names;
+	Statement stmt = PrepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+	if (stmt.Fail()) return names;
+	while (stmt.Step() == SQLITE_ROW)
+		names.push_back(stmt.GetStringFromColumnIndex(0));
+	return names;
+}
+
+std::vector<std::string> EmuDb::GetBlobHashColumns(const std::string &table) {
+	std::vector<std::string> cols;
+	// PRAGMA foreign_key_list columns: 0=id 1=seq 2=table(referenced) 3=from 4=to 5=on_update 6=on_delete 7=match
+	Statement stmt = PrepareStatement(std::format("PRAGMA foreign_key_list(\"{}\");", table));
+	if (stmt.Fail()) return cols;
+	while (stmt.Step() == SQLITE_ROW) {
+		if (stmt.GetStringFromColumnIndex(2) == "BlobStorage")
+			cols.push_back(stmt.GetStringFromColumnIndex(3));
+	}
+	return cols;
+}
+
+void EmuDb::CollectRowBlobHashes(const std::string &table, const std::string &whereColumn, int64_t id,
+                                 std::set<std::string> &out) {
+	std::vector<std::string> blobCols = GetBlobHashColumns(table);
+	if (blobCols.empty()) return;
+
+	std::string cols;
+	for (size_t i = 0; i < blobCols.size(); i++) {
+		if (i) cols += ", ";
+		cols += std::format("\"{}\"", blobCols[i]);
+	}
+
+	Statement stmt = PrepareStatement(std::format("SELECT {} FROM \"{}\" WHERE \"{}\" = ?;", cols, table, whereColumn));
+	if (stmt.Fail()) return;
+	stmt.Bind(1, id);
+	while (stmt.Step() == SQLITE_ROW) {
+		for (int i = 0; i < static_cast<int>(blobCols.size()); i++) {
+			if (stmt.IsColumnIndexNull(i)) continue;
+			std::string hash = stmt.GetStringFromColumnIndex(i);
+			if (!hash.empty()) out.insert(hash);
+		}
+	}
+}
+
 SqlDb::Response EmuDb::DeleteItem(ItemType type, int64_t id) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
-	Statement stmt = PrepareStatement("DELETE FROM " + GetTableNameFromItemType(type) + " WHERE Id = ?;");
-	stmt.Bind(1, id);
-	switch (stmt.Step()) {
-	default:
-		return SqlDb::Response::Failed;
-	case SQLITE_DONE:
-		return SqlDb::Response::Success;
-	case SQLITE_BUSY:
-		return SqlDb::Response::Busy;
-	case SQLITE_MISUSE:
-		return SqlDb::Response::Misuse;
+	const std::string parentTable = GetTableNameFromItemType(type);
+
+	// Foreign keys aren't enforced on this connection and none declare ON DELETE CASCADE, so a bare
+	// DELETE on the parent table would orphan every dependent row (AssetData versions, the place
+	// detail tables, junction rows like OwnedItem/BundleAsset/Transaction) and leak the
+	// content-addressed blobs those rows kept alive. Discover dependents from the live schema's
+	// foreign keys and remove them ourselves, then garbage-collect any blob that is now unreferenced.
+
+	// Collect the (table, column) pairs that reference the parent before touching any data, so the
+	// PRAGMA cursors are fully consumed before we start issuing DELETEs.
+	struct Dependent { std::string table; std::string column; };
+	std::vector<Dependent> dependents;
+	for (const std::string &childTable : GetTableNames()) {
+		if (childTable == parentTable) continue;
+		Statement fkStmt = PrepareStatement(std::format("PRAGMA foreign_key_list(\"{}\");", childTable));
+		if (fkStmt.Fail()) continue;
+		while (fkStmt.Step() == SQLITE_ROW) {
+			if (fkStmt.GetStringFromColumnIndex(2) == parentTable)
+				dependents.push_back({childTable, fkStmt.GetStringFromColumnIndex(3)});
+		}
 	}
+
+	if (!ExecStatement("SAVEPOINT DeleteItemCascade")) {
+		Out("Failed to open savepoint while deleting {} id {}", parentTable, id);
+		return SqlDb::Response::Failed;
+	}
+
+	// Hashes of blobs the deleted rows referenced; GC'd only after every delete lands so the orphan
+	// check in GarbageCollectBlobIfOrphaned sees the final state of the database.
+	std::set<std::string> touchedBlobHashes;
+	CollectRowBlobHashes(parentTable, "Id", id, touchedBlobHashes);
+
+	bool ok = true;
+
+	// Delete dependents first (one level deep, which covers the current schema: all dependents are
+	// leaf detail/junction tables). A self-referencing or many-column dependent simply yields several
+	// entries here and each is cleared independently.
+	for (const Dependent &dep : dependents) {
+		CollectRowBlobHashes(dep.table, dep.column, id, touchedBlobHashes);
+
+		Statement del = PrepareStatement(std::format("DELETE FROM \"{}\" WHERE \"{}\" = ?;", dep.table, dep.column));
+		if (del.Fail()) { ok = false; break; }
+		del.Bind(1, id);
+		if (del.Step() != SQLITE_DONE) {
+			Out("Failed to delete dependents from {} for {} id {}: \"{}\"", dep.table, parentTable, id, GetLastErrorMsg());
+			ok = false;
+			break;
+		}
+	}
+
+	if (ok) {
+		Statement del = PrepareStatement(std::format("DELETE FROM \"{}\" WHERE Id = ?;", parentTable));
+		if (del.Fail()) {
+			ok = false;
+		} else {
+			del.Bind(1, id);
+			if (del.Step() != SQLITE_DONE) {
+				Out("Failed to delete {} id {}: \"{}\"", parentTable, id, GetLastErrorMsg());
+				ok = false;
+			}
+		}
+	}
+
+	if (!ok) {
+		ExecStatement("ROLLBACK TO DeleteItemCascade");
+		ExecStatement("RELEASE DeleteItemCascade");
+		return SqlDb::Response::Failed;
+	}
+
+	if (!ExecStatement("RELEASE DeleteItemCascade")) {
+		Out("Failed to release savepoint after deleting {} id {}", parentTable, id);
+		return SqlDb::Response::Failed;
+	}
+
+	for (const std::string &hash : touchedBlobHashes)
+		GarbageCollectBlobIfOrphaned(hash);
+
+	MarkDirty();
+	return SqlDb::Response::Success;
 }
 
 bool EmuDb::DoesItemExist(ItemType type, int64_t id) {

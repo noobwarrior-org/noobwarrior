@@ -63,10 +63,31 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
             QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
             if (button != QMessageBox::Yes)
                 return;
-
+            
+            std::vector<ItemWidget*> toDelete;
             for (QListWidgetItem *item : selectedItems()) {
-                QMessageBox::warning(this, "Notice", "Deleting items doesn't actually work for now lmao. The item has temporarily disappeared as a placeholder.");
-                delete takeItem(row(item));
+                if (auto *itemWidget = dynamic_cast<ItemWidget*>(item))
+                    toDelete.push_back(itemWidget);
+            }
+
+            QStringList failures;
+            for (ItemWidget *itemWidget : toDelete) {
+                ItemType type = itemWidget->GetType();
+                int64_t id = itemWidget->GetId();
+
+                SqlDb::Response response = mLastOptions.Database->DeleteItem(type, id);
+                if (response == SqlDb::Response::Success) {
+                    Remove(type, id);
+                } else {
+                    failures << QString::number(id);
+                }
+            }
+
+            if (!failures.isEmpty()) {
+                QMessageBox::warning(this, "Delete Item",
+                    QString("Failed to delete %1 item(s): %2")
+                        .arg(failures.size())
+                        .arg(failures.join(", ")));
             }
         });
     };

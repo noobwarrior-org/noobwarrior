@@ -463,9 +463,33 @@ TEST(Database, ToolboxAssetSearch) {
 }
 
 TEST(Database, DeleteAsset) {
+    // Counts rows from a single-column COUNT(*) query against the shared fixture database.
+    auto count = [](const std::string &sql) -> int64_t {
+        Statement stmt = sEmuDb->PrepareStatement(sql);
+        if (stmt.Fail() || stmt.Step() != SQLITE_ROW) return -1;
+        return stmt.GetInt64FromColumnIndex(0);
+    };
+
+    // Earlier tests attached data to asset 1, so it owns AssetData version(s) and a blob. Capture
+    // the blob hash before deleting so we can confirm it gets garbage-collected too.
+    Statement hashStmt = sEmuDb->PrepareStatement("SELECT DataHash FROM AssetData WHERE Id = 1 LIMIT 1;");
+    ASSERT_EQ(SQLITE_ROW, hashStmt.Step()) << "Asset 1 should have AssetData before deletion.";
+    std::string blobHash = hashStmt.GetStringFromColumnIndex(0);
+    EXPECT_GT(count("SELECT COUNT(*) FROM AssetData WHERE Id = 1;"), 0);
+    EXPECT_EQ(1, count("SELECT COUNT(*) FROM BlobStorage WHERE Hash = '" + blobHash + "';"));
+
     SqlDb::Response res = sEmuDb->DeleteItem(ItemType::Asset, 1);
     EXPECT_EQ(SqlDb::Response::Success, res)
-        << "Failed to delete the data for asset ID 1. Check the quality of the EmuDb::DeleteItem() function.";;
+        << "Failed to delete the data for asset ID 1. Check the quality of the EmuDb::DeleteItem() function.";
+
+    // The parent row and its dependent AssetData rows must be gone, and the now-unreferenced blob
+    // must have been garbage-collected.
+    EXPECT_EQ(0, count("SELECT COUNT(*) FROM Asset WHERE Id = 1;"))
+        << "DeleteItem left the parent Asset row behind.";
+    EXPECT_EQ(0, count("SELECT COUNT(*) FROM AssetData WHERE Id = 1;"))
+        << "DeleteItem did not cascade to the AssetData rows.";
+    EXPECT_EQ(0, count("SELECT COUNT(*) FROM BlobStorage WHERE Hash = '" + blobHash + "';"))
+        << "DeleteItem did not garbage-collect the orphaned blob.";
 }
 
 TEST(Database, Close) {

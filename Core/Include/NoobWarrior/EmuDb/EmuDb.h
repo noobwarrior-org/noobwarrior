@@ -90,6 +90,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -326,6 +327,19 @@ private:
 
     // Drops a content-addressed blob only when no table still references its hash.
     void GarbageCollectBlobIfOrphaned(const std::string &hash);
+
+    // Names of every user table in the database (excludes SQLite's internal sqlite_* tables).
+    std::vector<std::string> GetTableNames();
+
+    // Columns of `table` whose declared foreign key points at BlobStorage(Hash). Discovered from
+    // the live schema via PRAGMA foreign_key_list, so it stays correct as migrations add tables.
+    std::vector<std::string> GetBlobHashColumns(const std::string &table);
+
+    // Inserts into `out` the (non-null, non-empty) blob hashes held by the BlobStorage-referencing
+    // columns of every row in `table` where `whereColumn` = id. Used to remember which blobs a
+    // cascading delete might orphan, before the rows holding those hashes are removed.
+    void CollectRowBlobHashes(const std::string &table, const std::string &whereColumn, int64_t id,
+                              std::set<std::string> &out);
 
     std::filesystem::path mPath;
     bool mAutoCommit;
