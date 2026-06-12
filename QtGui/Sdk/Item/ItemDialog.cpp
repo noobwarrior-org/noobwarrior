@@ -338,8 +338,7 @@ void ItemDialog::AddSectionHeader(const QString &title) {
     auto *header = new QLabel(title.toUpper());
     header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     header->setStyleSheet(
-        "font-weight: bold;"
-        "letter-spacing: 1px;"
+        "font-size: 16px;"
         "color: palette(bright-text);"
         "padding: 8px 0 3px 0;"
         "margin-top: 4px;"
