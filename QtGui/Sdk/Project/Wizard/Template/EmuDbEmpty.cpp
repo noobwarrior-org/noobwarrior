@@ -30,7 +30,9 @@
 
 #include <NoobWarrior/Log.h>
 #include <filesystem>
-#include <qmessagebox.h>
+#include <QMessageBox>
+#include <QBuffer>
+#include <QFileDialog>
 
 using namespace NoobWarrior;
 
@@ -55,10 +57,35 @@ EmuDbEmptyIntroPage::EmuDbEmptyIntroPage(QWidget* parent) : TemplatePage(parent)
     mIconFrameLayout->setAlignment(Qt::AlignCenter);
 
     mIcon = new QLabel();
-    mIcon->setPixmap(QPixmap(":/images/db_96x96.png"));
+    mIcon->setPixmap(QPixmap(":/images/empty_database_96x96.png"));
+    mIcon->setProperty("path", "");
     mIcon->setAlignment(Qt::AlignCenter);
 
     mChangeIconButton = new QPushButton("Change Icon");
+
+    connect(mChangeIconButton, &QPushButton::clicked, [this]() {
+        QString filePath = QFileDialog::getOpenFileName(this, "Select Icon", QDir::currentPath(), "Image File (*.png *.jpg *.jpeg *.bmp *.gif)");
+        mIcon->setProperty("path", filePath);
+        
+        std::ifstream file(filePath.toStdString(), std::ios::binary);
+
+        if (!file.is_open()) {
+            QMessageBox::critical(this, "Error", "Unable to open file");
+            return;
+        }
+
+        std::vector<unsigned char> buffer(
+            (std::istreambuf_iterator<char>(file)),
+            std::istreambuf_iterator<char>()
+        );
+
+        QImage image;
+        image.loadFromData(buffer);
+
+        QPixmap pixmap = QPixmap::fromImage(image);
+
+        mIcon->setPixmap(pixmap.scaled(96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    });
     
     mIconFrameLayout->addWidget(mIcon);
     mIconFrameLayout->addWidget(mChangeIconButton);
@@ -112,6 +139,25 @@ bool EmuDbEmptyIntroPage::validatePage() {
                     .arg(project->GetFailMsg())
             );
         }
+
+        QString iconPath = mIcon->property("path").toString();
+        
+        if (!iconPath.isEmpty()) {
+            std::ifstream file(iconPath.toStdString(), std::ios::binary);
+            if (file.is_open()) {
+                std::vector<unsigned char> buffer(
+                (std::istreambuf_iterator<char>(file)),
+                std::istreambuf_iterator<char>()
+                );
+
+                project->GetDb()->SetIcon(buffer);
+            }
+        }
+
+        project->GetDb()->SetTitle(mTitleEdit->text().toStdString());
+        project->GetDb()->SetDescription(mDescriptionEdit->toPlainText().toStdString());
+        project->GetDb()->SetAuthor(mAuthorEdit->text().toStdString());
+        project->GetDb()->SetVersion(mVersionEdit->text().toStdString());
         sdk->AddProject(project);
     }
     return res;

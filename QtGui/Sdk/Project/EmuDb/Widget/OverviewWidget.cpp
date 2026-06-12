@@ -32,6 +32,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QApplication>
+#include <QSignalBlocker>
 
 #include <fstream>
 #include <QGroupBox>
@@ -55,6 +56,7 @@ void OverviewWidget::InitWidgets() {
 
     auto *overviewLabel = new QLabel(QString::fromStdString(mDatabase->GetTitle()));
     overviewLabel->setFont(QFont(QApplication::font().family(), 24));
+    mOverviewLabel = overviewLabel;
 
     auto *spacer1 = new QSpacerItem(16, 16);
     ToplevelLayout->addWidget(overviewLabel);
@@ -81,6 +83,7 @@ void OverviewWidget::InitWidgets() {
     icon->setAlignment(Qt::AlignLeft);
     icon->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     iconLayout->addWidget(icon);
+    mIconLabel = icon;
 
     auto *changeIcon = new QPushButton("Change Icon");
     iconLayout->addWidget(changeIcon);
@@ -121,27 +124,27 @@ void OverviewWidget::InitWidgets() {
 
     auto *nameAndDescriptionLayout = new QFormLayout();
 
-    auto *titleField = new QLineEdit(QString::fromStdString(mDatabase->GetTitle()));
-    auto *descriptionField = new QPlainTextEdit(QString::fromStdString(mDatabase->GetDescription()));
-    auto *versionField = new QLineEdit(QString::fromStdString(mDatabase->GetVersion()));
-    auto *authorField = new QLineEdit(QString::fromStdString(mDatabase->GetAuthor()));
+    mTitleField = new QLineEdit(QString::fromStdString(mDatabase->GetTitle()));
+    mDescriptionField = new QPlainTextEdit(QString::fromStdString(mDatabase->GetDescription()));
+    mVersionField = new QLineEdit(QString::fromStdString(mDatabase->GetVersion()));
+    mAuthorField = new QLineEdit(QString::fromStdString(mDatabase->GetAuthor()));
 
-    titleField->setMaximumWidth(256);
-    descriptionField->setMaximumWidth(400);
-    descriptionField->setMinimumHeight(128);
-    descriptionField->setWordWrapMode(QTextOption::WordWrap);
-    versionField->setMaximumWidth(64);
-    authorField->setMaximumWidth(192);
+    mTitleField->setMaximumWidth(256);
+    mDescriptionField->setMaximumWidth(400);
+    mDescriptionField->setMinimumHeight(128);
+    mDescriptionField->setWordWrapMode(QTextOption::WordWrap);
+    mVersionField->setMaximumWidth(64);
+    mAuthorField->setMaximumWidth(192);
 
-    connect(titleField, &QLineEdit::textChanged, [&, overviewLabel](const QString &text) {
+    connect(mTitleField, &QLineEdit::textChanged, [&, overviewLabel](const QString &text) {
         mDatabase->SetTitle(text.toStdString());
         overviewLabel->setText(QString::fromStdString(mDatabase->GetTitle()));
     });
 
-    nameAndDescriptionLayout->addRow("Title", titleField);
-    nameAndDescriptionLayout->addRow("Description", descriptionField);
-    nameAndDescriptionLayout->addRow("Version", versionField);
-    nameAndDescriptionLayout->addRow("Author", authorField);
+    nameAndDescriptionLayout->addRow("Title", mTitleField);
+    nameAndDescriptionLayout->addRow("Description", mDescriptionField);
+    nameAndDescriptionLayout->addRow("Version", mVersionField);
+    nameAndDescriptionLayout->addRow("Author", mAuthorField);
 
     metadataContainerLayout->addLayout(iconLayout);
     metadataContainerLayout->addItem(metadataSpacer);
@@ -196,4 +199,33 @@ void OverviewWidget::InitWidgets() {
     ToplevelLayout->addLayout(ContentLayout);
     // MainLayout->addStretch();
     ToplevelLayout->addItem(spacer2);
+}
+
+void OverviewWidget::Refresh() {
+    if (mOverviewLabel != nullptr)
+        mOverviewLabel->setText(QString::fromStdString(mDatabase->GetTitle()));
+
+    if (mIconLabel != nullptr) {
+        QImage image;
+        image.loadFromData(mDatabase->GetIcon());
+        QPixmap pixmap = QPixmap::fromImage(image);
+        mIconLabel->setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+
+    if (mTitleField != nullptr) {
+        QSignalBlocker blocker(mTitleField);
+        mTitleField->setText(QString::fromStdString(mDatabase->GetTitle()));
+    }
+    if (mDescriptionField != nullptr) {
+        QSignalBlocker blocker(mDescriptionField);
+        mDescriptionField->setPlainText(QString::fromStdString(mDatabase->GetDescription()));
+    }
+    if (mVersionField != nullptr) {
+        QSignalBlocker blocker(mVersionField);
+        mVersionField->setText(QString::fromStdString(mDatabase->GetVersion()));
+    }
+    if (mAuthorField != nullptr) {
+        QSignalBlocker blocker(mAuthorField);
+        mAuthorField->setText(QString::fromStdString(mDatabase->GetAuthor()));
+    }
 }

@@ -107,5 +107,8 @@ bool EmuDbProject::Save() {
     return res == SqlDb::Response::Success;
 }
 
-void EmuDbProject::OnShown() { }
+void EmuDbProject::OnShown() {
+    if (mOverviewWidget != nullptr)
+        mOverviewWidget->Refresh();
+}
 void EmuDbProject::OnHidden() { }

@@ -962,5 +962,7 @@
     <file>images/client.png</file>
     <file>images/server.png</file>
     <file>images/studio.png</file>
+    <file>images/empty_database_256x256.png</file>
+    <file>images/empty_database_96x96.png</file>
   </qresource>
 </RCC>

@@ -28,15 +28,28 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <QWidget>
 
+class QLabel;
+class QLineEdit;
+class QPlainTextEdit;
+
 namespace NoobWarrior {
 class OverviewWidget : public QWidget {
     Q_OBJECT
 public:
     OverviewWidget(EmuDb *db, QWidget *parent = nullptr);
+    
+    void Refresh();
 private:
     void InitWidgets();
     EmuDb *mDatabase;
     QVBoxLayout *ToplevelLayout;
     QGridLayout *ContentLayout;
+
+    QLabel *mOverviewLabel = nullptr;
+    QLabel *mIconLabel = nullptr;
+    QLineEdit *mTitleField = nullptr;
+    QPlainTextEdit *mDescriptionField = nullptr;
+    QLineEdit *mVersionField = nullptr;
+    QLineEdit *mAuthorField = nullptr;
 };
 }
