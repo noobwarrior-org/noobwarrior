@@ -217,6 +217,7 @@ public:
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
     bool WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params);
+    bool WriteServerRbxl(int64_t placeId, int version = 0);
     std::filesystem::path FindEngineExecutable(const std::filesystem::path &engineDir);
     EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
     void AutocreateCert();

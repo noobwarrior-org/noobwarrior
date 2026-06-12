@@ -123,7 +123,8 @@ enum class EngineLaunchResponse {
     InjectCouldNotGetReturnValueOfLoadLibrary,
     InjectFailedToLoadLibrary,
     InjectFailedToResumeProcess,
-    WineMissing
+    WineMissing,
+    FailedToLoadPlace
 };
 
 std::string GetEngineVersion(const Engine &engine);

@@ -37,6 +37,7 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include <tlhelp32.h>
+#include <shlobj.h>
 #endif
 
 #include <climits>
@@ -479,6 +480,34 @@ bool Core::WriteGameServerConfig(const std::filesystem::path &engineDir, const E
     return true;
 }
 
+bool Core::WriteServerRbxl(int64_t placeId, int version) {
+#if defined(_WIN32)
+    WCHAR *path;
+    SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, NULL, &path);
+    std::filesystem::path baseDir(path);
+    CoTaskMemFree(path);
+#else
+    // placeholder so that it doesnt fail to compile
+    std::filesystem::path baseDir(std::filesystem::current_path());
+    return false;
+#endif
+    std::filesystem::path serverRbxlPath = baseDir / "Roblox" / "server.rbxl";
+    std::vector<unsigned char> data;
+    EmuDb* db = mEmuDbManager.GetFirstDbWhereItemExists(ItemType::Asset, placeId);
+    SqlDb::Response res = db->RetrieveAssetData(placeId, version, &data);
+
+    if (res != SqlDb::Response::Success || data.empty())
+        return false;
+
+    std::ofstream stream(serverRbxlPath, std::ios::binary);
+    if (!stream.is_open()) {
+        return false;
+    }
+    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+    stream.close();
+    return true;
+}
+
 std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &engineDir) {
     static const std::set<std::string> knownExes = {
         "RobloxPlayerBeta.exe",
@@ -503,6 +532,14 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     if (params.Engine.Side == EngineSide::Server) {
         if (!WriteGameServerConfig(engineDir, params))
             return EngineLaunchResponse::Failed;
+    }
+
+    if (params.Engine.Side == EngineSide::Studio && params.LaunchSide == EngineSide::Server && params.PlaceId.has_value()) {
+        // Launching Local RCC Studio, studio will read from %localappdata%\Roblox\server.rbxl
+        // So we need to write to that file.
+        bool success = WriteServerRbxl(params.PlaceId.value(), 0);
+        if (!success)
+            return EngineLaunchResponse::FailedToLoadPlace;
     }
 
     std::filesystem::path exe = FindEngineExecutable(engineDir);
