@@ -70,6 +70,7 @@ private:
         int             Version {0};
         std::string     Url;
         std::string     Cookie;
+        std::string     Accept;               // engine's Accept header, forwarded for content negotiation
         SqlDb::Response MissResult {};        // reply code to use if the fetch fails
         bool            SaveToGrabDb {false};
         std::string     GrabDbPath;

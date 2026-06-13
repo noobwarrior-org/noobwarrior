@@ -31,7 +31,9 @@
 
 #include <curl/curl.h>
 
+#include <cctype>
 #include <chrono>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 
@@ -133,30 +135,6 @@ static std::unordered_map<std::string, std::string> materials = {
     {"rbxmtl-woodplanks-reflection.dds", "woodplanks/reflection.dds"}
 };
 
-static std::unordered_map<std::string, std::string> texturePacks = {
-    // Pre2022 table
-    {"7546645012", "foil/diffuse.dds"},        {"7546650097", "brick/diffuse.dds"},
-    {"7546652947", "cobblestone/diffuse.dds"}, {"7546653951", "concrete/diffuse.dds"},
-    {"7547101130", "fabric/diffuse.dds"},      {"7547162198", "diamondplate/diffuse.dds"},
-    {"7547164710", "granite/diffuse.dds"},     {"7547169285", "grass/diffuse.dds"},
-    {"7547171356", "ice/diffuse.dds"},         {"7547177270", "marble/diffuse.dds"},
-    {"7547184629", "corrodedmetal/diffuse.dds"}, {"7547288171", "metal/diffuse.dds"},
-    {"7547291361", "pebble/diffuse.dds"},      {"7547295153", "sand/diffuse.dds"},
-    {"7547298114", "slate/diffuse.dds"},       {"7547303225", "wood/diffuse.dds"},
-    {"7547304948", "glass/diffuse.dds"},       {"7547332968", "woodplanks/diffuse.dds"},
-    // 2022 table
-    {"9475422736", "plastic/diffuse.dds"},     {"9873266399", "foil/diffuse.dds"},
-    {"9873284556", "glass/diffuse.dds"},       {"9873292869", "marble/diffuse.dds"},
-    {"9919719550", "cobblestone/diffuse.dds"}, {"9920482992", "brick/diffuse.dds"},
-    {"9920484334", "concrete/diffuse.dds"},    {"9920517963", "fabric/diffuse.dds"},
-    {"9920550720", "granite/diffuse.dds"},     {"9920552044", "grass/diffuse.dds"},
-    {"9920556429", "ice/diffuse.dds"},         {"9920574966", "metal/diffuse.dds"},
-    {"9920581197", "pebble/diffuse.dds"},      {"9920589512", "corrodedmetal/diffuse.dds"},
-    {"9920591862", "sand/diffuse.dds"},        {"9920600052", "slate/diffuse.dds"},
-    {"9920625499", "wood/diffuse.dds"},        {"9920626896", "woodplanks/diffuse.dds"},
-    {"10237721036", "diamondplate/diffuse.dds"}
-};
-
 using namespace NoobWarrior;
 
 AssetHandler::AssetHandler(ServerEmulator *srv, EmuDbManager *dbm) :
@@ -233,8 +211,16 @@ void AssetHandler::RunProxyWorker() {
         }
 
         session.SetUrl(cpr::Url{fetch->Url});
-        // SetHeader replaces every header, so pass the cookie (or nothing) fresh each time.
-        session.SetHeader(fetch->Cookie.empty() ? cpr::Header{} : cpr::Header{{"Cookie", fetch->Cookie}});
+        // SetHeader replaces every header, so rebuild it fresh each time. The Accept header is what
+        // makes assetdelivery hand back the right *representation* of a material/terrain texture pack
+        // (e.g. "rbx-format/norm_dxt" -> the normal DXT). Without it Roblox returns the baseline XML
+        // descriptor, which Studio can't decode as a texture, so materials render black.
+        cpr::Header reqHeaders;
+        if (!fetch->Cookie.empty())
+            reqHeaders["Cookie"] = fetch->Cookie;
+        if (!fetch->Accept.empty())
+            reqHeaders["Accept"] = fetch->Accept;
+        session.SetHeader(reqHeaders);
 
         // Retry transient failures (dropped connections, rate limits, 5xx) before giving up, so a
         // momentary hiccup under load doesn't turn into a missing asset in Studio.
@@ -378,12 +364,25 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    if (!mServerEmulator->GetRunningInstances().empty()) {
+    // 0.574 negotiates material/terrain textures via the Accept header (rbx-format/{color,norm,spec}_dxt
+    // and ktx/dxt): the SAME asset id returns a DIFFERENT texture per representation. Our local map and
+    // the EmuDb cache are keyed by id only, so they'd hand back one blob (often a stale baseline grabbed
+    // without this header) for all of colour/normal/specular -> flat, untextured materials. For these
+    // requests skip the map and cache and always proxy, forwarding the Accept so each representation is
+    // fetched correctly. (Guarded to numeric ids so legacy rbxmtl-*.dds filename lookups are untouched.)
+    const char *acceptHdr = evhttp_find_header(evhttp_request_get_input_headers(req), "Accept");
+    bool isMaterialFormat = acceptHdr &&
+        (std::string_view(acceptHdr).starts_with("rbx-format/") ||
+         std::string_view(acceptHdr) == "ktx/dxt");
+    bool numericId = idStr[0] != '\0';
+    for (const char *p = idStr; *p; ++p)
+        if (!std::isdigit(static_cast<unsigned char>(*p))) { numericId = false; break; }
+    bool bypassForMaterial = isMaterialFormat && numericId;
+
+    if (!bypassForMaterial && !mServerEmulator->GetRunningInstances().empty()) {
         auto idCppStr = std::string(idStr);
         const std::string* relPath = nullptr;
         if (auto it = materials.find(idCppStr); it != materials.end())
-            relPath = &it->second;
-        else if (auto it = texturePacks.find(idCppStr); it != texturePacks.end())
             relPath = &it->second;
         if (relPath != nullptr) {
             std::filesystem::path engineDir = mServerEmulator->GetCore()->GetEngineDirectory({
@@ -449,7 +448,8 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     // If we have it locally, reply right away. Otherwise fetch it from Roblox on a worker thread
     // (so we don't block other requests) and reply once that finishes.
-    bool needFetch = res == SqlDb::Response::NotFound
+    bool needFetch = bypassForMaterial
+                  || res == SqlDb::Response::NotFound
                   || res == SqlDb::Response::MissingBlob
                   || (res == SqlDb::Response::Success && data.empty());
     bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
@@ -475,6 +475,12 @@ void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version,
     fetch->Url = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
     if (version > 0)
         fetch->Url += "&version=" + std::to_string(version);
+
+    // Forward the engine's Accept header so assetdelivery returns the requested texture
+    // representation (rbx-format/{color,norm,spec}_dxt or ktx/dxt) instead of the baseline XML
+    // descriptor — the same id yields a different texture per representation.
+    if (const char *accept = evhttp_find_header(evhttp_request_get_input_headers(req), "Accept"))
+        fetch->Accept = accept;
 
     if (auto *acc = core->GetRbxKeychain()->GetActiveAccount())
         fetch->Cookie = ".ROBLOSECURITY=" + acc->Token + ";";
