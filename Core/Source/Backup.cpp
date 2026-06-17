@@ -821,6 +821,8 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
             row.push_back({"Created", d->Created});
         if (d->Updated > 0)
             row.push_back({"Updated", d->Updated});
+        if (d->ImageId > 0)
+            row.push_back({"ImageId", d->ImageId});
         if (d->CreatorId > 0)
             row.push_back({creatorCol, d->CreatorId});
         break;
