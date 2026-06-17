@@ -29,7 +29,9 @@
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
+#include <filesystem>
 #include <future>
 
 using namespace NoobWarrior;
@@ -154,6 +156,10 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
             reg->SetKeyValue<bool>("emu.enable_roblox_proxy", true);
             if (!grabDbPath.empty())
                 reg->SetKeyValue<std::string>("emu.asset_grab_db", grabDbPath);
+            
+            EmuDbManager* dbManager = core->GetEmuDbManager();
+            if (!grabDbPath.empty() && dbManager->GetDbFromFilePath(grabDbPath) == nullptr)
+                dbManager->Mount(std::filesystem::path(grabDbPath), dbManager->GetMountedDatabases().size());
 
             sdk->GetNotifications()->Notify("Asset Grab Mode enabled",
                 "Assets the engine requests will now be saved into this database. Launch the game to start grabbing.");
