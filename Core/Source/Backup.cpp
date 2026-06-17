@@ -377,6 +377,10 @@ Backup::Response Backup::Process::Start() {
         return Response::Cancelled;
     }
 
+    // Phase 3: optionally stamp the database's own metadata from the captured target.
+    if (mOptions.SetDestinationMetaFromTarget && !mCancelled)
+        SetDestinationMeta();
+
     mProgress = 1.0;
     Report(State::Success, "Backup complete.");
     return Response::Ok;
@@ -760,6 +764,43 @@ void Backup::Process::DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor
             db->MarkDirty();
         });
     }
+}
+
+void Backup::Process::SetDestinationMeta() {
+    if (mOptions.DestinationType != DestinationType::Database || mOptions.Destination == nullptr || mRoot == nullptr)
+        return;
+    EmuDb* db = static_cast<EmuDb*>(mOptions.Destination);
+    
+    std::vector<unsigned char> icon;
+    switch (mRoot->Type) {
+    case ItemType::Universe:
+        DownloadGameIcon(mRoot->Id, icon);
+        break;
+    case ItemType::User:
+        if (!DownloadUserAvatar(mRoot->Id, icon))
+            DownloadUserThumbnail(mRoot->Id, icon);
+        break;
+    default: // Asset (place/model), Badge, Bundle, ...
+        DownloadAssetThumbnail(mRoot->Id, icon);
+        break;
+    }
+
+    const std::string title = mRoot->Name;
+    const std::string description = mRoot->Description;
+    const int64_t creatorId = mRoot->CreatorId;
+    const ItemType creatorType = mRoot->CreatorType == Roblox::CreatorType::Group ? ItemType::Group : ItemType::User;
+
+    RunDb([&]() {
+        if (!title.empty())       db->SetTitle(title);
+        if (!description.empty()) db->SetDescription(description);
+        if (creatorId > 0) {
+            if (auto name = db->GetItemName(creatorType, creatorId); name.has_value() && !name->empty())
+                db->SetAuthor(*name);
+        }
+        if (!icon.empty())
+            db->SetIcon(icon);
+        db->MarkDirty();
+    });
 }
 
 SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) {

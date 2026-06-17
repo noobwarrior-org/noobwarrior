@@ -18,10 +18,10 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: EmptyEmuDbGameBackup.h
+// File: EmuDbGameBackup.h
 // Started by: Hattozo
 // Started on: 2/2/2026
-// Description:
+// Description: Wizard page that creates a database and immediately backs a Roblox item into it.
 #pragma once
 #include "TemplatePage.h"
 
@@ -29,6 +29,7 @@
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QComboBox>
 #include <QLabel>
 
 namespace NoobWarrior {
@@ -37,6 +38,7 @@ class EmuDbGameBackupIntroPage : public TemplatePage {
 public:
     EmuDbGameBackupIntroPage(QWidget* parent = nullptr);
 
+    bool validatePage() override;
     bool isComplete() const override;
     int nextId() const override;
 
@@ -46,6 +48,11 @@ public:
 private:
     QVBoxLayout* mMainLayout;
     QFormLayout* mFormLayout;
+
     QLineEdit* mTitleEdit;
+    QLineEdit* mPathEdit;
+    QComboBox* mItemTypeDropdown;
+    QLineEdit* mItemIdEdit;
+    QLabel* mLoginNoticeLabel;
 };
 }
