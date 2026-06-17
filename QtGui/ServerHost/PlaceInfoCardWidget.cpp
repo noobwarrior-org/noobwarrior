@@ -255,7 +255,7 @@ void PlaceInfoCardWidget::InitWidgets() {
     mTitleLabel->setWordWrap(true);
 
     QFont titleFont = mTitleLabel->font();
-    titleFont.setPointSize(18);
+    titleFont.setPointSize(16);
     mTitleLabel->setFont(titleFont);
     mNoPlaceLabel->setFont(titleFont);
 
@@ -263,14 +263,14 @@ void PlaceInfoCardWidget::InitWidgets() {
     mCreatorLabel->setWordWrap(true);
 
     QFont creatorFont = mCreatorLabel->font();
-    creatorFont.setPointSize(16);
+    creatorFont.setPointSize(12);
     mCreatorLabel->setFont(creatorFont);
 
     mDescriptionLabel = new QLabel("Description");
     mDescriptionLabel->setWordWrap(true);
 
     QFont descFont = mTitleLabel->font();
-    descFont.setPointSize(12);
+    descFont.setPointSize(10);
     mDescriptionLabel->setFont(descFont);
     mNoPlaceDescriptionLabel->setFont(descFont);
 
