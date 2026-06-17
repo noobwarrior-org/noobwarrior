@@ -71,6 +71,7 @@ public:
 protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);
+    void DownloadSelectedAssetData();
     PopulateOptions mLastOptions;
     std::function<void(ItemWidget*)> mOnDoubleClick;
     std::function<void(QMenu*, ItemWidget*)> mOnContextMenuShown;
