@@ -51,3 +51,7 @@ void BackgroundTaskPopupWidget::InitWidgets() {
 void BackgroundTaskPopupWidget::AddTaskWidget(QWidget* w) {
     mLayout->addWidget(w);
 }
+
+void BackgroundTaskPopupWidget::RemoveTaskWidget(QWidget* w) {
+    mLayout->removeWidget(w);
+}

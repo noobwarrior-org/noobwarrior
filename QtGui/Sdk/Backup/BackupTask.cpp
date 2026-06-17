@@ -24,6 +24,9 @@
 // Description:
 #include "BackupTask.h"
 #include "Application.h"
+#include "Sdk/Sdk.h"
+
+#include <future>
 
 using namespace NoobWarrior;
 using namespace NoobWarrior::Backup;
@@ -39,13 +42,19 @@ BackupTreeView* BackupTaskItemWidget::GetTreeView() {
 
 BackupTask::BackupTask(Core *core, Backup::ProcessOptions options) :
     mCore(core),
-    mOptions(std::move(options)),
-    mProc(nullptr)
+    mOptions(std::move(options))
 {
 }
 
 BackupTask::~BackupTask() {
-
+    // The task is normally kept alive for the lifetime of the SDK window (the tree view keeps a
+    // pointer into mProc's descriptor tree). If we are torn down anyway, stop the worker and wait
+    // for it before freeing the process it is using.
+    if (mProc)
+        mProc->Cancel();
+    if (mWorker.joinable())
+        mWorker.join();
+    delete mProc;
 }
 
 void BackupTask::Register(BackgroundTasks* parent) {
@@ -53,18 +62,79 @@ void BackupTask::Register(BackgroundTasks* parent) {
     SetTitle("Importing from Roblox...");
     SetCaption("Queued");
     SetProgress(0.0);
-    mOptions.Callback = [this](Backup::State state, std::string msg, double progress) {
-        SetCaption(QString::fromStdString(msg));
-        SetProgress(progress);
-    };
 }
 
 void BackupTask::OnStart() {
-    mProc = gApp->GetCore()->CreateBackupProcess(mOptions);
-    mProc->Start();
+    Core* core = mCore;
 
-    if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
-        w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+    // The Qt app pumps Core::ProcessEvents() from the event-loop thread, so Core::RunOnEventLoop()
+    // is our marshal-onto-the-UI-thread primitive.
+
+    // Progress: hop to the UI thread, then update the widgets.
+    mOptions.Callback = [this, core](Backup::State state, std::string msg, double progress) {
+        core->RunOnEventLoop([this, state, msg, progress]() {
+            OnProgress(state, QString::fromStdString(msg), progress);
+        });
+    };
+
+    // Database writes: the EmuDb connection belongs to the UI thread, so run the work there and
+    // block the worker until it completes (a synchronous hand-off, as DbExecutor requires).
+    mOptions.DbExecutor = [core](const std::function<void()>& work) {
+        std::promise<void> done;
+        std::future<void> fut = done.get_future();
+        core->RunOnEventLoop([&work, &done]() {
+            work();
+            done.set_value();
+        });
+        fut.wait();
+    };
+
+    mProc = core->CreateBackupProcess(mOptions);
+
+    mWorker = std::thread([this, core]() {
+        Backup::Response response = mProc->Start();
+        // Hand completion back to the UI thread; the worker has returned by the time this runs.
+        core->RunOnEventLoop([this, response]() {
+            OnWorkerFinished(response);
+        });
+    });
+}
+
+void BackupTask::OnProgress(Backup::State state, const QString& message, double progress) {
+    SetCaption(message);
+    if (progress >= 0.0)
+        SetProgress(progress);
+
+    // Populate is finished by the time the first download is reported, so the tree is now stable
+    // and safe to hand to the model.
+    if (!mTreeShown && state == Backup::State::Downloading) {
+        mTreeShown = true;
+        if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
+            w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+    }
+}
+
+void BackupTask::OnWorkerFinished(Backup::Response response) {
+    if (mWorker.joinable())
+        mWorker.join();
+
+    // Make sure the tree is shown even if the backup produced no downloadable items.
+    if (!mTreeShown && mProc) {
+        mTreeShown = true;
+        if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
+            w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+    }
+
+    if (response == Backup::Response::Ok) {
+        SetCaption("Done");
+        SetProgress(1.0);
+    } else if (response == Backup::Response::Cancelled) {
+        SetCaption("Cancelled");
+    }
+
+    // The new rows live in the project's own connection, so a refresh surfaces them immediately.
+    if (mSdk)
+        mSdk->Refresh();
 }
 
 void BackupTask::OnPause() {
@@ -72,7 +142,11 @@ void BackupTask::OnPause() {
 }
 
 void BackupTask::OnCancel(BackgroundTaskCancelReason reason) {
-
+    // Just signal cancellation. The worker notices, unwinds, and reports completion via
+    // OnWorkerFinished (which joins it). We must not join here: the worker may be blocked waiting
+    // for this same UI thread to run a marshalled DB write.
+    if (mProc)
+        mProc->Cancel();
 }
 
 BackgroundTaskItemWidget* BackupTask::CreateItemWidget(QWidget *parent) {

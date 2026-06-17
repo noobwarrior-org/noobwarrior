@@ -27,7 +27,11 @@
 #include "BackupTreeView.h"
 #include <NoobWarrior/Backup.h>
 
+#include <thread>
+
 namespace NoobWarrior {
+class Sdk;
+
 class BackupTaskItemWidget : public BackgroundTaskItemWidget {
     Q_OBJECT
 public:
@@ -37,10 +41,16 @@ private:
     BackupTreeView *mTreeView;
 };
 
+// Drives a Backup::Process on a worker thread so the UI stays responsive. All progress reporting
+// and database writes are marshalled back onto the Qt/event-loop thread (see OnStart), because the
+// destination EmuDb connection is owned by that thread.
 class BackupTask : public BackgroundTask {
 public:
     BackupTask(Core* core, Backup::ProcessOptions options);
     ~BackupTask();
+
+    // The SDK window whose item browser is refreshed when the backup finishes. Optional.
+    void SetSdk(Sdk* sdk) { mSdk = sdk; }
 
     void Register(BackgroundTasks* parent) override;
     void OnStart() override;
@@ -49,8 +59,16 @@ public:
 
     BackgroundTaskItemWidget* CreateItemWidget(QWidget *parent = nullptr) override;
 private:
+    // Both run on the event-loop (UI) thread, marshalled from the worker thread.
+    void OnProgress(Backup::State state, const QString& message, double progress);
+    void OnWorkerFinished(Backup::Response response);
+
     Core* mCore;
     Backup::ProcessOptions mOptions;
-    Backup::Process* mProc;
+    Backup::Process* mProc { nullptr };
+
+    std::thread mWorker;
+    Sdk* mSdk { nullptr }; // not owned; the SDK window outlives the task in practice
+    bool mTreeShown { false };
 };
 }

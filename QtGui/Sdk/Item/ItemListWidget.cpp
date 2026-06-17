@@ -177,6 +177,9 @@ void ItemListWidget::InitWidgets() {
     setViewMode(QListView::IconMode);
     setIconSize(QSize(64, 64));
     setWordWrap(true);
+    setResizeMode(QListView::Adjust);
+    setSpacing(6);
+    setGridSize(QSize(110, 112));
 
     connect(this, &QListWidget::itemDoubleClicked, [this](QListWidgetItem *item) {
         auto *contentItem = dynamic_cast<ItemWidget*>(item);

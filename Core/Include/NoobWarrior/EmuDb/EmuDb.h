@@ -331,6 +331,11 @@ private:
     // Names of every user table in the database (excludes SQLite's internal sqlite_* tables).
     std::vector<std::string> GetTableNames();
 
+    // Column names that actually exist in `table` (read from the live schema). Lets AddItem/UpdateItem
+    // tolerate schema drift: a column a newer build expects but an older database file never got is
+    // skipped instead of failing the whole statement.
+    std::set<std::string> GetColumnNames(const std::string &table);
+
     // Columns of `table` whose declared foreign key points at BlobStorage(Hash). Discovered from
     // the live schema via PRAGMA foreign_key_list, so it stays correct as migrations add tables.
     std::vector<std::string> GetBlobHashColumns(const std::string &table);

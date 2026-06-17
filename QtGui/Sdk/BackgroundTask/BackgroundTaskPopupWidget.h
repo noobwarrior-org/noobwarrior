@@ -36,6 +36,7 @@ public:
     BackgroundTaskPopupWidget(QWidget *parent = nullptr);
     void InitWidgets();
     void AddTaskWidget(QWidget* w);
+    void RemoveTaskWidget(QWidget* w);
 private:
     QScrollArea* mScrollArea;
     QWidget* mWidget;

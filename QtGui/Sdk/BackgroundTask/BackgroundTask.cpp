@@ -53,17 +53,20 @@ void BackgroundTask::Cancel(BackgroundTaskCancelReason reason) {
 
 void BackgroundTask::SetTitle(const QString &title) {
     mTitle = title;
-    mParent->UpdateTask(this, mProgress, mTitle, mCaption);
+    if (mParent != nullptr)
+        mParent->UpdateTask(this, mProgress, mTitle, mCaption);
 }
 
 void BackgroundTask::SetCaption(const QString &caption) {
     mCaption = caption;
-    mParent->UpdateTask(this, mProgress, mTitle, mCaption);
+    if (mParent != nullptr)
+        mParent->UpdateTask(this, mProgress, mTitle, mCaption);
 }
 
 void BackgroundTask::SetProgress(double progress) {
     mProgress = progress;
-    mParent->UpdateTask(this, mProgress, mTitle, mCaption);
+    if (mParent != nullptr)
+        mParent->UpdateTask(this, mProgress, mTitle, mCaption);
 }
 
 QString BackgroundTask::GetTitle() {
@@ -106,32 +109,53 @@ void BackgroundTasks::AddTask(BackgroundTask* task) {
 
 void BackgroundTasks::RemoveTask(BackgroundTask* task) {
     auto it = std::find(mTasks.begin(), mTasks.end(), task);
-    if (it != mTasks.end())
-        mTasks.erase(it);
+    if (it == mTasks.end())
+        return;
+    mTasks.erase(it);
+
+    if (task->mItemWidget != nullptr) {
+        if (mPopupWidget != nullptr)
+            mPopupWidget->RemoveTaskWidget(task->mItemWidget);
+        task->mItemWidget->deleteLater();
+        task->mItemWidget = nullptr;
+    }
+
+    RefreshStatusBar();
 }
 
-void BackgroundTasks::UpdateTask(BackgroundTask *task, double progress, const QString &newTitle, const QString &newCaption) {
-    for (int i = 0; i < mTasks.size(); i++) {
-        if (mTasks[i] == task && i == 0) {
-            if (mStatusBarWidget != nullptr) {
-                mStatusBarWidget->mLabel.setVisible(progress < 1);
-                mStatusBarWidget->mProgressBar.setVisible(progress < 1);
+void BackgroundTasks::UpdateTask(BackgroundTask *task, double progress, const QString &, const QString &) {
+    if (task->mItemWidget != nullptr)
+        task->mItemWidget->OnUpdate(progress, task->GetTitle(), task->GetCaption());
 
-                if (progress < 1) {
-                    if (!newTitle.isEmpty())
-                        mStatusBarWidget->mLabel.setText(newTitle);
-                    mStatusBarWidget->mProgressBar.setValue(static_cast<int>(progress * 100));
-                }
-            }
+    RefreshStatusBar();
+}
+
+void BackgroundTasks::RefreshStatusBar() {
+    if (mStatusBarWidget == nullptr)
+        return;
+    
+    BackgroundTask* active = nullptr;
+    for (BackgroundTask* t : mTasks) {
+        if (t->GetProgress() < 1.0) {
+            active = t;
             break;
         }
     }
-    if (mStatusBarWidget != nullptr) {
-        mStatusBarWidget->mLabel.setVisible(!mTasks.empty());
-        mStatusBarWidget->mProgressBar.setVisible(!mTasks.empty());
+
+    const bool show = active != nullptr;
+    mStatusBarWidget->mLabel.setVisible(show);
+    mStatusBarWidget->mProgressBar.setVisible(show);
+    if (!show)
+        return;
+
+    mStatusBarWidget->mLabel.setText(active->GetTitle());
+    const double p = active->GetProgress();
+    if (p < 0.0) {
+        mStatusBarWidget->mProgressBar.setRange(0, 0); // indeterminate
+    } else {
+        mStatusBarWidget->mProgressBar.setRange(0, 100);
+        mStatusBarWidget->mProgressBar.setValue(static_cast<int>(p * 100));
     }
-    if (task->mItemWidget)
-        task->mItemWidget->OnUpdate(progress, newTitle, newCaption);
 }
 
 void BackgroundTasks::SetStatusBarWidget(BackgroundTaskStatusBarWidget *statusBarWidget) {

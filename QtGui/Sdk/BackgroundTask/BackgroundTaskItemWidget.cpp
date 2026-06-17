@@ -47,5 +47,11 @@ BackgroundTaskItemWidget::BackgroundTaskItemWidget(QWidget *parent) : QWidget(pa
 void BackgroundTaskItemWidget::OnUpdate(double progress, const QString &title, const QString &caption) {
     mTitle->setText(title);
     mCaption->setText(caption);
-    mProgressBar->setValue(static_cast<int>(progress * 100));
+    if (progress < 0.0) {
+        // A negative progress means "running, amount unknown" -> show a busy/indeterminate bar.
+        mProgressBar->setRange(0, 0);
+    } else {
+        mProgressBar->setRange(0, 100);
+        mProgressBar->setValue(static_cast<int>(progress * 100));
+    }
 }

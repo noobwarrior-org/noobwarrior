@@ -57,6 +57,8 @@ public:
     void SetStatusBarWidget(BackgroundTaskStatusBarWidget *statusBarWidget);
     void SetPopupWidget(BackgroundTaskPopupWidget *popupWidget);
 private:
+    void RefreshStatusBar();
+
     std::vector<BackgroundTask*> mTasks;
 
     BackgroundTaskStatusBarWidget *mStatusBarWidget;

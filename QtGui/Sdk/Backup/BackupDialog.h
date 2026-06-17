@@ -26,18 +26,11 @@
 #include <NoobWarrior/EmuDb/ItemType.h>
 #include <QDialog>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QLabel>
-#include <QButtonGroup>
-#include <QRadioButton>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLineEdit>
-#include <QPushButton>
-#include <QFileDialog>
 #include <QSizePolicy>
-
-#include "BackupTreeView.h"
 
 namespace NoobWarrior {
 class BackupDialog : public QDialog {
@@ -47,42 +40,20 @@ protected:
     void InitWidgets();
     void UpdateWidgets();
 
-    void InitOnlineUniverseWidgets();
-    void InitOnlineAssetWidgets();
-    void InitLocalFileWidgets();
-
-    void StartBackup();
+    bool StartBackup();
     EmuDb* GetDatabase();
 private:
-    bool mChoseItemSource;
-
+    // Local-file backup is removed for the time being, so every backup is an online item.
     Backup::ItemSource mSource;
     ItemType mItemType;
 
     QVBoxLayout* mMainLayout;
-    QVBoxLayout* mFrameLayout;
-    QFrame* mFrame;
-    QButtonGroup* mItemSourceButtonGroup;
-    QHBoxLayout* mItemSourceRowLayout;
 
     QLabel* mItemTypeCaption;
     QComboBox* mItemTypeDropdown;
 
     QLabel* mIdCaption;
     QLineEdit* mIdField;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Online Universe Widgets
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    QFrame* mUniverseFrame;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Online Asset Widgets
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Local File Widgets
-    ///////////////////////////////////////////////////////////////////////////////////////////////
 
     QDialogButtonBox* mButtons;
 };
