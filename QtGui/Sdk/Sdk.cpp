@@ -92,7 +92,8 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
     mWelcomeWidget(nullptr),
     mItemBrowser(nullptr),
     mFileManager(nullptr),
-    mBackgroundTaskStatusBarWidget(nullptr)
+    mBackgroundTaskStatusBarWidget(nullptr),
+    mNotifications(new NotificationManager(this))
 {
     setWindowTitle("noobWarrior SDK");
     setAcceptDrops(true);
@@ -307,6 +308,10 @@ ItemBrowserWidget *Sdk::GetItemBrowser() {
 
 BackgroundTasks *Sdk::GetBackgroundTasks() {
     return &mBackgroundTasks;
+}
+
+NotificationManager *Sdk::GetNotifications() {
+    return mNotifications;
 }
 
 void Sdk::InitMenus() {

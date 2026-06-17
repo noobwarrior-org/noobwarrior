@@ -25,6 +25,10 @@
 #include "BackupTask.h"
 #include "Application.h"
 #include "Sdk/Sdk.h"
+#include "Sdk/Notification/Notification.h"
+
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 
 #include <future>
 
@@ -131,10 +135,34 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
     } else if (response == Backup::Response::Cancelled) {
         SetCaption("Cancelled");
     }
-
-    // The new rows live in the project's own connection, so a refresh surfaces them immediately.
+    
     if (mSdk)
         mSdk->Refresh();
+
+    if (mSdk && response == Backup::Response::Ok) {
+        Core* core = mCore;
+        Sdk* sdk = mSdk;
+
+        std::string grabDbPath;
+        if (mOptions.DestinationType == Backup::DestinationType::Database && mOptions.Destination != nullptr)
+            grabDbPath = static_cast<EmuDb*>(mOptions.Destination)->GetFilePath().string();
+
+        std::vector<NotificationAction> actions;
+        actions.push_back({ "Enable Asset Grab Mode", [core, sdk, grabDbPath]() {
+            Registry* reg = core->GetRegistry();
+            reg->SetKeyValue<bool>("emu.asset_grab_mode", true);
+            reg->SetKeyValue<bool>("emu.enable_roblox_proxy", true);
+            if (!grabDbPath.empty())
+                reg->SetKeyValue<std::string>("emu.asset_grab_db", grabDbPath);
+
+            sdk->GetNotifications()->Notify("Asset Grab Mode enabled",
+                "Assets the engine requests will now be saved into this database. Launch the game to start grabbing.");
+        } });
+
+        mSdk->GetNotifications()->Notify("Backup complete",
+            "Want the assets from the place file in this database too? Turn on Asset Grab Mode and play the game; every asset the engine downloads will be saved straight into this database.",
+            actions);
+    }
 }
 
 void BackupTask::OnPause() {

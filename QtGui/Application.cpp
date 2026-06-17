@@ -358,6 +358,11 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
     });
 }
 
+void Application::ShowSystemNotification(const QString &title, const QString &message) {
+    if (mTrayIcon != nullptr && QSystemTrayIcon::supportsMessages())
+        mTrayIcon->showMessage(title, message, QSystemTrayIcon::Information, 8000);
+}
+
 int main(int argc, char **argv) {
     Q_INIT_RESOURCE(resources);
     Q_INIT_RESOURCE(shared_resources); // you must do this or else the compiler will optimize it out of the code.

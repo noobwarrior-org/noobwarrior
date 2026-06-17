@@ -75,6 +75,7 @@ set(SOURCES
     Sdk/BackgroundTask/BackgroundTaskItemWidget.cpp
     Sdk/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
     Sdk/BackgroundTask/BackgroundTaskPopupWidget.cpp
+    Sdk/Notification/Notification.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
 )

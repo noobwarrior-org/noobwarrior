@@ -27,6 +27,7 @@
 
 #include "Project/Project.h"
 #include "BackgroundTask/BackgroundTask.h"
+#include "Notification/Notification.h"
 #include "WelcomeWidget.h"
 #include "FileManagerWidget.h"
 
@@ -63,6 +64,7 @@ public:
 
     ItemBrowserWidget *GetItemBrowser();
     BackgroundTasks *GetBackgroundTasks();
+    NotificationManager *GetNotifications();
 protected:
     void closeEvent(QCloseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
@@ -126,5 +128,8 @@ private:
     BackgroundTasks mBackgroundTasks;
     BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
     BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
+
+    //////////////////// Notifications ////////////////////
+    NotificationManager *mNotifications;
 };
 }

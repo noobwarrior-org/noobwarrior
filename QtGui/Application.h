@@ -47,6 +47,7 @@ public:
     void DownloadAndInstallEngine(const Engine &engine, std::function<void(bool)> callback);
     void LaunchEngine(EngineStartParameters params);
     void ConnectToServer(const std::string &ip, uint16_t port);
+    void ShowSystemNotification(const QString &title, const QString &message);
 private:
     Init mInit {};
     Core *mCore;
