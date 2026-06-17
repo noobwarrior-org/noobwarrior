@@ -214,7 +214,7 @@ void ItemDialog::Asset_AddFields() {
         Statement stmt = GetDatabase()->PrepareStatement("SELECT ImageId FROM Asset WHERE Id = ?;");
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
-            int64_t imageId = stmt.GetIntFromColumnIndex(0);
+            int64_t imageId = stmt.GetInt64FromColumnIndex(0);
             mImageIdInput->setText(QString::number(imageId));
         }
 
