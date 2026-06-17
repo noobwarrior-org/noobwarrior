@@ -154,6 +154,8 @@ private:
     bool DownloadAssetData(int64_t id, const std::string& cookie, std::vector<unsigned char>& out);
     bool DownloadAssetThumbnail(int64_t id, std::vector<unsigned char>& out);
     bool DownloadGameIcon(int64_t universeId, std::vector<unsigned char>& out);
+    bool DownloadUserThumbnail(int64_t userId, std::vector<unsigned char>& out); // avatar headshot
+    bool DownloadUserAvatar(int64_t userId, std::vector<unsigned char>& out);    // full-body avatar
 
     int64_t ResolveUniverseForPlace(Backup::ItemDescriptor* descriptor);
     void DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor, EmuDb* db);

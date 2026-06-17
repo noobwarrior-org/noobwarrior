@@ -67,6 +67,12 @@ void CreatorInfoWidget::Update(EmuDb* db, int64_t id, Roblox::CreatorType type) 
         std::map<std::string, SqlValue> columns = stmt.GetColumnMap();
         mNameLabel->setText(QString::fromStdString(std::get<std::string>(columns["Name"])));
         mIdLabel->setText(QString::number(std::get<int64_t>(columns["Id"])));
+        
+        std::vector<unsigned char> imageData = db->RetrieveImageData(
+            type == Roblox::CreatorType::User ? ItemType::User : ItemType::Group, id);
+        QImage image;
+        if (image.loadFromData(imageData))
+            mImageLabel->setPixmap(QPixmap::fromImage(image).scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     } else {
         mNameLabel->setText("No One!");
         mIdLabel->setText("Id: N/A");

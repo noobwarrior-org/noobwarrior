@@ -88,7 +88,7 @@ bool ItemDialog::DevProduct_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int currencyType = mDevProduct_CurrencyTypeInput->currentData().toInt();
     int64_t price = mDevProduct_PriceInput->text().toLongLong();
     int64_t imageId = mImageIdInput->text().toLongLong();

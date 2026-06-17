@@ -92,7 +92,7 @@ bool ItemDialog::Pass_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int64_t imageId = mImageIdInput->text().toLongLong();
     int64_t universeId = mPass_UniverseIdInput->text().toLongLong();
     int64_t price = mPass_PriceInput->text().toLongLong();

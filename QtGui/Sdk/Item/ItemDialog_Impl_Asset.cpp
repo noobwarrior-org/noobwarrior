@@ -565,7 +565,7 @@ bool ItemDialog::Asset_OnSave() {
     }
 
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int64_t imageId = mImageIdInput->text().toLongLong();
     bool isPublic = mAsset_PublicInput->isChecked();
     int minMembership = mAsset_MinMembershipInput->currentData().toInt();

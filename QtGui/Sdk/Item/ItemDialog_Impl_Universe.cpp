@@ -80,6 +80,11 @@ void ItemDialog::Universe_AddFields() {
             active = stmt.GetIntFromColumnIndex(3);
             visits = stmt.GetInt64FromColumnIndex(4);
         }
+
+        if (userId != 0)
+            mOwned_CreatorInfoWidget->Update(GetDatabase(), userId, Roblox::CreatorType::User);
+        else if (groupId != 0)
+            mOwned_CreatorInfoWidget->Update(GetDatabase(), groupId, Roblox::CreatorType::Group);
     }
 
     mUniverse_StartPlaceId = startPlaceId;

@@ -564,7 +564,7 @@ SqlDb::Response EmuDb::AddItem(ItemType type, SqlRow row) {
 	if (row.empty())
 		return SqlDb::Response::DidNothing;
 
-	std::string stmtStr = "INSERT INTO " + tableName + " (";
+	std::string stmtStr = "INSERT INTO \"" + tableName + "\" (";
 
 	int values = 0;
 	for (int i = 0; i < row.size(); i++) {
@@ -625,7 +625,7 @@ SqlDb::Response EmuDb::UpdateItem(ItemType type, int64_t id, SqlRow row) {
 	if (row.empty())
 		return SqlDb::Response::DidNothing;
 
-	std::string stmtStr = "UPDATE " + tableName + " SET ";
+	std::string stmtStr = "UPDATE \"" + tableName + "\" SET ";
 
 	for (int i = 0; i < row.size(); i++) {
 		SqlColumn column = row.at(i);
@@ -807,7 +807,7 @@ bool EmuDb::DoesItemExist(ItemType type, int64_t id) {
 
     std::string tableName = GetTableNameFromItemType(type);
 
-    Statement stmt = PrepareStatement("SELECT Id FROM " + tableName + " WHERE Id = ?;");
+    Statement stmt = PrepareStatement("SELECT Id FROM \"" + tableName + "\" WHERE Id = ?;");
     stmt.Bind(1, id);
     return stmt.Step() == SQLITE_ROW;
 }
@@ -1286,7 +1286,7 @@ std::optional<int64_t> EmuDb::GetStartPlaceIdForUniverse(int64_t universeId) {
 std::optional<std::string> EmuDb::GetItemName(ItemType type, int64_t id) {
 	if (Fail()) return std::nullopt;
 
-	Statement stmt = PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", GetTableNameFromItemType(type)));
+	Statement stmt = PrepareStatement(std::format("SELECT Name FROM \"{}\" WHERE Id = ?;", GetTableNameFromItemType(type)));
 	if (stmt.Fail()) return std::nullopt;
 	stmt.Bind(1, id);
 	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
@@ -1297,7 +1297,7 @@ std::optional<std::string> EmuDb::GetItemName(ItemType type, int64_t id) {
 std::optional<int64_t> EmuDb::GetCreatorUserId(ItemType type, int64_t id) {
 	if (Fail()) return std::nullopt;
 
-	Statement stmt = PrepareStatement(std::format("SELECT UserId FROM {} WHERE Id = ?;", GetTableNameFromItemType(type)));
+	Statement stmt = PrepareStatement(std::format("SELECT UserId FROM \"{}\" WHERE Id = ?;", GetTableNameFromItemType(type)));
 	if (stmt.Fail()) return std::nullopt;
 	stmt.Bind(1, id);
 	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
@@ -1415,6 +1415,75 @@ SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int64_t userId, int64_t asse
 	return RemoveAssetLink("UserCharacterItem", userId, assetId);
 }
 
+SqlDb::Response EmuDb::AttachHeadshotToUser(int64_t userId, const std::vector<unsigned char> &data) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	std::string hashStr;
+	SqlDb::Response res = AddBlob(data, &hashStr);
+	if (res != SqlDb::Response::Success && res != SqlDb::Response::DidNothing) {
+		Out("Failed to attach headshot to user id {} because the blob could not be added", userId);
+		return SqlDb::Response::Failed;
+	}
+
+	Statement stmt = PrepareStatement("UPDATE User SET HeadshotThumbnailHash = ? WHERE Id = ?;");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, hashStr);
+	stmt.Bind(2, userId);
+	if (stmt.Step() != SQLITE_DONE) {
+		Out("Failed to attach headshot to user id {}. Message: \"{}\"", userId, GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+	MarkDirty();
+	return SqlDb::Response::Success;
+}
+
+SqlDb::Response EmuDb::AttachBodyShotToUser(int64_t userId, const std::vector<unsigned char> &data) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	std::string hashStr;
+	SqlDb::Response res = AddBlob(data, &hashStr);
+	if (res != SqlDb::Response::Success && res != SqlDb::Response::DidNothing) {
+		Out("Failed to attach body shot to user id {} because the blob could not be added", userId);
+		return SqlDb::Response::Failed;
+	}
+
+	Statement stmt = PrepareStatement("UPDATE User SET BustThumbnailHash = ? WHERE Id = ?;");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, hashStr);
+	stmt.Bind(2, userId);
+	if (stmt.Step() != SQLITE_DONE) {
+		Out("Failed to attach body shot to user id {}. Message: \"{}\"", userId, GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+	MarkDirty();
+	return SqlDb::Response::Success;
+}
+
+std::vector<unsigned char> EmuDb::DecodeImageBlob(const std::string &hash) {
+	if (hash.empty()) return {};
+
+	Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?;");
+	if (blobStmt.Fail()) return {};
+	blobStmt.Bind(1, hash);
+	if (blobStmt.Step() != SQLITE_ROW) return {};
+
+	std::vector<unsigned char> blob = blobStmt.GetBlobFromColumnIndex(0);
+	if (blob.empty()) return {};
+
+	if (IsZstdCompressed(blob)) {
+		unsigned long long decompSize = ZSTD_getFrameContentSize(blob.data(), blob.size());
+		if (decompSize == ZSTD_CONTENTSIZE_ERROR || decompSize == ZSTD_CONTENTSIZE_UNKNOWN) return {};
+		std::vector<unsigned char> decompressed(decompSize);
+		size_t result = ZSTD_decompress(decompressed.data(), decompSize, blob.data(), blob.size());
+		if (ZSTD_isError(result)) return {};
+		GunzipIfNeeded(decompressed);
+		return decompressed;
+	}
+
+	GunzipIfNeeded(blob);
+	return blob;
+}
+
 std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemType, int64_t id) {
     auto faily = [&](const std::string &reason) {
         Out(std::format("Failed to retrieve image data for ID {}: {}", id, reason));
@@ -1443,6 +1512,21 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemTy
 			
 			return RetrieveImageData(NoobWarrior::ItemType::Asset, startPlaceId);
 		}
+        if (currentType == NoobWarrior::ItemType::User) {
+            Statement stmt = PrepareStatement("SELECT BustThumbnailHash, HeadshotThumbnailHash FROM User WHERE Id = ?;");
+            if (stmt.Fail()) return faily("Failed to prepare user thumbnail statement");
+            stmt.Bind(1, currentId);
+            if (stmt.Step() == SQLITE_ROW) {
+                for (int col : {0, 1}) {
+                    if (stmt.IsColumnIndexNull(col))
+                        continue;
+                    std::vector<unsigned char> img = DecodeImageBlob(stmt.GetStringFromColumnIndex(col));
+                    if (!img.empty())
+                        return img;
+                }
+            }
+            break;
+        }
         if (currentType == NoobWarrior::ItemType::Asset) {
             Statement typeStmt = PrepareStatement("SELECT Type, ImageId FROM Asset WHERE Id = ?;");
             if (typeStmt.Fail()) return faily("Failed to retrieve asset type");
@@ -1534,7 +1618,7 @@ std::vector<unsigned char> EmuDb::RetrieveImageData(NoobWarrior::ItemType itemTy
 
         // Follow ImageId redirect into Asset table
         std::string tableName = GetTableNameFromItemType(currentType);
-        Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM {} WHERE Id = ?;", tableName));
+        Statement imgIdStmt = PrepareStatement(std::format("SELECT ImageId FROM \"{}\" WHERE Id = ?;", tableName));
         if (imgIdStmt.Fail()) return faily("Failed to prepare ImageId statement");
         imgIdStmt.Bind(1, currentId);
 
@@ -1555,7 +1639,7 @@ std::vector<unsigned char> EmuDb::RetrieveBlobFromTableName(int64_t id, const st
 	const std::string &columnName) {
 	if (Fail()) return {};
 
-	std::string stmtStr = std::format("SELECT * FROM {} WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
+	std::string stmtStr = std::format("SELECT * FROM \"{}\" WHERE Id = ? ORDER BY Snapshot DESC LIMIT 1;", tableName);
 
 	Statement stmt(this, stmtStr);
 	stmt.Bind(1, id);

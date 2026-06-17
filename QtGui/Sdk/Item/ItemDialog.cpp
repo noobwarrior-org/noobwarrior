@@ -352,8 +352,9 @@ void ItemDialog::AddOwnedItemFields() {
 
     AddSectionHeader("Details");
 
-    mOwned_DescriptionInput = new QLineEdit();
+    mOwned_DescriptionInput = new QPlainTextEdit();
     mOwned_DescriptionInput->setPlaceholderText("Describe your item here");
+    mOwned_DescriptionInput->setMinimumHeight(96);
     mContentLayout->addRow("Description", mOwned_DescriptionInput);
 
     mOwned_CreatedInput = new QDateTimeEdit();
@@ -374,11 +375,24 @@ void ItemDialog::AddOwnedItemFields() {
         if (stmt.Step() == SQLITE_ROW) {
             std::string desc = stmt.GetStringFromColumnIndex(0);
 
-            mOwned_DescriptionInput->setText(QString::fromStdString(desc));
+            mOwned_DescriptionInput->setPlainText(QString::fromStdString(desc));
             mOwned_CreatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(1)));
             mOwned_UpdatedInput->setDateTime(QDateTime::fromSecsSinceEpoch(stmt.GetIntFromColumnIndex(2)));
         } else {
             QMessageBox::critical(this, "Cannot Retrieve Item", QString("Selecting columns from the table failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+        }
+        
+        Statement creatorStmt = db->PrepareStatement(std::format("SELECT UserId, GroupId FROM \"{}\" WHERE Id = ?;", GetTableNameFromItemType(mType)));
+        if (!creatorStmt.Fail()) {
+            creatorStmt.Bind(1, mId.value());
+            if (creatorStmt.Step() == SQLITE_ROW) {
+                int64_t userId  = creatorStmt.IsColumnIndexNull(0) ? 0 : creatorStmt.GetInt64FromColumnIndex(0);
+                int64_t groupId = creatorStmt.IsColumnIndexNull(1) ? 0 : creatorStmt.GetInt64FromColumnIndex(1);
+                if (userId != 0)
+                    mOwned_CreatorInfoWidget->Update(db, userId, Roblox::CreatorType::User);
+                else if (groupId != 0)
+                    mOwned_CreatorInfoWidget->Update(db, groupId, Roblox::CreatorType::Group);
+            }
         }
     }
 }

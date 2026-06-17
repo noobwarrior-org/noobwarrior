@@ -56,8 +56,9 @@ void ItemDialog::Group_AddFields() {
     }
     mImageIdInput->setText(QString::number(imageId));
 
-    mOwned_DescriptionInput = new QLineEdit(QString::fromStdString(description));
+    mOwned_DescriptionInput = new QPlainTextEdit(QString::fromStdString(description));
     mOwned_DescriptionInput->setPlaceholderText("Describe your group here");
+    mOwned_DescriptionInput->setMinimumHeight(96);
     mContentLayout->addRow("Description", mOwned_DescriptionInput);
 
     mOwned_CreatedInput = new QDateTimeEdit();
@@ -126,7 +127,7 @@ bool ItemDialog::Group_OnSave() {
     }
 
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int64_t created = mOwned_CreatedInput->dateTime().toSecsSinceEpoch();
     int64_t ownerId = mGroup_OwnerIdInput->text().toLongLong();
     int64_t imageId = mImageIdInput->text().toLongLong();

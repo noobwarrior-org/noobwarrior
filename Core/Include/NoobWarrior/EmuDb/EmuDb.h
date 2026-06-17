@@ -254,6 +254,13 @@ public:
     SqlDb::Response AddAssetToUserCharacter(int64_t userId, int64_t assetId);
     SqlDb::Response RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId);
 
+    // Stores a user's avatar headshot image (fetched from Roblox) as User.HeadshotThumbnailHash so the
+    // SDK can preview the user. Upserts the blob.
+    SqlDb::Response AttachHeadshotToUser(int64_t userId, const std::vector<unsigned char> &data);
+
+    // Stores a user's full-body avatar render in User.BustThumbnailHash (the body-image slot). Upserts.
+    SqlDb::Response AttachBodyShotToUser(int64_t userId, const std::vector<unsigned char> &data);
+
     std::vector<unsigned char> RetrieveImageData(NoobWarrior::ItemType itemType, int64_t id);
 
     template<typename T>
@@ -340,6 +347,10 @@ private:
     // tolerate schema drift: a column a newer build expects but an older database file never got is
     // skipped instead of failing the whole statement.
     std::set<std::string> GetColumnNames(const std::string &table);
+
+    // Loads a BlobStorage blob by hash and returns it ready to display: un-zstd'd (storage compression)
+    // and un-gzip'd (some Roblox asset bodies). Empty vector if the hash is blank/absent/undecodable.
+    std::vector<unsigned char> DecodeImageBlob(const std::string &hash);
 
     // Columns of `table` whose declared foreign key points at BlobStorage(Hash). Discovered from
     // the live schema via PRAGMA foreign_key_list, so it stays correct as migrations add tables.

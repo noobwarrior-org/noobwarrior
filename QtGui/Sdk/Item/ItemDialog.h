@@ -36,6 +36,7 @@
 #include <QStandardItemModel>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QScrollArea>
@@ -127,7 +128,7 @@ protected:
     QPushButton* mUploadImageButton;
     QPushButton* mUseExistingImageButton;
 
-    QLineEdit* mOwned_DescriptionInput;
+    QPlainTextEdit* mOwned_DescriptionInput;
     QDateTimeEdit* mOwned_CreatedInput;
     QDateTimeEdit* mOwned_UpdatedInput;
     CreatorInfoWidget* mOwned_CreatorInfoWidget;

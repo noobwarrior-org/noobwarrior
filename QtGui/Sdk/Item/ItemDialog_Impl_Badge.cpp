@@ -84,7 +84,7 @@ bool ItemDialog::Badge_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int64_t imageId = mImageIdInput->text().toLongLong();
     bool enabled = mBadge_EnabledInput->isChecked();
     int64_t awarded = mBadge_AwardedInput->text().toLongLong();

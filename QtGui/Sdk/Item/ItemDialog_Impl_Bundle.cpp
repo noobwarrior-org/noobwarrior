@@ -156,7 +156,7 @@ bool ItemDialog::Bundle_OnSave() {
 
     int64_t id = mIdInput->text().toLongLong();
     std::string name = mNameInput->text().toStdString();
-    std::string description = mOwned_DescriptionInput->text().toStdString();
+    std::string description = mOwned_DescriptionInput->toPlainText().toStdString();
     int type = mBundle_TypeInput->currentData().toInt();
     int64_t price = mBundle_PriceInput->text().toLongLong();
     bool isForSale = mBundle_IsForSaleInput->isChecked();
