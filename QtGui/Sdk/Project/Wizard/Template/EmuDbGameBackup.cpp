@@ -129,6 +129,7 @@ bool EmuDbGameBackupIntroPage::validatePage() {
 
     auto* task = new BackupTask(gApp->GetCore(), std::move(opts));
     task->SetSdk(sdk);
+    task->SetProject(project);
     task->Register(sdk->GetBackgroundTasks());
     task->Start();
 

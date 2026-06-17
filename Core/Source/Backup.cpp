@@ -554,9 +554,9 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
                 descriptor->CreatorType = isGroup ? Roblox::CreatorType::Group : Roblox::CreatorType::User;
                 MakeChild(isGroup ? ItemType::Group : ItemType::User, creatorId);
             }
-
-            // The asset's display icon is itself an asset; let the recursion resolve its real type.
-            MakeChild(ItemType::Asset, jNum(json, "IconImageAssetId"));
+            
+            descriptor->ImageId = jNum(json, "IconImageAssetId");
+            MakeChild(ItemType::Asset, descriptor->ImageId);
         }
         break;
     }

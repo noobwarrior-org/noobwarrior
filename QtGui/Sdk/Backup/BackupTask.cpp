@@ -144,19 +144,23 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
     if (mSdk && response == Backup::Response::Ok) {
         Core* core = mCore;
         Sdk* sdk = mSdk;
+        Project* project = mProject;
 
         std::string grabDbPath;
         if (mOptions.DestinationType == Backup::DestinationType::Database && mOptions.Destination != nullptr)
             grabDbPath = static_cast<EmuDb*>(mOptions.Destination)->GetFilePath().string();
 
         std::vector<NotificationAction> actions;
-        actions.push_back({ "Enable Asset Grab Mode", [core, sdk, grabDbPath]() {
+        actions.push_back({ "Enable Asset Grab Mode", [core, sdk, project, grabDbPath]() {
             Registry* reg = core->GetRegistry();
             reg->SetKeyValue<bool>("emu.asset_grab_mode", true);
             reg->SetKeyValue<bool>("emu.enable_roblox_proxy", true);
             if (!grabDbPath.empty())
                 reg->SetKeyValue<std::string>("emu.asset_grab_db", grabDbPath);
             
+            if (project != nullptr)
+                project->Save();
+
             EmuDbManager* dbManager = core->GetEmuDbManager();
             if (!grabDbPath.empty() && dbManager->GetDbFromFilePath(grabDbPath) == nullptr)
                 dbManager->Mount(std::filesystem::path(grabDbPath), dbManager->GetMountedDatabases().size());

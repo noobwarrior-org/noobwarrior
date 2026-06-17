@@ -31,6 +31,7 @@
 
 namespace NoobWarrior {
 class Sdk;
+class Project;
 
 class BackupTaskItemWidget : public BackgroundTaskItemWidget {
     Q_OBJECT
@@ -49,8 +50,8 @@ public:
     BackupTask(Core* core, Backup::ProcessOptions options);
     ~BackupTask();
 
-    // The SDK window whose item browser is refreshed when the backup finishes. Optional.
     void SetSdk(Sdk* sdk) { mSdk = sdk; }
+    void SetProject(Project* project) { mProject = project; }
 
     void Register(BackgroundTasks* parent) override;
     void OnStart() override;
@@ -68,7 +69,8 @@ private:
     Backup::Process* mProc { nullptr };
 
     std::thread mWorker;
-    Sdk* mSdk { nullptr }; // not owned; the SDK window outlives the task in practice
+    Sdk* mSdk { nullptr };
+    Project* mProject { nullptr };
     bool mTreeShown { false };
 };
 }
