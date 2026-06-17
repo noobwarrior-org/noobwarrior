@@ -202,6 +202,11 @@ public:
 
     /* Universe/place functions */
 
+    // Links/unlinks a place to a universe through the UniversePlace junction table. AddPlaceToUniverse
+    // is idempotent (re-adding the same pair is a no-op).
+    SqlDb::Response AddPlaceToUniverse(int64_t universeId, int64_t placeId);
+    SqlDb::Response RemovePlaceFromUniverse(int64_t universeId, int64_t placeId);
+
     // Resolves the universe a place belongs to. A place is linked to a universe either explicitly
     // (the UniversePlace junction table) or by being that universe's start place (Universe.StartPlaceId).
     // Returns std::nullopt if neither link exists in this database.

@@ -1209,6 +1209,43 @@ SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<un
     return SqlDb::Response::MissingBlob;
 }
 
+SqlDb::Response EmuDb::AddPlaceToUniverse(int64_t universeId, int64_t placeId) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	Statement stmt = PrepareStatement("INSERT OR IGNORE INTO UniversePlace (Id, PlaceId) VALUES (?, ?);");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, universeId);
+	stmt.Bind(2, placeId);
+
+	switch (stmt.Step()) {
+	default: return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		MarkDirty();
+		return sqlite3_changes(mDb) > 0 ? SqlDb::Response::Success : SqlDb::Response::DidNothing;
+	case SQLITE_BUSY: return SqlDb::Response::Busy;
+	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+	case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+	}
+}
+
+SqlDb::Response EmuDb::RemovePlaceFromUniverse(int64_t universeId, int64_t placeId) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	Statement stmt = PrepareStatement("DELETE FROM UniversePlace WHERE Id = ? AND PlaceId = ?;");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, universeId);
+	stmt.Bind(2, placeId);
+
+	switch (stmt.Step()) {
+	default: return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		MarkDirty();
+		return sqlite3_changes(mDb) > 0 ? SqlDb::Response::Success : SqlDb::Response::NotFound;
+	case SQLITE_BUSY: return SqlDb::Response::Busy;
+	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+	}
+}
+
 std::optional<int64_t> EmuDb::GetUniverseIdForPlace(int64_t placeId) {
 	if (Fail()) return std::nullopt;
 
