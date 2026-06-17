@@ -31,16 +31,14 @@ void NoobHook::Patches::RemoveTLSVerification() {
     if (x64VerifyPeer.size() > 0) {
         Out("RemoveTLSVerification", "Patching x64 CURLOPT_SSL_VERIFYPEER");
         x64VerifyPeer.for_each_result([](hook::pattern_match match) {
-            const uint8_t patch[] = { 0x00 };
-            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(2)), patch, sizeof(patch));
+            NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(2)), { 0x00 });
         });
     } else {
         auto x86VerifyPeer = hook::pattern("6A 01 6A 40");
         if (!x86VerifyPeer.empty()) {
             Out("RemoveTLSVerification", "Patching %zu x86 CURLOPT_SSL_VERIFYPEER sites", x86VerifyPeer.size());
             x86VerifyPeer.for_each_result([](hook::pattern_match match) {
-                const uint8_t patch[] = { 0x00 };
-                NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(1)), patch, sizeof(patch));
+                NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(1)), { 0x00 });
             });
         }
     }
@@ -48,16 +46,14 @@ void NoobHook::Patches::RemoveTLSVerification() {
     auto x64VerifyHostGuard = hook::pattern("41 F6 86 50 0A 00 00 02 74 1B BA 51 00 00 00");
     if (!x64VerifyHostGuard.count_hint(1).empty()) {
         Out("RemoveTLSVerification", "Patching x64 CURLOPT_SSL_VERIFYHOST guard (je->jmp)");
-        const uint8_t patch[] = { 0xEB };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(x64VerifyHostGuard.get(0).get<uint8_t>(8)), patch, sizeof(patch));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(x64VerifyHostGuard.get(0).get<uint8_t>(8)), { 0xEB });
     }
 
     auto x86VerifyHost = hook::pattern("6A 02 6A 51");
     if (!x86VerifyHost.empty()) {
         Out("RemoveTLSVerification", "Patching %zu x86 CURLOPT_SSL_VERIFYHOST sites", x86VerifyHost.size());
         x86VerifyHost.for_each_result([](hook::pattern_match match) {
-            const uint8_t patch[] = { 0x00 };
-            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(1)), patch, sizeof(patch));
+            NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(1)), { 0x00 });
         });
     }
 
@@ -65,8 +61,7 @@ void NoobHook::Patches::RemoveTLSVerification() {
     if (verifyPeerSetopt.size() > 0) {
         Out("RemoveTLSVerification", "Patching %d VERIFYPEER setopt sites (lea->xor)", verifyPeerSetopt.size());
         verifyPeerSetopt.for_each_result([](hook::pattern_match match) {
-            const uint8_t p[] = { 0x45, 0x31, 0xC0, 0x90 };
-            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), p, sizeof(p));
+            NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), { 0x45, 0x31, 0xC0, 0x90 });
         });
     }
     
@@ -74,8 +69,7 @@ void NoobHook::Patches::RemoveTLSVerification() {
     if (verifyHostSetopt.size() > 0) {
         Out("RemoveTLSVerification", "Patching %d VERIFYHOST setopt sites (lea->xor)", verifyHostSetopt.size());
         verifyHostSetopt.for_each_result([](hook::pattern_match match) {
-            const uint8_t p[] = { 0x45, 0x31, 0xC0, 0x90 };
-            NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), p, sizeof(p));
+            NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(5)), { 0x45, 0x31, 0xC0, 0x90 });
         });
     }
 }

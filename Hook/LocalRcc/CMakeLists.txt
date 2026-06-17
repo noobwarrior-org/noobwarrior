@@ -1,11 +1,7 @@
-# LocalRcc -- sibling DLL loaded by noobhook.dll only when running inside
-# RobloxStudioBeta.exe. Ported from rsblox/local_rcc.
-
 if (NOT MSVC)
     return()
 endif()
 
-# Studio is 64-bit only on modern Roblox; no point building a 32-bit variant.
 if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     return()
 endif()
@@ -24,7 +20,6 @@ CPMAddPackage(
         "LUAU_STATIC_CRT ON"
 )
 
-# ---- zstd -------------------------------------------------------------------
 CPMAddPackage(
     URI "gh:facebook/zstd#48c0ed7"
     SOURCE_SUBDIR build/cmake
@@ -35,8 +30,6 @@ CPMAddPackage(
         "ZSTD_BUILD_TESTS OFF"
 )
 
-# ---- xxHash (header-only via XXH_INLINE_ALL) --------------------------------
-# Lowercase NAME so ${xxhash_SOURCE_DIR} matches CPM/FetchContent's lookup.
 CPMAddPackage(
     NAME xxhash
     URL "https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.2.tar.gz"

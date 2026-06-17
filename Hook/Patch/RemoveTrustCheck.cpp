@@ -34,7 +34,7 @@ void NoobHook::Patches::RemoveTrustCheck() {
         Out("RemoveTrustCheck", "Found pattern for trust check 1");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
         const uint8_t bytes[] = { 0xE9, 0xAF, 0x00, 0x00, 0x00, 0x90 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xE9, 0xAF, 0x00, 0x00, 0x00, 0x90 });
     }
 
     auto anotherPattern = hook::pattern("75 58 83 7E 14 10 72 02");
@@ -42,8 +42,7 @@ void NoobHook::Patches::RemoveTrustCheck() {
         //MessageBoxA(0, "FOUND TRUST CHECK 2", "noobHook", 0);
         Out("RemoveTrustCheck", "Found pattern for trust check 2");
         uintptr_t* address = anotherPattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xEB });
     }
 
     // for getting rid of the "Non-trusted BaseURL used. HttpRbxApiService is only for Roblox API calls." error in RCCService
@@ -52,7 +51,6 @@ void NoobHook::Patches::RemoveTrustCheck() {
         //MessageBoxA(0, "FOUND RCCSERVICE TRUST CHECK", "noobHook", 0);
         Out("RemoveTrustCheck", "Found pattern for trust check 3");
         uintptr_t* address = rccServicePattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xEB });
     }
 }

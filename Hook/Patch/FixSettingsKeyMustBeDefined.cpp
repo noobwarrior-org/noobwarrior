@@ -31,7 +31,6 @@ void NoobHook::Patches::FixSettingsKeyMustBeDefined() {
         Out("FixSettingsKeyMustBeDefined", "Found pattern for \"settings key must be defined\" message");
 		//MessageBoxA(0, "Found settings key pattern!", "noobHook", 0);
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-		NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+		NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xEB });
     }
 }

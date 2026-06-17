@@ -25,6 +25,7 @@
 #include "Hook.h"
 #include "Ping.h"
 #include "Patch/Patches.h"
+#include "ScriptExecutor/ScriptExecutor.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -34,6 +35,7 @@
 #include <sspi.h>
 
 #include <MinHook.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -41,18 +43,13 @@
 
 #include <atomic>
 #include <string>
+#include <format>
 
 using namespace NoobHook;
 
 FILE* NoobHook::gFile = nullptr;
 uint16_t NoobHook::gEmuHttpsPort = 53640;
 uint16_t NoobHook::gEmuHttpPort = 8080;
-
-enum RobloxVersion {
-    VER_UNKNOWN,
-    VER_0_449_0_411458,
-    VER_0_463_0_417004
-};
 
 void NoobHook::Out(const char* category, const char* format, ...) {
     if (gFile) {
@@ -66,12 +63,11 @@ void NoobHook::Out(const char* category, const char* format, ...) {
     }
 }
 
-void NoobHook::WriteMemory(uintptr_t address, const void* data, size_t size) {
-    DWORD old_protection;
-	VirtualProtect(reinterpret_cast<LPVOID>(address), size, PAGE_EXECUTE_READWRITE, &old_protection);
-	memcpy(reinterpret_cast<void*>(address), data, size);
-	VirtualProtect(reinterpret_cast<LPVOID>(address), size, old_protection, &old_protection);
-}
+enum RobloxVersion {
+    VER_UNKNOWN,
+    VER_0_449_0_411458,
+    VER_0_463_0_417004
+};
 
 DWORD StrLength(PCHAR str) {
     DWORD length = 0;
@@ -482,6 +478,8 @@ DWORD WINAPI Thread(LPVOID param) {
     }
 #endif
 
+    ScriptExecutor::Install();
+
     Out("Main", "Done");
     //fclose(file);
 
@@ -506,7 +504,6 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
         Patches::RemoveTLSVerification();
         Patches::FixSettingsKeyMustBeDefined();
         Patches::FixInsertObjects();
-        Patches::FixStudioUnableToConnect();
 
         DisableThreadLibraryCalls(hModule);
 

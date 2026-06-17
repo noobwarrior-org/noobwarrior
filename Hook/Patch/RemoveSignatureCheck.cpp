@@ -30,7 +30,6 @@ void NoobHook::Patches::RemoveSignatureCheck() {
     if (!pattern.count_hint(1).empty()) {
         Out("RemoveSignatureCheck", "Found rbxsig pattern");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(14);
-        const uint8_t bytes[] = { 0xC3 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xC3 });
     }
 }

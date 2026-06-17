@@ -23,14 +23,83 @@
 // Started on: 3/16/2025
 // Description:
 #pragma once
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include "ntdll.h"
+
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
+#include <format>
+#include <optional>
 
 namespace NoobHook {
 extern FILE* gFile;
 extern uint16_t gEmuHttpsPort;
 extern uint16_t gEmuHttpPort;
 void Out(const char* category, const char* format, ...);
-void WriteMemory(uintptr_t address, const void* data, size_t size);
+
+template<typename T>
+std::vector<T> ReadMemory(uintptr_t address, size_t count) {
+    if (address < 0x10000 || count == 0) return {};
+    std::vector<T> buffer(count);
+    const SIZE_T bytes = count * sizeof(T);
+    SIZE_T read = 0;
+    if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), buffer.data(), bytes, &read) || read != bytes)
+        return {};
+    return buffer;
+}
+
+template<typename T>
+void WriteMemory(uintptr_t address, const std::vector<T>& data) {
+    const size_t bytes = data.size() * sizeof(T);
+    DWORD old_protection;
+    if (!VirtualProtect(reinterpret_cast<LPVOID>(address), bytes, PAGE_EXECUTE_READWRITE, &old_protection))
+        return;
+    memcpy(reinterpret_cast<void*>(address), data.data(), bytes);
+    VirtualProtect(reinterpret_cast<LPVOID>(address), bytes,
+        old_protection, &old_protection);
+}
+
+template<typename T>
+T ReadPrimitive(uintptr_t address) {
+    T value {};
+    MEMORY_BASIC_INFORMATION bi {};
+
+    if (VirtualQueryEx(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), &bi, sizeof(bi)) == 0)
+        return T {};
+
+    constexpr DWORD readable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    if (bi.State != MEM_COMMIT || !(bi.Protect & readable) || (bi.Protect & PAGE_GUARD))
+        return T {};
+
+    SIZE_T read = 0;
+    NTSTATUS st = NtReadVirtualMemory(GetCurrentProcess(), reinterpret_cast<PVOID>(address), &value, sizeof(value), &read);
+    if (!NT_SUCCESS(st) || read != sizeof(value))
+        return T {};
+
+    return value;
+}
+
+template <typename T>
+bool WritePrimitive(std::uintptr_t address, const T& value) {
+    SIZE_T bytesWritten;
+    DWORD oldProtection;
+
+    if (!VirtualProtectEx(GetCurrentProcess(), reinterpret_cast<LPVOID>(address), sizeof(value), PAGE_READWRITE, &oldProtection)) {
+        return false;
+    }
+
+    if (NtWriteVirtualMemory(GetCurrentProcess(), reinterpret_cast<PVOID>(address), (PVOID)&value, sizeof(value), &bytesWritten) || bytesWritten != sizeof(value)) {
+        return false;
+    }
+
+    DWORD d;
+    if (!VirtualProtectEx(GetCurrentProcess(), reinterpret_cast<LPVOID>(address), sizeof(value), oldProtection, &d)) {
+        return false;
+    }
+
+    return true;
+}
 }

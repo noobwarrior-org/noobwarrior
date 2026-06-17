@@ -30,15 +30,13 @@ void NoobHook::Patches::BypassPlaceIdVerification() {
     if (!pattern.count_hint(1).empty()) {
         MessageBoxA(0, "Found bypass place id pattern!", "noobHook", 0);
         uintptr_t* address = pattern.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xEB };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xEB });
     }
 
     auto pattern2 = hook::pattern("0F 84 24 01 00 00 8D 45 E4 50");
     if (!pattern2.count_hint(1).empty()) {
         MessageBoxA(0, "Found bypass place id 2 pattern!", "noobHook", 0);
         uintptr_t* address = pattern2.get(0).get<uintptr_t>(0);
-        const uint8_t bytes[] = { 0xE9, 0x23, 0x01, 0x00, 0x00, 0x90 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xE9, 0x23, 0x01, 0x00, 0x00, 0x90 });
     }
 }

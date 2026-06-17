@@ -30,15 +30,13 @@ void NoobHook::Patches::FixInsertObjects() {
     if (!pattern.count_hint(1).empty()) {
         Out("FixInsertObjects", "Found pattern 1 for insert objects functionality");
         uintptr_t* address = pattern.get(0).get<uintptr_t>(2);
-        const uint8_t bytes[] = { 0xEB, 0x51 };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0xEB, 0x51 });
     }
 
     auto pattern2 = hook::pattern("E8 88 A2 9D 01 CC CC CC CC CC CC");
     if (!pattern2.count_hint(1).empty()) {
         Out("FixInsertObjects", "Found pattern 2 for insert objects functionality");
         uintptr_t* address = pattern2.get(0).get<uintptr_t>(5);
-        const uint8_t bytes[] = { 0x5B, 0xE9, 0xD4, 0x6F, 0xF6, 0xFF };
-        NoobHook::WriteMemory(reinterpret_cast<uintptr_t>(address), bytes, sizeof(bytes));
+        NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0x5B, 0xE9, 0xD4, 0x6F, 0xF6, 0xFF });
     }
 }

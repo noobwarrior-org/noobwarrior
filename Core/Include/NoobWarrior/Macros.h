@@ -42,6 +42,7 @@
 "zstd (https://github.com/facebook/zstd), licensed under the 3-clause BSD License (https://github.com/facebook/zstd/blob/dev/LICENSE)\n" \
 "pugixml (https://github.com/zeux/pugixml), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "Roblox-File-Format (https://github.com/MaximumADHD/Roblox-File-Format), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"Xeno (https://github.com/lvplay2/Xeno), licensed under the Apache License 2.0 (https://github.com/lvplay2/Xeno/blob/main/LICENSE)\n" \
 "famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n"
 
 #define NOOBWARRIOR_FREE_PTR(ptr) delete ptr; ptr = nullptr;
