@@ -21,12 +21,13 @@
 // File: Notification.h
 // Started by: Hattozo
 // Started on: 6/17/2026
-// Description: JetBrains-style corner toast notifications and the manager that stacks them.
+// Description: Corner toast notifications and the manager that stacks them.
 #pragma once
 #include <QFrame>
 #include <QObject>
 #include <QList>
 #include <QString>
+#include <QLabel>
 
 #include <functional>
 #include <vector>
@@ -56,6 +57,7 @@ protected:
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
 private:
+    QLabel* mMessageLabel = nullptr;
     QGraphicsOpacityEffect* mOpacity { nullptr };
     QPropertyAnimation* mFade { nullptr };
     QTimer* mDismissTimer { nullptr };

@@ -21,7 +21,7 @@
 // File: Notification.cpp
 // Started by: Hattozo
 // Started on: 6/17/2026
-// Description: JetBrains-style corner toast notifications and the manager that stacks them.
+// Description: Corner toast notifications and the manager that stacks them.
 #include "Notification.h"
 #include "Application.h"
 
@@ -51,25 +51,31 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
     setFixedWidth(340);
     setStyleSheet(
         "#NotificationToast { background-color: #3c3f41; border: 1px solid #5a5d5e; border-radius: 6px; }"
-        "#NotificationToast QLabel { color: #e3e3e3; background: transparent; }"
-        "#NotificationToast QLabel#NotifTitle { font-weight: bold; font-size: 13px; }"
+        "#NotificationToast QLabel { color: #e3e3e3; background: transparent; padding: 0px; margin: 0px; }"
+        "#NotificationToast QLabel#NotifTitle { font-weight: bold; font-size: 13px; padding: 0px; margin: 0px; }"
+        "#NotificationToast QToolButton { padding: 0px; margin: 0px; border: none; }"
+        "#NotificationToast QPushButton { padding: 3px 10px; margin: 0px; }"
     );
 
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 10, 10, 12);
-    layout->setSpacing(6);
+    layout->setContentsMargins(8, 6, 5, 7);
+    layout->setSpacing(2);
 
-    // Title row: the title takes the slack, a flat close button sits at the far right.
     auto* titleRow = new QHBoxLayout();
-    titleRow->setContentsMargins(0, 0, 0, 0);
+    titleRow->setSpacing(4);
 
     auto* titleLabel = new QLabel(title, this);
     titleLabel->setObjectName("NotifTitle");
-    titleLabel->setWordWrap(true);
-    titleRow->addWidget(titleLabel, 1);
+    titleLabel->setWordWrap(false);
+    titleLabel->setMargin(0);
+    titleLabel->setContentsMargins(0, 0, 0, 0);
+    titleRow->addWidget(titleLabel, 0, Qt::AlignVCenter);
+    titleRow->addStretch(1);
 
     auto* closeButton = new QToolButton(this);
     closeButton->setIcon(QIcon(":/images/silk/cross.png"));
+    closeButton->setIconSize(QSize(12, 12));
+    closeButton->setFixedSize(QSize(18, 18));
     closeButton->setAutoRaise(true);
     closeButton->setCursor(Qt::PointingHandCursor);
     closeButton->setToolTip("Dismiss");
@@ -80,9 +86,11 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
 
     auto* messageLabel = new QLabel(message, this);
     messageLabel->setWordWrap(true);
+    messageLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     messageLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     messageLabel->setOpenExternalLinks(true);
     layout->addWidget(messageLabel);
+    mMessageLabel = messageLabel;
 
     if (!actions.empty()) {
         auto* actionRow = new QHBoxLayout();
@@ -113,12 +121,13 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
     mDismissTimer->setSingleShot(true);
     mDismissTimer->setInterval(kAutoDismissMs);
     connect(mDismissTimer, &QTimer::timeout, this, &NotificationWidget::Dismiss);
-
-    adjustSize();
 }
 
 void NotificationWidget::Appear() {
     show();
+    if (mMessageLabel)
+        mMessageLabel->setFixedHeight(mMessageLabel->heightForWidth(mMessageLabel->width()));
+    adjustSize();
     raise();
     mFade->stop();
     mFade->setStartValue(mOpacity->opacity());
@@ -167,9 +176,8 @@ void NotificationManager::Notify(const QString& title, const QString& message,
     auto* toast = new NotificationWidget(title, message, actions, mAnchor);
     connect(toast, &NotificationWidget::closed, this, &NotificationManager::Remove);
     mToasts.append(toast);
-
-    Reposition();
     toast->Appear();
+    Reposition();
 
     if (!mAnchor->isActiveWindow() && gApp)
         gApp->ShowSystemNotification(title, message);

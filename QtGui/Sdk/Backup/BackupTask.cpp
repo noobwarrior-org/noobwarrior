@@ -166,7 +166,7 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
                 dbManager->Mount(std::filesystem::path(grabDbPath), dbManager->GetMountedDatabases().size());
 
             sdk->GetNotifications()->Notify("Asset Grab Mode enabled",
-                "Assets the engine requests will now be saved into this database. Launch the game to start grabbing.");
+                "Assets the engine requests will now be saved into this database. Launch the game to start grabbing. Don't forget to turn Asset Grab Mode off once you're done!");
         } });
 
         mSdk->GetNotifications()->Notify("Backup complete",
