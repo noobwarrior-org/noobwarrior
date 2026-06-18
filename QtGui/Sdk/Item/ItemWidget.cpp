@@ -34,6 +34,7 @@
 #include <QPainter>
 #include <QPolygonF>
 #include <QRectF>
+#include <QBrush>
 
 #include <algorithm>
 #include <cassert>
@@ -91,8 +92,27 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
         Asset_DrawMediaBadge(pixmap, false);
     }
 
-    if (!pixmap.isNull())
-        setIcon(QIcon(pixmap));
+    mIconPixmap = pixmap;
+    ApplyAppearance();
+}
+
+// Fades a pixmap to ~40% opacity (used to dim items pending a cut).
+static QPixmap FadePixmap(const QPixmap &src) {
+    if (src.isNull())
+        return src;
+    QPixmap faded(src.size());
+    faded.fill(Qt::transparent);
+    QPainter painter(&faded);
+    painter.setOpacity(0.4);
+    painter.drawPixmap(0, 0, src);
+    painter.end();
+    return faded;
+}
+
+void ItemWidget::ApplyAppearance() {
+    setForeground(mCut ? QBrush(Qt::gray) : QBrush());
+    if (!mIconPixmap.isNull())
+        setIcon(QIcon(mCut ? FadePixmap(mIconPixmap) : mIconPixmap));
 }
 
 void ItemWidget::SetPlaying(bool playing) {
@@ -100,7 +120,25 @@ void ItemWidget::SetPlaying(bool playing) {
         return;
     QPixmap pixmap = mBasePixmap;
     Asset_DrawMediaBadge(pixmap, playing);
-    setIcon(QIcon(pixmap));
+    mIconPixmap = pixmap;
+    ApplyAppearance();
+}
+
+void ItemWidget::SetCut(bool cut) {
+    mCut = cut;
+    ApplyAppearance();
+}
+
+void ItemWidget::RefreshName() {
+    std::string tableName = GetTableNameFromItemType(mType);
+    Statement stmt = mDb->PrepareStatement(std::format("SELECT Name FROM \"{}\" WHERE Id = ?;", tableName));
+    if (stmt.Fail())
+        return;
+    stmt.Bind(1, mId);
+    std::string name;
+    if (stmt.Step() == SQLITE_ROW)
+        name = stmt.GetStringFromColumnIndex(0);
+    setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(mId)));
 }
 
 void ItemWidget::Asset_DrawMediaBadge(QPixmap &pixmap, bool playing) {

@@ -44,13 +44,23 @@ public:
     bool IsPlayable() const { return mPlayable; }
     // Swaps the icon's badge between a play triangle (paused/stopped) and a pause glyph (playing).
     void SetPlaying(bool playing);
+
+    // Greys the label and fades the icon to mark the item as part of a pending Cut (and undoes it).
+    void SetCut(bool cut);
+    // Re-reads the item's Name from the database and refreshes the displayed label (used after Rename).
+    void RefreshName();
 private:
     // Composites a media badge (play triangle or pause bars) onto the bottom-right of an icon.
     static void Asset_DrawMediaBadge(QPixmap &pixmap, bool playing);
+    // Applies the current icon (faded when cut) and label colour to reflect mCut.
+    void ApplyAppearance();
 
     bool mPlayable { false };
+    bool mCut { false };
     // The icon without any badge, cached so the badge can be redrawn when playback state changes.
     QPixmap mBasePixmap;
+    // The composed icon (thumbnail + any badge), cached so it can be faded/restored for cut state.
+    QPixmap mIconPixmap;
 
     EmuDb* mDb;
     NoobWarrior::ItemType mType;

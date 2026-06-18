@@ -30,6 +30,8 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -81,7 +83,6 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
     };
     mOnContextMenuShown = [this](QMenu* menu, ItemWidget* item) {
         QAction* config = menu->addAction(QIcon(":/images/silk/cog.png"), "Configure Item");
-        QAction* del = menu->addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
 
         if (item && item->GetType() == ItemType::Asset) {
             QAction* download = menu->addAction(QIcon(":/images/silk/disk.png"), "Download Asset Data");
@@ -93,12 +94,15 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
         menu->addSeparator();
         QAction* copy = menu->addAction(QIcon(":/images/silk/page_copy.png"), "Copy");
         QAction* cut = menu->addAction(QIcon(":/images/silk/cut.png"), "Cut");
-        QAction* paste = menu->addAction(QIcon(":/images/silk/paste_plain.png"), "Paste");
-        paste->setEnabled(!sClipboard.empty());
+
+        menu->addSeparator();
+        QAction* del = menu->addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
+        QAction* rename = menu->addAction(QIcon(":/images/silk/pencil.png"), "Rename");
 
         connect(copy, &QAction::triggered, [this]() { CopySelectedItems(false); });
         connect(cut, &QAction::triggered, [this]() { CopySelectedItems(true); });
-        connect(paste, &QAction::triggered, [this]() { PasteItems(); });
+
+        connect(rename, &QAction::triggered, [this, item]() { RenameItem(item); });
 
         connect(config, &QAction::triggered, [this]() {
             QListWidgetItem *item = currentItem();
@@ -220,6 +224,16 @@ bool ItemListWidget::Add(ItemType type, int64_t id) {
         return false;
     auto *item = new ItemWidget(mLastOptions.Database, type, id, this);
     mItems[{ type, id }] = item;
+
+    // Keep the dimmed look across refreshes for items that are part of a pending cut from this list.
+    if (sClipboardIsCut && sCutSourceWidget == this) {
+        for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+            if (snap.Type == type && snap.Id == id) {
+                item->SetCut(true);
+                break;
+            }
+        }
+    }
     return true;
 }
 
@@ -362,16 +376,17 @@ void ItemListWidget::ShowContextMenu(QPoint point) {
     QPoint globalPos = mapToGlobal(point);
     QMenu menu;
 
-    if (!selectedItems().empty()) {
-        QListWidgetItem *item = currentItem();
-        auto *itemWidget = dynamic_cast<ItemWidget*>(item);
+    QListWidgetItem *clicked = itemAt(point);
+    if (clicked != nullptr) {
+        // Right-clicked directly on an item: show its menu (no paste here).
+        auto *itemWidget = dynamic_cast<ItemWidget*>(clicked);
         mOnContextMenuShown(&menu, itemWidget);
-    } else if (!sClipboard.empty()) {
-        // Nothing is selected, but there's something to paste: offer just that.
+    } else {
+        // Right-clicked a blank area: offer paste only (and only when there's something to paste).
+        if (sClipboard.empty())
+            return;
         QAction* paste = menu.addAction(QIcon(":/images/silk/paste_plain.png"), "Paste");
         connect(paste, &QAction::triggered, [this]() { PasteItems(); });
-    } else {
-        return;
     }
 
     menu.exec(globalPos);
@@ -520,10 +535,21 @@ void ItemListWidget::CopySelectedItems(bool cut) {
         return;
     }
 
+    // Un-fade whatever a previous cut had dimmed before this copy/cut takes over the clipboard.
+    ClearCutAppearance();
+
     sClipboard = std::move(snapshots);
     sClipboardIsCut = cut;
     sCutSourceDb = cut ? mLastOptions.Database : nullptr;
     sCutSourceWidget = cut ? this : nullptr;
+
+    // Dim the freshly-cut items so it's clear they'll move on paste.
+    if (cut) {
+        for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+            if (auto *iw = GetItemWidget(snap.Type, snap.Id))
+                iw->SetCut(true);
+        }
+    }
 
     if (!failures.isEmpty()) {
         QMessageBox::warning(this, cut ? "Cut" : "Copy",
@@ -595,6 +621,9 @@ void ItemListWidget::PasteItems() {
 
     // A cut is one-shot: once moved, clear it. A copy stays on the clipboard for repeated pasting.
     if (sClipboardIsCut) {
+        // Un-fade any source items still present (e.g. a cut+paste within the same database, where
+        // the originals weren't deleted).
+        ClearCutAppearance();
         sClipboard.clear();
         sClipboardIsCut = false;
         sCutSourceDb = nullptr;
@@ -608,4 +637,48 @@ void ItemListWidget::PasteItems() {
                 .arg(failures.size())
                 .arg(failures.join(", ")));
     }
+}
+
+void ItemListWidget::ClearCutAppearance() {
+    if (!sCutSourceWidget)
+        return;
+    for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+        if (auto *iw = sCutSourceWidget->GetItemWidget(snap.Type, snap.Id))
+            iw->SetCut(false);
+    }
+}
+
+void ItemListWidget::RenameItem(ItemWidget *item) {
+    if (mLastOptions.Database == nullptr || item == nullptr)
+        return;
+
+    ItemType type = item->GetType();
+    int64_t id = item->GetId();
+    const std::string tableName = GetTableNameFromItemType(type);
+
+    // Seed the prompt with the current name.
+    QString current;
+    {
+        Statement stmt = mLastOptions.Database->PrepareStatement("SELECT Name FROM \"" + tableName + "\" WHERE Id = ?;");
+        stmt.Bind(1, id);
+        if (stmt.Step() == SQLITE_ROW)
+            current = QString::fromStdString(stmt.GetStringFromColumnIndex(0));
+    }
+
+    bool ok = false;
+    QString newName = QInputDialog::getText(this, "Rename", "New name:", QLineEdit::Normal, current, &ok);
+    if (!ok || newName == current)
+        return;
+
+    Statement stmt = mLastOptions.Database->PrepareStatement("UPDATE \"" + tableName + "\" SET Name = ? WHERE Id = ?;");
+    stmt.Bind(1, newName.toStdString());
+    stmt.Bind(2, id);
+    if (stmt.Step() != SQLITE_DONE) {
+        QMessageBox::warning(this, "Rename",
+            QString("Failed to rename the item.\nLast error: %1")
+                .arg(QString::fromStdString(mLastOptions.Database->GetLastErrorMsg())));
+        return;
+    }
+    mLastOptions.Database->MarkDirty();
+    item->RefreshName();
 }

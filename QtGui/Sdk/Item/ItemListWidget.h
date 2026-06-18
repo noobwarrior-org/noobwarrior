@@ -107,6 +107,12 @@ protected:
     // Imports whatever is on the clipboard into this widget's database, prompting before
     // overwriting any id that already exists. Completes a pending cut by deleting the originals.
     void PasteItems();
+    // Prompts for a new name and renames the item (updates the DB and the displayed label).
+    void RenameItem(ItemWidget *item);
+    // Removes the faded "pending cut" appearance from the currently-cut items (if their source
+    // widget is still alive). Called before a new copy/cut replaces the clipboard, or once a cut
+    // completes.
+    static void ClearCutAppearance();
 
     PopulateOptions mLastOptions;
     std::function<void(ItemWidget*)> mOnDoubleClick;
