@@ -37,6 +37,11 @@
 
 using namespace NoobWarrior;
 
+std::vector<EmuDb::ItemSnapshot> ItemListWidget::sClipboard;
+bool ItemListWidget::sClipboardIsCut = false;
+EmuDb* ItemListWidget::sCutSourceDb = nullptr;
+QPointer<ItemListWidget> ItemListWidget::sCutSourceWidget = nullptr;
+
 static std::string EscapeLike(const std::string &input) {
     std::string result;
     for (char c : input) {
@@ -122,6 +127,16 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
                 DownloadSelectedAssetData();
             });
         }
+
+        menu->addSeparator();
+        QAction* copy = menu->addAction(QIcon(":/images/silk/page_copy.png"), "Copy");
+        QAction* cut = menu->addAction(QIcon(":/images/silk/cut.png"), "Cut");
+        QAction* paste = menu->addAction(QIcon(":/images/silk/paste_plain.png"), "Paste");
+        paste->setEnabled(!sClipboard.empty());
+
+        connect(copy, &QAction::triggered, [this]() { CopySelectedItems(false); });
+        connect(cut, &QAction::triggered, [this]() { CopySelectedItems(true); });
+        connect(paste, &QAction::triggered, [this]() { PasteItems(); });
 
         connect(config, &QAction::triggered, [this]() {
             QListWidgetItem *item = currentItem();
@@ -333,15 +348,135 @@ void ItemListWidget::DownloadSelectedAssetData() {
 }
 
 void ItemListWidget::ShowContextMenu(QPoint point) {
-    if (selectedItems().empty())
-        return;
-
     QPoint globalPos = mapToGlobal(point);
     QMenu menu;
 
-    QListWidgetItem *item = currentItem();
-    auto *itemWidget = dynamic_cast<ItemWidget*>(item);
-    mOnContextMenuShown(&menu, itemWidget);
+    if (!selectedItems().empty()) {
+        QListWidgetItem *item = currentItem();
+        auto *itemWidget = dynamic_cast<ItemWidget*>(item);
+        mOnContextMenuShown(&menu, itemWidget);
+    } else if (!sClipboard.empty()) {
+        // Nothing is selected, but there's something to paste: offer just that.
+        QAction* paste = menu.addAction(QIcon(":/images/silk/paste_plain.png"), "Paste");
+        connect(paste, &QAction::triggered, [this]() { PasteItems(); });
+    } else {
+        return;
+    }
 
     menu.exec(globalPos);
+}
+
+void ItemListWidget::CopySelectedItems(bool cut) {
+    if (mLastOptions.Database == nullptr)
+        return;
+
+    std::vector<EmuDb::ItemSnapshot> snapshots;
+    QStringList failures;
+    for (QListWidgetItem *item : selectedItems()) {
+        auto *itemWidget = dynamic_cast<ItemWidget*>(item);
+        if (!itemWidget)
+            continue;
+
+        EmuDb::ItemSnapshot snap;
+        SqlDb::Response res = mLastOptions.Database->ExportItem(itemWidget->GetType(), itemWidget->GetId(), &snap);
+        if (res == SqlDb::Response::Success)
+            snapshots.push_back(std::move(snap));
+        else
+            failures << QString::number(itemWidget->GetId());
+    }
+
+    if (snapshots.empty()) {
+        if (!failures.isEmpty())
+            QMessageBox::warning(this, cut ? "Cut" : "Copy", "Failed to read the selected item(s).");
+        return;
+    }
+
+    sClipboard = std::move(snapshots);
+    sClipboardIsCut = cut;
+    sCutSourceDb = cut ? mLastOptions.Database : nullptr;
+    sCutSourceWidget = cut ? this : nullptr;
+
+    if (!failures.isEmpty()) {
+        QMessageBox::warning(this, cut ? "Cut" : "Copy",
+            QString("%1 item(s) ready to paste. Failed to read: %2")
+                .arg(sClipboard.size())
+                .arg(failures.join(", ")));
+    }
+}
+
+void ItemListWidget::PasteItems() {
+    if (mLastOptions.Database == nullptr || sClipboard.empty())
+        return;
+
+    EmuDb* target = mLastOptions.Database;
+    // A cut that lands back in its own source database is just a move-in-place: there's nothing to
+    // relocate, so treat it as a plain paste and don't delete the "originals" we just wrote.
+    bool performCutDeletion = sClipboardIsCut && sCutSourceDb != nullptr && sCutSourceDb != target;
+
+    // Remembered across items so "Yes to All" / "No to All" apply to the rest of the batch.
+    bool overwriteAll = false;
+    bool skipAll = false;
+
+    QStringList failures;
+    int pasted = 0;
+
+    for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+        bool overwrite = false;
+        if (target->DoesItemExist(snap.Type, snap.Id)) {
+            if (skipAll)
+                continue;
+            if (overwriteAll) {
+                overwrite = true;
+            } else {
+                QMessageBox::StandardButton answer = QMessageBox::question(this, "Paste",
+                    QString("An item with id %1 already exists in this database. Overwrite it?").arg(snap.Id),
+                    QMessageBox::Yes | QMessageBox::YesToAll | QMessageBox::No | QMessageBox::NoToAll,
+                    QMessageBox::No);
+                switch (answer) {
+                case QMessageBox::YesToAll: overwriteAll = true; [[fallthrough]];
+                case QMessageBox::Yes:      overwrite = true; break;
+                case QMessageBox::NoToAll:  skipAll = true; [[fallthrough]];
+                default:                    continue; // No: skip this item
+                }
+            }
+        }
+
+        SqlDb::Response res = target->ImportItem(snap, overwrite);
+        if (res != SqlDb::Response::Success) {
+            failures << QString::number(snap.Id);
+            continue;
+        }
+
+        // Reflect the paste in this list: refresh an overwritten row, add a brand-new one.
+        if (IsItemInList(snap.Type, snap.Id))
+            Remove(snap.Type, snap.Id);
+        Add(snap.Type, snap.Id);
+        pasted++;
+    }
+
+    // Complete a cut by removing the originals from their source database (and its list, if alive).
+    if (performCutDeletion && pasted > 0) {
+        for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+            if (sCutSourceDb->DeleteItem(snap.Type, snap.Id) == SqlDb::Response::Success &&
+                sCutSourceWidget && sCutSourceWidget != this) {
+                sCutSourceWidget->Remove(snap.Type, snap.Id);
+            }
+        }
+    }
+
+    // A cut is one-shot: once moved, clear it. A copy stays on the clipboard for repeated pasting.
+    if (sClipboardIsCut) {
+        sClipboard.clear();
+        sClipboardIsCut = false;
+        sCutSourceDb = nullptr;
+        sCutSourceWidget = nullptr;
+    }
+
+    if (!failures.isEmpty()) {
+        QMessageBox::warning(this, "Paste",
+            QString("Pasted %1 item(s). Failed to paste %2 item(s): %3")
+                .arg(pasted)
+                .arg(failures.size())
+                .arg(failures.join(", ")));
+    }
 }

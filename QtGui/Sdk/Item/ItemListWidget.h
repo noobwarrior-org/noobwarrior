@@ -31,6 +31,7 @@
 
 #include <QListWidget>
 #include <QAbstractListModel>
+#include <QPointer>
 
 #include <string>
 #include <functional>
@@ -72,9 +73,24 @@ protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);
     void DownloadSelectedAssetData();
+
+    // Snapshots the selected items into the shared (process-wide) clipboard. When cut is true the
+    // originals are removed from their source database once they are pasted elsewhere.
+    void CopySelectedItems(bool cut);
+    // Imports whatever is on the clipboard into this widget's database, prompting before
+    // overwriting any id that already exists. Completes a pending cut by deleting the originals.
+    void PasteItems();
+
     PopulateOptions mLastOptions;
     std::function<void(ItemWidget*)> mOnDoubleClick;
     std::function<void(QMenu*, ItemWidget*)> mOnContextMenuShown;
     std::map<std::pair<ItemType, int64_t>, ItemWidget*> mItems;
+
+    // Process-wide clipboard shared by every list, so an item copied/cut in one database's list can
+    // be pasted into another's. A cut remembers its source so the originals can be deleted on paste.
+    static std::vector<EmuDb::ItemSnapshot> sClipboard;
+    static bool sClipboardIsCut;
+    static EmuDb* sCutSourceDb;
+    static QPointer<ItemListWidget> sCutSourceWidget;
 };
 }

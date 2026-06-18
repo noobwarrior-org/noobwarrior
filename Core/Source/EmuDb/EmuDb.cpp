@@ -32,6 +32,7 @@
 #include <sqlite3.h>
 #include <zstd.h>
 #include <cstdio>
+#include <algorithm>
 
 #include "../algorithm/base64.h"
 #include "../algorithm/gzip.h"
@@ -810,6 +811,168 @@ bool EmuDb::DoesItemExist(ItemType type, int64_t id) {
     Statement stmt = PrepareStatement("SELECT Id FROM \"" + tableName + "\" WHERE Id = ?;");
     stmt.Bind(1, id);
     return stmt.Step() == SQLITE_ROW;
+}
+
+SqlDb::Response EmuDb::ExportItem(ItemType type, int64_t id, ItemSnapshot *out) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	if (out == nullptr) return SqlDb::Response::Failed;
+
+	const std::string parentTable = GetTableNameFromItemType(type);
+	if (!DoesItemExist(type, id))
+		return SqlDb::Response::NotFound;
+
+	ItemSnapshot snap;
+	snap.Type = type;
+	snap.Id = id;
+
+	// The parent row (Tables[0]).
+	{
+		Statement stmt = PrepareStatement(std::format("SELECT * FROM \"{}\" WHERE Id = ?;", parentTable));
+		if (stmt.Fail()) return SqlDb::Response::Failed;
+		stmt.Bind(1, id);
+		ItemSnapshot::TableData td;
+		td.Table = parentTable;
+		while (stmt.Step() == SQLITE_ROW)
+			td.Rows.push_back(stmt.GetColumns());
+		snap.Tables.push_back(std::move(td));
+	}
+
+	// Dependent rows, discovered from the live schema's foreign keys exactly like DeleteItem's
+	// cascade (one level deep, which covers every detail/junction table in the current schema).
+	struct Dependent { std::string table; std::string column; };
+	std::vector<Dependent> dependents;
+	for (const std::string &childTable : GetTableNames()) {
+		if (childTable == parentTable) continue;
+		Statement fkStmt = PrepareStatement(std::format("PRAGMA foreign_key_list(\"{}\");", childTable));
+		if (fkStmt.Fail()) continue;
+		while (fkStmt.Step() == SQLITE_ROW) {
+			if (fkStmt.GetStringFromColumnIndex(2) == parentTable)
+				dependents.push_back({childTable, fkStmt.GetStringFromColumnIndex(3)});
+		}
+	}
+
+	for (const Dependent &dep : dependents) {
+		Statement stmt = PrepareStatement(std::format("SELECT * FROM \"{}\" WHERE \"{}\" = ?;", dep.table, dep.column));
+		if (stmt.Fail()) continue;
+		stmt.Bind(1, id);
+		ItemSnapshot::TableData td;
+		td.Table = dep.table;
+		while (stmt.Step() == SQLITE_ROW)
+			td.Rows.push_back(stmt.GetColumns());
+		if (!td.Rows.empty())
+			snap.Tables.push_back(std::move(td));
+	}
+
+	// Gather every content-addressed blob the captured rows reference, then read its raw stored
+	// bytes so the copy is fully self-contained.
+	std::set<std::string> hashes;
+	for (const ItemSnapshot::TableData &td : snap.Tables) {
+		std::vector<std::string> blobCols = GetBlobHashColumns(td.Table);
+		if (blobCols.empty()) continue;
+		for (const SqlRow &row : td.Rows) {
+			for (const SqlColumn &col : row) {
+				if (std::find(blobCols.begin(), blobCols.end(), col.first) == blobCols.end()) continue;
+				if (const auto *hash = std::get_if<std::string>(&col.second)) {
+					if (!hash->empty()) hashes.insert(*hash);
+				}
+			}
+		}
+	}
+
+	for (const std::string &hash : hashes) {
+		Statement stmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?;");
+		if (stmt.Fail()) return SqlDb::Response::Failed;
+		stmt.Bind(1, hash);
+		if (stmt.Step() == SQLITE_ROW)
+			snap.Blobs.push_back({hash, stmt.GetBlobFromColumnIndex(0)});
+	}
+
+	*out = std::move(snap);
+	return SqlDb::Response::Success;
+}
+
+bool EmuDb::InsertRawRow(const std::string &table, const SqlRow &row, const std::set<std::string> &existingColumns) {
+	SqlRow kept;
+	if (!existingColumns.empty()) {
+		for (const SqlColumn &col : row)
+			if (existingColumns.count(col.first))
+				kept.push_back(col);
+	} else {
+		kept = row;
+	}
+	if (kept.empty())
+		return true;
+
+	std::string stmtStr = "INSERT INTO \"" + table + "\" (";
+	for (size_t i = 0; i < kept.size(); i++)
+		stmtStr += "\"" + kept[i].first + "\"" + (i + 1 != kept.size() ? ", " : "");
+	stmtStr += ") VALUES (";
+	for (size_t i = 0; i < kept.size(); i++)
+		stmtStr += std::string("?") + (i + 1 != kept.size() ? ", " : ")");
+	stmtStr += ";";
+
+	Statement stmt = PrepareStatement(stmtStr);
+	if (stmt.Fail())
+		return false;
+	for (size_t i = 0; i < kept.size(); i++)
+		stmt.Bind(static_cast<int>(i + 1), kept[i].second);
+	return stmt.Step() == SQLITE_DONE;
+}
+
+SqlDb::Response EmuDb::ImportItem(const ItemSnapshot &snapshot, bool overwrite) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	if (snapshot.Tables.empty())
+		return SqlDb::Response::DidNothing;
+
+	if (DoesItemExist(snapshot.Type, snapshot.Id)) {
+		if (!overwrite)
+			return SqlDb::Response::ConstraintViolation;
+		SqlDb::Response del = DeleteItem(snapshot.Type, snapshot.Id);
+		if (del != SqlDb::Response::Success)
+			return del;
+	}
+
+	if (!ExecStatement("SAVEPOINT ImportItem")) {
+		Out("Failed to open savepoint while importing item id {}", snapshot.Id);
+		return SqlDb::Response::Failed;
+	}
+
+	bool ok = true;
+
+	// Blobs first so the row hash references resolve. INSERT OR IGNORE because the target may
+	// already hold a blob with the same content-addressed hash.
+	for (const auto &[hash, bytes] : snapshot.Blobs) {
+		Statement stmt = PrepareStatement("INSERT OR IGNORE INTO BlobStorage (Hash, Blob) VALUES (?, ?);");
+		if (stmt.Fail()) { ok = false; break; }
+		stmt.Bind(1, hash);
+		stmt.Bind(2, bytes);
+		if (stmt.Step() != SQLITE_DONE) { ok = false; break; }
+	}
+
+	if (ok) {
+		for (const ItemSnapshot::TableData &td : snapshot.Tables) {
+			std::set<std::string> existing = GetColumnNames(td.Table);
+			for (const SqlRow &row : td.Rows) {
+				if (!InsertRawRow(td.Table, row, existing)) { ok = false; break; }
+			}
+			if (!ok) break;
+		}
+	}
+
+	if (!ok) {
+		ExecStatement("ROLLBACK TO ImportItem");
+		ExecStatement("RELEASE ImportItem");
+		Out("Failed to import item id {}: \"{}\"", snapshot.Id, GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+
+	if (!ExecStatement("RELEASE ImportItem")) {
+		Out("Failed to release savepoint after importing item id {}", snapshot.Id);
+		return SqlDb::Response::Failed;
+	}
+
+	MarkDirty();
+	return SqlDb::Response::Success;
 }
 
 SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data) {

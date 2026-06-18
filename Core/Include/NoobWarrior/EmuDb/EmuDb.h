@@ -174,6 +174,34 @@ public:
     SqlDb::Response UpdateItem(ItemType type, int64_t id, SqlRow row);
     SqlDb::Response DeleteItem(ItemType type, int64_t id);
     bool DoesItemExist(ItemType type, int64_t id);
+    
+    // A deep, self-contained snapshot of a single item: its parent row, every dependent row that
+    // the schema's foreign keys hang off it, and the raw content-addressed blobs those rows
+    // reference. Produced by ExportItem and consumed by ImportItem to copy an item from one
+    // database into another (the basis of the SDK's copy/cut/paste).
+    struct ItemSnapshot {
+        ItemType Type {};
+        int64_t Id {0};
+        struct TableData {
+            std::string Table;
+            SqlRows Rows;
+        };
+        std::vector<TableData> Tables;   // Tables[0] is always the parent item's table.
+        // hash -> the exact bytes stored in BlobStorage. Kept in their stored (possibly
+        // zstd-compressed) form; the hash still identifies the uncompressed data, so a copied
+        // blob stays valid and resolvable in any target database regardless of its compression.
+        std::vector<std::pair<std::string, std::vector<unsigned char>>> Blobs;
+    };
+
+    // Reads a complete, transferable copy of an item (its row, dependent rows, and blobs) into
+    // `out`. Returns NotFound if the item isn't in this database.
+    SqlDb::Response ExportItem(ItemType type, int64_t id, ItemSnapshot *out);
+
+    // Writes a previously exported item into this database. If an item with the same id already
+    // exists: overwrite=true replaces it (delete-then-insert), overwrite=false writes nothing and
+    // returns ConstraintViolation. The whole import runs inside a savepoint, so a failure leaves
+    // the database untouched.
+    SqlDb::Response ImportItem(const ItemSnapshot &snapshot, bool overwrite);
 
     /* Asset functions */
     SqlDb::Response AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data);
@@ -332,6 +360,11 @@ private:
     // Shared helpers for the asset auxiliary/junction tables. Each builds and runs a single
     // prepared statement; column names come from code (the same trusted-input assumption as
     // AddItem/UpdateItem), never from end users.
+    // Inserts a raw, generic row into an arbitrary table (used by ImportItem). Columns the live
+    // table doesn't have are skipped, mirroring AddItem's schema-drift tolerance. Returns false on
+    // a prepare/step failure.
+    bool InsertRawRow(const std::string &table, const SqlRow &row, const std::set<std::string> &existingColumns);
+
     SqlDb::Response UpsertAuxAssetRow(const std::string &table, int64_t id, const SqlRow &row);
     SqlDb::Response DetachAuxAssetRow(const std::string &table, int64_t id, const SqlRow &row);
     SqlDb::Response AddAssetLink(const std::string &table, int64_t ownerId, int64_t assetId);
