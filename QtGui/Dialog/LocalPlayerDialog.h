@@ -34,7 +34,10 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QTabWidget>
+#include <QStackedWidget>
+#include <QComboBox>
 #include <QListWidget>
+#include <QLabel>
 #include <QDoubleSpinBox>
 #include <QRadioButton>
 #include <QColor>
@@ -42,6 +45,7 @@
 #include <QSet>
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace NoobWarrior {
@@ -56,23 +60,35 @@ struct AvatarBodyPart {
     QColor color;
 };
 
-// One tab of the avatar editor. A tab shows every asset of its `types` aggregated from all mounted
-// databases. `worn` is the authoritative set of equipped asset ids (kept separate from the list's
-// transient selection so a search that hides a worn item never drops it on save).
-struct AvatarCategoryTab {
-    QString label;
-    bool multiSelect = false;            // accessories: many items can be worn at once
-    bool isAccessory = false;            // saved to the accessories table rather than per-slot keys
-    std::vector<Roblox::AssetType> types;
-    QMap<int, QString> typeToRegKey;     // single-slot tabs: assetType value -> registry key
-    QString accessoryKey;                // accessory tab: the registry table key
+// One filter within a tab (e.g. Clothing's "Shirts", Body's "Scale"). A subgroup shows one asset
+// type and equips into either a single registry slot, the shared accessories list, or — for the
+// special Scale subgroup — swaps the item list for the scale/rig controls.
+struct AvatarSubgroup {
+    enum class Kind { Slot, Accessory, Scale };
+    QString name;
+    Roblox::AssetType type { Roblox::AssetType::None };
+    Kind kind { Kind::Slot };
+    QString regKey; // Slot only: the registry key this subgroup writes
+};
 
-    ItemListWidget* list = nullptr;
-    QLineEdit* search = nullptr;
+// A top-level editor tab holding several subgroups. The catalog for the active subgroup is paginated
+// in-memory (ids cached in pageIds; only the current page's items become widgets).
+struct AvatarTab {
+    QString name;
+    std::vector<AvatarSubgroup> subgroups;
 
-    QSet<qint64> worn;                   // equipped asset ids (source of truth)
-    QMap<qint64, int> idTypes;           // asset id -> its asset type value (persistent)
-    bool guard = false;                  // re-entrancy guard while syncing selection
+    QComboBox* subgroupCombo { nullptr };
+    QLineEdit* search { nullptr };
+    QStackedWidget* stack { nullptr }; // 0 = list+pagination, 1 = scale controls (if present)
+    ItemListWidget* list { nullptr };
+    QLabel* pageLabel { nullptr };
+    QPushButton* prevBtn { nullptr };
+    QPushButton* nextBtn { nullptr };
+
+    int page { 0 };
+    int pageCount { 1 };
+    bool guard { false };
+    std::vector<std::pair<qint64, EmuDb*>> pageIds; // cached ids for the active subgroup + search
 };
 
 class LocalPlayerDialog : public QDialog {
@@ -85,8 +101,9 @@ protected:
 
     QWidget* BuildAvatarBody();
     QWidget* BuildItemEditor();
-    QWidget* BuildScaleTab();
-    void BuildCategoryTab(QTabWidget* tabs, const AvatarCategoryTab& def);
+    QWidget* BuildScaleWidget();
+    QWidget* BuildOutfitsTab();
+    void BuildTab(QTabWidget* tabs, AvatarTab def);
     void AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
                      int row, int col, int w, int h, const QString& defaultColorName);
     void PickBodyColor(AvatarBodyPart& part);
@@ -94,17 +111,27 @@ protected:
 
     QDoubleSpinBox* MakeScaleField(const QString& regKey);
 
-    // Avatar category tabs.
-    void PopulateCategory(AvatarCategoryTab& tab);
-    void ApplyWornSelection(AvatarCategoryTab& tab);
-    void OnCategorySelectionChanged(AvatarCategoryTab& tab);
-    void ReadWornFromRegistry(AvatarCategoryTab& tab);
-    void SaveCategory(AvatarCategoryTab& tab);
+    // Subgroup / pagination plumbing.
+    const AvatarSubgroup& ActiveSubgroup(const AvatarTab& tab) const;
+    void OnSubgroupChanged(AvatarTab& tab);
+    void CollectIds(AvatarTab& tab);
+    void RenderPage(AvatarTab& tab);
+    void StepPage(AvatarTab& tab, int delta);
+    void OnTabSelectionChanged(AvatarTab& tab);
+    void RefreshAllTabs();
+
+    // Routes a worn asset id into the right slot / the accessories set based on its asset type.
+    void RouteWornAsset(qint64 id);
 
     // Replaces the current appearance with a user's avatar stored in a mounted database.
     void ImportAvatarFromDatabase();
-    // Applies a stored user's identity, worn items, body colors, scales and avatar type to the dialog.
     void ApplyImportedAvatar(EmuDb* db, int64_t userId);
+
+    // Outfits (stored in EmuDb's Outfit/OutfitItem/OutfitBodyColor tables).
+    void RefreshOutfits();
+    void SaveCurrentOutfit();
+    void WearSelectedOutfit();
+    void DeleteSelectedOutfit();
 
     void LoadFromRegistry();
     void SaveToRegistry();
@@ -119,10 +146,19 @@ private:
 
     QMap<QString, AvatarBodyPart> mBodyParts;
     QMap<QString, QDoubleSpinBox*> mScaleFields;
-    QList<AvatarCategoryTab> mCategoryTabs;
 
     QRadioButton* mAvatarTypeR6 { nullptr };
     QRadioButton* mAvatarTypeR15 { nullptr };
+
+    QList<AvatarTab> mTabs;
+    
+    QMap<QString, qint64> mWornSlots;   // registry slot key: worn asset id (0 = none)
+    QSet<qint64> mWornAccessories;      // the flat accessories list
+    QMap<int, QString> mTypeToSlotKey;  // asset type: slot key (built from the Slot subgroups)
+    QSet<int> mAccessoryTypes;          // asset types that equip into the accessories list
+
+    ItemListWidget* mOutfitList { nullptr };
+    QMap<qint64, EmuDb*> mOutfitDbs; // outfit id: the database it lives in (ids are per-database)
 
     QDialogButtonBox* mButtonBox;
 };

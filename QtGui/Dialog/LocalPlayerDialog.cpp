@@ -42,6 +42,7 @@
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QComboBox>
+#include <QStackedWidget>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QPainter>
@@ -50,20 +51,21 @@
 #include <QLabel>
 #include <QDialog>
 
+#include <algorithm>
 #include <memory>
-
 #include <optional>
 #include <string>
 
 using namespace NoobWarrior;
 using AT = Roblox::AssetType;
+using Kind = AvatarSubgroup::Kind;
+
+// Catalog items shown per page in each subgroup's list.
+static constexpr int kPageSize = 60;
 
 namespace {
 // Draws a selected picker item as a full-bleed inverted box (light fill) with contrasting dark text,
 // so the worn item is obvious. Scoped to the avatar picker lists (not the shared SDK item list).
-// QSS can't fill the whole cell in IconMode, hence a delegate. Setting Highlight/HighlightedText in
-// initStyleOption (the last thing before drawing) survives the base delegate's re-init, so the text
-// stays dark even though ItemWidget sets a foreground brush.
 class WornItemDelegate : public QStyledItemDelegate {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
@@ -163,7 +165,6 @@ void LocalPlayerDialog::InitWidgets() {
     QPushButton* importButton = new QPushButton(QIcon(":/images/roblox_backup.png"), "Import Avatar from Database…");
     connect(importButton, &QPushButton::clicked, this, &LocalPlayerDialog::ImportAvatarFromDatabase);
 
-    // Left column: identity form, the import shortcut, then the body-part swatches.
     QVBoxLayout* leftColumn = new QVBoxLayout;
     leftColumn->addLayout(mFormLayout);
     leftColumn->addWidget(importButton);
@@ -192,8 +193,6 @@ QWidget* LocalPlayerDialog::BuildAvatarBody() {
     grid->setHorizontalSpacing(4);
     grid->setVerticalSpacing(2);
 
-    // Registry defaults from Registry::Open(): yellow head/arms, blue torso,
-    // yellowish-green legs
     AddBodyPart(grid, "head",      "Head",      0, 1, 48, 48, "Bright yellow");
     AddBodyPart(grid, "left_arm",  "Left Arm",  1, 0, 36, 72, "Bright yellow");
     AddBodyPart(grid, "torso",     "Torso",     1, 1, 72, 72, "Bright blue");
@@ -286,68 +285,7 @@ QDoubleSpinBox* LocalPlayerDialog::MakeScaleField(const QString& regKey) {
     return field;
 }
 
-QWidget* LocalPlayerDialog::BuildItemEditor() {
-    QTabWidget* tabs = new QTabWidget;
-    tabs->setMinimumWidth(360);
-
-    // Clothing — one item per slot (shirt/pants/t-shirt/face).
-    {
-        AvatarCategoryTab def;
-        def.label = "Clothing";
-        def.types = { AT::Shirt, AT::Pants, AT::TShirt };
-        def.typeToRegKey[(int)AT::Shirt]  = "user.appearance.shirt";
-        def.typeToRegKey[(int)AT::Pants]  = "user.appearance.pants";
-        def.typeToRegKey[(int)AT::TShirt] = "user.appearance.tshirt";
-        BuildCategoryTab(tabs, def);
-    }
-    // Accessories — many can be worn at once.
-    {
-        AvatarCategoryTab def;
-        def.label = "Accessories";
-        def.multiSelect = true;
-        def.isAccessory = true;
-        def.accessoryKey = "user.appearance.accessories";
-        def.types = { AT::Hat, AT::HairAccessory, AT::FaceAccessory, AT::NeckAccessory,
-                      AT::ShoulderAccessory, AT::FrontAccessory, AT::BackAccessory,
-                      AT::WaistAccessory, AT::EarAccessory, AT::EyeAccessory };
-        BuildCategoryTab(tabs, def);
-    }
-    // Body — per-part mesh/package override (one per part).
-    {
-        AvatarCategoryTab def;
-        def.label = "Body";
-        def.types = { AT::Package, AT::Face, AT::Head, AT::Torso, AT::LeftArm, AT::RightArm, AT::LeftLeg, AT::RightLeg };
-        def.typeToRegKey[(int)AT::Package]  = "user.appearance.body.package";
-        def.typeToRegKey[(int)AT::Face]     = "user.appearance.face";
-        def.typeToRegKey[(int)AT::Head]     = "user.appearance.body.head";
-        def.typeToRegKey[(int)AT::Torso]    = "user.appearance.body.torso";
-        def.typeToRegKey[(int)AT::LeftArm]  = "user.appearance.body.left_arm";
-        def.typeToRegKey[(int)AT::RightArm] = "user.appearance.body.right_arm";
-        def.typeToRegKey[(int)AT::LeftLeg]  = "user.appearance.body.left_leg";
-        def.typeToRegKey[(int)AT::RightLeg] = "user.appearance.body.right_leg";
-        BuildCategoryTab(tabs, def);
-    }
-    // Animation — one per state.
-    {
-        AvatarCategoryTab def;
-        def.label = "Animation";
-        def.types = { AT::ClimbAnimation, AT::FallAnimation, AT::IdleAnimation, AT::JumpAnimation,
-                      AT::RunAnimation, AT::SwimAnimation, AT::WalkAnimation };
-        def.typeToRegKey[(int)AT::ClimbAnimation] = "user.appearance.animation.climb";
-        def.typeToRegKey[(int)AT::FallAnimation]  = "user.appearance.animation.fall";
-        def.typeToRegKey[(int)AT::IdleAnimation]  = "user.appearance.animation.idle";
-        def.typeToRegKey[(int)AT::JumpAnimation]  = "user.appearance.animation.jump";
-        def.typeToRegKey[(int)AT::RunAnimation]   = "user.appearance.animation.run";
-        def.typeToRegKey[(int)AT::SwimAnimation]  = "user.appearance.animation.swim";
-        def.typeToRegKey[(int)AT::WalkAnimation]  = "user.appearance.animation.walk";
-        BuildCategoryTab(tabs, def);
-    }
-
-    tabs->addTab(BuildScaleTab(), "Scale");
-    return tabs;
-}
-
-QWidget* LocalPlayerDialog::BuildScaleTab() {
+QWidget* LocalPlayerDialog::BuildScaleWidget() {
     QWidget* page = new QWidget;
     QFormLayout* form = new QFormLayout(page);
 
@@ -373,184 +311,326 @@ QWidget* LocalPlayerDialog::BuildScaleTab() {
     return page;
 }
 
-void LocalPlayerDialog::BuildCategoryTab(QTabWidget* tabs, const AvatarCategoryTab& def) {
-    mCategoryTabs.append(def);
-    const int idx = mCategoryTabs.size() - 1;
-    AvatarCategoryTab& tab = mCategoryTabs[idx];
+QWidget* LocalPlayerDialog::BuildItemEditor() {
+    QTabWidget* tabs = new QTabWidget;
+    tabs->setMinimumWidth(400);
+
+    auto slot = [](const char* n, AT t, const char* key) {
+        return AvatarSubgroup{ n, t, Kind::Slot, key };
+    };
+    auto acc = [](const char* n, AT t) {
+        return AvatarSubgroup{ n, t, Kind::Accessory, QString() };
+    };
+
+    {
+        AvatarTab def;
+        def.name = "Clothing";
+        def.subgroups = {
+            slot("Shirts",   AT::Shirt,  "user.appearance.shirt"),
+            slot("Pants",    AT::Pants,  "user.appearance.pants"),
+            slot("T-Shirts", AT::TShirt, "user.appearance.tshirt"),
+        };
+        BuildTab(tabs, def);
+    }
+    {
+        AvatarTab def;
+        def.name = "Accessories";
+        def.subgroups = {
+            acc("Head",      AT::Hat),
+            acc("Face",      AT::FaceAccessory),
+            acc("Neck",      AT::NeckAccessory),
+            acc("Shoulders", AT::ShoulderAccessory),
+            acc("Front",     AT::FrontAccessory),
+            acc("Back",      AT::BackAccessory),
+            acc("Waist",     AT::WaistAccessory),
+            acc("Gear",      AT::Gear),
+        };
+        BuildTab(tabs, def);
+    }
+    {
+        AvatarTab def;
+        def.name = "Body";
+        def.subgroups = {
+            acc("Hair",       AT::HairAccessory),
+            slot("Torso",     AT::Torso,    "user.appearance.body.torso"),
+            slot("Left Arms", AT::LeftArm,  "user.appearance.body.left_arm"),
+            slot("Right Arms",AT::RightArm, "user.appearance.body.right_arm"),
+            slot("Left Legs", AT::LeftLeg,  "user.appearance.body.left_leg"),
+            slot("Right Legs",AT::RightLeg, "user.appearance.body.right_leg"),
+            AvatarSubgroup{ "Scale", AT::None, Kind::Scale, QString() },
+        };
+        BuildTab(tabs, def);
+    }
+    {
+        AvatarTab def;
+        def.name = "Animations";
+        def.subgroups = {
+            acc("Emotes", AT::EmoteAnimation),
+            slot("Walk",  AT::WalkAnimation,  "user.appearance.animation.walk"),
+            slot("Run",   AT::RunAnimation,   "user.appearance.animation.run"),
+            slot("Fall",  AT::FallAnimation,  "user.appearance.animation.fall"),
+            slot("Jump",  AT::JumpAnimation,  "user.appearance.animation.jump"),
+            slot("Swim",  AT::SwimAnimation,  "user.appearance.animation.swim"),
+            slot("Climb", AT::ClimbAnimation, "user.appearance.animation.climb"),
+            slot("Idle",  AT::IdleAnimation,  "user.appearance.animation.idle"),
+        };
+        BuildTab(tabs, def);
+    }
+
+    tabs->addTab(BuildOutfitsTab(), "Outfits");
+    return tabs;
+}
+
+void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
+    mTabs.append(def);
+    const int idx = mTabs.size() - 1;
+    AvatarTab& tab = mTabs[idx];
+
+    // Register each subgroup's equip target so RouteWornAsset/import/outfits know where ids go.
+    for (const AvatarSubgroup& sg : tab.subgroups) {
+        if (sg.kind == Kind::Slot)
+            mTypeToSlotKey[(int)sg.type] = sg.regKey;
+        else if (sg.kind == Kind::Accessory)
+            mAccessoryTypes.insert((int)sg.type);
+    }
 
     QWidget* page = new QWidget;
     QVBoxLayout* layout = new QVBoxLayout(page);
 
+    tab.subgroupCombo = new QComboBox;
+    for (const AvatarSubgroup& sg : tab.subgroups)
+        tab.subgroupCombo->addItem(sg.name);
+    QHBoxLayout* catRow = new QHBoxLayout;
+    catRow->addWidget(new QLabel("Category:"));
+    catRow->addWidget(tab.subgroupCombo, 1);
+    layout->addLayout(catRow);
+
     tab.search = new QLineEdit;
-    tab.search->setPlaceholderText("Search " + tab.label.toLower() + "…");
+    tab.search->setPlaceholderText("Search…");
     tab.search->setClearButtonEnabled(true);
     layout->addWidget(tab.search);
 
-    tab.list = new ItemListWidget(page);
+    tab.stack = new QStackedWidget;
+
+    // Page 0: the catalog list + pagination controls.
+    QWidget* listPage = new QWidget;
+    QVBoxLayout* lpl = new QVBoxLayout(listPage);
+    lpl->setContentsMargins(0, 0, 0, 0);
+
+    tab.list = new ItemListWidget(listPage);
     tab.list->setSelectionMode(QAbstractItemView::MultiSelection);
-    // Worn (selected) items get a full-bleed inverted box with contrasting text.
     tab.list->setItemDelegate(new WornItemDelegate(tab.list));
-    // This is a picker, not an editor: a stray double-click or context-menu action would otherwise
-    // open/delete real database items, and the list has no Populate database for those actions.
     tab.list->setContextMenuPolicy(Qt::NoContextMenu);
     tab.list->SetOnDoubleClick([](ItemWidget*) {});
-    layout->addWidget(tab.list, 1);
+    lpl->addWidget(tab.list, 1);
 
-    layout->addWidget(new QLabel(tab.isAccessory
-        ? "Click to wear or remove. Multiple accessories can be worn at once."
-        : "Click to wear an item. One item is worn per slot."));
+    QHBoxLayout* pager = new QHBoxLayout;
+    tab.prevBtn = new QPushButton("◄ Prev");
+    tab.nextBtn = new QPushButton("Next ►");
+    tab.pageLabel = new QLabel("Page 1 / 1");
+    pager->addWidget(tab.prevBtn);
+    pager->addWidget(tab.pageLabel, 1, Qt::AlignHCenter);
+    pager->addWidget(tab.nextBtn);
+    lpl->addLayout(pager);
 
-    connect(tab.search, &QLineEdit::textChanged, this, [this, idx]() {
-        PopulateCategory(mCategoryTabs[idx]);
+    tab.stack->addWidget(listPage); // index 0
+
+    bool hasScale = false;
+    for (const AvatarSubgroup& sg : tab.subgroups)
+        if (sg.kind == Kind::Scale) hasScale = true;
+    if (hasScale)
+        tab.stack->addWidget(BuildScaleWidget()); // index 1
+
+    layout->addWidget(tab.stack, 1);
+
+    connect(tab.subgroupCombo, &QComboBox::currentIndexChanged, this, [this, idx](int) {
+        OnSubgroupChanged(mTabs[idx]);
     });
+    connect(tab.search, &QLineEdit::textChanged, this, [this, idx](const QString&) {
+        CollectIds(mTabs[idx]);
+        mTabs[idx].page = 0;
+        RenderPage(mTabs[idx]);
+    });
+    connect(tab.prevBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], -1); });
+    connect(tab.nextBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], +1); });
     connect(tab.list, &QListWidget::itemSelectionChanged, this, [this, idx]() {
-        OnCategorySelectionChanged(mCategoryTabs[idx]);
+        OnTabSelectionChanged(mTabs[idx]);
     });
 
-    tabs->addTab(page, tab.label);
+    tabs->addTab(page, tab.name);
 }
 
-void LocalPlayerDialog::PopulateCategory(AvatarCategoryTab& tab) {
+const AvatarSubgroup& LocalPlayerDialog::ActiveSubgroup(const AvatarTab& tab) const {
+    int i = tab.subgroupCombo ? tab.subgroupCombo->currentIndex() : 0;
+    if (i < 0 || i >= (int)tab.subgroups.size())
+        i = 0;
+    return tab.subgroups[i];
+}
+
+void LocalPlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Scale) {
+        tab.search->setEnabled(false);
+        tab.stack->setCurrentIndex(1);
+        return;
+    }
+    tab.search->setEnabled(true);
+    tab.stack->setCurrentIndex(0);
+    CollectIds(tab);
+    tab.page = 0;
+    RenderPage(tab);
+}
+
+void LocalPlayerDialog::CollectIds(AvatarTab& tab) {
+    tab.pageIds.clear();
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Scale)
+        return;
+
     EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
-    const QString query = tab.search ? tab.search->text().trimmed() : QString();
+    const QString query = tab.search->text().trimmed();
+    QSet<qint64> seen;
+
+    for (EmuDb* db : mgr->GetMountedDatabases()) {
+        std::string s = "SELECT Id FROM Asset WHERE Type = ?";
+        if (!query.isEmpty())
+            s += " AND Name LIKE ? ESCAPE '\\'";
+        s += " ORDER BY Name;";
+        Statement stmt = db->PrepareStatement(s);
+        stmt.Bind(1, (int)sg.type);
+        if (!query.isEmpty())
+            stmt.Bind(2, "%" + EscapeLike(query.toStdString()) + "%");
+        while (stmt.Step() == SQLITE_ROW) {
+            qint64 id = stmt.GetInt64FromColumnIndex(0);
+            if (!seen.contains(id)) {
+                seen.insert(id);
+                tab.pageIds.push_back({ id, db });
+            }
+        }
+    }
+
+    // Keep a worn slot's item visible even if no mounted database lists it anymore.
+    if (query.isEmpty() && sg.kind == Kind::Slot) {
+        qint64 worn = mWornSlots.value(sg.regKey, 0);
+        if (worn > 0 && !seen.contains(worn)) {
+            EmuDb* owner = mgr->GetFirstDbWhereItemExists(ItemType::Asset, worn);
+            if (owner == nullptr) {
+                std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
+                owner = dbs.empty() ? nullptr : dbs.front();
+            }
+            if (owner != nullptr) {
+                seen.insert(worn);
+                tab.pageIds.push_back({ worn, owner });
+            }
+        }
+    }
+
+    tab.pageCount = std::max<int>(1, ((int)tab.pageIds.size() + kPageSize - 1) / kPageSize);
+}
+
+void LocalPlayerDialog::RenderPage(AvatarTab& tab) {
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Scale)
+        return;
+    if (tab.page < 0) tab.page = 0;
+    if (tab.page >= tab.pageCount) tab.page = tab.pageCount - 1;
 
     tab.guard = true;
     tab.list->Clear();
-
-    // Merge every matching asset from all mounted databases (priority order; the first database that
-    // holds an id wins, since AddFromDatabase skips duplicates).
-    for (EmuDb* db : mgr->GetMountedDatabases()) {
-        for (AT type : tab.types) {
-            std::string sql = "SELECT Id FROM Asset WHERE Type = ?";
-            if (!query.isEmpty())
-                sql += " AND Name LIKE ? ESCAPE '\\'";
-            sql += " ORDER BY Name;";
-            Statement stmt = db->PrepareStatement(sql);
-            stmt.Bind(1, (int)type);
-            if (!query.isEmpty())
-                stmt.Bind(2, "%" + EscapeLike(query.toStdString()) + "%");
-            while (stmt.Step() == SQLITE_ROW) {
-                int64_t id = stmt.GetInt64FromColumnIndex(0);
-                if (tab.list->AddFromDatabase(db, ItemType::Asset, id))
-                    tab.idTypes[(qint64)id] = (int)type;
-            }
-        }
-    }
-
-    // When not filtering, keep worn items present even if no mounted database still has them, so they
-    // stay visible and aren't silently dropped on save.
-    if (query.isEmpty()) {
-        std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
-        EmuDb* fallback = dbs.empty() ? nullptr : dbs.front();
-        for (qint64 id : tab.worn) {
-            if (tab.list->IsItemInList(ItemType::Asset, id))
-                continue;
-            EmuDb* owner = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
-            tab.list->AddFromDatabase(owner ? owner : fallback, ItemType::Asset, id);
-        }
-    }
-
+    const int start = tab.page * kPageSize;
+    const int end = std::min<int>((int)tab.pageIds.size(), start + kPageSize);
+    for (int i = start; i < end; ++i)
+        tab.list->AddFromDatabase(tab.pageIds[i].second, ItemType::Asset, tab.pageIds[i].first);
     tab.guard = false;
-    ApplyWornSelection(tab);
-}
 
-void LocalPlayerDialog::ApplyWornSelection(AvatarCategoryTab& tab) {
-    // Reflect the worn set onto the visible items without letting the selection handler run (it would
-    // just re-derive the same worn set).
-    QSignalBlocker block(tab.list);
-    tab.list->clearSelection();
-    for (qint64 id : tab.worn) {
-        if (auto* iw = tab.list->GetItemWidget(ItemType::Asset, id))
-            iw->setSelected(true);
+    {
+        QSignalBlocker block(tab.list);
+        tab.list->clearSelection();
+        if (sg.kind == Kind::Slot) {
+            qint64 worn = mWornSlots.value(sg.regKey, 0);
+            if (worn > 0)
+                if (auto* iw = tab.list->GetItemWidget(ItemType::Asset, worn))
+                    iw->setSelected(true);
+        } else {
+            for (qint64 id : mWornAccessories)
+                if (auto* iw = tab.list->GetItemWidget(ItemType::Asset, id))
+                    iw->setSelected(true);
+        }
     }
+
+    tab.pageLabel->setText(QString("Page %1 / %2").arg(tab.page + 1).arg(tab.pageCount));
+    tab.prevBtn->setEnabled(tab.page > 0);
+    tab.nextBtn->setEnabled(tab.page < tab.pageCount - 1);
 }
 
-void LocalPlayerDialog::OnCategorySelectionChanged(AvatarCategoryTab& tab) {
+void LocalPlayerDialog::StepPage(AvatarTab& tab, int delta) {
+    const int np = tab.page + delta;
+    if (np < 0 || np >= tab.pageCount)
+        return;
+    tab.page = np;
+    RenderPage(tab);
+}
+
+void LocalPlayerDialog::OnTabSelectionChanged(AvatarTab& tab) {
     if (tab.guard)
         return;
-    tab.guard = true;
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Scale)
+        return;
 
-    // Single-slot tabs allow at most one worn item per asset type: when a second item of a type is
-    // selected, drop the previously-worn one of that type.
-    if (!tab.isAccessory) {
+    tab.guard = true;
+    if (sg.kind == Kind::Slot) {
         auto* current = dynamic_cast<ItemWidget*>(tab.list->currentItem());
         if (current && current->isSelected()) {
-            const int curType = tab.idTypes.value((qint64)current->GetId(), -1);
+            mWornSlots[sg.regKey] = (qint64)current->GetId();
             for (int i = 0; i < tab.list->count(); ++i) {
                 auto* iw = dynamic_cast<ItemWidget*>(tab.list->item(i));
-                if (!iw || iw == current || !iw->isSelected())
-                    continue;
-                if (tab.idTypes.value((qint64)iw->GetId(), -1) == curType)
+                if (iw && iw != current && iw->isSelected())
                     iw->setSelected(false);
             }
+        } else {
+            // A deselect; clear the slot only if the worn item is on this page and now unselected.
+            qint64 worn = mWornSlots.value(sg.regKey, 0);
+            if (worn > 0) {
+                auto* iw = tab.list->GetItemWidget(ItemType::Asset, worn);
+                if (iw && !iw->isSelected())
+                    mWornSlots[sg.regKey] = 0;
+            }
+        }
+    } else {
+        for (int i = 0; i < tab.list->count(); ++i) {
+            auto* iw = dynamic_cast<ItemWidget*>(tab.list->item(i));
+            if (!iw)
+                continue;
+            const qint64 id = (qint64)iw->GetId();
+            if (iw->isSelected())
+                mWornAccessories.insert(id);
+            else
+                mWornAccessories.remove(id);
         }
     }
-
-    // Sync the visible items' selection into the worn set (worn items hidden by a search stay put).
-    for (int i = 0; i < tab.list->count(); ++i) {
-        auto* iw = dynamic_cast<ItemWidget*>(tab.list->item(i));
-        if (!iw)
-            continue;
-        const qint64 id = (qint64)iw->GetId();
-        if (iw->isSelected())
-            tab.worn.insert(id);
-        else
-            tab.worn.remove(id);
-    }
-
     tab.guard = false;
 }
 
-void LocalPlayerDialog::ReadWornFromRegistry(AvatarCategoryTab& tab) {
-    Registry* reg = gApp->GetCore()->GetRegistry();
-    tab.worn.clear();
-
-    if (tab.isAccessory) {
-        if (auto table = reg->GetKeyValue<sol::table>(tab.accessoryKey.toStdString()); table.has_value()) {
-            const std::size_t count = table->size();
-            for (std::size_t i = 1; i <= count; ++i) {
-                sol::object obj = (*table)[i];
-                if (obj.get_type() != sol::type::number)
-                    continue;
-                qint64 id = (qint64)obj.as<int64_t>();
-                if (id > 0)
-                    tab.worn.insert(id);
-            }
-        }
-        return;
-    }
-
-    for (auto it = tab.typeToRegKey.begin(); it != tab.typeToRegKey.end(); ++it) {
-        int64_t id = reg->GetKeyValue<int64_t>(it.value().toStdString()).value_or(0);
-        if (id > 0) {
-            tab.worn.insert((qint64)id);
-            tab.idTypes[(qint64)id] = it.key();
-        }
+void LocalPlayerDialog::RefreshAllTabs() {
+    for (AvatarTab& tab : mTabs) {
+        if (ActiveSubgroup(tab).kind == Kind::Scale)
+            continue;
+        CollectIds(tab);
+        RenderPage(tab);
     }
 }
 
-void LocalPlayerDialog::SaveCategory(AvatarCategoryTab& tab) {
-    Core* core = gApp->GetCore();
-    Registry* reg = core->GetRegistry();
-
-    if (tab.isAccessory) {
-        sol::table table = core->GetLuaState()->create_table();
-        int n = 0;
-        for (qint64 id : tab.worn)
-            table[++n] = (int64_t)id;
-        reg->SetKeyValue(tab.accessoryKey.toStdString(), table);
+void LocalPlayerDialog::RouteWornAsset(qint64 id) {
+    if (id <= 0)
         return;
-    }
-
-    // Reset every slot, then fill from the worn set keyed by each item's asset type.
-    QMap<int, int64_t> slotById;
-    for (qint64 id : tab.worn) {
-        const int t = tab.idTypes.value(id, -1);
-        if (t >= 0)
-            slotById[t] = (int64_t)id;
-    }
-    for (auto it = tab.typeToRegKey.begin(); it != tab.typeToRegKey.end(); ++it)
-        reg->SetKeyValue<int64_t>(it.value().toStdString(), slotById.value(it.key(), 0));
+    int type = 0;
+    if (auto summary = gApp->GetCore()->GetEmuDbManager()->GetAssetSummary(id); summary.has_value())
+        type = summary->Type;
+    if (mTypeToSlotKey.contains(type))
+        mWornSlots[mTypeToSlotKey.value(type)] = id;
+    else
+        mWornAccessories.insert(id); // accessory type or unknown -> the flat list
 }
 
 void LocalPlayerDialog::ImportAvatarFromDatabase() {
@@ -578,8 +658,6 @@ void LocalPlayerDialog::ImportAvatarFromDatabase() {
     userList->SetOnDoubleClick([](ItemWidget*) {});
     layout->addWidget(userList, 1);
 
-    // Remembers which database each shown user came from (the first mounted database that has a given
-    // user id wins, matching AddFromDatabase's de-duplication).
     auto userDbs = std::make_shared<QMap<qint64, EmuDb*>>();
     auto populate = [mgr, userList, search, userDbs]() {
         userList->Clear();
@@ -639,30 +717,14 @@ void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
         }
     }
 
-    // Worn assets: route each into the category tab that owns its asset type.
-    for (AvatarCategoryTab& tab : mCategoryTabs)
-        tab.worn.clear();
+    // Worn items: route each by its asset type.
+    mWornSlots.clear();
+    mWornAccessories.clear();
     {
         Statement stmt = db->PrepareStatement("SELECT AssetId FROM UserCharacterItem WHERE Id = ?;");
         stmt.Bind(1, userId);
-        while (stmt.Step() == SQLITE_ROW) {
-            int64_t assetId = stmt.GetInt64FromColumnIndex(0);
-            if (assetId <= 0)
-                continue;
-            int type = 0;
-            if (auto summary = db->GetAssetSummary(assetId); summary.has_value())
-                type = summary->Type;
-            for (AvatarCategoryTab& tab : mCategoryTabs) {
-                bool matches = false;
-                for (AT t : tab.types)
-                    if ((int)t == type) { matches = true; break; }
-                if (matches) {
-                    tab.worn.insert((qint64)assetId);
-                    tab.idTypes[(qint64)assetId] = type;
-                    break;
-                }
-            }
-        }
+        while (stmt.Step() == SQLITE_ROW)
+            RouteWornAsset(stmt.GetInt64FromColumnIndex(0));
     }
 
     // Body colors.
@@ -683,7 +745,7 @@ void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
         }
     }
 
-    // Scales (only the four morphs stored on the User row round-trip).
+    // Scales.
     {
         Statement stmt = db->PrepareStatement(
             "SELECT CharacterWidth, CharacterHeight, CharacterHead, CharacterProportions FROM User WHERE Id = ?;");
@@ -704,16 +766,204 @@ void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
     {
         Statement stmt = db->PrepareStatement("SELECT CharacterBodyType FROM User WHERE Id = ?;");
         stmt.Bind(1, userId);
+        if (stmt.Step() == SQLITE_ROW)
+            (stmt.GetIntFromColumnIndex(0) == 1 ? mAvatarTypeR15 : mAvatarTypeR6)->setChecked(true);
+    }
+
+    RefreshAllTabs();
+}
+
+QWidget* LocalPlayerDialog::BuildOutfitsTab() {
+    QWidget* page = new QWidget;
+    QVBoxLayout* layout = new QVBoxLayout(page);
+    layout->addWidget(new QLabel("Saved outfits. Wear one to load it onto your avatar, or save the\ncurrent avatar as a new outfit."));
+
+    mOutfitList = new ItemListWidget(page);
+    mOutfitList->setSelectionMode(QAbstractItemView::SingleSelection);
+    mOutfitList->setItemDelegate(new WornItemDelegate(mOutfitList));
+    mOutfitList->setContextMenuPolicy(Qt::NoContextMenu);
+    mOutfitList->SetOnDoubleClick([](ItemWidget*) {});
+    layout->addWidget(mOutfitList, 1);
+
+    QHBoxLayout* btns = new QHBoxLayout;
+    QPushButton* saveBtn = new QPushButton("Save Current as Outfit…");
+    QPushButton* wearBtn = new QPushButton("Wear Selected");
+    QPushButton* delBtn  = new QPushButton("Delete Selected");
+    btns->addWidget(saveBtn);
+    btns->addWidget(wearBtn);
+    btns->addWidget(delBtn);
+    layout->addLayout(btns);
+
+    connect(saveBtn, &QPushButton::clicked, this, &LocalPlayerDialog::SaveCurrentOutfit);
+    connect(wearBtn, &QPushButton::clicked, this, &LocalPlayerDialog::WearSelectedOutfit);
+    connect(delBtn,  &QPushButton::clicked, this, &LocalPlayerDialog::DeleteSelectedOutfit);
+    connect(mOutfitList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) { WearSelectedOutfit(); });
+
+    return page;
+}
+
+void LocalPlayerDialog::RefreshOutfits() {
+    if (mOutfitList == nullptr)
+        return;
+    mOutfitList->Clear();
+    mOutfitDbs.clear();
+    EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
+    // Outfit ids are per-database (not global), so the same id can appear in several databases; the
+    // shared list keys by id, so the first database that has a given id wins (its db is remembered for
+    // wear/delete). The thumbnail comes from RetrieveImageData, which has no Outfit image and so falls
+    // back to the "content deleted" placeholder.
+    for (EmuDb* db : mgr->GetMountedDatabases()) {
+        Statement stmt = db->PrepareStatement("SELECT Id FROM Outfit ORDER BY Name;");
+        while (stmt.Step() == SQLITE_ROW) {
+            qint64 id = stmt.GetInt64FromColumnIndex(0);
+            if (mOutfitList->AddFromDatabase(db, ItemType::Outfit, id))
+                mOutfitDbs[id] = db;
+        }
+    }
+}
+
+// The (db, outfit id) of the selected outfit list item, or {nullptr, 0}.
+static std::pair<EmuDb*, qint64> SelectedOutfit(ItemListWidget* list, const QMap<qint64, EmuDb*>& dbs) {
+    if (list == nullptr || list->selectedItems().isEmpty())
+        return { nullptr, 0 };
+    auto* iw = dynamic_cast<ItemWidget*>(list->selectedItems().first());
+    if (iw == nullptr)
+        return { nullptr, 0 };
+    qint64 id = (qint64)iw->GetId();
+    return { dbs.value(id, nullptr), id };
+}
+
+void LocalPlayerDialog::SaveCurrentOutfit() {
+    EmuDb* db = gApp->GetCore()->GetEmuDbManager()->GetMasterDatabase();
+    if (db == nullptr) {
+        QMessageBox::warning(this, "Save Outfit", "There's no master database to save the outfit to.");
+        return;
+    }
+
+    bool ok = false;
+    QString name = QInputDialog::getText(this, "Save Outfit", "Outfit name:", QLineEdit::Normal, "My Outfit", &ok);
+    if (!ok || name.trimmed().isEmpty())
+        return;
+    name = name.trimmed();
+
+    int64_t newId = 1;
+    {
+        Statement stmt = db->PrepareStatement("SELECT COALESCE(MAX(Id), 0) + 1 FROM Outfit;");
+        if (stmt.Step() == SQLITE_ROW)
+            newId = stmt.GetInt64FromColumnIndex(0);
+    }
+
+    auto scaleVal = [&](const QString& key) -> double {
+        auto* f = mScaleFields.value(key, nullptr);
+        return f ? f->value() : 0.0;
+    };
+
+    SqlRow row;
+    row.push_back({ "Id", newId });
+    row.push_back({ "Name", name.toStdString() });
+    row.push_back({ "BodyType", (int)(mAvatarTypeR15 && mAvatarTypeR15->isChecked() ? 1 : 0) });
+    row.push_back({ "Width", scaleVal("user.appearance.scale.width") });
+    row.push_back({ "Height", scaleVal("user.appearance.scale.height") });
+    row.push_back({ "Head", scaleVal("user.appearance.scale.head") });
+    row.push_back({ "Proportions", scaleVal("user.appearance.scale.proportion") });
+    if (db->AddItem(ItemType::Outfit, row) != SqlDb::Response::Success) {
+        QMessageBox::warning(this, "Save Outfit", "Failed to create the outfit row.");
+        return;
+    }
+
+    for (auto it = mWornSlots.begin(); it != mWornSlots.end(); ++it)
+        if (it.value() > 0)
+            db->AddAssetToOutfit(newId, it.value());
+    for (qint64 id : mWornAccessories)
+        db->AddAssetToOutfit(newId, id);
+
+    struct ColorPart { const char* key; int part; };
+    const ColorPart parts[] = {
+        { "head", (int)UserCharacterBodyPart::Head },   { "torso", (int)UserCharacterBodyPart::Torso },
+        { "right_arm", (int)UserCharacterBodyPart::RightArm }, { "left_arm", (int)UserCharacterBodyPart::LeftArm },
+        { "right_leg", (int)UserCharacterBodyPart::RightLeg }, { "left_leg", (int)UserCharacterBodyPart::LeftLeg },
+    };
+    for (const ColorPart& cp : parts) {
+        if (!mBodyParts.contains(cp.key))
+            continue;
+        const QColor c = mBodyParts[cp.key].color;
+        int packed = ((c.red() & 0xFF) << 16) | ((c.green() & 0xFF) << 8) | (c.blue() & 0xFF);
+        Statement stmt = db->PrepareStatement("INSERT OR REPLACE INTO OutfitBodyColor (Id, BodyPart, Color3) VALUES (?, ?, ?);");
+        stmt.Bind(1, newId);
+        stmt.Bind(2, cp.part);
+        stmt.Bind(3, packed);
+        stmt.Step();
+    }
+
+    db->MarkDirty();
+    RefreshOutfits();
+    QMessageBox::information(this, "Save Outfit", QString("Saved outfit \"%1\".").arg(name));
+}
+
+void LocalPlayerDialog::WearSelectedOutfit() {
+    auto [db, outfitId] = SelectedOutfit(mOutfitList, mOutfitDbs);
+    if (db == nullptr) {
+        QMessageBox::information(this, "Wear Outfit", "Select an outfit to wear first.");
+        return;
+    }
+
+    mWornSlots.clear();
+    mWornAccessories.clear();
+    {
+        Statement stmt = db->PrepareStatement("SELECT AssetId FROM OutfitItem WHERE Id = ?;");
+        stmt.Bind(1, outfitId);
+        while (stmt.Step() == SQLITE_ROW)
+            RouteWornAsset(stmt.GetInt64FromColumnIndex(0));
+    }
+    {
+        Statement stmt = db->PrepareStatement("SELECT BodyPart, Color3 FROM OutfitBodyColor WHERE Id = ?;");
+        stmt.Bind(1, outfitId);
+        while (stmt.Step() == SQLITE_ROW) {
+            int part = stmt.GetIntFromColumnIndex(0);
+            int color = stmt.GetIntFromColumnIndex(1);
+            QString key = ColorKeyForBodyPart(part);
+            if (key.isEmpty() || !mBodyParts.contains(key))
+                continue;
+            QString name = BrickNameForRgb((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+            AvatarBodyPart& bp = mBodyParts[key];
+            bp.colorName = name;
+            bp.color = HexForBrickName(name);
+            ApplyBodyColor(bp);
+        }
+    }
+    {
+        Statement stmt = db->PrepareStatement("SELECT BodyType, Width, Height, Head, Proportions FROM Outfit WHERE Id = ?;");
+        stmt.Bind(1, outfitId);
         if (stmt.Step() == SQLITE_ROW) {
-            if (stmt.GetIntFromColumnIndex(0) == 1)
-                mAvatarTypeR15->setChecked(true);
-            else
-                mAvatarTypeR6->setChecked(true);
+            int bodyType = stmt.GetIntFromColumnIndex(0);
+            auto set = [&](const QString& key, double v) {
+                if (v > 0.0 && mScaleFields.contains(key))
+                    mScaleFields[key]->setValue(v);
+            };
+            set("user.appearance.scale.width",      stmt.GetDoubleFromColumnIndex(1));
+            set("user.appearance.scale.height",     stmt.GetDoubleFromColumnIndex(2));
+            set("user.appearance.scale.head",       stmt.GetDoubleFromColumnIndex(3));
+            set("user.appearance.scale.proportion", stmt.GetDoubleFromColumnIndex(4));
+            if (mAvatarTypeR6 && mAvatarTypeR15)
+                (bodyType == 1 ? mAvatarTypeR15 : mAvatarTypeR6)->setChecked(true);
         }
     }
 
-    for (AvatarCategoryTab& tab : mCategoryTabs)
-        PopulateCategory(tab);
+    RefreshAllTabs();
+}
+
+void LocalPlayerDialog::DeleteSelectedOutfit() {
+    auto [db, outfitId] = SelectedOutfit(mOutfitList, mOutfitDbs);
+    if (db == nullptr)
+        return;
+    if (QMessageBox::question(this, "Delete Outfit", "Delete the selected outfit?") != QMessageBox::Yes)
+        return;
+
+    { Statement s = db->PrepareStatement("DELETE FROM OutfitItem WHERE Id = ?;");      s.Bind(1, outfitId); s.Step(); }
+    { Statement s = db->PrepareStatement("DELETE FROM OutfitBodyColor WHERE Id = ?;"); s.Bind(1, outfitId); s.Step(); }
+    db->DeleteItem(ItemType::Outfit, outfitId);
+    db->MarkDirty();
+    RefreshOutfits();
 }
 
 void LocalPlayerDialog::LoadFromRegistry() {
@@ -731,15 +981,36 @@ void LocalPlayerDialog::LoadFromRegistry() {
     for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
         it.value()->setValue(reg->GetKeyValue<double>(it.key().toStdString()).value_or(0.0));
 
-    if (reg->GetKeyValue<std::string>("user.appearance.avatar_type").value_or("R6") == "R15")
-        mAvatarTypeR15->setChecked(true);
-    else
-        mAvatarTypeR6->setChecked(true);
-
-    for (AvatarCategoryTab& tab : mCategoryTabs) {
-        ReadWornFromRegistry(tab);
-        PopulateCategory(tab);
+    if (mAvatarTypeR6 && mAvatarTypeR15) {
+        if (reg->GetKeyValue<std::string>("user.appearance.avatar_type").value_or("R6") == "R15")
+            mAvatarTypeR15->setChecked(true);
+        else
+            mAvatarTypeR6->setChecked(true);
     }
+
+    // Worn state.
+    mWornSlots.clear();
+    for (auto it = mTypeToSlotKey.begin(); it != mTypeToSlotKey.end(); ++it)
+        mWornSlots[it.value()] = (qint64)reg->GetKeyValue<int64_t>(it.value().toStdString()).value_or(0);
+
+    mWornAccessories.clear();
+    if (auto table = reg->GetKeyValue<sol::table>("user.appearance.accessories"); table.has_value()) {
+        const std::size_t count = table->size();
+        for (std::size_t i = 1; i <= count; ++i) {
+            sol::object obj = (*table)[i];
+            if (obj.get_type() != sol::type::number)
+                continue;
+            qint64 id = (qint64)obj.as<int64_t>();
+            if (id > 0)
+                mWornAccessories.insert(id);
+        }
+    }
+
+    // Initialise each tab on its first subgroup (the combo is already at index 0, so trigger manually).
+    for (AvatarTab& tab : mTabs)
+        OnSubgroupChanged(tab);
+
+    RefreshOutfits();
 }
 
 void LocalPlayerDialog::SaveToRegistry() {
@@ -750,17 +1021,23 @@ void LocalPlayerDialog::SaveToRegistry() {
     reg->SetKeyValue("user.name", mNameInput->text().toStdString());
     reg->SetKeyValue("user.display_name", mDisplayNameInput->text().toStdString());
 
-    // Body colors (BrickColor names)
     for (auto it = mBodyParts.begin(); it != mBodyParts.end(); ++it)
         reg->SetKeyValue("user.appearance.color." + it.key().toStdString(), it->colorName.toStdString());
 
-    // Scales.
     for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
         reg->SetKeyValue<double>(it.key().toStdString(), it.value()->value());
 
-    reg->SetKeyValue("user.appearance.avatar_type", std::string(mAvatarTypeR15->isChecked() ? "R15" : "R6"));
+    if (mAvatarTypeR15)
+        reg->SetKeyValue("user.appearance.avatar_type", std::string(mAvatarTypeR15->isChecked() ? "R15" : "R6"));
 
-    // Worn items per category.
-    for (AvatarCategoryTab& tab : mCategoryTabs)
-        SaveCategory(tab);
+    // Worn single-slot items.
+    for (auto it = mTypeToSlotKey.begin(); it != mTypeToSlotKey.end(); ++it)
+        reg->SetKeyValue<int64_t>(it.value().toStdString(), (int64_t)mWornSlots.value(it.value(), 0));
+
+    // Accessories list.
+    sol::table table = core->GetLuaState()->create_table();
+    int n = 0;
+    for (qint64 id : mWornAccessories)
+        table[++n] = (int64_t)id;
+    reg->SetKeyValue("user.appearance.accessories", table);
 }
