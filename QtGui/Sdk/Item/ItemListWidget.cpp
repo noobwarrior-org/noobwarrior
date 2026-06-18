@@ -109,15 +109,15 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
         });
 
         connect(del, &QAction::triggered, [this]() {
-            QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
-            if (button != QMessageBox::Yes)
-                return;
-            
             std::vector<ItemWidget*> toDelete;
             for (QListWidgetItem *item : selectedItems()) {
                 if (auto *itemWidget = dynamic_cast<ItemWidget*>(item))
                     toDelete.push_back(itemWidget);
             }
+
+            QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", QString("Are you sure you want to delete %1 item(s)?").arg(toDelete.size()), QMessageBox::Yes | QMessageBox::No);
+            if (button != QMessageBox::Yes)
+                return;
 
             QStringList failures;
             for (ItemWidget *itemWidget : toDelete) {
@@ -268,8 +268,7 @@ void ItemListWidget::SetMultiSelect(bool enabled) {
 }
 
 void ItemListWidget::InitWidgets() {
-    // optimizations to make it less laggy
-    setUniformItemSizes(true);
+    // an optimization to make it less laggy
     setLayoutMode(QListView::Batched);
 
     setMovement(QListView::Static);
