@@ -30,32 +30,28 @@
 
 using namespace NoobWarrior;
 
-ItemBrowserPage::ItemBrowserPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {}
+ItemBrowserPage::ItemBrowserPage(ItemBrowserWidget *browser) : ItemListWidget(browser), mBrowser(browser) {
+    SetMultiSelect(true);
+}
 
-void ItemBrowserPage::Refresh() {
-    SearchOptions opt {};
-    opt.Offset = 0;
-    opt.Limit = 100;
-    opt.AssetType = mAssetType;
-
-    EmuDb* db = mBrowser->GetDatabase();
-
-    Populate({
-        .Database = db,
+ItemListWidget::PopulateOptions ItemBrowserPage::BuildOptions() const {
+    return {
+        .Database = mBrowser->GetDatabase(),
         .ItemType = mType,
         .AssetType = mAssetType,
-        .Offset = 0,
-        .Limit = 100,
+        .Offset = (mPage - 1) * kPageSize,
+        .Limit = kPageSize,
         .EnforceLimit = true,
         .Query = mQuery.toStdString()
-    });
+    };
+}
 
-    /*
-    std::vector<Asset> list = db->GetAssetRepository()->List();
-    for (auto &item : list) {
-        new ItemWidget<Asset>(item, db, this);
-    }
-    */
+void ItemBrowserPage::Refresh() {
+    Populate(BuildOptions());
+}
+
+int ItemBrowserPage::GetTotalCount() {
+    return CountItems(BuildOptions());
 }
 
 void ItemBrowserPage::SetQuery(const QString &query) {
@@ -68,4 +64,8 @@ void ItemBrowserPage::SetType(ItemType type) {
 
 void ItemBrowserPage::SetAssetType(Roblox::AssetType type) {
     mAssetType = type;
+}
+
+void ItemBrowserPage::SetPage(int page) {
+    mPage = page < 1 ? 1 : page;
 }

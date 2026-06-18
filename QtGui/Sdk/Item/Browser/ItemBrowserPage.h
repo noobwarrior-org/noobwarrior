@@ -30,15 +30,28 @@ namespace NoobWarrior {
 class ItemBrowserWidget;
 class ItemBrowserPage : public ItemListWidget {
 public:
+    static constexpr int kPageSize = 50;
+
     ItemBrowserPage(ItemBrowserWidget *browser);
     void Refresh();
     void SetQuery(const QString &query = "");
     void SetType(ItemType);
     void SetAssetType(Roblox::AssetType);
+
+    // 1-based page to display. Clamped to >= 1; out-of-range high pages simply show nothing.
+    void SetPage(int page);
+    int GetPage() const { return mPage; }
+    int GetPageSize() const { return kPageSize; }
+    // Total number of items matching the current filters, across all pages.
+    int GetTotalCount();
 private:
+    // The PopulateOptions describing the current filters + page, shared by Refresh and GetTotalCount.
+    PopulateOptions BuildOptions() const;
+
     ItemBrowserWidget *mBrowser;
     QString mQuery { "" };
     ItemType mType { ItemType::Asset };
     Roblox::AssetType mAssetType { Roblox::AssetType::None };
+    int mPage { 1 };
 };
 }

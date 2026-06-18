@@ -61,6 +61,9 @@ public:
 
     ItemListWidget(QWidget *parent = nullptr, EmuDb* db = nullptr);
     void Populate(const PopulateOptions options);
+    // Counts all rows matching the options' filters (query + asset type), ignoring paging. Used to
+    // compute how many pages a paged view spans.
+    int CountItems(const PopulateOptions &options);
     bool Add(ItemType type, int64_t id);
     bool Remove(ItemType type, int64_t id);
     bool IsItemInList(ItemType type, int64_t id);
@@ -69,6 +72,10 @@ public:
 
     void SetOnDoubleClick(const std::function<void(ItemWidget*)> func);
     void SetOnContextMenuShown(const std::function<void(QMenu*, ItemWidget*)> func);
+
+    // Enables selecting more than one item at once (Ctrl/Shift-click and rubber-band). Off by
+    // default, preserving the single-selection behaviour the item pickers rely on.
+    void SetMultiSelect(bool enabled);
 protected:
     void InitWidgets();
     void ShowContextMenu(QPoint point);

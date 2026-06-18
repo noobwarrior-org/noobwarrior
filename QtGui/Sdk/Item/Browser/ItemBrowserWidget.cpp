@@ -107,14 +107,21 @@ void ItemBrowserWidget::RefreshEx(ItemType type) {
     mAssetType = static_cast<Roblox::AssetType>(AssetTypeDropdown->currentData().toInt());
 
     mPage->SetType(type);
+    mPage->SetAssetType(mAssetType);
     AssetCategoryDropdown->setVisible(type == ItemType::Asset);
     AssetTypeDropdown->setVisible(type == ItemType::Asset);
 
     NoDatabaseFoundLabel->setVisible(!isProjectDatabase);
     mPage->setVisible(isProjectDatabase);
     if (isProjectDatabase) {
+        // Filters changed: jump back to the first page and reload (GoToPage refreshes the list and
+        // the page controls).
+        GoToPage(1);
+    } else {
         mPage->clear();
-        mPage->Refresh();
+        mCurrentPage = 1;
+        mTotalPages = 1;
+        UpdatePageControls();
     }
 }
 
@@ -154,7 +161,8 @@ void ItemBrowserWidget::InitWidgets() {
     SearchBox->setPlaceholderText("Search...");
     connect(SearchBox, &QLineEdit::textChanged, [this]() {
         mPage->SetQuery(SearchBox->text());
-        mPage->Refresh();
+        // A new query changes the result set, so restart at page 1 (Refresh -> RefreshEx -> GoToPage(1)).
+        Refresh();
     });
 
     NoDatabaseFoundLabel = new QLabel("Switch to a database project in order to browse it", MainWidget);
@@ -182,29 +190,67 @@ void ItemBrowserWidget::InitWidgets() {
     });
 
     InitPageCounter();
+    // RefreshAssetCategory() -> Refresh() -> RefreshEx() already drives the initial population (and,
+    // when a database is focused, GoToPage(1)). Calling GoToPage(1) here unconditionally would page a
+    // possibly-null database and crash on launch.
     RefreshAssetCategory();
-    GoToPage(1);
 }
 
 void ItemBrowserWidget::InitPageCounter() {
     auto pageCountLayout = new QHBoxLayout(MainWidget);
 
-    auto backButton = new QPushButton("Back", MainWidget);
-    auto nextButton = new QPushButton("Next", MainWidget);
+    BackButton = new QPushButton("Back", MainWidget);
+    NextButton = new QPushButton("Next", MainWidget);
 
     auto pageLabel = new QLabel("Page", MainWidget);
-    auto pageInputLabel = new QSpinBox(MainWidget);
-    auto pageLabelTotal = new QLabel("of 1", MainWidget);
+    PageInput = new QSpinBox(MainWidget);
+    PageInput->setMinimum(1);
+    PageInput->setMaximum(1);
+    PageTotalLabel = new QLabel("of 1", MainWidget);
 
-    pageCountLayout->addWidget(backButton);
+    pageCountLayout->addWidget(BackButton);
     pageCountLayout->addWidget(pageLabel);
-    pageCountLayout->addWidget(pageInputLabel);
-    pageCountLayout->addWidget(pageLabelTotal);
-    pageCountLayout->addWidget(nextButton);
+    pageCountLayout->addWidget(PageInput);
+    pageCountLayout->addWidget(PageTotalLabel);
+    pageCountLayout->addWidget(NextButton);
 
     MainLayout->addLayout(pageCountLayout);
+
+    connect(BackButton, &QPushButton::clicked, this, [this]() { GoToPage(mCurrentPage - 1); });
+    connect(NextButton, &QPushButton::clicked, this, [this]() { GoToPage(mCurrentPage + 1); });
+    connect(PageInput, &QSpinBox::editingFinished, this, [this]() { GoToPage(PageInput->value()); });
+}
+
+void ItemBrowserWidget::UpdatePageControls() {
+    // Reflects the current mCurrentPage / mTotalPages into the widgets; does not query the database.
+    PageTotalLabel->setText(QString("of %1").arg(mTotalPages));
+
+    // Keep the spinbox in sync without re-triggering GoToPage via editingFinished.
+    PageInput->blockSignals(true);
+    PageInput->setMaximum(mTotalPages);
+    PageInput->setValue(mCurrentPage);
+    PageInput->blockSignals(false);
+
+    BackButton->setEnabled(mCurrentPage > 1);
+    NextButton->setEnabled(mCurrentPage < mTotalPages);
 }
 
 void ItemBrowserWidget::GoToPage(int num) {
+    // Recompute how many pages the current filters span, then clamp the requested page into range so
+    // jumping past the end lands on the last populated page rather than an empty one.
+    int total = mPage->GetTotalCount();
+    int pageSize = mPage->GetPageSize();
+    mTotalPages = total > 0 ? (total + pageSize - 1) / pageSize : 1;
 
+    if (num < 1)
+        num = 1;
+    if (num > mTotalPages)
+        num = mTotalPages;
+    mCurrentPage = num;
+
+    mPage->SetPage(num);
+    mPage->clear();
+    mPage->Refresh();
+
+    UpdatePageControls();
 }

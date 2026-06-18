@@ -38,6 +38,8 @@
 #include <QListWidget>
 #include <QLabel>
 #include <QComboBox>
+#include <QPushButton>
+#include <QSpinBox>
 
 namespace NoobWarrior {
 class ItemBrowserWidget : public QDockWidget {
@@ -55,6 +57,9 @@ private:
     void InitWidgets();
     void InitPageCounter();
     void GoToPage(int num);
+    // Recomputes the total page count for the current filters and refreshes the Back/Next/spinbox
+    // enabled state and the "of N" label.
+    void UpdatePageControls();
 
     // Similarly to Roblox's Toolbox widget, we have a few dropdowns that allow you to filter out what you don't want.
     AssetCategory       mAssetCategory;
@@ -74,5 +79,13 @@ private:
 
     QLineEdit*      SearchBox;
     QLabel*         NoDatabaseFoundLabel;
+
+    //////////// Pagination ////////////
+    QPushButton*    BackButton { nullptr };
+    QPushButton*    NextButton { nullptr };
+    QSpinBox*       PageInput { nullptr };
+    QLabel*         PageTotalLabel { nullptr };
+    int             mCurrentPage { 1 };
+    int             mTotalPages { 1 };
 };
 }

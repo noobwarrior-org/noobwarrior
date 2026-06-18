@@ -188,6 +188,8 @@ void ItemListWidget::Populate(const PopulateOptions options) {
     mLastOptions = options;
     mItems.clear();
     clear();
+    if (options.Database == nullptr)
+        return;
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
     std::string stmtStr = "SELECT Id, Name FROM " + tableName;
@@ -201,6 +203,12 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmtStr += hasWhere ? " AND " : " WHERE ";
         stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
     }
+    // Page the results when a limit is enforced. Offset/Limit are integers from code, so they're
+    // safe to inline. Order by Id for a stable page ordering across queries.
+    if (options.EnforceLimit) {
+        stmtStr += " ORDER BY Id LIMIT " + std::to_string(options.Limit) +
+                   " OFFSET " + std::to_string(options.Offset);
+    }
     stmtStr += ";";
     Statement stmt = options.Database->PrepareStatement(stmtStr);
     if (!options.Query.empty())
@@ -209,6 +217,33 @@ void ItemListWidget::Populate(const PopulateOptions options) {
     while (stmt.Step() == SQLITE_ROW) {
         Add(options.ItemType, stmt.GetInt64FromColumnIndex(0));
     }
+}
+
+int ItemListWidget::CountItems(const PopulateOptions &options) {
+    if (options.Database == nullptr)
+        return 0;
+    std::string tableName = GetTableNameFromItemType(options.ItemType);
+
+    // Mirror Populate's filters (without the paging clause) to count every matching row.
+    std::string stmtStr = "SELECT COUNT(*) FROM \"" + tableName + "\"";
+    bool hasWhere = false;
+    if (!options.Query.empty()) {
+        stmtStr += " WHERE Name LIKE ? ESCAPE '\\'";
+        hasWhere = true;
+    }
+    if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
+        stmtStr += hasWhere ? " AND " : " WHERE ";
+        stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
+    }
+    stmtStr += ";";
+
+    Statement stmt = options.Database->PrepareStatement(stmtStr);
+    if (!options.Query.empty())
+        stmt.Bind(1, "%" + EscapeLike(options.Query) + "%");
+
+    if (stmt.Step() == SQLITE_ROW)
+        return stmt.GetIntFromColumnIndex(0);
+    return 0;
 }
 
 bool ItemListWidget::Add(ItemType type, int64_t id) {
@@ -253,6 +288,10 @@ void ItemListWidget::SetOnDoubleClick(const std::function<void(ItemWidget*)> fun
 
 void ItemListWidget::SetOnContextMenuShown(const std::function<void(QMenu*, ItemWidget*)> func) {
     mOnContextMenuShown = func;
+}
+
+void ItemListWidget::SetMultiSelect(bool enabled) {
+    setSelectionMode(enabled ? QAbstractItemView::ExtendedSelection : QAbstractItemView::SingleSelection);
 }
 
 void ItemListWidget::InitWidgets() {
