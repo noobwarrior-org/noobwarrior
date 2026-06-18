@@ -49,6 +49,7 @@
 #include <qsystemtrayicon.h>
 
 #define USE_CUSTOM_STYLE 1
+#define SHOW_DISCLAIMER 0
 
 using namespace NoobWarrior;
 
@@ -160,23 +161,31 @@ int Application::Run() {
     appIcon.setIsMask(true);
 #endif
     mTrayIcon->setIcon(appIcon);
-
     mTrayIcon->show();
+    
+#if SHOW_DISCLAIMER
+    QString title = "Disclaimer";
+    QString text =
+        "This program is just a proof of concept at the moment. It's not finished. "
+        "You'll inevitably run into missing functionality or things that are just straight up broken. "
+        "You should only be using this program to see what you think of it, and to test it for bugs and other oddities."
+        "\n\nBy clicking Yes, you agree to the statements made above.";
 
     QMessageBox msg;
 #if !defined(Q_OS_MACOS)
-    msg.setText("Warning");
-    msg.setInformativeText("What you are running is incomplete software. Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.");
+    msg.setWindowTitle(title);
+    msg.setText(text);
     msg.setIcon(QMessageBox::Information);
 #else
-    msg.setText("You are running software that is likely broken");
-    msg.setInformativeText("Nothing here is suitable for production. Things are bound to change, especially the way critical data is parsed by the program.\n\nBy clicking Yes, you agree to the statement that anything you try to create with this version of the software will eventually be corrupted due to unforeseen consequences.");
+    msg.setText(title);
+    msg.setInformativeText(text);
 #endif
     msg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msg.setDefaultButton(QMessageBox::No);
     int res = msg.exec();
     if (res != QMessageBox::Yes)
         goto cleanup;
+#endif
     openLauncherAction->trigger();
     ret = exec();
 cleanup:
