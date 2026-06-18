@@ -1634,6 +1634,27 @@ SqlDb::Response EmuDb::RemoveAssetFromUserCharacter(int64_t userId, int64_t asse
 	return RemoveAssetLink("UserCharacterItem", userId, assetId);
 }
 
+SqlDb::Response EmuDb::SetUserCharacterBodyColor(int64_t userId, int bodyPart, int color3) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+
+	// (Id, BodyPart) is the composite primary key, so OR REPLACE updates an existing part's color.
+	Statement stmt = PrepareStatement("INSERT OR REPLACE INTO UserCharacterBodyColor (Id, BodyPart, Color3) VALUES (?, ?, ?);");
+	CHECK_STMT(stmt)
+	stmt.Bind(1, userId);
+	stmt.Bind(2, bodyPart);
+	stmt.Bind(3, color3);
+
+	switch (stmt.Step()) {
+	default: return SqlDb::Response::Failed;
+	case SQLITE_DONE:
+		MarkDirty();
+		return SqlDb::Response::Success;
+	case SQLITE_BUSY: return SqlDb::Response::Busy;
+	case SQLITE_MISUSE: return SqlDb::Response::Misuse;
+	case SQLITE_CONSTRAINT: return SqlDb::Response::ConstraintViolation;
+	}
+}
+
 SqlDb::Response EmuDb::AttachHeadshotToUser(int64_t userId, const std::vector<unsigned char> &data) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

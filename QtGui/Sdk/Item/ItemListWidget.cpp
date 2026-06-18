@@ -240,6 +240,15 @@ bool ItemListWidget::Add(ItemType type, int64_t id) {
     return true;
 }
 
+bool ItemListWidget::AddFromDatabase(EmuDb* db, ItemType type, int64_t id) {
+    if (db == nullptr)
+        return false;
+    if (mItems.find({ type, id }) != mItems.end())
+        return false;
+    mItems[{ type, id }] = new ItemWidget(db, type, id, this);
+    return true;
+}
+
 bool ItemListWidget::Remove(ItemType type, int64_t id) {
     // Don't let audio outlive the widget that's playing it.
     if (mPlayingKey == std::make_pair(type, id))

@@ -23,6 +23,8 @@
 // Started on: 6/5/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/AvatarFetchHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
@@ -32,25 +34,7 @@ AvatarFetchHandler::AvatarFetchHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void AvatarFetchHandler::OnRequest(evhttp_request *req, void *userdata) {
-    nlohmann::json j;
-    j["resolvedAvatarType"] = "R6";
-    j["equippedGearVersionIds"] = nlohmann::json::array();
-    j["backpackGearVersionIds"] = nlohmann::json::array();
-    j["assetAndAssetTypeIds"] = nlohmann::json::array();
-    j["animationAssetIds"] = nlohmann::json::object();
-    j["bodyColors"]["headColorId"] = 194;
-    j["bodyColors"]["torsoColorId"] = 23;
-    j["bodyColors"]["rightArmColorId"] = 194;
-    j["bodyColors"]["leftArmColorId"] = 194;
-    j["bodyColors"]["rightLegColorId"] = 102;
-    j["bodyColors"]["leftLegColorId"] = 102;
-    j["scales"]["height"] = 1.0;
-    j["scales"]["width"] = 1.0;
-    j["scales"]["head"] = 1.0;
-    j["scales"]["depth"] = 1.0;
-    j["scales"]["proportion"] = 0.0;
-    j["scales"]["bodyType"] = 0.0;
-    j["emotes"] = nlohmann::json::array();
+    nlohmann::json j = AvatarAppearance::BuildAvatarFetchJson(mEmu->GetCore());
 
     const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");

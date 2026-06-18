@@ -58,6 +58,8 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.universe_places", "https://develop.roblox.com/v1/universes/{}/places");
     SetKeyValueIfNotSet("internet.roblox.universe_badges", "https://badges.roblox.com/v1/universes/{}/badges");
     SetKeyValueIfNotSet("internet.roblox.user_details", "https://users.roblox.com/v1/users/{}");
+    SetKeyValueIfNotSet("internet.roblox.user_avatar_details", "https://avatar.roblox.com/v1/users/{}/avatar");
+    SetKeyValueIfNotSet("internet.roblox.avatar_fetch", "https://avatar.roblox.com/v2/avatar/avatar-fetch?userId={}&placeId=1");
     SetKeyValueIfNotSet("internet.roblox.user_thumbnail", "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={}&size=420x420&format=Png&isCircular=false");
     SetKeyValueIfNotSet("internet.roblox.user_avatar", "https://thumbnails.roblox.com/v1/users/avatar?userIds={}&size=420x420&format=Png&isCircular=false");
     SetKeyValueIfNotSet("internet.roblox.group_details", "https://groups.roblox.com/v1/groups/{}");
@@ -67,9 +69,14 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.universe_icon", "https://thumbnails.roblox.com/v1/games/icons?universeIds={}&size=512x512&format=Png&isCircular=false");
     SetKeyValueIfNotSet("internet.roblox.place_universe", "https://apis.roblox.com/universes/v1/places/{}/universe");
 
+    SetKeyValueIfNotSet("backup.max_depth", 6);
+    SetKeyComment("backup.max_depth", "How many levels deep a backup follows related items (an item -> its creator/children -> theirs, and so on). Higher captures more related items but is slower; it is clamped to a safe maximum (20) to avoid runaway recursion / stack overflow.");
+
     SetKeyValueIfNotSet("user.id", 1000);
     SetKeyValueIfNotSet("user.name", "Player");
     SetKeyValueIfNotSet("user.display_name", "Player");
+
+    SetKeyValueIfNotSet("user.appearance.avatar_type", "R6"); // "R6" or "R15"
 
     SetKeyValueIfNotSet("user.appearance.tshirt", 0);
     SetKeyValueIfNotSet("user.appearance.shirt", 0);
@@ -85,6 +92,7 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("user.appearance.accessories", mLua->create_table());
 
+    SetKeyValueIfNotSet("user.appearance.body.package", 0);
     SetKeyValueIfNotSet("user.appearance.body.head", 0);
     SetKeyValueIfNotSet("user.appearance.body.torso", 0);
     SetKeyValueIfNotSet("user.appearance.body.left_arm", 0);

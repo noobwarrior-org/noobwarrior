@@ -95,6 +95,15 @@ public:
     int64_t StartPlaceId {}; // Universe only: its root place
     int64_t ImageId {};      // display-icon asset id (badges, groups, ...) — what previews resolve to
 
+    // User only: the avatar captured from the Roblox avatar API during population, written out to the
+    // UserCharacter* tables and the User row's scale columns in phase 2. The worn assets are also added
+    // as child Asset descriptors so their binaries get downloaded.
+    std::vector<int64_t> WornAssetIds;
+    std::vector<std::pair<int, int>> BodyColors; // (UserCharacterBodyPart, packed 0xRRGGBB)
+    bool   HasAvatar {false};
+    int    AvatarBodyType {0};
+    double AvatarWidth {0}, AvatarHeight {0}, AvatarHead {0}, AvatarProportions {0};
+
     ItemDescriptor* GetParent() const;
     const std::vector<ItemDescriptor*>& GetChildren() const;
     
@@ -145,7 +154,7 @@ public:
 
     ItemDescriptor* GetRoot();
 private:
-    void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems);
+    void PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems, int depth = 0);
     void DownloadItemDescriptorRecursively(Backup::ItemDescriptor* descriptor);
     void DownloadItemDescriptor(Backup::ItemDescriptor* descriptor);
 
@@ -174,6 +183,7 @@ private:
     std::string mAuthCookie;
 
     std::atomic<bool> mCancelled { false };
+    int    mMaxDepth { 6 }; // discovery recursion cap; from registry "backup.max_depth", clamped
     int    mTotalNodes { 0 };
     int    mDoneNodes  { 0 };
     double mProgress { 0 };

@@ -23,6 +23,8 @@
 // Started on: 4/23/2026
 // Description:
 #pragma once
+#include <NoobWarrior/Roblox/Api/Asset.h>
+
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -34,10 +36,18 @@
 #include <QTabWidget>
 #include <QListWidget>
 #include <QDoubleSpinBox>
+#include <QRadioButton>
 #include <QColor>
 #include <QMap>
+#include <QSet>
+
+#include <cstdint>
+#include <vector>
 
 namespace NoobWarrior {
+class ItemListWidget;
+class EmuDb;
+
 struct AvatarBodyPart {
     QString key;
     QString label;
@@ -46,10 +56,23 @@ struct AvatarBodyPart {
     QColor color;
 };
 
-struct AvatarItemCategory {
-    QString key;
+// One tab of the avatar editor. A tab shows every asset of its `types` aggregated from all mounted
+// databases. `worn` is the authoritative set of equipped asset ids (kept separate from the list's
+// transient selection so a search that hides a worn item never drops it on save).
+struct AvatarCategoryTab {
     QString label;
-    QListWidget* list;
+    bool multiSelect = false;            // accessories: many items can be worn at once
+    bool isAccessory = false;            // saved to the accessories table rather than per-slot keys
+    std::vector<Roblox::AssetType> types;
+    QMap<int, QString> typeToRegKey;     // single-slot tabs: assetType value -> registry key
+    QString accessoryKey;                // accessory tab: the registry table key
+
+    ItemListWidget* list = nullptr;
+    QLineEdit* search = nullptr;
+
+    QSet<qint64> worn;                   // equipped asset ids (source of truth)
+    QMap<qint64, int> idTypes;           // asset id -> its asset type value (persistent)
+    bool guard = false;                  // re-entrancy guard while syncing selection
 };
 
 class LocalPlayerDialog : public QDialog {
@@ -62,16 +85,26 @@ protected:
 
     QWidget* BuildAvatarBody();
     QWidget* BuildItemEditor();
+    QWidget* BuildScaleTab();
+    void BuildCategoryTab(QTabWidget* tabs, const AvatarCategoryTab& def);
     void AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
                      int row, int col, int w, int h, const QString& defaultColorName);
     void PickBodyColor(AvatarBodyPart& part);
     void ApplyBodyColor(const AvatarBodyPart& part);
 
-    QLineEdit* MakeAssetField(const QString& regKey);
     QDoubleSpinBox* MakeScaleField(const QString& regKey);
 
-    void AddItemToCategory(AvatarItemCategory& category);
-    void RemoveSelectedItem(AvatarItemCategory& category);
+    // Avatar category tabs.
+    void PopulateCategory(AvatarCategoryTab& tab);
+    void ApplyWornSelection(AvatarCategoryTab& tab);
+    void OnCategorySelectionChanged(AvatarCategoryTab& tab);
+    void ReadWornFromRegistry(AvatarCategoryTab& tab);
+    void SaveCategory(AvatarCategoryTab& tab);
+
+    // Replaces the current appearance with a user's avatar stored in a mounted database.
+    void ImportAvatarFromDatabase();
+    // Applies a stored user's identity, worn items, body colors, scales and avatar type to the dialog.
+    void ApplyImportedAvatar(EmuDb* db, int64_t userId);
 
     void LoadFromRegistry();
     void SaveToRegistry();
@@ -85,9 +118,11 @@ private:
     QLineEdit* mDisplayNameInput;
 
     QMap<QString, AvatarBodyPart> mBodyParts;
-    QList<AvatarItemCategory> mItemCategories;
-    QMap<QString, QLineEdit*> mAssetFields;
     QMap<QString, QDoubleSpinBox*> mScaleFields;
+    QList<AvatarCategoryTab> mCategoryTabs;
+
+    QRadioButton* mAvatarTypeR6 { nullptr };
+    QRadioButton* mAvatarTypeR15 { nullptr };
 
     QDialogButtonBox* mButtonBox;
 };

@@ -73,6 +73,10 @@ public:
     // compute how many pages a paged view spans.
     int CountItems(const PopulateOptions &options);
     bool Add(ItemType type, int64_t id);
+    // Adds a single item bound to an explicit database rather than the widget's Populate database, so
+    // a caller can merge items drawn from several databases into one list. Skips ids already present
+    // (the same shared asset shows once). Returns false when db is null or the id is already shown.
+    bool AddFromDatabase(EmuDb* db, ItemType type, int64_t id);
     bool Remove(ItemType type, int64_t id);
     bool IsItemInList(ItemType type, int64_t id);
     ItemWidget* GetItemWidget(ItemType type, int64_t id);

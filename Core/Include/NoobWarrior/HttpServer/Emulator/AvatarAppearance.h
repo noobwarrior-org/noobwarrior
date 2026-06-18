@@ -18,20 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AvatarHandler.h
+// File: AvatarAppearance.h
 // Started by: Hattozo
-// Started on: 6/6/2026
-// Description:
+// Started on: 6/18/2026
+// Description: Builds the avatar JSON the engine consumes (the /v1/avatar and /v1.1/avatar-fetch
+//              endpoints) from the local player's appearance stored in the registry (user.appearance.*),
+//              resolving each worn asset's type from the mounted databases.
 #pragma once
-#include <NoobWarrior/HttpServer/Base/Handler.h>
+#include <nlohmann/json_fwd.hpp>
 
 namespace NoobWarrior {
-class ServerEmulator;
-class AvatarHandler : public Handler {
-public:
-    AvatarHandler(ServerEmulator* emu);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    ServerEmulator* mEmu;
-};
+class Core;
+namespace AvatarAppearance {
+    // The body of /v1/avatar: the authenticated user's own avatar (used by the avatar editor and to
+    // load the local character).
+    nlohmann::json BuildAvatarJson(Core* core);
+
+    // The body of /v1.1/avatar-fetch (a.k.a. /v2/avatar/avatar-fetch): the appearance the engine
+    // applies when spawning a player's character.
+    nlohmann::json BuildAvatarFetchJson(Core* core);
+}
 }

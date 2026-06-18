@@ -105,6 +105,18 @@
 #define NOOBWARRIOR_BIND_FIELD()
 
 namespace NoobWarrior {
+// Identifies a body part in UserCharacterBodyColor.BodyPart. The order mirrors the Roblox avatar
+// API's bodyColors fields. Shared by the backup writer and the local-player editor's importer so the
+// stored colors round-trip.
+enum class UserCharacterBodyPart {
+    Head     = 0,
+    Torso    = 1,
+    RightArm = 2,
+    LeftArm  = 3,
+    RightLeg = 4,
+    LeftLeg  = 5
+};
+
 struct SearchOptions {
     int Offset{0}; // Where do you want to start?
     int Limit{99}; // How much do you want to go up to?
@@ -292,6 +304,10 @@ public:
     /* User functions */
     SqlDb::Response AddAssetToUserCharacter(int64_t userId, int64_t assetId);
     SqlDb::Response RemoveAssetFromUserCharacter(int64_t userId, int64_t assetId);
+
+    // Upserts one of a user character's body-part colors into UserCharacterBodyColor. bodyPart is a
+    // UserCharacterBodyPart value; color3 is a packed 0xRRGGBB integer.
+    SqlDb::Response SetUserCharacterBodyColor(int64_t userId, int bodyPart, int color3);
 
     // Stores a user's avatar headshot image (fetched from Roblox) as User.HeadshotThumbnailHash so the
     // SDK can preview the user. Upserts the blob.

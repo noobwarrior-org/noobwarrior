@@ -320,7 +320,7 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
 
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
-        
+
         if (data.size() >= 3 && data[0] == 0x1f && data[1] == 0x8b && data[2] == 0x08) {
             evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Encoding", "gzip");
         }

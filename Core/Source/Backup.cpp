@@ -27,6 +27,7 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
+#include <NoobWarrior/Roblox/DataType/BrickColor.h>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -41,10 +42,20 @@
 #include <chrono>
 #include <vector>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
+#include <algorithm>
 
 using namespace NoobWarrior;
 using json = nlohmann::json;
+
+// Safety limits for the phase-1 discovery walk. The asset/creator/avatar graph is deeply connected
+// (an asset's creator is a user whose avatar has more assets with more creators...), so without caps
+// the recursion can run away and overflow the stack. The avatar sub-graph is additionally gated to
+// the root item (see the User case), so these are mostly a backstop. The effective depth is the
+// user's `backup.max_depth` registry setting clamped to [1, kBackupDepthHardCap].
+static constexpr int kBackupDepthHardCap = 20;
+static constexpr std::size_t kMaxBackupNodes = 1500;
 
 static const std::map<long, std::string> sHttpStatusMessages = {
     {100, "Continue"},
@@ -300,6 +311,10 @@ Backup::Process::Process(Core* core, const ProcessOptions options) {
     
     mAuthCookie = GetRbxCookie(core);
 
+    // User-tunable discovery depth, clamped so a huge value can't overflow the stack.
+    mMaxDepth = std::clamp(core->GetRegistry()->GetKeyValue<int>("backup.max_depth").value_or(6),
+                           1, kBackupDepthHardCap);
+
     ItemDescriptor* root = new ItemDescriptor();
     mRoot = root;
     // Give it something to start off
@@ -326,12 +341,24 @@ static cpr::Response BackupHttpGet(const std::string& url, const std::string& co
     curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
 
     cpr::Response res;
-    for (int attempt = 0; attempt < 3; attempt++) {
+    const int kMaxAttempts = 5;
+    for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
         res = session.Get();
-        bool transient = res.error.code != cpr::ErrorCode::OK || res.status_code == 429 || res.status_code == 500 || res.status_code == 502 || res.status_code == 503 || res.status_code == 504;
-        if (!transient || attempt == 2)
+        bool transient = res.error.code != cpr::ErrorCode::OK || res.status_code == 429 ||
+                         res.status_code == 500 || res.status_code == 502 ||
+                         res.status_code == 503 || res.status_code == 504;
+        if (!transient || attempt == kMaxAttempts - 1)
             break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(300 * (attempt + 1)));
+
+        // avatar.roblox.com (and friends) rate-limit hard; honor Retry-After when present, otherwise
+        // back off exponentially.
+        long waitMs = 400L * (1L << attempt); // 400, 800, 1600, 3200
+        if (auto it = res.header.find("Retry-After"); it != res.header.end()) {
+            long secs = std::strtol(it->second.c_str(), nullptr, 10);
+            if (secs > 0)
+                waitMs = std::min<long>(secs * 1000L, 10000L);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitMs));
     }
 
     if (res.text.size() >= 2 && static_cast<unsigned char>(res.text[0]) == 0x1f && static_cast<unsigned char>(res.text[1]) == 0x8b) {
@@ -363,6 +390,9 @@ Backup::Response Backup::Process::Start() {
     // Phase 1: walk the Roblox endpoints to discover everything that needs backing up.
     std::map<std::pair<ItemType, int64_t>, bool> discoveredItems;
     PopulateItemDescriptor(mRoot, discoveredItems);
+    if (discoveredItems.size() >= kMaxBackupNodes)
+        Report(State::Populating, "Reached the backup item limit (" + std::to_string(kMaxBackupNodes) +
+                                  "); some related items were skipped.");
     if (mCancelled) {
         Report(State::Failed, "Backup cancelled.");
         return Response::Cancelled;
@@ -422,7 +452,7 @@ Backup::ItemDescriptor* Backup::Process::GetRoot() {
     return mRoot;
 }
 
-void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems) {
+void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems, int depth) {
     if (descriptor == nullptr || mCancelled)
         return;
 
@@ -432,6 +462,14 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
         cpr::Response res = BackupHttpGet(url, mAuthCookie);
         if (res.error.code != cpr::ErrorCode::OK) {
             Report(State::DownloadingFailed, "Failed to download " + description);
+            return false;
+        }
+        // A non-200 (notably 429 Too Many Requests) still returns a valid JSON error body like
+        // {"errors":[...]}, which would otherwise parse as a "successful" object with none of the
+        // expected fields — silently backing up nothing. Treat it as a failure.
+        if (res.status_code != 200) {
+            Report(res.status_code == 429 ? State::Ratelimited : State::DownloadingFailed,
+                   "HTTP " + std::to_string(res.status_code) + " while downloading " + description);
             return false;
         }
         out = nlohmann::json::parse(res.text, nullptr, false);
@@ -459,15 +497,20 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
     };
 
     auto MakeChild = [&](ItemType type, int64_t id, Roblox::AssetType assetType = Roblox::AssetType::None) -> ItemDescriptor* {
-        if (id <= 0 || discoveredItems.contains({ type, id }))
+        if (id <= 0 || discoveredItems.contains({ type, id }) || discoveredItems.size() >= kMaxBackupNodes)
             return nullptr;
         auto* child = new ItemDescriptor();
         child->Type = type;
         child->Id = id;
         child->Version = 0;
         child->AssetType = assetType;
+        // Mark discovered up-front so a depth-capped (unpopulated) child still de-duplicates.
+        discoveredItems[{ type, id }] = true;
         descriptor->AddChild(child);
-        PopulateItemDescriptor(child, discoveredItems);
+        // Past the depth cap the child is still recorded and downloaded, but we stop descending so a
+        // deeply-connected graph can't overflow the stack.
+        if (depth + 1 < mMaxDepth)
+            PopulateItemDescriptor(child, discoveredItems, depth + 1);
         return child;
     };
 
@@ -581,6 +624,105 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
             descriptor->Description = jStr(json, "description");
             descriptor->Created = jTs(json, "created");
         }
+        if (mCancelled) return;
+
+        // Only the explicitly-targeted user (the backup root) pulls in the heavy avatar sub-graph.
+        // Users discovered transitively as asset creators must NOT fetch avatars, or the worn-asset
+        // -> creator -> their-worn-assets -> ... chain explodes and overflows the stack.
+        if (descriptor == mRoot) {
+        // Worn assets, body colors, scales and rig type come from the avatar API. Prefer the v2
+        // game-server fetch endpoint: v1 users/{id}/avatar 429s extremely aggressively (often a single
+        // request, and the penalty persists for minutes), while v2 has far higher limits. Both shapes
+        // are parsed, so a v1 fallback still works.
+        std::string fetchUrl = std::vformat(Reg("internet.roblox.avatar_fetch", "https://avatar.roblox.com/v2/avatar/avatar-fetch?userId={}&placeId=1"), std::make_format_args(idStr));
+        std::string v1Url    = std::vformat(Reg("internet.roblox.user_avatar_details", "https://avatar.roblox.com/v1/users/{}/avatar"), std::make_format_args(idStr));
+        nlohmann::json avatar;
+        bool gotAvatar = FetchJson(fetchUrl, "avatar for user " + idStr, avatar) && avatar.is_object();
+        if (!gotAvatar)
+            gotAvatar = FetchJson(v1Url, "avatar (v1) for user " + idStr, avatar) && avatar.is_object();
+        if (gotAvatar) {
+            descriptor->HasAvatar = true;
+
+            // Worn assets: v2 -> assetAndAssetTypeIds [{assetId, assetTypeId}];
+            //              v1 -> assets [{id, assetType:{id}}].
+            auto addWorn = [&](int64_t assetId, int64_t assetTypeId) {
+                if (assetId <= 0)
+                    return;
+                descriptor->WornAssetIds.push_back(assetId);
+                MakeChild(ItemType::Asset, assetId, static_cast<Roblox::AssetType>(assetTypeId));
+            };
+            if (auto it = avatar.find("assetAndAssetTypeIds"); it != avatar.end() && it->is_array()) {
+                for (auto& e : *it) {
+                    addWorn(jNum(e, "assetId"), jNum(e, "assetTypeId"));
+                    if (mCancelled) return;
+                }
+            } else if (auto it = avatar.find("assets"); it != avatar.end() && it->is_array()) {
+                for (auto& e : *it) {
+                    int64_t typeId = 0;
+                    if (auto t = e.find("assetType"); t != e.end() && t->is_object())
+                        typeId = jNum(*t, "id");
+                    addWorn(jNum(e, "id"), typeId);
+                    if (mCancelled) return;
+                }
+            }
+
+            auto scalesIt = avatar.find("scales");
+            if (scalesIt != avatar.end() && scalesIt->is_object()) {
+                auto jDbl = [](const nlohmann::json& j, const char* key) -> double {
+                    auto it = j.find(key);
+                    return (it != j.end() && it->is_number()) ? it->get<double>() : 0.0;
+                };
+                descriptor->AvatarWidth       = jDbl(*scalesIt, "width");
+                descriptor->AvatarHeight      = jDbl(*scalesIt, "height");
+                descriptor->AvatarHead        = jDbl(*scalesIt, "head");
+                descriptor->AvatarProportions = jDbl(*scalesIt, "proportion");
+            }
+            std::string rig = jStr(avatar, "resolvedAvatarType");
+            if (rig.empty()) rig = jStr(avatar, "playerAvatarType");
+            descriptor->AvatarBodyType = rig == "R15" ? 1 : 0;
+
+            // Body colors: v1 -> integer ids in bodyColors{headColorId,...};
+            //              v2 -> hex in bodyColor3s{headColor3,...}. Store packed 0xRRGGBB.
+            const nlohmann::json* colorsObj = nullptr;
+            const nlohmann::json* color3sObj = nullptr;
+            if (auto it = avatar.find("bodyColors"); it != avatar.end() && it->is_object())
+                colorsObj = &*it;
+            if (auto it = avatar.find("bodyColor3s"); it != avatar.end() && it->is_object())
+                color3sObj = &*it;
+            auto packHex = [](const std::string& hex, int& out) -> bool {
+                std::string h = hex;
+                if (!h.empty() && h.front() == '#') h.erase(0, 1);
+                if (h.size() != 6) return false;
+                try { out = static_cast<int>(std::stoul(h, nullptr, 16)) & 0xFFFFFF; return true; }
+                catch (...) { return false; }
+            };
+            struct ColorSlot { const char* idKey; const char* hexKey; UserCharacterBodyPart part; };
+            const ColorSlot parts[] = {
+                {"headColorId",     "headColor3",     UserCharacterBodyPart::Head},
+                {"torsoColorId",    "torsoColor3",    UserCharacterBodyPart::Torso},
+                {"rightArmColorId", "rightArmColor3", UserCharacterBodyPart::RightArm},
+                {"leftArmColorId",  "leftArmColor3",  UserCharacterBodyPart::LeftArm},
+                {"rightLegColorId", "rightLegColor3", UserCharacterBodyPart::RightLeg},
+                {"leftLegColorId",  "leftLegColor3",  UserCharacterBodyPart::LeftLeg},
+            };
+            for (const auto& slot : parts) {
+                int packed = -1;
+                if (colorsObj) {
+                    int64_t num = jNum(*colorsObj, slot.idKey);
+                    if (num > 0) packed = Roblox::BrickColor::PackedRgbForNumber(static_cast<int>(num));
+                }
+                if (packed < 0) {
+                    std::string hex;
+                    if (color3sObj) hex = jStr(*color3sObj, slot.hexKey);
+                    if (hex.empty() && colorsObj) hex = jStr(*colorsObj, slot.hexKey);
+                    int fromHex = 0;
+                    if (!hex.empty() && packHex(hex, fromHex)) packed = fromHex;
+                }
+                if (packed >= 0)
+                    descriptor->BodyColors.emplace_back(static_cast<int>(slot.part), packed);
+            }
+        }
+        } // end: only the root user fetches the avatar sub-graph
         break;
     }
     case ItemType::Group: {
@@ -854,6 +996,13 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
     case ItemType::User:
         row.push_back({"Name", name});
         if (!d->Description.empty()) row.push_back({"Bio", d->Description});
+        if (d->HasAvatar) {
+            row.push_back({"CharacterBodyType", d->AvatarBodyType});
+            row.push_back({"CharacterWidth", d->AvatarWidth});
+            row.push_back({"CharacterHeight", d->AvatarHeight});
+            row.push_back({"CharacterHead", d->AvatarHead});
+            row.push_back({"CharacterProportions", d->AvatarProportions});
+        }
         break;
     case ItemType::Group:
         row.push_back({"Name", name});
@@ -950,6 +1099,18 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
                         db->MarkDirty();
                 });
             }
+        }
+
+        // 4. a user's worn avatar: link each worn asset to the user's character and store its body
+        // colors. The scales went into the User row via BuildItemRow.
+        if (descriptor->Type == ItemType::User && descriptor->HasAvatar && mOptions.DownloadMetadata && !mCancelled) {
+            RunDb([&]() {
+                for (int64_t assetId : descriptor->WornAssetIds)
+                    db->AddAssetToUserCharacter(descriptor->Id, assetId);
+                for (const auto& [part, color] : descriptor->BodyColors)
+                    db->SetUserCharacterBodyColor(descriptor->Id, part, color);
+                db->MarkDirty();
+            });
         }
     } else { // FileSystem
         const std::filesystem::path baseDir(static_cast<const char*>(mOptions.Destination));

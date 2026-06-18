@@ -23,45 +23,16 @@
 // Started on: 6/6/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/AvatarHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 
-AvatarHandler::AvatarHandler() {}
+AvatarHandler::AvatarHandler(ServerEmulator* emu) : mEmu(emu) {}
 
 void AvatarHandler::OnRequest(evhttp_request *req, void *userdata) {
-    nlohmann::json j;
-    j["scales"]["height"] = 1.0;
-    j["scales"]["width"] = 1.0;
-    j["scales"]["head"] = 1.0;
-    j["scales"]["depth"] = 1.0;
-    j["scales"]["proportion"] = 0.0;
-    j["scales"]["bodyType"] = 0.0;
-    j["playerAvatarType"] = "R6";
-    j["bodyColors"]["headColorId"] = 1001;
-    j["bodyColors"]["torsoColorId"] = 1001;
-    j["bodyColors"]["rightArmColorId"] = 1001;
-    j["bodyColors"]["leftArmColorId"] = 1001;
-    j["bodyColors"]["rightLegColorId"] = 1001;
-    j["bodyColors"]["leftLegColorId"] = 1001;
-    j["assets"] = nlohmann::json::array();
-    j["defaultShirtApplied"] = true;
-    j["defaultPantsApplied"] = true;
-
-    nlohmann::json emote1, emote2, emote3, emote4;
-    emote1["assetId"] = 3576686446;
-    emote1["assetName"] = "Hello";
-    emote1["position"] = 1;
-    emote2["assetId"] = 3360686498;
-    emote2["assetName"] = "Stadium";
-    emote2["position"] = 2;
-    emote3["assetId"] = 3576823880;
-    emote3["assetName"] = "Point2";
-    emote3["position"] = 3;
-    emote4["assetId"] = 3576968026;
-    emote4["assetName"] = "Shrug";
-    emote4["position"] = 4;
-    j["emotes"] = nlohmann::json::array({emote1, emote2, emote3, emote4});
+    nlohmann::json j = AvatarAppearance::BuildAvatarJson(mEmu->GetCore());
 
     const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");

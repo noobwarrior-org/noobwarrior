@@ -35,8 +35,17 @@ public:
     struct Entry {
         const char* name;
         const char* hex;
+        int number; // canonical Roblox BrickColor palette code (what the engine reads as headColorId etc.)
     };
     static const Entry Palette[75];
+
+    // The canonical BrickColor number for a palette name (e.g. "Bright yellow" -> 24), or -1 if the
+    // name isn't in the palette.
+    static int NumberForName(const std::string& name);
+
+    // Packed 0xRRGGBB color for a BrickColor number (e.g. 24 -> 0xF5CD30), or -1 if the number isn't
+    // in the palette. Inverse of the number used in the avatar API's headColorId/etc.
+    static int PackedRgbForNumber(int number);
 
     BrickColor(const std::string &name);
     BrickColor(Color3 color);

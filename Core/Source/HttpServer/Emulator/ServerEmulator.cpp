@@ -57,7 +57,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAuthTicketRedeemHandler(this),
     mAppBehaviorsHandler(),
     mAvatarRulesHandler(),
-    mAvatarHandler(),
+    mAvatarHandler(this),
     mAppLaunchInfoHandler(),
     mRolesHandler(),
     mLocalesHandler(),
@@ -170,6 +170,8 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v2/avatar/avatar-fetch", &mAvatarFetchHandler);
     SetRequestHandler("/v1/avatar-fetch", &mAvatarFetchHandler);
     SetRequestHandler("/v1/avatar-fetch/", &mAvatarFetchHandler);
+    SetRequestHandler("/v1.1/avatar-fetch", &mAvatarFetchHandler);
+    SetRequestHandler("/v1.1/avatar-fetch/", &mAvatarFetchHandler);
 
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 
