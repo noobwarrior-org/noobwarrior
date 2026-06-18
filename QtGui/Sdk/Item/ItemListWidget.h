@@ -66,6 +66,9 @@ public:
 
     ItemListWidget(QWidget *parent = nullptr, EmuDb* db = nullptr);
     void Populate(const PopulateOptions options);
+    // Empties the list safely: stops inline playback and clears the internal item map alongside the
+    // widget items. Prefer this over QListWidget::clear(), which would leave the map dangling.
+    void Clear();
     // Counts all rows matching the options' filters (query + asset type), ignoring paging. Used to
     // compute how many pages a paged view spans.
     int CountItems(const PopulateOptions &options);

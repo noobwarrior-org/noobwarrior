@@ -25,6 +25,7 @@
 #include "ItemListWidget.h"
 #include "ItemWidget.h"
 #include "Sdk/Item/ItemWidget.h"
+#include "Sdk/Item/AssetDataFileType.h"
 
 #include <QMenu>
 #include <QMessageBox>
@@ -41,7 +42,6 @@
 #include <QUrl>
 
 #include <algorithm>
-#include <cstring>
 
 using namespace NoobWarrior;
 
@@ -58,52 +58,6 @@ static std::string EscapeLike(const std::string &input) {
         result += c;
     }
     return result;
-}
-
-static QString DetectAssetExtension(const std::vector<unsigned char> &data) {
-    auto starts = [&](const char *sig, size_t len) {
-        if (data.size() < len)
-            return false;
-        return std::memcmp(data.data(), sig, len) == 0;
-    };
-
-    if (starts("<roblox!", 8))
-        return "rbxm";
-    if (starts("<roblox", 7))
-        return "rbxmx";
-    if (starts("version ", 8))
-        return "mesh";
-
-    if (starts("\x89PNG\r\n\x1a\n", 8))
-        return "png";
-    if (starts("\xff\xd8\xff", 3))
-        return "jpg";
-    if (starts("GIF87a", 6) || starts("GIF89a", 6))
-        return "gif";
-    if (starts("BM", 2))
-        return "bmp";
-    if (data.size() >= 12 && starts("RIFF", 4) && std::memcmp(data.data() + 8, "WEBP", 4) == 0)
-        return "webp";
-    if (data.size() >= 12 && starts("RIFF", 4) && std::memcmp(data.data() + 8, "WAVE", 4) == 0)
-        return "wav";
-    if (starts("OggS", 4))
-        return "ogg";
-    if (starts("ID3", 3) || starts("\xff\xfb", 2) || starts("\xff\xf3", 2) || starts("\xff\xf2", 2))
-        return "mp3";
-    if (starts("fLaC", 4))
-        return "flac";
-    if (starts("\xabKTX 11\xbb\r\n\x1a\n", 12))
-        return "ktx";
-    if (starts("DDS ", 4))
-        return "dds";
-    if (starts("Kaydara FBX Binary", 18))
-        return "fbx";
-    if (starts("%PDF", 4))
-        return "pdf";
-    if (starts("PK\x03\x04", 4))
-        return "zip";
-
-    return "bin";
 }
 
 static QString SanitizeFileName(const QString &name) {
@@ -192,12 +146,17 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
     connect(this, &QListWidget::customContextMenuRequested, this, &ItemListWidget::ShowContextMenu);
 }
 
-void ItemListWidget::Populate(const PopulateOptions options) {
-    // The widgets (including any that's currently playing) are about to be destroyed, so stop audio.
+void ItemListWidget::Clear() {
+    // The widgets (including any that's currently playing) are about to be destroyed, so stop audio
+    // first, then drop the map and the widget items together.
     StopPlayback();
-    mLastOptions = options;
     mItems.clear();
     clear();
+}
+
+void ItemListWidget::Populate(const PopulateOptions options) {
+    Clear();
+    mLastOptions = options;
     if (options.Database == nullptr)
         return;
     std::string tableName = GetTableNameFromItemType(options.ItemType);

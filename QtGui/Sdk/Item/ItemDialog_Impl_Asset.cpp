@@ -24,6 +24,7 @@
 // Description: An unholy abomination that implements the Asset type for ItemDialog
 #include "ItemDialog.h"
 #include "ItemOpenSaveDialog.h"
+#include "AssetDataFileType.h"
 #include "Sdk/CreatorInfoWidget.h"
 #include <NoobWarrior/EmuDb/Item/Asset.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
@@ -33,6 +34,7 @@
 #include <QRegularExpressionValidator>
 #include <QUrl>
 #include <QAudio>
+#include <QDir>
 
 using namespace NoobWarrior;
 
@@ -644,11 +646,9 @@ void ItemDialog::Asset_LoadMediaPreview() {
         mAsset_MediaStatusLabel->setText("No data to preview.");
         return;
     }
-
-    // Play from a temporary file (more reliable across Qt multimedia backends than a QIODevice
-    // source). The QTemporaryFile is parented to the dialog so the file lives as long as the dialog;
-    // we close the handle after writing so the media backend can open it without a sharing conflict.
+    
     mAsset_MediaTempFile = new QTemporaryFile(this);
+    mAsset_MediaTempFile->setFileTemplate(QDir::tempPath() + "/nwpreview_XXXXXX." + DetectAssetExtension(data));
     if (!mAsset_MediaTempFile->open()) {
         mAsset_MediaStatusLabel->setText("Failed to create a temporary file for preview.");
         return;
