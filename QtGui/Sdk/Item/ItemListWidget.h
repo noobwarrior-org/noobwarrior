@@ -33,6 +33,11 @@
 #include <QAbstractListModel>
 #include <QPointer>
 
+class QMediaPlayer;
+class QAudioOutput;
+class QTemporaryFile;
+class QMouseEvent;
+
 #include <string>
 #include <functional>
 #include <tuple>
@@ -77,9 +82,21 @@ public:
     // default, preserving the single-selection behaviour the item pickers rely on.
     void SetMultiSelect(bool enabled);
 protected:
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
     void InitWidgets();
     void ShowContextMenu(QPoint point);
     void DownloadSelectedAssetData();
+
+    // The on-icon play badge's hit rectangle (in viewport coordinates) for a playable item.
+    QRect PlayBadgeRect(QListWidgetItem *item);
+    // Plays the item's audio inline, or stops it if that same item is already playing (click to toggle).
+    void TogglePlayItem(ItemWidget *item);
+    // Stops inline playback and forgets the active item. Called when the list is repopulated or the
+    // playing item is removed, so audio doesn't outlive its widget.
+    void StopPlayback();
 
     // Snapshots the selected items into the shared (process-wide) clipboard. When cut is true the
     // originals are removed from their source database once they are pasted elsewhere.
@@ -92,6 +109,15 @@ protected:
     std::function<void(ItemWidget*)> mOnDoubleClick;
     std::function<void(QMenu*, ItemWidget*)> mOnContextMenuShown;
     std::map<std::pair<ItemType, int64_t>, ItemWidget*> mItems;
+
+    // Inline audio playback for the icon play badges. Created lazily on first use.
+    QMediaPlayer* mPlayer { nullptr };
+    QAudioOutput* mAudioOutput { nullptr };
+    QTemporaryFile* mPlayTempFile { nullptr };
+    std::pair<ItemType, int64_t> mPlayingKey { ItemType::Asset, -1 };
+    // True between a press on a play badge and its release, so the intervening drag doesn't start a
+    // rubber-band selection.
+    bool mBadgePressActive { false };
 
     // Process-wide clipboard shared by every list, so an item copied/cut in one database's list can
     // be pasted into another's. A cut remembers its source so the originals can be deleted on paste.

@@ -31,6 +31,11 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 
+#include <QPainter>
+#include <QPolygonF>
+#include <QRectF>
+
+#include <algorithm>
 #include <cassert>
 
 using namespace NoobWarrior;
@@ -57,15 +62,82 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
 
     setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(id)));
 
+    // Playable assets (Audio/Video) get a little play badge in the bottom-right corner of their icon.
+    Roblox::AssetType assetType = Roblox::AssetType::None;
+    if (mType == NoobWarrior::ItemType::Asset) {
+        Statement typeStmt = db->PrepareStatement("SELECT Type FROM Asset WHERE Id = ?;");
+        typeStmt.Bind(1, id);
+        if (typeStmt.Step() == SQLITE_ROW)
+            assetType = static_cast<Roblox::AssetType>(typeStmt.GetIntFromColumnIndex(0));
+    }
+    bool isPlayable = assetType == Roblox::AssetType::Audio;
+    mPlayable = isPlayable;
+
+    QPixmap pixmap;
     std::vector<unsigned char> imageData = db->RetrieveImageData(mType, id);
     if (!imageData.empty()) {
         QImage image;
         image.loadFromData(imageData);
-
-        QPixmap pixmap = QPixmap::fromImage(image);
-
-        setIcon(QIcon(pixmap));
+        pixmap = QPixmap::fromImage(image);
     }
+
+    if (isPlayable) {
+        // Audio assets usually have no thumbnail; give the badge a transparent canvas to sit on.
+        if (pixmap.isNull()) {
+            pixmap = QPixmap(64, 64);
+            pixmap.fill(Qt::transparent);
+        }
+        mBasePixmap = pixmap; // cache the un-badged icon so the badge can be redrawn on play/pause
+        Asset_DrawMediaBadge(pixmap, false);
+    }
+
+    if (!pixmap.isNull())
+        setIcon(QIcon(pixmap));
+}
+
+void ItemWidget::SetPlaying(bool playing) {
+    if (!mPlayable || mBasePixmap.isNull())
+        return;
+    QPixmap pixmap = mBasePixmap;
+    Asset_DrawMediaBadge(pixmap, playing);
+    setIcon(QIcon(pixmap));
+}
+
+void ItemWidget::Asset_DrawMediaBadge(QPixmap &pixmap, bool playing) {
+    // A dark translucent circle with a white glyph, drawn at ~1/3 the icon size in the bottom-right.
+    // Painted with QPainter (rather than scaling a tiny bitmap) so it stays crisp. The glyph is a
+    // pause symbol while playing, and a play triangle otherwise.
+    int diameter = std::max(18, pixmap.width() / 3);
+    int margin = std::max(2, pixmap.width() / 32);
+    int x = pixmap.width() - diameter - margin;
+    int y = pixmap.height() - diameter - margin;
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 160));
+    painter.drawEllipse(x, y, diameter, diameter);
+
+    double cx = x + diameter / 2.0;
+    double cy = y + diameter / 2.0;
+    painter.setBrush(Qt::white);
+
+    if (playing) {
+        double barWidth = diameter * 0.12;
+        double barHeight = diameter * 0.38;
+        double gap = diameter * 0.10;
+        painter.drawRect(QRectF(cx - gap - barWidth, cy - barHeight / 2, barWidth, barHeight));
+        painter.drawRect(QRectF(cx + gap, cy - barHeight / 2, barWidth, barHeight));
+    } else {
+        double r = diameter * 0.26;
+        QPolygonF triangle;
+        triangle << QPointF(cx - r * 0.7, cy - r)
+                 << QPointF(cx - r * 0.7, cy + r)
+                 << QPointF(cx + r, cy);
+        painter.drawPolygon(triangle);
+    }
+    painter.end();
 }
 
 void ItemWidget::Configure() {

@@ -72,7 +72,7 @@ if (NOOBWARRIOR_TARGET_NOGUI)
 endif()
 
 if (NOOBWARRIOR_TARGET_QTGUI)
-    find_package(Qt6 COMPONENTS Core Widgets Multimedia REQUIRED)
+    find_package(Qt6 COMPONENTS Core Widgets Multimedia MultimediaWidgets REQUIRED)
 
     add_subdirectory(QtShared)
     add_subdirectory(QtGui)

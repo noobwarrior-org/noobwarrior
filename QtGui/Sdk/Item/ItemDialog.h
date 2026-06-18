@@ -41,6 +41,11 @@
 #include <QGroupBox>
 #include <QScrollArea>
 #include <QTableWidget>
+#include <QSlider>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QVideoWidget>
+#include <QTemporaryFile>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -74,6 +79,10 @@ protected:
     void Asset_AddFields();
     void Asset_AddFields_AssetType();
     void Asset_AddFields_Place();
+    void Asset_AddFields_MediaPreview();
+    // Loads the asset's latest saved data (or the most recent pending file) into the media player so
+    // Audio/Video assets can be played back. Lazy: only reads/decodes once per dialog.
+    void Asset_LoadMediaPreview();
     void Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd);
     void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
     Roblox::AssetType Asset_GetAssetTypeFromFileType(const std::filesystem::path &path);
@@ -159,6 +168,20 @@ protected:
     QCheckBox* mAsset_Place_AllowDirectAccessInput;
     QComboBox* mAsset_Place_GearGenreInput;
     QList<QCheckBox*> mAsset_Place_GearTypeChecks;
+
+    // Audio/Video preview (shown only when the asset type is Audio or Video).
+    QFrame* mAsset_MediaFrame { nullptr };
+    QVideoWidget* mAsset_MediaVideoWidget { nullptr };
+    QMediaPlayer* mAsset_MediaPlayer { nullptr };
+    QAudioOutput* mAsset_MediaAudioOutput { nullptr };
+    QPushButton* mAsset_MediaPlayButton { nullptr };
+    QSlider* mAsset_MediaSeekSlider { nullptr };
+    QSlider* mAsset_MediaVolumeSlider { nullptr };
+    QLabel* mAsset_MediaStatusLabel { nullptr };
+    // The decoded asset bytes are written here so QMediaPlayer can play them back from a real file
+    // (more reliable across backends than a QIODevice source). Owned by the dialog so it outlives playback.
+    QTemporaryFile* mAsset_MediaTempFile { nullptr };
+    bool mAsset_MediaPreviewLoaded { false };
 
     QFrame* mAsset_Place_ThumbnailFrame;
     QListWidget* mAsset_Place_ThumbnailList;

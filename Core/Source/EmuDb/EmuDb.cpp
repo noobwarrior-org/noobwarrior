@@ -1210,6 +1210,13 @@ SqlDb::Response EmuDb::UpsertAuxAssetRow(const std::string &table, int64_t id, c
 	}
 }
 
+SqlDb::Response EmuDb::RetrieveDecodedAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
+	SqlDb::Response res = RetrieveAssetData(id, version, dataOutput, hashOutput);
+	if (res == SqlDb::Response::Success && dataOutput != nullptr)
+		GunzipIfNeeded(*dataOutput);
+	return res;
+}
+
 SqlDb::Response EmuDb::DetachAuxAssetRow(const std::string &table, int64_t id, const SqlRow &row) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

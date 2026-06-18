@@ -29,6 +29,7 @@
 #include <NoobWarrior/EmuDb/ItemType.h>
 
 #include <QListWidgetItem>
+#include <QPixmap>
 
 namespace NoobWarrior {
 class ItemWidget : public QListWidgetItem {
@@ -38,7 +39,19 @@ public:
     void Configure();
     NoobWarrior::ItemType GetType();
     int64_t GetId();
+
+    // True for Audio assets, which carry a clickable play/pause badge on their icon.
+    bool IsPlayable() const { return mPlayable; }
+    // Swaps the icon's badge between a play triangle (paused/stopped) and a pause glyph (playing).
+    void SetPlaying(bool playing);
 private:
+    // Composites a media badge (play triangle or pause bars) onto the bottom-right of an icon.
+    static void Asset_DrawMediaBadge(QPixmap &pixmap, bool playing);
+
+    bool mPlayable { false };
+    // The icon without any badge, cached so the badge can be redrawn when playback state changes.
+    QPixmap mBasePixmap;
+
     EmuDb* mDb;
     NoobWarrior::ItemType mType;
     int64_t mId;

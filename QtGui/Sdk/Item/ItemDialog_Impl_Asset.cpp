@@ -31,12 +31,15 @@
 
 #include <QMenu>
 #include <QRegularExpressionValidator>
+#include <QUrl>
+#include <QAudio>
 
 using namespace NoobWarrior;
 
 void ItemDialog::Asset_AddFields() {
     AddOwnedItemFields();
     Asset_AddFields_AssetType();
+    Asset_AddFields_MediaPreview();
 
     bool isPublic = false;
     int64_t minMembership = 0;
@@ -248,6 +251,8 @@ void ItemDialog::Asset_AddFields() {
         QString filePath = QFileDialog::getOpenFileName(this, "Add Data", QString(), "Anything (*.*)");
         if (!filePath.isEmpty()) {
             mAsset_DataPendingFiles.push_back(filePath); // Push onto a list of pending files so that we can add them to the database when the user clicks Save.
+            // Let the preview pick up this newly-added file the next time a media type is shown.
+            mAsset_MediaPreviewLoaded = false;
 
             // Placeholder row to visualize what it will look like to the user before clicking Save
             int previewVersion = mAsset_DataModel->rowCount() + 1;
@@ -520,6 +525,141 @@ void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
     mContentLayout->setRowVisible(mImageIdInput, type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_ThumbnailFrame, type == Roblox::AssetType::Place);
     mContentLayout->setRowVisible(mAsset_Place_AttributesGroup, type == Roblox::AssetType::Place);
+
+    // The media preview frame may not exist yet (this runs once during the asset-type setup, before
+    // Asset_AddFields_MediaPreview builds it); guard accordingly.
+    if (mAsset_MediaFrame != nullptr) {
+        bool isAudio = type == Roblox::AssetType::Audio;
+        bool isVideo = type == Roblox::AssetType::Video;
+        bool isMedia = isAudio || isVideo;
+
+        mContentLayout->setRowVisible(mAsset_MediaFrame, isMedia);
+        mAsset_MediaVideoWidget->setVisible(isVideo); // audio gets just the transport controls
+
+        if (isMedia) {
+            Asset_LoadMediaPreview();
+        } else if (mAsset_MediaPlayer != nullptr) {
+            mAsset_MediaPlayer->stop();
+        }
+    }
+}
+
+void ItemDialog::Asset_AddFields_MediaPreview() {
+    AddSectionHeader("Preview");
+
+    mAsset_MediaFrame = new QFrame();
+    auto *layout = new QVBoxLayout(mAsset_MediaFrame);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    mAsset_MediaPlayer = new QMediaPlayer(this);
+    mAsset_MediaAudioOutput = new QAudioOutput(this);
+    mAsset_MediaPlayer->setAudioOutput(mAsset_MediaAudioOutput);
+    mAsset_MediaAudioOutput->setVolume(1.0f);
+
+    mAsset_MediaVideoWidget = new QVideoWidget();
+    mAsset_MediaVideoWidget->setMinimumHeight(180);
+    mAsset_MediaPlayer->setVideoOutput(mAsset_MediaVideoWidget);
+    layout->addWidget(mAsset_MediaVideoWidget);
+
+    // Transport controls: play/pause toggle, a seek slider (takes the spare width), and a volume slider.
+    auto *controls = new QHBoxLayout();
+    mAsset_MediaPlayButton = new QPushButton("Play");
+    mAsset_MediaSeekSlider = new QSlider(Qt::Horizontal);
+    mAsset_MediaSeekSlider->setRange(0, 0);
+
+    auto *volumeIcon = new QLabel();
+    volumeIcon->setPixmap(QPixmap(":/images/silk/sound.png"));
+    mAsset_MediaVolumeSlider = new QSlider(Qt::Horizontal);
+    mAsset_MediaVolumeSlider->setRange(0, 100);
+    mAsset_MediaVolumeSlider->setValue(100);
+    mAsset_MediaVolumeSlider->setFixedWidth(90);
+    mAsset_MediaVolumeSlider->setToolTip("Volume");
+
+    controls->addWidget(mAsset_MediaPlayButton);
+    controls->addWidget(mAsset_MediaSeekSlider, 1);
+    controls->addWidget(volumeIcon);
+    controls->addWidget(mAsset_MediaVolumeSlider);
+    layout->addLayout(controls);
+
+    mAsset_MediaStatusLabel = new QLabel();
+    mAsset_MediaStatusLabel->setWordWrap(true);
+    layout->addWidget(mAsset_MediaStatusLabel);
+
+    connect(mAsset_MediaPlayButton, &QPushButton::clicked, [this]() {
+        if (mAsset_MediaPlayer->playbackState() == QMediaPlayer::PlayingState)
+            mAsset_MediaPlayer->pause();
+        else
+            mAsset_MediaPlayer->play();
+    });
+    connect(mAsset_MediaPlayer, &QMediaPlayer::playbackStateChanged, [this](QMediaPlayer::PlaybackState state) {
+        mAsset_MediaPlayButton->setText(state == QMediaPlayer::PlayingState ? "Pause" : "Play");
+    });
+    connect(mAsset_MediaPlayer, &QMediaPlayer::durationChanged, [this](qint64 duration) {
+        mAsset_MediaSeekSlider->setRange(0, static_cast<int>(duration));
+    });
+    connect(mAsset_MediaPlayer, &QMediaPlayer::positionChanged, [this](qint64 position) {
+        if (!mAsset_MediaSeekSlider->isSliderDown())
+            mAsset_MediaSeekSlider->setValue(static_cast<int>(position));
+    });
+    connect(mAsset_MediaSeekSlider, &QSlider::sliderMoved, [this](int value) {
+        mAsset_MediaPlayer->setPosition(value);
+    });
+    connect(mAsset_MediaVolumeSlider, &QSlider::valueChanged, [this](int value) {
+        // Map the linear 0-100 slider onto a perceptual (logarithmic) volume curve.
+        float linear = QAudio::convertVolume(value / 100.0f,
+            QAudio::LogarithmicVolumeScale, QAudio::LinearVolumeScale);
+        mAsset_MediaAudioOutput->setVolume(linear);
+    });
+    connect(mAsset_MediaPlayer, &QMediaPlayer::errorOccurred, [this](QMediaPlayer::Error error, const QString &errorString) {
+        if (error != QMediaPlayer::NoError)
+            mAsset_MediaStatusLabel->setText("Playback error: " + errorString);
+    });
+
+    mContentLayout->addRow(mAsset_MediaFrame);
+
+    // The widgets exist now, so sync their visibility (and lazily load) to the current asset type.
+    Asset_SetVisibilityOfAssetTypeWidgets(mAsset_AssetTypeInput->currentData().value<Roblox::AssetType>());
+}
+
+void ItemDialog::Asset_LoadMediaPreview() {
+    if (mAsset_MediaPreviewLoaded || mAsset_MediaPlayer == nullptr)
+        return;
+
+    // A freshly-added, not-yet-saved file can be played straight from disk.
+    if (!mAsset_DataPendingFiles.isEmpty()) {
+        mAsset_MediaPlayer->setSource(QUrl::fromLocalFile(mAsset_DataPendingFiles.last()));
+        mAsset_MediaStatusLabel->clear();
+        mAsset_MediaPreviewLoaded = true;
+        return;
+    }
+
+    if (!mId.has_value()) {
+        mAsset_MediaStatusLabel->setText("Add data and save the asset to preview it.");
+        return;
+    }
+
+    std::vector<unsigned char> data;
+    SqlDb::Response res = GetDatabase()->RetrieveDecodedAssetData(mId.value(), 0, &data);
+    if (res != SqlDb::Response::Success || data.empty()) {
+        mAsset_MediaStatusLabel->setText("No data to preview.");
+        return;
+    }
+
+    // Play from a temporary file (more reliable across Qt multimedia backends than a QIODevice
+    // source). The QTemporaryFile is parented to the dialog so the file lives as long as the dialog;
+    // we close the handle after writing so the media backend can open it without a sharing conflict.
+    mAsset_MediaTempFile = new QTemporaryFile(this);
+    if (!mAsset_MediaTempFile->open()) {
+        mAsset_MediaStatusLabel->setText("Failed to create a temporary file for preview.");
+        return;
+    }
+    mAsset_MediaTempFile->write(reinterpret_cast<const char*>(data.data()), static_cast<qint64>(data.size()));
+    mAsset_MediaTempFile->flush();
+    mAsset_MediaTempFile->close();
+
+    mAsset_MediaPlayer->setSource(QUrl::fromLocalFile(mAsset_MediaTempFile->fileName()));
+    mAsset_MediaStatusLabel->clear();
+    mAsset_MediaPreviewLoaded = true;
 }
 
 Roblox::AssetType ItemDialog::Asset_GetAssetTypeFromFileType(const std::filesystem::path &path) {

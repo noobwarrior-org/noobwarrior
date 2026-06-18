@@ -228,6 +228,11 @@ public:
 
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 
+    // Like RetrieveAssetData, but additionally un-gzips the body when it's gzip-encoded (some Roblox
+    // asset bodies, e.g. audio/video pulled from assetdelivery, are stored gzipped). Returns data
+    // ready to hand to a decoder or media player.
+    SqlDb::Response RetrieveDecodedAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
+
     /* Universe/place functions */
 
     // Links/unlinks a place to a universe through the UniversePlace junction table. AddPlaceToUniverse

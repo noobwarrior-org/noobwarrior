@@ -32,7 +32,15 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QTemporaryFile>
+#include <QMouseEvent>
+#include <QStyle>
+#include <QStyleOptionViewItem>
+#include <QUrl>
 
+#include <algorithm>
 #include <cstring>
 
 using namespace NoobWarrior;
@@ -185,6 +193,8 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
 }
 
 void ItemListWidget::Populate(const PopulateOptions options) {
+    // The widgets (including any that's currently playing) are about to be destroyed, so stop audio.
+    StopPlayback();
     mLastOptions = options;
     mItems.clear();
     clear();
@@ -255,6 +265,10 @@ bool ItemListWidget::Add(ItemType type, int64_t id) {
 }
 
 bool ItemListWidget::Remove(ItemType type, int64_t id) {
+    // Don't let audio outlive the widget that's playing it.
+    if (mPlayingKey == std::make_pair(type, id))
+        StopPlayback();
+
     auto it = mItems.find({ type, id });
     if (it != mItems.end()) {
         delete it->second;
@@ -403,6 +417,124 @@ void ItemListWidget::ShowContextMenu(QPoint point) {
     }
 
     menu.exec(globalPos);
+}
+
+void ItemListWidget::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+        QPoint pos = event->position().toPoint();
+        QListWidgetItem *item = itemAt(pos);
+        if (auto *itemWidget = dynamic_cast<ItemWidget*>(item)) {
+            if (itemWidget->IsPlayable() && PlayBadgeRect(item).contains(pos)) {
+                TogglePlayItem(itemWidget);
+                // Swallow this press and the rest of the gesture so dragging off the badge doesn't
+                // start a rubber-band selection.
+                mBadgePressActive = true;
+                event->accept();
+                return;
+            }
+        }
+    }
+    QListWidget::mousePressEvent(event);
+}
+
+void ItemListWidget::mouseMoveEvent(QMouseEvent *event) {
+    if (mBadgePressActive) {
+        event->accept();
+        return;
+    }
+    QListWidget::mouseMoveEvent(event);
+}
+
+void ItemListWidget::mouseReleaseEvent(QMouseEvent *event) {
+    if (mBadgePressActive && event->button() == Qt::LeftButton) {
+        mBadgePressActive = false;
+        event->accept();
+        return;
+    }
+    QListWidget::mouseReleaseEvent(event);
+}
+
+QRect ItemListWidget::PlayBadgeRect(QListWidgetItem *item) {
+    // Ask the style where the icon (decoration) is drawn for this item, then mirror the badge
+    // geometry from ItemWidget::Asset_DrawPlayBadge (bottom-right, ~1/3 of the icon).
+    QStyleOptionViewItem opt;
+    initViewItemOption(&opt);
+    opt.rect = visualItemRect(item);
+    opt.features |= QStyleOptionViewItem::HasDecoration;
+    opt.decorationSize = iconSize();
+    opt.icon = item->icon();
+    QRect iconRect = style()->subElementRect(QStyle::SE_ItemViewItemDecoration, &opt, this);
+
+    int w = iconRect.width();
+    int diameter = std::max(18, w / 3);
+    int margin = std::max(2, w / 32);
+    QRect badge(iconRect.right() - diameter - margin + 1,
+                iconRect.bottom() - diameter - margin + 1,
+                diameter, diameter);
+    return badge.adjusted(-3, -3, 3, 3); // a little click tolerance
+}
+
+void ItemListWidget::TogglePlayItem(ItemWidget *item) {
+    if (mLastOptions.Database == nullptr)
+        return;
+
+    if (mPlayer == nullptr) {
+        mPlayer = new QMediaPlayer(this);
+        mAudioOutput = new QAudioOutput(this);
+        mPlayer->setAudioOutput(mAudioOutput);
+
+        // Keep the active item's badge in sync with playback (play triangle <-> pause bars).
+        connect(mPlayer, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
+            auto it = mItems.find(mPlayingKey);
+            if (it != mItems.end() && it->second)
+                it->second->SetPlaying(state == QMediaPlayer::PlayingState);
+        });
+    }
+
+    auto key = std::make_pair(item->GetType(), item->GetId());
+
+    // Clicking the badge of the item that's already loaded toggles pause/resume, so playback picks
+    // up from where it left off instead of restarting.
+    if (mPlayingKey == key) {
+        if (mPlayer->playbackState() == QMediaPlayer::PlayingState)
+            mPlayer->pause();
+        else
+            mPlayer->play();
+        return;
+    }
+
+    std::vector<unsigned char> data;
+    if (mLastOptions.Database->RetrieveDecodedAssetData(item->GetId(), 0, &data) != SqlDb::Response::Success || data.empty())
+        return;
+
+    // Switching to a different item: revert the previously-playing item's badge to a play triangle.
+    auto prev = mItems.find(mPlayingKey);
+    if (prev != mItems.end() && prev->second)
+        prev->second->SetPlaying(false);
+
+    // Play from a temp file (reliable across multimedia backends). Release the old source/file first.
+    mPlayer->stop();
+    mPlayer->setSource(QUrl());
+    delete mPlayTempFile;
+    // Give the temp file the data's real extension; backends (FFmpeg/WMF) rely on it to pick the
+    // right demuxer, and without it some clips report a wrong duration and cut off early.
+    mPlayTempFile = new QTemporaryFile(this);
+    mPlayTempFile->setFileTemplate(QDir::tempPath() + "/nwplay_XXXXXX." + DetectAssetExtension(data));
+    if (!mPlayTempFile->open())
+        return;
+    mPlayTempFile->write(reinterpret_cast<const char*>(data.data()), static_cast<qint64>(data.size()));
+    mPlayTempFile->flush();
+    mPlayTempFile->close();
+
+    mPlayingKey = key;
+    mPlayer->setSource(QUrl::fromLocalFile(mPlayTempFile->fileName()));
+    mPlayer->play();
+}
+
+void ItemListWidget::StopPlayback() {
+    if (mPlayer != nullptr)
+        mPlayer->stop();
+    mPlayingKey = { ItemType::Asset, -1 };
 }
 
 void ItemListWidget::CopySelectedItems(bool cut) {
