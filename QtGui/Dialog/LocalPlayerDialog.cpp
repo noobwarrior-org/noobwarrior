@@ -40,7 +40,6 @@
 #include <QStyledItemDelegate>
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QSignalBlocker>
 #include <QComboBox>
 #include <QStackedWidget>
 #include <QRadioButton>
@@ -352,6 +351,7 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
         def.name = "Body";
         def.subgroups = {
             acc("Hair",       AT::HairAccessory),
+            slot("Faces",     AT::Face,     "user.appearance.face"),
             slot("Torso",     AT::Torso,    "user.appearance.body.torso"),
             slot("Left Arms", AT::LeftArm,  "user.appearance.body.left_arm"),
             slot("Right Arms",AT::RightArm, "user.appearance.body.right_arm"),
@@ -417,9 +417,9 @@ void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     QVBoxLayout* lpl = new QVBoxLayout(listPage);
     lpl->setContentsMargins(0, 0, 0, 0);
 
+    // Catalog: click an item to wear it (no persistent selection, worn items show in the worn list).
     tab.list = new ItemListWidget(listPage);
-    tab.list->setSelectionMode(QAbstractItemView::MultiSelection);
-    tab.list->setItemDelegate(new WornItemDelegate(tab.list));
+    tab.list->setSelectionMode(QAbstractItemView::NoSelection);
     tab.list->setContextMenuPolicy(Qt::NoContextMenu);
     tab.list->SetOnDoubleClick([](ItemWidget*) {});
     lpl->addWidget(tab.list, 1);
@@ -432,6 +432,15 @@ void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     pager->addWidget(tab.pageLabel, 1, Qt::AlignHCenter);
     pager->addWidget(tab.nextBtn);
     lpl->addLayout(pager);
+
+    // Currently worn: a separate strip below the catalog. Click an item here to remove it.
+    lpl->addWidget(new QLabel("Currently worn (click to remove):"));
+    tab.wornList = new ItemListWidget(listPage);
+    tab.wornList->setSelectionMode(QAbstractItemView::NoSelection);
+    tab.wornList->setContextMenuPolicy(Qt::NoContextMenu);
+    tab.wornList->SetOnDoubleClick([](ItemWidget*) {});
+    tab.wornList->setMaximumHeight(140);
+    lpl->addWidget(tab.wornList);
 
     tab.stack->addWidget(listPage); // index 0
 
@@ -453,8 +462,13 @@ void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     });
     connect(tab.prevBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], -1); });
     connect(tab.nextBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], +1); });
-    connect(tab.list, &QListWidget::itemSelectionChanged, this, [this, idx]() {
-        OnTabSelectionChanged(mTabs[idx]);
+    connect(tab.list, &QListWidget::itemClicked, this, [this, idx](QListWidgetItem* it) {
+        if (auto* iw = dynamic_cast<ItemWidget*>(it))
+            WearItem(mTabs[idx], (qint64)iw->GetId());
+    });
+    connect(tab.wornList, &QListWidget::itemClicked, this, [this, idx](QListWidgetItem* it) {
+        if (auto* iw = dynamic_cast<ItemWidget*>(it))
+            UnwearItem(mTabs[idx], (qint64)iw->GetId());
     });
 
     tabs->addTab(page, tab.name);
@@ -479,6 +493,7 @@ void LocalPlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
     CollectIds(tab);
     tab.page = 0;
     RenderPage(tab);
+    RenderWorn(tab);
 }
 
 void LocalPlayerDialog::CollectIds(AvatarTab& tab) {
@@ -535,28 +550,11 @@ void LocalPlayerDialog::RenderPage(AvatarTab& tab) {
     if (tab.page < 0) tab.page = 0;
     if (tab.page >= tab.pageCount) tab.page = tab.pageCount - 1;
 
-    tab.guard = true;
     tab.list->Clear();
     const int start = tab.page * kPageSize;
     const int end = std::min<int>((int)tab.pageIds.size(), start + kPageSize);
     for (int i = start; i < end; ++i)
         tab.list->AddFromDatabase(tab.pageIds[i].second, ItemType::Asset, tab.pageIds[i].first);
-    tab.guard = false;
-
-    {
-        QSignalBlocker block(tab.list);
-        tab.list->clearSelection();
-        if (sg.kind == Kind::Slot) {
-            qint64 worn = mWornSlots.value(sg.regKey, 0);
-            if (worn > 0)
-                if (auto* iw = tab.list->GetItemWidget(ItemType::Asset, worn))
-                    iw->setSelected(true);
-        } else {
-            for (qint64 id : mWornAccessories)
-                if (auto* iw = tab.list->GetItemWidget(ItemType::Asset, id))
-                    iw->setSelected(true);
-        }
-    }
 
     tab.pageLabel->setText(QString("Page %1 / %2").arg(tab.page + 1).arg(tab.pageCount));
     tab.prevBtn->setEnabled(tab.page > 0);
@@ -571,45 +569,60 @@ void LocalPlayerDialog::StepPage(AvatarTab& tab, int delta) {
     RenderPage(tab);
 }
 
-void LocalPlayerDialog::OnTabSelectionChanged(AvatarTab& tab) {
-    if (tab.guard)
+void LocalPlayerDialog::RenderWorn(AvatarTab& tab) {
+    if (tab.wornList == nullptr)
         return;
+    tab.wornList->Clear();
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Scale)
         return;
 
-    tab.guard = true;
+    EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
+    auto add = [&](qint64 id) {
+        if (id <= 0)
+            return;
+        EmuDb* db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
+        if (db == nullptr) {
+            std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
+            db = dbs.empty() ? nullptr : dbs.front();
+        }
+        tab.wornList->AddFromDatabase(db, ItemType::Asset, id);
+    };
+
     if (sg.kind == Kind::Slot) {
-        auto* current = dynamic_cast<ItemWidget*>(tab.list->currentItem());
-        if (current && current->isSelected()) {
-            mWornSlots[sg.regKey] = (qint64)current->GetId();
-            for (int i = 0; i < tab.list->count(); ++i) {
-                auto* iw = dynamic_cast<ItemWidget*>(tab.list->item(i));
-                if (iw && iw != current && iw->isSelected())
-                    iw->setSelected(false);
-            }
-        } else {
-            // A deselect; clear the slot only if the worn item is on this page and now unselected.
-            qint64 worn = mWornSlots.value(sg.regKey, 0);
-            if (worn > 0) {
-                auto* iw = tab.list->GetItemWidget(ItemType::Asset, worn);
-                if (iw && !iw->isSelected())
-                    mWornSlots[sg.regKey] = 0;
-            }
-        }
+        add(mWornSlots.value(sg.regKey, 0));
     } else {
-        for (int i = 0; i < tab.list->count(); ++i) {
-            auto* iw = dynamic_cast<ItemWidget*>(tab.list->item(i));
-            if (!iw)
-                continue;
-            const qint64 id = (qint64)iw->GetId();
-            if (iw->isSelected())
-                mWornAccessories.insert(id);
-            else
-                mWornAccessories.remove(id);
-        }
+        for (qint64 id : mWornAccessories)
+            if (mWornAccType.value(id, -1) == (int)sg.type)
+                add(id);
     }
-    tab.guard = false;
+}
+
+void LocalPlayerDialog::WearItem(AvatarTab& tab, qint64 id) {
+    if (id <= 0)
+        return;
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Slot) {
+        mWornSlots[sg.regKey] = id;
+    } else if (sg.kind == Kind::Accessory) {
+        mWornAccessories.insert(id);
+        mWornAccType[id] = (int)sg.type;
+    } else {
+        return;
+    }
+    RenderWorn(tab);
+}
+
+void LocalPlayerDialog::UnwearItem(AvatarTab& tab, qint64 id) {
+    const AvatarSubgroup& sg = ActiveSubgroup(tab);
+    if (sg.kind == Kind::Slot) {
+        if (mWornSlots.value(sg.regKey, 0) == id)
+            mWornSlots[sg.regKey] = 0;
+    } else if (sg.kind == Kind::Accessory) {
+        mWornAccessories.remove(id);
+        mWornAccType.remove(id);
+    }
+    RenderWorn(tab);
 }
 
 void LocalPlayerDialog::RefreshAllTabs() {
@@ -618,6 +631,7 @@ void LocalPlayerDialog::RefreshAllTabs() {
             continue;
         CollectIds(tab);
         RenderPage(tab);
+        RenderWorn(tab);
     }
 }
 
@@ -627,10 +641,12 @@ void LocalPlayerDialog::RouteWornAsset(qint64 id) {
     int type = 0;
     if (auto summary = gApp->GetCore()->GetEmuDbManager()->GetAssetSummary(id); summary.has_value())
         type = summary->Type;
-    if (mTypeToSlotKey.contains(type))
+    if (mTypeToSlotKey.contains(type)) {
         mWornSlots[mTypeToSlotKey.value(type)] = id;
-    else
+    } else {
         mWornAccessories.insert(id); // accessory type or unknown -> the flat list
+        mWornAccType[id] = type;
+    }
 }
 
 void LocalPlayerDialog::ImportAvatarFromDatabase() {
@@ -720,6 +736,7 @@ void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
     // Worn items: route each by its asset type.
     mWornSlots.clear();
     mWornAccessories.clear();
+    mWornAccType.clear();
     {
         Statement stmt = db->PrepareStatement("SELECT AssetId FROM UserCharacterItem WHERE Id = ?;");
         stmt.Bind(1, userId);
@@ -909,6 +926,7 @@ void LocalPlayerDialog::WearSelectedOutfit() {
 
     mWornSlots.clear();
     mWornAccessories.clear();
+    mWornAccType.clear();
     {
         Statement stmt = db->PrepareStatement("SELECT AssetId FROM OutfitItem WHERE Id = ?;");
         stmt.Bind(1, outfitId);
@@ -1003,6 +1021,18 @@ void LocalPlayerDialog::LoadFromRegistry() {
             qint64 id = (qint64)obj.as<int64_t>();
             if (id > 0)
                 mWornAccessories.insert(id);
+        }
+    }
+
+    // Resolve each worn accessory's type so the per-subgroup worn lists can filter on it.
+    mWornAccType.clear();
+    {
+        EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
+        for (qint64 id : mWornAccessories) {
+            int type = 0;
+            if (auto summary = mgr->GetAssetSummary(id); summary.has_value())
+                type = summary->Type;
+            mWornAccType[id] = type;
         }
     }
 

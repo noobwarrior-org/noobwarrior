@@ -62,7 +62,7 @@ struct AvatarBodyPart {
 
 // One filter within a tab (e.g. Clothing's "Shirts", Body's "Scale"). A subgroup shows one asset
 // type and equips into either a single registry slot, the shared accessories list, or — for the
-// special Scale subgroup — swaps the item list for the scale/rig controls.
+// special Scale subgroup; swaps the item list for the scale/rig controls.
 struct AvatarSubgroup {
     enum class Kind { Slot, Accessory, Scale };
     QString name;
@@ -81,13 +81,13 @@ struct AvatarTab {
     QLineEdit* search { nullptr };
     QStackedWidget* stack { nullptr }; // 0 = list+pagination, 1 = scale controls (if present)
     ItemListWidget* list { nullptr };
+    ItemListWidget* wornList { nullptr }; // the currently-worn items for the active subgroup
     QLabel* pageLabel { nullptr };
     QPushButton* prevBtn { nullptr };
     QPushButton* nextBtn { nullptr };
 
     int page { 0 };
     int pageCount { 1 };
-    bool guard { false };
     std::vector<std::pair<qint64, EmuDb*>> pageIds; // cached ids for the active subgroup + search
 };
 
@@ -117,7 +117,9 @@ protected:
     void CollectIds(AvatarTab& tab);
     void RenderPage(AvatarTab& tab);
     void StepPage(AvatarTab& tab, int delta);
-    void OnTabSelectionChanged(AvatarTab& tab);
+    void RenderWorn(AvatarTab& tab);
+    void WearItem(AvatarTab& tab, qint64 id);
+    void UnwearItem(AvatarTab& tab, qint64 id);
     void RefreshAllTabs();
 
     // Routes a worn asset id into the right slot / the accessories set based on its asset type.
@@ -154,6 +156,7 @@ private:
     
     QMap<QString, qint64> mWornSlots;   // registry slot key: worn asset id (0 = none)
     QSet<qint64> mWornAccessories;      // the flat accessories list
+    QMap<qint64, int> mWornAccType;     // worn accessory id: its asset type (for per-subgroup worn lists)
     QMap<int, QString> mTypeToSlotKey;  // asset type: slot key (built from the Slot subgroups)
     QSet<int> mAccessoryTypes;          // asset types that equip into the accessories list
 
