@@ -34,12 +34,11 @@ void NoobHook::Patches::RemoveTLSVerification() {
             NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(2)), { 0x00 });
         });
     } else {
-        auto x86VerifyPeer = hook::pattern("6A 01 6A 40");
-        if (!x86VerifyPeer.empty()) {
-            Out("RemoveTLSVerification", "Patching %zu x86 CURLOPT_SSL_VERIFYPEER sites", x86VerifyPeer.size());
-            x86VerifyPeer.for_each_result([](hook::pattern_match match) {
-                NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(match.get<uint8_t>(1)), { 0x00 });
-            });
+        auto x86VerifyPeer = hook::pattern("6A 01 6A 40 FF B7 48 01 00 00");
+        if (!x86VerifyPeer.count_hint(1).empty()) {
+            Out("RemoveTLSVerification", "Patching x86 CURLOPT_SSL_VERIFYPEER");
+            uintptr_t* address = x86VerifyPeer.get(0).get<uintptr_t>(1);
+            NoobHook::WriteMemory<uint8_t>(reinterpret_cast<uintptr_t>(address), { 0x00 });
         }
     }
 
