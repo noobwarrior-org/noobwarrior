@@ -32,6 +32,9 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QCheckBox>
+#include <QAbstractButton>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -576,36 +579,86 @@ void ItemListWidget::PasteItems() {
     int pasted = 0;
 
     for (const EmuDb::ItemSnapshot &snap : sClipboard) {
+        EmuDb::ItemSnapshot toImport = snap; // a working copy we may re-id below
         bool overwrite = false;
-        if (target->DoesItemExist(snap.Type, snap.Id)) {
+
+        if (target->DoesItemExist(toImport.Type, toImport.Id)) {
             if (skipAll)
                 continue;
             if (overwriteAll) {
                 overwrite = true;
             } else {
-                QMessageBox::StandardButton answer = QMessageBox::question(this, "Paste",
-                    QString("An item with id %1 already exists in this database. Overwrite it?").arg(snap.Id),
-                    QMessageBox::Yes | QMessageBox::YesToAll | QMessageBox::No | QMessageBox::NoToAll,
-                    QMessageBox::No);
-                switch (answer) {
-                case QMessageBox::YesToAll: overwriteAll = true; [[fallthrough]];
-                case QMessageBox::Yes:      overwrite = true; break;
-                case QMessageBox::NoToAll:  skipAll = true; [[fallthrough]];
-                default:                    continue; // No: skip this item
+                // Offer the user a real choice: overwrite, paste under a new id, or skip.
+                QMessageBox box(this);
+                box.setWindowTitle("Paste");
+                box.setIcon(QMessageBox::Question);
+                box.setText(QString("An item with id %1 already exists in this database.").arg(toImport.Id));
+                box.setInformativeText("Overwrite it, paste under a new id, or skip it?");
+                QPushButton* overwriteBtn = box.addButton("Overwrite", QMessageBox::AcceptRole);
+                QPushButton* changeIdBtn = box.addButton("Change ID…", QMessageBox::ActionRole);
+                QPushButton* skipBtn = box.addButton("Skip", QMessageBox::RejectRole);
+                // "Apply to all" only makes sense for overwrite/skip (each new id must be unique).
+                QCheckBox* applyAll = new QCheckBox("Apply to all remaining conflicts", &box);
+                box.setCheckBox(applyAll);
+                box.exec();
+                QAbstractButton* answer = box.clickedButton();
+
+                if (answer == overwriteBtn) {
+                    overwrite = true;
+                    if (applyAll->isChecked())
+                        overwriteAll = true;
+                } else if (answer == changeIdBtn) {
+                    // Prompt until we get a valid, currently-free id (or the user cancels -> skip).
+                    int64_t newId = toImport.Id;
+                    bool gotFreeId = false;
+                    while (true) {
+                        bool ok = false;
+                        QString text = QInputDialog::getText(this, "Change ID",
+                            QString("Enter a new id for the pasted item (currently %1):").arg(toImport.Id),
+                            QLineEdit::Normal, QString::number(newId), &ok);
+                        if (!ok)
+                            break; // cancelled
+
+                        bool parsed = false;
+                        int64_t candidate = text.trimmed().toLongLong(&parsed);
+                        if (!parsed || candidate <= 0) {
+                            QMessageBox::warning(this, "Change ID", "Please enter a valid positive number.");
+                            continue;
+                        }
+                        newId = candidate;
+                        if (target->DoesItemExist(toImport.Type, newId)) {
+                            QMessageBox::warning(this, "Change ID", QString("Id %1 is also already taken.").arg(newId));
+                            continue;
+                        }
+                        gotFreeId = true;
+                        break;
+                    }
+                    if (!gotFreeId)
+                        continue; // skip this item
+                    target->ReassignSnapshotId(toImport, newId);
+                    // overwrite stays false: the new id is free.
+                } else { // Skip (or the dialog was closed)
+                    (void)skipBtn;
+                    if (applyAll->isChecked())
+                        skipAll = true;
+                    continue;
                 }
             }
         }
 
-        SqlDb::Response res = target->ImportItem(snap, overwrite);
+        SqlDb::Response res = target->ImportItem(toImport, overwrite);
         if (res != SqlDb::Response::Success) {
-            failures << QString::number(snap.Id);
+            failures << QString::number(toImport.Id);
             continue;
         }
 
-        // Reflect the paste in this list: refresh an overwritten row, add a brand-new one.
-        if (IsItemInList(snap.Type, snap.Id))
-            Remove(snap.Type, snap.Id);
-        Add(snap.Type, snap.Id);
+        // Reflect the paste in this list. For an overwrite the widget already exists, so refresh it
+        // in place — deleting and re-adding glitches the list's batched layout (the row can vanish
+        // until the next repopulate). A brand-new / re-id'd item is simply added.
+        if (auto *existing = GetItemWidget(toImport.Type, toImport.Id))
+            existing->Reload();
+        else
+            Add(toImport.Type, toImport.Id);
         pasted++;
     }
 

@@ -975,6 +975,55 @@ SqlDb::Response EmuDb::ImportItem(const ItemSnapshot &snapshot, bool overwrite) 
 	return SqlDb::Response::Success;
 }
 
+void EmuDb::ReassignSnapshotId(ItemSnapshot &snapshot, int64_t newId) {
+	if (snapshot.Tables.empty() || newId == snapshot.Id)
+		return;
+
+	const int64_t oldId = snapshot.Id;
+	const std::string parentTable = snapshot.Tables.front().Table;
+
+	// A SqlValue carrying the id may be stored as int or int64; treat both as the same id.
+	auto holdsOldId = [oldId](const SqlValue &value) {
+		if (const auto *v = std::get_if<int64_t>(&value)) return *v == oldId;
+		if (const auto *v = std::get_if<int>(&value)) return static_cast<int64_t>(*v) == oldId;
+		return false;
+	};
+
+	// Parent row: its primary key Id column.
+	for (SqlRow &row : snapshot.Tables.front().Rows) {
+		for (SqlColumn &col : row) {
+			if (col.first == "Id" && holdsOldId(col.second))
+				col.second = newId;
+		}
+	}
+
+	// Dependent rows: only the columns the live schema declares as foreign keys onto the parent
+	// table (so e.g. a junction row's other foreign key is left untouched).
+	for (size_t i = 1; i < snapshot.Tables.size(); i++) {
+		ItemSnapshot::TableData &td = snapshot.Tables[i];
+
+		std::set<std::string> refCols;
+		Statement fkStmt = PrepareStatement(std::format("PRAGMA foreign_key_list(\"{}\");", td.Table));
+		if (!fkStmt.Fail()) {
+			while (fkStmt.Step() == SQLITE_ROW) {
+				if (fkStmt.GetStringFromColumnIndex(2) == parentTable)
+					refCols.insert(fkStmt.GetStringFromColumnIndex(3));
+			}
+		}
+		if (refCols.empty())
+			continue;
+
+		for (SqlRow &row : td.Rows) {
+			for (SqlColumn &col : row) {
+				if (refCols.count(col.first) && holdsOldId(col.second))
+					col.second = newId;
+			}
+		}
+	}
+
+	snapshot.Id = newId;
+}
+
 SqlDb::Response EmuDb::AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

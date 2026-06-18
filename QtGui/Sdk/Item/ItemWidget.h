@@ -40,6 +40,10 @@ public:
     NoobWarrior::ItemType GetType();
     int64_t GetId();
 
+    // Re-reads the item's name, type, icon and play badge from the database and rebuilds its display
+    // (used to refresh an item in place, e.g. after it's overwritten by a paste).
+    void Reload();
+
     // True for Audio assets, which carry a clickable play/pause badge on their icon.
     bool IsPlayable() const { return mPlayable; }
     // Swaps the icon's badge between a play triangle (paused/stopped) and a pause glyph (playing).

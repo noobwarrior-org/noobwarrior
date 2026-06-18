@@ -48,41 +48,44 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
     mId(id)
 {
     assert(db != nullptr && "ItemWidget: Passed database is null");
+    Reload();
+}
+
+void ItemWidget::Reload() {
     std::string tableName = GetTableNameFromItemType(mType);
     std::string name;
 
-    Statement stmt = db->PrepareStatement(std::format("SELECT Name FROM {} WHERE Id = ?;", tableName));
+    Statement stmt = mDb->PrepareStatement(std::format("SELECT Name FROM \"{}\" WHERE Id = ?;", tableName));
     if (stmt.Fail()) {
-        Out("ItemWidget", "Failed to retrieve name for ID {}", id);
+        Out("ItemWidget", "Failed to retrieve name for ID {}", mId);
         return;
     }
-    stmt.Bind(1, id);
+    stmt.Bind(1, mId);
     if (stmt.Step() == SQLITE_ROW) {
         name = stmt.GetStringFromColumnIndex(0);
     }
 
-    setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(id)));
+    setText(QString("%1\n(%2)").arg(QString::fromStdString(name), QString::number(mId)));
 
-    // Playable assets (Audio/Video) get a little play badge in the bottom-right corner of their icon.
+    // Playable assets (Audio) get a little play badge in the bottom-right corner of their icon.
     Roblox::AssetType assetType = Roblox::AssetType::None;
     if (mType == NoobWarrior::ItemType::Asset) {
-        Statement typeStmt = db->PrepareStatement("SELECT Type FROM Asset WHERE Id = ?;");
-        typeStmt.Bind(1, id);
+        Statement typeStmt = mDb->PrepareStatement("SELECT Type FROM Asset WHERE Id = ?;");
+        typeStmt.Bind(1, mId);
         if (typeStmt.Step() == SQLITE_ROW)
             assetType = static_cast<Roblox::AssetType>(typeStmt.GetIntFromColumnIndex(0));
     }
-    bool isPlayable = assetType == Roblox::AssetType::Audio;
-    mPlayable = isPlayable;
+    mPlayable = assetType == Roblox::AssetType::Audio;
 
     QPixmap pixmap;
-    std::vector<unsigned char> imageData = db->RetrieveImageData(mType, id);
+    std::vector<unsigned char> imageData = mDb->RetrieveImageData(mType, mId);
     if (!imageData.empty()) {
         QImage image;
         image.loadFromData(imageData);
         pixmap = QPixmap::fromImage(image);
     }
 
-    if (isPlayable) {
+    if (mPlayable) {
         // Audio assets usually have no thumbnail; give the badge a transparent canvas to sit on.
         if (pixmap.isNull()) {
             pixmap = QPixmap(64, 64);
@@ -90,6 +93,8 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
         }
         mBasePixmap = pixmap; // cache the un-badged icon so the badge can be redrawn on play/pause
         Asset_DrawMediaBadge(pixmap, false);
+    } else {
+        mBasePixmap = QPixmap();
     }
 
     mIconPixmap = pixmap;

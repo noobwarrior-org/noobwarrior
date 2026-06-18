@@ -203,6 +203,12 @@ public:
     // the database untouched.
     SqlDb::Response ImportItem(const ItemSnapshot &snapshot, bool overwrite);
 
+    // Rewrites every reference to the snapshot's current id (the parent row's Id column and each
+    // dependent row's foreign-key column that points at the parent table) to newId, so the snapshot
+    // can be imported under a different id. The referencing columns are discovered from the live
+    // schema. Does nothing on an empty snapshot or when newId equals the current id.
+    void ReassignSnapshotId(ItemSnapshot &snapshot, int64_t newId);
+
     /* Asset functions */
     SqlDb::Response AttachDataToAsset(int64_t id, int version, const std::vector<unsigned char> &data);
     SqlDb::Response DetachDataFromAsset(int64_t id, int version);
