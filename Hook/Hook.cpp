@@ -397,12 +397,14 @@ static void EmitGoodbyeOnce() {
 
 static void (WINAPI* pOrigExitProcess)(UINT);
 static void WINAPI MyExitProcess(UINT exitCode) {
+    Patches::InstallCrashDiagnostics_LogBacktrace();
     EmitGoodbyeOnce();
     pOrigExitProcess(exitCode);
 }
 
 static void (WINAPI* pOrigRtlExitUserProcess)(NTSTATUS);
 static void WINAPI MyRtlExitUserProcess(NTSTATUS exitStatus) {
+    Patches::InstallCrashDiagnostics_LogBacktrace();
     EmitGoodbyeOnce();
     pOrigRtlExitUserProcess(exitStatus);
 }
@@ -420,6 +422,8 @@ static DWORD WINAPI HeartbeatThread(LPVOID) {
 
 DWORD WINAPI Thread(LPVOID param) {
 	Out("Main", "Initializing noobHook");
+
+    Patches::InstallCrashDiagnostics();
 
     char portBuf[16];
     if (GetEnvironmentVariableA("NOOBHOOK_HTTP_PORT", portBuf, sizeof(portBuf)) > 0)

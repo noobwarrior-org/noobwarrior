@@ -62,26 +62,26 @@
 #include <cstdint>
 
 namespace NoobHook {
-namespace {
-void LogAddr(const char* tag, void* addr) {
+static void LogAddr(const char* tag, void* addr) {
     HMODULE mod = nullptr;
     GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                       reinterpret_cast<LPCSTR>(addr), &mod);
+        reinterpret_cast<LPCSTR>(addr), &mod);
     char name[MAX_PATH] = "?";
     if (mod) GetModuleBaseNameA(GetCurrentProcess(), mod, name, sizeof(name));
     uintptr_t rva = mod ? (reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(mod))
-                        : reinterpret_cast<uintptr_t>(addr);
+        : reinterpret_cast<uintptr_t>(addr);
     Out("Crash", "  %s %s+0x%zx (abs %p, base %p)", tag, name, (size_t)rva, addr, (void*)mod);
 }
 
-void LogBacktrace() {
-    void* frames[40] = {0};
+void Patches::InstallCrashDiagnostics_LogBacktrace() {
+    void* frames[40] = { 0 };
     USHORT n = CaptureStackBackTrace(0, 40, frames, nullptr);
     Out("Crash", "Backtrace (%u frames):", (unsigned)n);
     for (USHORT i = 0; i < n; i++)
         LogAddr("frame", frames[i]);
 }
 
+namespace {
 std::atomic<bool> gDumpWritten { false };
 void WriteCrashDump(EXCEPTION_POINTERS* ep) {
     bool expected = false;
@@ -119,7 +119,7 @@ LONG WINAPI MyUnhandledFilter(EXCEPTION_POINTERS* ep) {
                 (void*)r->ExceptionInformation[1]);
         LogAddr("fault", r->ExceptionAddress);
     }
-    LogBacktrace();
+    Patches::InstallCrashDiagnostics_LogBacktrace();
     WriteCrashDump(ep);
     return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -129,7 +129,7 @@ void WINAPI MyRaiseFailFast(PEXCEPTION_RECORD er, PCONTEXT ctx, DWORD flags) {
     Out("Crash", "RaiseFailFastException code=0x%08X addr=%p flags=0x%lX",
         er ? (unsigned)er->ExceptionCode : 0, er ? er->ExceptionAddress : nullptr, flags);
     if (er) LogAddr("failfast", er->ExceptionAddress);
-    LogBacktrace();
+    Patches::InstallCrashDiagnostics_LogBacktrace();
     EXCEPTION_POINTERS ep = { er, ctx };
     WriteCrashDump((er || ctx) ? &ep : nullptr);
     if (pOrigRaiseFailFast) pOrigRaiseFailFast(er, ctx, flags);
@@ -166,7 +166,7 @@ LONG WINAPI MyUEFHook(EXCEPTION_POINTERS* ep) {
 #endif
         }
     }
-    LogBacktrace();
+    Patches::InstallCrashDiagnostics_LogBacktrace();
     WriteCrashDump(ep);
     return pOrigUEF ? pOrigUEF(ep) : EXCEPTION_EXECUTE_HANDLER;
 }

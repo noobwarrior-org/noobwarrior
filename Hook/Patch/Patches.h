@@ -37,4 +37,6 @@ void FixInsertObjects();
 // corrupted unions: redirects DeserializedClusterItem::process null-page reads to a
 // zero buffer and aborts the corrupt-union CSG mesh builder via its own epilogue.
 void InstallClusterNullGuard();
+void InstallCrashDiagnostics();
+void InstallCrashDiagnostics_LogBacktrace();
 }
