@@ -108,6 +108,26 @@ void WriteCrashDump(EXCEPTION_POINTERS* ep) {
     Out("Crash", "MiniDumpWriteDump %s -> %s", ok ? "OK" : "FAILED", path);
 }
 
+// Roblox captures crashes with an OUT-OF-PROCESS crashpad handler (no thread in this process ever
+// touches dbgcore/dbghelp), so an in-process MiniDumpWriteDump hook can't reach its writer. But a
+// first-chance VEH runs BEFORE crashpad's handler (proven: ClusterNullGuard's VEH already handles
+// union AVs ahead of crashpad), and the heap corruption arrives here as a catchable
+// RtlRaiseStatus(0xC0000374). So we catch the fatal code first-chance and write our OWN full-memory
+// dump, then CONTINUE_SEARCH to let crashpad/the OS terminate as usual. Scoped to always-fatal
+// noncontinuable codes so a benign throw-and-catch never triggers a 1+ GB dump.
+LONG CALLBACK MyFatalDumpVeh(EXCEPTION_POINTERS* ep) {
+    if (!ep || !ep->ExceptionRecord)
+        return EXCEPTION_CONTINUE_SEARCH;
+    DWORD code = ep->ExceptionRecord->ExceptionCode;
+    if (code == 0xC0000374u /*STATUS_HEAP_CORRUPTION*/ ||
+        code == 0xC0000409u /*STATUS_STACK_BUFFER_OVERRUN (__fastfail)*/) {
+        Out("Crash", "Fatal 0x%08X caught first-chance in VEH -> writing full-memory dump before crashpad", (unsigned)code);
+        LogAddr("fault", ep->ExceptionRecord->ExceptionAddress);
+        WriteCrashDump(ep);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
 LONG WINAPI MyUnhandledFilter(EXCEPTION_POINTERS* ep) {
     if (ep && ep->ExceptionRecord) {
         auto* r = ep->ExceptionRecord;
@@ -202,11 +222,13 @@ void Patches::InstallCrashDiagnostics() {
     MH_CreateHookApi(L"kernel32",   "RaiseFailFastException",   (LPVOID)MyRaiseFailFast, (LPVOID*)&pOrigRaiseFailFast);
     MH_CreateHookApi(L"kernelbase", "UnhandledExceptionFilter", (LPVOID)MyUEFHook,       (LPVOID*)&pOrigUEF);
     SetUnhandledExceptionFilter(MyUnhandledFilter);
-    // Upgrade the player's own crash dump to full memory. dbgcore implements MiniDumpWriteDump
-    // (dbghelp forwards there); ensure it's loaded so the hook can attach even if the reporter
-    // pulls it in only at crash time. This is the path that actually fires for these crashes.
+    // First-chance VEH that writes our own full-memory dump before Roblox's out-of-process crashpad
+    // handler gets the crash. This is the path that actually fires (the UEF/fail-fast hooks above sit
+    // downstream of crashpad and don't). The MiniDumpWriteDump hook stays as a belt-and-suspenders for
+    // any crash a game DOES dump in-process.
+    AddVectoredExceptionHandler(1 /*first*/, MyFatalDumpVeh);
     LoadLibraryW(L"dbgcore.dll");
     MH_CreateHookApi(L"dbgcore", "MiniDumpWriteDump", (LPVOID)MyMiniDumpWriteDump, (LPVOID*)&pOrigMiniDumpWriteDump);
-    Out("Crash", "Crash diagnostics installed (UEF + fail-fast + MiniDumpWriteDump full-memory upgrade)");
+    Out("Crash", "Crash diagnostics installed (first-chance full-dump VEH + UEF/fail-fast + MiniDumpWriteDump upgrade)");
 }
 } // namespace NoobHook
