@@ -47,6 +47,7 @@
 #include <windows.h>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 
 #if defined(_M_IX86)
 namespace NoobHook {
@@ -57,6 +58,30 @@ const size_t kZeroBufSize = 0x4000000;   // 64 MB of zeros
 const size_t kZeroBufMid  = 0x2000000;   // redirect to the middle (room to climb both ways)
 std::atomic<unsigned> gNullRedir { 0 };
 std::atomic<unsigned> gClusterAbort { 0 };
+
+// Gate for the FuncB-abort path. The abort RVAs (range [0x99a431,0x99c697) and the epilogue
+// target 0x99c68f) were pinned against the 0.573 player. On 0.574 they are STALE: 0x99c68f is
+// an alignment NOP whose tail decodes to `add byte ptr [ecx-1],dl` (a wild heap write), so
+// jumping there would self-inflict heap corruption. Only enable the abort when the redirect
+// target genuinely holds the expected epilogue (set in InstallClusterNullGuard) -- correct by
+// construction across builds. The build-agnostic null-page redirect below stays on regardless.
+bool gAbortPathValid = false;
+
+// True only if `base+rva` holds the FuncB clean epilogue
+// (pop edi;pop esi;mov esp,ebp;pop ebp;mov esp,ebx;pop ebx;ret 0x18). Bounds-checked against
+// the image's SizeOfImage so a smaller/stale build can never make us read past the mapping.
+bool EpilogueSignatureMatches(uintptr_t base, uintptr_t rva) {
+    auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE || dos->e_lfanew <= 0)
+        return false;
+    auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    if (nt->Signature != IMAGE_NT_SIGNATURE)
+        return false;
+    static const uint8_t kEpilogue[10] = { 0x5f, 0x5e, 0x8b, 0xe5, 0x5d, 0x8b, 0xe3, 0x5b, 0xc2, 0x18 };
+    if (rva + sizeof(kEpilogue) > nt->OptionalHeader.SizeOfImage)
+        return false;
+    return std::memcmp(reinterpret_cast<const void*>(base + rva), kEpilogue, sizeof(kEpilogue)) == 0;
+}
 
 // Parse a memory-operand instruction's ModRM/SIB to find which GP register is
 // the address BASE, and return a pointer to that register's slot in CONTEXT.
@@ -116,7 +141,7 @@ LONG CALLBACK ClusterNullDerefVeh(EXCEPTION_POINTERS* ep) {
     //   pop edi; pop esi; mov esp,ebp; pop ebp; mov esp,ebx; pop ebx; ret 0x18
     // restore the callee-saved regs and unwind the frame exactly. The corrupt
     // union renders nothing instead of taking the whole client down.
-    if (rva >= 0x99a431 && rva < 0x99c697) {
+    if (gAbortPathValid && rva >= 0x99a431 && rva < 0x99c697) {
         c->Esp = c->Ebp - 0x2b0;            // saved-edi slot in FuncB's frame
         c->Eip = gExeBase + 0x99c68f;       // FuncB clean early-exit epilogue
         c->Eax = 0;                         // "nothing built"
@@ -163,8 +188,15 @@ LONG CALLBACK ClusterNullDerefVeh(EXCEPTION_POINTERS* ep) {
 void Patches::InstallClusterNullGuard() {
     gExeBase = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     gZeroBuf = static_cast<uint8_t*>(VirtualAlloc(nullptr, kZeroBufSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+    // Only arm the FuncB-abort if its 0.573-pinned epilogue target is really the epilogue on the
+    // loaded build. On 0.574 it is a NOP (stale RVAs), so this stays disarmed and we never execute
+    // the wild write the stale jump would land on. The null-page redirect is build-agnostic and
+    // always runs.
+    gAbortPathValid = EpilogueSignatureMatches(gExeBase, 0x99c68f);
     AddVectoredExceptionHandler(1 /*first*/, ClusterNullDerefVeh);
-    Out("NullGuard", "Installed cluster null-deref VEH (exe base %p, zerobuf %p)", (void*)gExeBase, (void*)gZeroBuf);
+    Out("NullGuard", "Installed cluster null-deref VEH (exe base %p, zerobuf %p, FuncB-abort %s)",
+        (void*)gExeBase, (void*)gZeroBuf,
+        gAbortPathValid ? "ARMED (0.573 epilogue matched)" : "DISARMED (stale RVAs on this build)");
 }
 } // namespace NoobHook
 #endif

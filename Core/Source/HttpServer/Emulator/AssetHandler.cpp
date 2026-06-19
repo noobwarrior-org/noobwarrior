@@ -29,6 +29,8 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include "../../algorithm/gzip.h"
+
 #include <curl/curl.h>
 
 #include <cctype>
@@ -310,10 +312,25 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
     std::string contentDispositionVal;
     evbuffer* buf = evbuffer_new();
     switch (res) {
-    case SqlDb::Response::Success:
+    case SqlDb::Response::Success: {
         if (data.empty()) {
             evhttp_send_error(req, 500, "Asset data is empty");
             break;
+        }
+
+        // Roblox serves some asset bodies (notably SolidModel/CSG, and some meshes/physics)
+        // gzip-compressed. The player's content providers read the raw HTTP body and do NOT honour
+        // Content-Encoding, so forwarding the gzip stream verbatim makes them reject the asset
+        // ("Unrecognized format: \x1f\x8b\x08"), which leaves Unions/MeshParts with no geometry and
+        // the engine then crashes building the CSG cluster from null data. Inflate server-side and
+        // send identity bytes. (Non-gzip assets -- textures, images -- pass through untouched; if an
+        // inflate ever fails we fall back to the original bytes.)
+        const std::vector<unsigned char>* out = &data;
+        std::vector<unsigned char> inflated;
+        if (IsGzip(data.data(), data.size())) {
+            inflated = GzipInflate(data.data(), data.size());
+            if (!inflated.empty())
+                out = &inflated;
         }
 
         contentDispositionVal = std::format("attachment; filename=\"{}\"", !hash.empty() ? hash : "asset");
@@ -321,13 +338,10 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
 
-        if (data.size() >= 3 && data[0] == 0x1f && data[1] == 0x8b && data[2] == 0x08) {
-            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Encoding", "gzip");
-        }
-
-        evbuffer_add(buf, data.data(), data.size());
+        evbuffer_add(buf, out->data(), out->size());
         evhttp_send_reply(req, 200, NULL, buf);
         break;
+    }
     case SqlDb::Response::NotFound:
         evhttp_send_error(req, 404, "Asset not found");
         break;
