@@ -496,11 +496,14 @@ bool Core::WriteServerRbxl(int64_t placeId, int version) {
     EmuDb* db = mEmuDbManager.GetFirstDbWhereItemExists(ItemType::Asset, placeId);
     SqlDb::Response res = db->RetrieveAssetData(placeId, version, &data);
 
-    if (res != SqlDb::Response::Success || data.empty())
+    if (res != SqlDb::Response::Success || data.empty()) {
+        Out("Core", "Failed to read data from place ID {}", placeId);
         return false;
+    }
 
     std::ofstream stream(serverRbxlPath, std::ios::binary);
     if (!stream.is_open()) {
+        Out("Core", "Failed to open std::ofstream object for \"{}\"", serverRbxlPath.string());
         return false;
     }
     stream.write(reinterpret_cast<const char*>(data.data()), data.size());
