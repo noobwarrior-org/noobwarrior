@@ -504,6 +504,7 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
 
 #if defined(_M_IX86)
         Patches::InstallClusterNullGuard(); // survive the player's corrupt-union cluster crashes
+        Patches::InstallUnionRenderUnlock(); // experiment: un-gate the new-vertex-format render path so 2026 unions display
 #endif
         Out("DllMain", "Applying patches...");
         Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.

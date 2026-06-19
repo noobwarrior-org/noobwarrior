@@ -43,4 +43,7 @@ void InstallCrashDiagnostics_LogBacktrace();
 // (RVA 0x22c74d2) and swallows the corrupt free so loading survives. Call after MH_Initialize and
 // before MH_EnableHook. x86-only; signature-gated to the 0.574 build.
 void InstallCsgHeapGuard();
+// EXPERIMENTAL (x86, 0.574 only): flips the new-vertex-format FastFlag (RVA 0x390bb20) so 2026 unions
+// take the new render branch (geom+0x1c) instead of the legacy null (geom+0x10) and actually display.
+void InstallUnionRenderUnlock();
 }

@@ -58,7 +58,7 @@ set(SOURCES
     Hook.h
     Ping.cpp
     Ping.h
- "Patch/RemoveTrustCheck.cpp"  "Patch/FixSettingsKeyMustBeDefined.cpp" "Patch/FixInsertObjects.cpp"  "Patch/RemoveTLSVerification.cpp" "Patch/Patch.cpp" "Patch/Patches.h" "Patch/BypassPlaceIdVerification.cpp" "Patch/RemoveSignatureCheck.cpp"   "Patch/ClusterNullDerefGuard.cpp" "Patch/CrashDiagnostics.cpp" "Patch/CsgHeapGuard.cpp" "ScriptExecutor/ScriptExecutor.cpp" "ScriptExecutor/ScriptExecutor.h" "ntdll.h" "ntdll.cpp" "ScriptExecutor/Instance.cpp" "ScriptExecutor/Instance.h")
+ "Patch/RemoveTrustCheck.cpp"  "Patch/FixSettingsKeyMustBeDefined.cpp" "Patch/FixInsertObjects.cpp"  "Patch/RemoveTLSVerification.cpp" "Patch/Patch.cpp" "Patch/Patches.h" "Patch/BypassPlaceIdVerification.cpp" "Patch/RemoveSignatureCheck.cpp"   "Patch/ClusterNullDerefGuard.cpp" "Patch/CrashDiagnostics.cpp" "Patch/CsgHeapGuard.cpp" "Patch/UnionRenderUnlock.cpp" "ScriptExecutor/ScriptExecutor.cpp" "ScriptExecutor/ScriptExecutor.h" "ntdll.h" "ntdll.cpp" "ScriptExecutor/Instance.cpp" "ScriptExecutor/Instance.h")
 
 add_library(NoobWarrior.Hook SHARED ${SOURCES})
 set_target_properties(NoobWarrior.Hook PROPERTIES
