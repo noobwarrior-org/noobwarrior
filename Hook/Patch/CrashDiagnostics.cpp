@@ -170,6 +170,29 @@ LONG WINAPI MyUEFHook(EXCEPTION_POINTERS* ep) {
     WriteCrashDump(ep);
     return pOrigUEF ? pOrigUEF(ep) : EXCEPTION_EXECUTE_HANDLER;
 }
+
+// The player's own crash reporter (the in-process CrashReporter_* watcher threads, with
+// dbghelp/dbgcore loaded) catches the fault and writes its dump BEFORE our UEF/fail-fast hooks
+// ever see it -- heap corruption arrives as a catchable RtlRaiseStatus(0xC0000374) that the
+// reporter's handler swallows, so SetUnhandledExceptionFilter/UnhandledExceptionFilter/
+// RaiseFailFastException never fire. Rather than race the reporter, ride it: it writes a TRIAGE
+// dump via dbgcore!MiniDumpWriteDump (dbghelp forwards there), so OR MiniDumpWithFullMemory into
+// the type it asks for and its dump captures the whole heap instead -- catching exactly what the
+// player catches, including load-phase heap-corruption crashes. ~1-1.5 GB per dump.
+using MiniDumpWriteDump_t = BOOL (WINAPI*)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
+    PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
+MiniDumpWriteDump_t pOrigMiniDumpWriteDump = nullptr;
+BOOL WINAPI MyMiniDumpWriteDump(HANDLE proc, DWORD pid, HANDLE file, MINIDUMP_TYPE type,
+                                PMINIDUMP_EXCEPTION_INFORMATION exc,
+                                PMINIDUMP_USER_STREAM_INFORMATION usr,
+                                PMINIDUMP_CALLBACK_INFORMATION cb) {
+    MINIDUMP_TYPE upgraded = static_cast<MINIDUMP_TYPE>(type
+        | MiniDumpWithFullMemory | MiniDumpWithHandleData
+        | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo);
+    Out("Crash", "MiniDumpWriteDump intercepted: type 0x%x -> 0x%x (forcing full memory)",
+        (unsigned)type, (unsigned)upgraded);
+    return pOrigMiniDumpWriteDump ? pOrigMiniDumpWriteDump(proc, pid, file, upgraded, exc, usr, cb) : FALSE;
+}
 } // anonymous namespace
 
 // Registers the UEF + fail-fast hooks (the ExitProcess/RtlExitUserProcess hooks
@@ -179,6 +202,11 @@ void Patches::InstallCrashDiagnostics() {
     MH_CreateHookApi(L"kernel32",   "RaiseFailFastException",   (LPVOID)MyRaiseFailFast, (LPVOID*)&pOrigRaiseFailFast);
     MH_CreateHookApi(L"kernelbase", "UnhandledExceptionFilter", (LPVOID)MyUEFHook,       (LPVOID*)&pOrigUEF);
     SetUnhandledExceptionFilter(MyUnhandledFilter);
-    Out("Crash", "Crash diagnostics installed (UEF + fail-fast hooks + full minidump)");
+    // Upgrade the player's own crash dump to full memory. dbgcore implements MiniDumpWriteDump
+    // (dbghelp forwards there); ensure it's loaded so the hook can attach even if the reporter
+    // pulls it in only at crash time. This is the path that actually fires for these crashes.
+    LoadLibraryW(L"dbgcore.dll");
+    MH_CreateHookApi(L"dbgcore", "MiniDumpWriteDump", (LPVOID)MyMiniDumpWriteDump, (LPVOID*)&pOrigMiniDumpWriteDump);
+    Out("Crash", "Crash diagnostics installed (UEF + fail-fast + MiniDumpWriteDump full-memory upgrade)");
 }
 } // namespace NoobHook
