@@ -39,4 +39,8 @@ void FixInsertObjects();
 void InstallClusterNullGuard();
 void InstallCrashDiagnostics();
 void InstallCrashDiagnostics_LogBacktrace();
+// Stopgap (b2) for the 0.574 CSG load-phase heap overflow: hooks the temp-buffer free wrapper
+// (RVA 0x22c74d2) and swallows the corrupt free so loading survives. Call after MH_Initialize and
+// before MH_EnableHook. x86-only; signature-gated to the 0.574 build.
+void InstallCsgHeapGuard();
 }

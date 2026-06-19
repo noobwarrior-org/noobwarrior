@@ -461,6 +461,9 @@ DWORD WINAPI Thread(LPVOID param) {
     hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
     hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
     hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
+#if defined(_M_IX86)
+    Patches::InstallCsgHeapGuard(); // b2: swallow the corrupt CSG temp-buffer free (0.574) so load survives
+#endif
     MH_EnableHook(MH_ALL_HOOKS);
 
 #if defined(_WIN64)
