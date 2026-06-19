@@ -59,28 +59,50 @@ const size_t kZeroBufMid  = 0x2000000;   // redirect to the middle (room to clim
 std::atomic<unsigned> gNullRedir { 0 };
 std::atomic<unsigned> gClusterAbort { 0 };
 
-// Gate for the FuncB-abort path. The abort RVAs (range [0x99a431,0x99c697) and the epilogue
-// target 0x99c68f) were pinned against the 0.573 player. On 0.574 they are STALE: 0x99c68f is
-// an alignment NOP whose tail decodes to `add byte ptr [ecx-1],dl` (a wild heap write), so
-// jumping there would self-inflict heap corruption. Only enable the abort when the redirect
-// target genuinely holds the expected epilogue (set in InstallClusterNullGuard) -- correct by
-// construction across builds. The build-agnostic null-page redirect below stays on regardless.
-bool gAbortPathValid = false;
+// The corrupt-union CSG index builder ("FuncB") moves between player builds, so its abort RVAs
+// must be pinned per build. Each variant is selected at install ONLY if the loaded image holds
+// both the aligned-frame prologue at funcStart AND the clean epilogue at Epilogue -- so a wrong
+// or stale build never arms (on 0.574 the old 0.573 epilogue target 0x99c68f is an alignment NOP
+// whose tail is `add byte ptr [ecx-1],dl`, a wild heap write; gating on the real bytes makes that
+// unreachable). Both builds happen to share the same frame (sub esp,0x2a8 -> saved edi at Ebp-0x2b0)
+// and epilogue shape (pop edi;pop esi;mov esp,ebp;pop ebp;mov esp,ebx;pop ebx;ret 0x18).
+struct FuncBVariant {
+    const char* Name;
+    uintptr_t   FuncStart;   // aligned-frame prologue: 53 8b dc 83 ec 08 83 e4 f0
+    uintptr_t   RangeLo;     // first byte after the prologue (frame fully established)
+    uintptr_t   RangeHi;     // one past the function's ret
+    uintptr_t   Epilogue;    // clean exit: pop edi;...;mov esp,ebx;pop ebx;ret 0x18
+    uint32_t    EspSub;      // abort sets Esp = Ebp - EspSub (the saved-edi slot)
+};
+const FuncBVariant kFuncBVariants[] = {
+    { "0.573",         0x99a410, 0x99a431, 0x99c697, 0x99c68f, 0x2b0 },
+    { "0.574.0.38814", 0x99b300, 0x99b31e, 0x99d544, 0x99d53c, 0x2b0 },
+};
+const FuncBVariant* gFuncB = nullptr;   // the matched variant, or null -> abort disarmed
 
-// True only if `base+rva` holds the FuncB clean epilogue
-// (pop edi;pop esi;mov esp,ebp;pop ebp;mov esp,ebx;pop ebx;ret 0x18). Bounds-checked against
-// the image's SizeOfImage so a smaller/stale build can never make us read past the mapping.
-bool EpilogueSignatureMatches(uintptr_t base, uintptr_t rva) {
+// Compare n bytes at base+rva to sig, bounds-checked against SizeOfImage so a smaller/stale
+// build can never make us read past the mapping.
+bool BytesMatch(uintptr_t base, uintptr_t rva, const uint8_t* sig, size_t n) {
     auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     if (dos->e_magic != IMAGE_DOS_SIGNATURE || dos->e_lfanew <= 0)
         return false;
     auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
     if (nt->Signature != IMAGE_NT_SIGNATURE)
         return false;
-    static const uint8_t kEpilogue[10] = { 0x5f, 0x5e, 0x8b, 0xe5, 0x5d, 0x8b, 0xe3, 0x5b, 0xc2, 0x18 };
-    if (rva + sizeof(kEpilogue) > nt->OptionalHeader.SizeOfImage)
+    if (rva + n > nt->OptionalHeader.SizeOfImage)
         return false;
-    return std::memcmp(reinterpret_cast<const void*>(base + rva), kEpilogue, sizeof(kEpilogue)) == 0;
+    return std::memcmp(reinterpret_cast<const void*>(base + rva), sig, n) == 0;
+}
+
+const FuncBVariant* SelectFuncBVariant(uintptr_t base) {
+    static const uint8_t kProlog[9]   = { 0x53, 0x8b, 0xdc, 0x83, 0xec, 0x08, 0x83, 0xe4, 0xf0 };
+    static const uint8_t kEpilogue[10] = { 0x5f, 0x5e, 0x8b, 0xe5, 0x5d, 0x8b, 0xe3, 0x5b, 0xc2, 0x18 };
+    for (const auto& v : kFuncBVariants) {
+        if (BytesMatch(base, v.FuncStart, kProlog, sizeof(kProlog)) &&
+            BytesMatch(base, v.Epilogue,  kEpilogue, sizeof(kEpilogue)))
+            return &v;
+    }
+    return nullptr;
 }
 
 // Parse a memory-operand instruction's ModRM/SIB to find which GP register is
@@ -124,27 +146,23 @@ LONG CALLBACK ClusterNullDerefVeh(EXCEPTION_POINTERS* ep) {
     uintptr_t eip = c->Eip;
     uintptr_t rva = eip - gExeBase;
 
-    // --- Corrupt-union CSG mesh builder: abort the whole function via its own
-    // clean epilogue instead of band-aiding each access. FuncB (RVA 0x99a410)
-    // builds a render mesh from the deserialized cluster. For the 2026-format
-    // unions this 2023 player can't parse, the cluster holds null/garbage
-    // pointers, so FuncB reads a near-null vertex base (many null-page reads)
-    // and computes a garbage face count that overruns its u16 index buffer --
-    // captured as a WRITE AV at 0x99c3ec (mov [edx+esi*2+2],ax). Redirecting the
-    // null reads to zeros (below) only lets that garbage count survive into the
-    // overflow, so for this function we instead jump, on the FIRST fault anywhere
-    // inside it, to its normal early-exit epilogue at 0x99c68f, returning eax=0
-    // ("nothing built" -- exactly what the function's own size-check early-out at
-    // 0x99a45f yields). FuncB uses an aligned-stack frame with NO SEH; its saved
-    // edi/esi sit at [ebp-0x2b0]/[ebp-0x2ac] (push esi; push edi after sub esp,
-    // 0x2a8). Pointing esp at the saved-edi slot lets the epilogue
+    // --- Corrupt-union CSG index builder ("FuncB"): abort the whole function via its
+    // own clean epilogue instead of band-aiding each access. FuncB builds a render mesh
+    // from the deserialized cluster. For the 2026-format unions this player can't parse
+    // (the SolidModel physics fails to load -- "Invalid TriangleMesh translationStride"),
+    // the cluster holds null/garbage, so FuncB computes a garbage face count that overruns
+    // its u16 index buffer (mov [edi+esi*2],ax / mov [edx+esi*2+2],ax) -> WRITE AV. On the
+    // FIRST fault anywhere inside the function we jump to its normal early-exit epilogue,
+    // returning eax=0 ("nothing built", what the function's own size-check early-out yields).
+    // FuncB uses an aligned-stack frame; saved edi/esi sit at [ebp-EspSub]/[ebp-EspSub+4]
+    // (push esi; push edi after sub esp,0x2a8), so pointing esp at the saved-edi slot lets
     //   pop edi; pop esi; mov esp,ebp; pop ebp; mov esp,ebx; pop ebx; ret 0x18
-    // restore the callee-saved regs and unwind the frame exactly. The corrupt
-    // union renders nothing instead of taking the whole client down.
-    if (gAbortPathValid && rva >= 0x99a431 && rva < 0x99c697) {
-        c->Esp = c->Ebp - 0x2b0;            // saved-edi slot in FuncB's frame
-        c->Eip = gExeBase + 0x99c68f;       // FuncB clean early-exit epilogue
-        c->Eax = 0;                         // "nothing built"
+    // restore the callee-saved regs and unwind the frame exactly. The RVAs differ per build
+    // (gFuncB is the variant matched at install); the union renders nothing but no crash.
+    if (gFuncB && rva >= gFuncB->RangeLo && rva < gFuncB->RangeHi) {
+        c->Esp = c->Ebp - gFuncB->EspSub;       // saved-edi slot in FuncB's frame
+        c->Eip = gExeBase + gFuncB->Epilogue;   // FuncB clean early-exit epilogue
+        c->Eax = 0;                             // "nothing built"
         unsigned n = ++gClusterAbort;
         if (n <= 8 || (n % 64) == 0)
             Out("NullGuard", "abort corrupt-union mesh builder @ rva 0x%zx -> epilogue (total=%u)", (size_t)rva, n);
@@ -188,15 +206,14 @@ LONG CALLBACK ClusterNullDerefVeh(EXCEPTION_POINTERS* ep) {
 void Patches::InstallClusterNullGuard() {
     gExeBase = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     gZeroBuf = static_cast<uint8_t*>(VirtualAlloc(nullptr, kZeroBufSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
-    // Only arm the FuncB-abort if its 0.573-pinned epilogue target is really the epilogue on the
-    // loaded build. On 0.574 it is a NOP (stale RVAs), so this stays disarmed and we never execute
-    // the wild write the stale jump would land on. The null-page redirect is build-agnostic and
-    // always runs.
-    gAbortPathValid = EpilogueSignatureMatches(gExeBase, 0x99c68f);
+    // Pick the FuncB-abort variant whose prologue + epilogue signatures both match the loaded
+    // build. If none match (unknown build), the abort stays disarmed and we never execute the
+    // wild write a stale epilogue jump would land on. The null-page redirect is build-agnostic
+    // and always runs.
+    gFuncB = SelectFuncBVariant(gExeBase);
     AddVectoredExceptionHandler(1 /*first*/, ClusterNullDerefVeh);
     Out("NullGuard", "Installed cluster null-deref VEH (exe base %p, zerobuf %p, FuncB-abort %s)",
-        (void*)gExeBase, (void*)gZeroBuf,
-        gAbortPathValid ? "ARMED (0.573 epilogue matched)" : "DISARMED (stale RVAs on this build)");
+        (void*)gExeBase, (void*)gZeroBuf, gFuncB ? gFuncB->Name : "DISARMED (unknown build)");
 }
 } // namespace NoobHook
 #endif
