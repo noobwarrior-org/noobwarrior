@@ -50,6 +50,15 @@ namespace {
 const uint8_t   kFreeWrapSig[] = { 0x8b,0xff,0x55,0x8b,0xec,0x83,0x7d,0x08,0x00,0x74,0x2d };
 const uintptr_t kFreeWrapRva   = 0x22c74d2;
 
+// b1 (the real cure) -- alloc-multiplier patch site at 0x910a35.
+//   lea eax,[eax*2+3]  (alloc multiplier = 2cl+3)  ->  mov eax,edi ; nop*5  (edi = emit multiplier
+//   (cl?9:3), set by the cmovne at 0x910a2e and stored to [ebp-0x70] at 0x910a32). This sizes the
+//   vertex buffer for exactly what the writer emits, so the cl=1 (2026 CSGPHS) path can't overrun.
+//   cl=0 (legacy) is untouched: both formulas yield 3.
+const uintptr_t kAllocRva    = 0x910a35;
+const uint8_t   kAllocOrig[] = { 0x8d,0x04,0x45,0x03,0x00,0x00,0x00 }; // lea eax,[eax*2+3]
+const uint8_t   kAllocFix[]  = { 0x8b,0xc7,0x90,0x90,0x90,0x90,0x90 }; // mov eax,edi ; nop nop nop nop nop
+
 using FreeWrap_t = void (__cdecl*)(void*);
 FreeWrap_t pOrigFreeWrapper = nullptr;
 std::atomic<unsigned> gSwallowed { 0 };
@@ -75,26 +84,55 @@ void __cdecl MyFreeWrapper(void* p) {
             Out("CsgGuard", "swallowed corrupt free of %p -> leaked, no crash (total=%u)", p, n);
     }
 }
+
+// Bounds + signature-checked in-place byte patch. Only writes when the loaded build's bytes match
+// `orig` exactly, so a different/stale build is left untouched.
+bool ApplyBytePatch(uintptr_t base, uintptr_t rva, const uint8_t* orig, const uint8_t* fix, size_t n,
+                    const char* name) {
+    auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+    auto* nt  = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE || nt->Signature != IMAGE_NT_SIGNATURE ||
+        rva + n > nt->OptionalHeader.SizeOfImage ||
+        std::memcmp(reinterpret_cast<const void*>(base + rva), orig, n) != 0) {
+        Out("CsgGuard", "%s signature mismatch @ rva 0x%zx -> skipped (non-0.574 build)", name, (size_t)rva);
+        return false;
+    }
+    DWORD oldProt = 0;
+    if (!VirtualProtect(reinterpret_cast<void*>(base + rva), n, PAGE_EXECUTE_READWRITE, &oldProt)) {
+        Out("CsgGuard", "%s VirtualProtect failed (err %lu)", name, GetLastError());
+        return false;
+    }
+    std::memcpy(reinterpret_cast<void*>(base + rva), fix, n);
+    VirtualProtect(reinterpret_cast<void*>(base + rva), n, oldProt, &oldProt);
+    FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(base + rva), n);
+    Out("CsgGuard", "%s applied @ rva 0x%zx", name, (size_t)rva);
+    return true;
+}
 } // anonymous namespace
 
 // Call AFTER MH_Initialize() and BEFORE MH_EnableHook(MH_ALL_HOOKS) in Thread().
 void Patches::InstallCsgHeapGuard() {
     uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    // Bounds-check then signature-gate: only hook when the wrapper bytes match the 0.574 build we
-    // pinned, so a different/stale build is left completely untouched.
+
+    // b1 (PRIMARY, the cure): size the CSG vertex alloc with the emit multiplier so the 2026 path
+    // can't overrun. Prevents the corruption at its source -- nothing downstream sees a bad heap.
+    ApplyBytePatch(base, kAllocRva, kAllocOrig, kAllocFix, sizeof(kAllocOrig), "CSG alloc-mult fix (b1)");
+
+    // b2 (BACKSTOP only): swallow a corrupt free at the one wrapper we pinned. NOTE this is whack-a-mole
+    // -- the corruption surfaces at whatever free touches the smashed region first (seen at both
+    // 0x22c74ee and 0x22c7b6d), so b2 alone is unreliable; with b1 in place it should never fire.
     auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     auto* nt  = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE || nt->Signature != IMAGE_NT_SIGNATURE ||
-        kFreeWrapRva + sizeof(kFreeWrapSig) > nt->OptionalHeader.SizeOfImage ||
-        std::memcmp(reinterpret_cast<const void*>(base + kFreeWrapRva), kFreeWrapSig, sizeof(kFreeWrapSig)) != 0) {
-        Out("CsgGuard", "free-wrapper signature mismatch @ rva 0x%zx -> CSG heap guard DISARMED (non-0.574 build)",
-            (size_t)kFreeWrapRva);
-        return;
+    if (dos->e_magic == IMAGE_DOS_SIGNATURE && nt->Signature == IMAGE_NT_SIGNATURE &&
+        kFreeWrapRva + sizeof(kFreeWrapSig) <= nt->OptionalHeader.SizeOfImage &&
+        std::memcmp(reinterpret_cast<const void*>(base + kFreeWrapRva), kFreeWrapSig, sizeof(kFreeWrapSig)) == 0) {
+        MH_STATUS st = MH_CreateHook(reinterpret_cast<LPVOID>(base + kFreeWrapRva),
+                                     reinterpret_cast<LPVOID>(&MyFreeWrapper),
+                                     reinterpret_cast<LPVOID*>(&pOrigFreeWrapper));
+        Out("CsgGuard", "CSG free-wrapper backstop %s (rva 0x%zx)", st == MH_OK ? "ARMED" : "FAILED", (size_t)kFreeWrapRva);
+    } else {
+        Out("CsgGuard", "free-wrapper signature mismatch @ rva 0x%zx -> backstop disarmed", (size_t)kFreeWrapRva);
     }
-    MH_STATUS st = MH_CreateHook(reinterpret_cast<LPVOID>(base + kFreeWrapRva),
-                                 reinterpret_cast<LPVOID>(&MyFreeWrapper),
-                                 reinterpret_cast<LPVOID*>(&pOrigFreeWrapper));
-    Out("CsgGuard", "CSG free-wrapper guard %s (rva 0x%zx)", st == MH_OK ? "ARMED" : "FAILED", (size_t)kFreeWrapRva);
 }
 } // namespace NoobHook
 #endif
