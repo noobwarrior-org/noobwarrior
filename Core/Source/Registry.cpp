@@ -25,8 +25,10 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 
+#include <cstdint>
 #include <fstream>
 #include <nlohmann/json_fwd.hpp>
+#include <random>
 #include <unistd.h>
 
 using namespace NoobWarrior;
@@ -71,8 +73,13 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("backup.max_depth", 6);
     SetKeyComment("backup.max_depth", "How many levels deep a backup follows related items (an item -> its creator/children -> theirs, and so on). Higher captures more related items but is slower; it is clamped to a safe maximum (20) to avoid runaway recursion / stack overflow.");
-
-    SetKeyValueIfNotSet("user.id", 1000);
+    
+    {
+        std::random_device rd;
+        std::mt19937_64 gen(rd());
+        std::uniform_int_distribution<int64_t> dist(1'000'000, 2'000'000'000);
+        SetKeyValueIfNotSet<int64_t>("user.id", dist(gen));
+    }
     SetKeyValueIfNotSet("user.name", "Player");
     SetKeyValueIfNotSet("user.display_name", "Player");
 

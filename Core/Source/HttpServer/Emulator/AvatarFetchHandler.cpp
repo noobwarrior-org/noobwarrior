@@ -25,6 +25,8 @@
 #include <NoobWarrior/HttpServer/Emulator/AvatarFetchHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 #include <nlohmann/json.hpp>
 
@@ -67,7 +69,10 @@ AvatarFetchHandler::AvatarFetchHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
-    if (std::optional<int64_t> userId = ParseUserId(req)) {
+    Core* core = mEmu->GetCore();
+    int64_t localUserId = core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000);
+    
+    if (std::optional<int64_t> userId = ParseUserId(req); userId && *userId != localUserId) {
         if (std::optional<std::string> federated = mEmu->GetAvatarOverride(*userId)) {
             Out("AvatarFetchHandler", "Serving federated avatar for userId={}", *userId);
             SendJson(req, *federated);
@@ -75,7 +80,7 @@ void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
         }
     }
 
-    nlohmann::json j = AvatarAppearance::BuildAvatarFetchJson(mEmu->GetCore());
+    nlohmann::json j = AvatarAppearance::BuildAvatarFetchJson(core);
     SendJson(req, j.dump());
 }
 
