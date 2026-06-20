@@ -27,10 +27,23 @@
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
+#if !defined(_WIN32)
+#include <netinet/in.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 #include <optional>
 
 using namespace NoobWarrior;
+
+static bool IsLoopbackOrEmpty(const std::string &ip) {
+    return ip.empty()
+        || ip == "::1"
+        || ip == "::ffff:127.0.0.1"
+        || ip.rfind("127.", 0) == 0;
+}
 
 GameJoinHandler::GameJoinHandler(ServerEmulator* emu) : mEmu(emu) {
 
@@ -59,6 +72,27 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
         }
     }
     
+    std::string localAddr;
+    if (evhttp_connection *evcon = evhttp_request_get_connection(req)) {
+        if (bufferevent *bev = evhttp_connection_get_bufferevent(evcon)) {
+            evutil_socket_t fd = bufferevent_getfd(bev);
+            struct sockaddr_storage addr;
+            socklen_t addr_len = sizeof(addr);
+            char ip_str[INET6_ADDRSTRLEN];
+            if (getsockname(fd, (struct sockaddr*)&addr, &addr_len) == 0) {
+                if (addr.ss_family == AF_INET) {
+                    struct sockaddr_in *sin = (struct sockaddr_in*)&addr;
+                    if (evutil_inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET6_ADDRSTRLEN))
+                        localAddr = ip_str;
+                } else if (addr.ss_family == AF_INET6) {
+                    struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)&addr;
+                    if (evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN))
+                        localAddr = ip_str;
+                }
+            }
+        }
+    }
+
     std::string address = "127.0.0.1";
     uint16_t port = 53640;
     auto servers = mEmu->GetRunningGameServers();
@@ -71,6 +105,10 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
         if (!chosen->Ip.empty()) address = chosen->Ip;
         if (chosen->Port.has_value()) port = chosen->Port.value();
         if (placeId == 0 && chosen->PlaceId.has_value()) placeId = chosen->PlaceId.value();
+    }
+    if (IsLoopbackOrEmpty(address)) {
+        std::string advertised = mEmu->ResolveAdvertisedAddress(localAddr);
+        if (!advertised.empty()) address = advertised;
     }
     if (placeId == 0) placeId = 1818;
 

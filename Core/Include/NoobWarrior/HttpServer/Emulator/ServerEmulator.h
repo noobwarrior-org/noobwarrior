@@ -121,6 +121,8 @@ public:
     bool TouchInstance(int pid); // returns false if the PID isn't tracked
     std::vector<RunningInstance> GetRunningInstances() const;
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
+    
+    std::string ResolveAdvertisedAddress(const std::string &localAddr);
 
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();

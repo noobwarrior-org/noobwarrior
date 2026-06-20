@@ -33,8 +33,11 @@
 #include "NoobWarrior/HttpServer/Emulator/RequestAuthHandler.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <ctime>
+#include <mutex>
+#include <thread>
 
 using namespace NoobWarrior;
 using json = nlohmann::json;
@@ -286,6 +289,58 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
             servers.push_back(inst);
     }
     return servers;
+}
+
+namespace {
+std::mutex gPublicIpMtx;
+std::string gPublicIp; // last successfully detected WAN IP
+time_t gPublicIpFetchedAt = 0;
+std::atomic<bool> gPublicIpFetching{false};
+
+std::string DetectPublicIpBlocking() {
+    cpr::Session session;
+    session.SetUrl(cpr::Url{"https://api.ipify.org"});
+    session.SetTimeout(cpr::Timeout{ 3000 });
+    curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+    cpr::Response r = session.Get();
+    if (r.error.code != cpr::ErrorCode::OK || r.status_code != 200)
+        return "";
+    std::string ip = r.text;
+    ip.erase(0, ip.find_first_not_of(" \t\r\n"));
+    if (auto end = ip.find_last_not_of(" \t\r\n"); end != std::string::npos)
+        ip.erase(end + 1);
+    return ip;
+}
+
+std::string CachedPublicIp() {
+    std::string current;
+    bool needRefresh;
+    {
+        std::lock_guard<std::mutex> lock(gPublicIpMtx);
+        current = gPublicIp;
+        needRefresh = gPublicIp.empty() || std::time(nullptr) - gPublicIpFetchedAt > 3600;
+    }
+    if (needRefresh && !gPublicIpFetching.exchange(true)) {
+        std::thread([] {
+            std::string detected = DetectPublicIpBlocking();
+            if (!detected.empty()) {
+                std::lock_guard<std::mutex> lock(gPublicIpMtx);
+                gPublicIp = detected;
+                gPublicIpFetchedAt = std::time(nullptr);
+            }
+            gPublicIpFetching = false;
+        }).detach();
+    }
+    return current;
+}
+}
+
+std::string ServerEmulator::ResolveAdvertisedAddress(const std::string &localAddr) {
+    std::string advertised = mCore->GetRegistry()
+        ->GetKeyValue<std::string>("emu.public_ip").value_or("");
+    if (advertised.empty()) advertised = CachedPublicIp();
+    if (advertised.empty()) advertised = localAddr;
+    return advertised;
 }
 
 void ServerEmulator::StartAnnouncer() {

@@ -155,6 +155,9 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet<uint16_t>("emu.https_port", 53640);
     SetKeyComment("emu.https_port", "The port that the HTTPS server emulator should listen on.");
 
+    SetKeyValueIfNotSet("emu.public_ip", "");
+    SetKeyComment("emu.public_ip", "The public address that remote clients should use to reach your game servers (e.g. 108.17.63.2 or a domain name). Leave empty to auto-detect your WAN IP via an external service. Set this manually if you are behind NAT/port-forwarding, use a static address, or auto-detection picks the wrong interface.");
+
     SetKeyValueIfNotSet("emu.asset_grab_mode", false);
     SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice. This requires emu.enable_roblox_proxy to be enabled.");
 

@@ -36,6 +36,13 @@
 
 using namespace NoobWarrior;
 
+static bool IsLoopbackOrEmpty(const std::string &ip) {
+    return ip.empty()
+        || ip == "::1"
+        || ip == "::ffff:127.0.0.1"
+        || ip.rfind("127.", 0) == 0;
+}
+
 RunningGameServersHandler::RunningGameServersHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
@@ -51,27 +58,27 @@ void RunningGameServersHandler::OnRequest(evhttp_request *req, void *userdata) {
     socklen_t addr_len = sizeof(addr);
 
     char ip_str[INET6_ADDRSTRLEN];
-    int port;
-    bool ip_found = false;
+    std::string localAddr;
 
     if (getsockname(fd, (struct sockaddr*)&addr, &addr_len) == 0) {
         if (addr.ss_family == AF_INET) {
             struct sockaddr_in *sin = (struct sockaddr_in*)&addr;
-            evutil_inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET6_ADDRSTRLEN);
-            port = ntohs(sin->sin_port);
+            if (evutil_inet_ntop(AF_INET, &sin->sin_addr, ip_str, INET6_ADDRSTRLEN))
+                localAddr = ip_str;
         } else if (addr.ss_family == AF_INET6) {
             struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)&addr;
-            evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN);
-            port = ntohs(sin6->sin6_port);
+            if (evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, ip_str, INET6_ADDRSTRLEN))
+                localAddr = ip_str;
         }
-        ip_found = true;
     }
+
+    std::string advertised = mEmu->ResolveAdvertisedAddress(localAddr);
 
     nlohmann::json json = nlohmann::json::array();
     for (const auto &server : mEmu->GetRunningGameServers()) {
         nlohmann::json obj = nlohmann::json::object();
         obj["Pid"] = server.Pid;
-        obj["Ip"] = server.Ip.empty() && ip_found ? std::string(ip_str) : server.Ip;
+        obj["Ip"] = (IsLoopbackOrEmpty(server.Ip) && !advertised.empty()) ? advertised : server.Ip;
         if (server.Port.has_value()) obj["Port"] = server.Port.value();
         if (server.PlaceId.has_value()) obj["PlaceId"] = server.PlaceId.value();
         obj["EngineType"] = EngineTypeAsString(EngineType::Roblox);
