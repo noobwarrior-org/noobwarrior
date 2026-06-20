@@ -75,8 +75,6 @@ private:
         bool            SaveToGrabDb {false};
         std::string     GrabDbPath;
     };
-    
-    void HandleLocally(evhttp_request *req);
 
     void StartProxyPool();
     void StopProxyPool();

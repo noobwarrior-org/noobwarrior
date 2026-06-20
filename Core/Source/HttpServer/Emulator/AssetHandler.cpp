@@ -356,12 +356,6 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
 }
 
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
-    if (mServerEmulator->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }))
-        return;
-    HandleLocally(req);
-}
-
-void AssetHandler::HandleLocally(evhttp_request *req) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
 
@@ -466,20 +460,27 @@ void AssetHandler::HandleLocally(evhttp_request *req) {
     std::string hash;
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
 
-    // If we have it locally, reply right away. Otherwise fetch it from Roblox on a worker thread
-    // (so we don't block other requests) and reply once that finishes.
     bool needFetch = bypassForMaterial
                   || res == SqlDb::Response::NotFound
                   || res == SqlDb::Response::MissingBlob
                   || (res == SqlDb::Response::Success && data.empty());
-    bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
-
-    if (needFetch && proxyEnabled) {
-        BeginProxyFetch(req, id, ver, res);
-        return; // reply happens later, in OnFetchComplete
+    
+    if (!needFetch) {
+        ReplyWithAsset(req, res, data, hash);
+        return;
     }
 
-    ReplyWithAsset(req, res, data, hash);
+    bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
+    auto robloxFallback = [this, id, ver, res, proxyEnabled](evhttp_request *r) {
+        if (proxyEnabled)
+            BeginProxyFetch(r, id, ver, res); // reply happens later, in OnFetchComplete
+        else
+            ReplyWithAsset(r, res, std::vector<unsigned char>{}, std::string{});
+    };
+
+    if (mServerEmulator->TryProxyRequest(req, robloxFallback))
+        return;
+    robloxFallback(req);
 }
 
 void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult) {
