@@ -2,7 +2,7 @@
   "applicationSettings": {
     "DFFlagConsumePlatformNameOverAlternateName": "False",
     "DFFlagDebugEnableRemoteProfiling2": "True",
-    "FFlagDebugLocalRccServerConnection": "True",
+    "FFlagDebugLocalRccServerConnection": "False",
     "FFlagRefactorPlayerConnect": "False",
     "FFlagEnableInGameMenuChrome": "False",
     "FFlagEnableInGameMenuChromeABTest3": "False",
