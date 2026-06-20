@@ -53,6 +53,14 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
 
 void GameJoinHandler::HandleLocally(evhttp_request *req) {
     const char* uri = evhttp_request_get_uri(req);
+    evhttp_connection* conn = evhttp_request_get_connection(req);
+
+    const char* peer_address = "";
+    uint16_t peer_port {};
+    
+    if (conn != NULL)
+        evhttp_connection_get_peer(conn, &peer_address, &peer_port);
+
     Out("GameJoinHandler", "join-game requested: {}", uri ? uri : "");
 
     int64_t placeId = 0;
@@ -108,7 +116,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         if (chosen->Port.has_value()) port = chosen->Port.value();
         if (placeId == 0 && chosen->PlaceId.has_value()) placeId = chosen->PlaceId.value();
     }
-    if (IsLoopbackOrEmpty(address)) {
+    if (!IsLoopbackOrEmpty(peer_address)) {
         std::string advertised = mEmu->ResolveAdvertisedAddress(localAddr);
         if (!advertised.empty()) address = advertised;
     }
