@@ -22,15 +22,25 @@
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description: Implementation for all methods related to handling Roblox clients
+// cpr must come before any header that pulls in libevent's evhttp.h: evhttp.h #defines HTTP_OK,
+// HTTP_BADREQUEST, etc. as macros, which would mangle cpr's status_codes.h constants of the same name.
+#include <cpr/cpr.h>
+
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
 #include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>
+#include <nlohmann/json.hpp>
 #include <zip.h>
 #include <zipconf.h>
+
+#include <chrono>
+#include <thread>
 
 #include <filesystem>
 #include <set>
@@ -530,8 +540,32 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
 EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     if (mServerEmulator != nullptr) {
         mServerEmulator->ClearProxyLayers();
-        if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value())
+        if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value()) {
             mServerEmulator->PushProxyLayer(*params.RemoteEmulatorHost, *params.RemoteEmulatorPort);
+
+            // Federate this client's avatar to the host so its game server builds our character with
+            // our own look (the host otherwise only knows its own local appearance). Build the JSON
+            // here on the owning thread (registry/Lua aren't thread-safe), then POST it in the
+            // background so we don't block the launch on a network round-trip.
+            int64_t userId = GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000);
+            nlohmann::json payload;
+            payload["userId"] = userId;
+            payload["avatarFetch"] = AvatarAppearance::BuildAvatarFetchJson(this);
+
+            std::thread([host = *params.RemoteEmulatorHost, port = *params.RemoteEmulatorPort,
+                         body = payload.dump()]() {
+                cpr::Response r = cpr::Post(
+                    cpr::Url{"https://" + host + ":" + std::to_string(port) + "/emu/v1/avatar-override"},
+                    cpr::Header{{"Content-Type", "application/json"}},
+                    cpr::Body{body},
+                    cpr::Timeout{std::chrono::seconds(10)},
+                    cpr::VerifySsl{false}); // remote emulators use self-signed certs
+                if (r.error.code != cpr::ErrorCode::OK)
+                    Out("LaunchEngine", "Avatar federation to {}:{} failed: {}", host, port, r.error.message);
+                else if (r.status_code >= 400)
+                    Out("LaunchEngine", "Avatar federation to {}:{} got HTTP {}", host, port, (long)r.status_code);
+            }).detach();
+        }
     }
 
     if (!IsEngineInManifest(params.Engine))

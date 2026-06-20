@@ -75,6 +75,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mGamesSortsHandler(),
     mGamesListHandler(),
     mAvatarFetchHandler(this),
+    mAvatarOverrideHandler(this),
     mUniversalAppConfigStudioHandler(),
     mMySettingsJsonHandler(),
     mAuthenticatedUserHandler(),
@@ -177,6 +178,9 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1.1/avatar-fetch", &mAvatarFetchHandler);
     SetRequestHandler("/v1.1/avatar-fetch/", &mAvatarFetchHandler);
 
+    // Internal: a joining client federates its avatar appearance to the host here (see AvatarOverrideHandler).
+    SetRequestHandler("/emu/v1/avatar-override", &mAvatarOverrideHandler);
+
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 
     SetRequestHandler("/my/settings/json", &mMySettingsJsonHandler);
@@ -237,8 +241,27 @@ std::vector<std::pair<std::string, uint16_t>> ServerEmulator::GetProxyLayers() c
     return mEmulatorProxy.GetLayers();
 }
 
-bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback) {
-    return mEmulatorProxy.TryProxy(req, std::move(localFallback));
+bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback,
+                                     EmulatorProxy::ResponseTransform responseTransform) {
+    return mEmulatorProxy.TryProxy(req, std::move(localFallback), std::move(responseTransform));
+}
+
+void ServerEmulator::SetAvatarOverride(int64_t userId, const std::string &avatarFetchJson) {
+    std::lock_guard lock(mAvatarOverridesMutex);
+    mAvatarOverrides[userId] = avatarFetchJson;
+    Out(mLogName, "Stored federated avatar override for userId={} ({} bytes)", userId, avatarFetchJson.size());
+}
+
+std::optional<std::string> ServerEmulator::GetAvatarOverride(int64_t userId) const {
+    std::lock_guard lock(mAvatarOverridesMutex);
+    if (auto it = mAvatarOverrides.find(userId); it != mAvatarOverrides.end())
+        return it->second;
+    return std::nullopt;
+}
+
+void ServerEmulator::ClearAvatarOverrides() {
+    std::lock_guard lock(mAvatarOverridesMutex);
+    mAvatarOverrides.clear();
 }
 
 void ServerEmulator::SetMode(Mode mode) {

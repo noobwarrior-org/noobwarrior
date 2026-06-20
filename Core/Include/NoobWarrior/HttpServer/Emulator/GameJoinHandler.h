@@ -25,6 +25,8 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace NoobWarrior {
 class ServerEmulator;
 class GameJoinHandler : public Handler {
@@ -33,6 +35,11 @@ public:
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
     void HandleLocally(evhttp_request *req);
+
+    // Overlays this client's local player identity (user.id / user.name / user.display_name) onto a
+    // join script's player fields. Applied to both the locally-built join script and one proxied
+    // from a remote host, so the joining player keeps their own name and id regardless of source.
+    void ApplyLocalIdentity(nlohmann::json &joinScript);
 
     ServerEmulator* mEmu;
 };

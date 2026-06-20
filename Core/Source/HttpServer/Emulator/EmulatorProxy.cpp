@@ -31,7 +31,6 @@
 #include <NoobWarrior/Log.h>
 
 #include <algorithm>
-#include <chrono>
 
 using namespace NoobWarrior;
 
@@ -49,7 +48,7 @@ void EmulatorProxy::PushLayer(const std::string &host, uint16_t port) {
     auto it = std::find(mLayers.begin(), mLayers.end(), Layer{host, port});
     if (it != mLayers.end())
         mLayers.erase(it);
-    mLayers.insert(mLayers.begin(), Layer{host, port});
+    mLayers.insert(mLayers.begin(), Layer{host, port}); // newest layer is tried first
     Out("EmulatorProxy", "Pushed proxy layer {}:{} (depth now {})", host, port, mLayers.size());
 }
 
@@ -129,7 +128,7 @@ void EmulatorProxy::OnClientDisconnect(evhttp_connection *conn, void *arg) {
     static_cast<ProxyRequest*>(arg)->ClientConnected = false;
 }
 
-bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback) {
+bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, ResponseTransform transform) {
     if (!mActive)
         return false;
 
@@ -144,6 +143,7 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback) {
     r->Request    = req;
     r->Connection = evhttp_request_get_connection(req);
     r->Fallback   = std::move(localFallback);
+    r->Transform  = std::move(transform);
     r->Urls.reserve(layers.size());
     for (const auto &[host, port] : layers)
         r->Urls.push_back("https://" + host + ":" + std::to_string(port) + path);
@@ -216,27 +216,16 @@ void EmulatorProxy::RunWorker() {
         session.SetBody(cpr::Body{r->Body});
 
         ProxyResult result;
-        // Walk the stack top -> bottom. First 2xx wins; 404/other non-2xx and unreachable layers
-        // fall through to the next one down.
+        // Walk the stack top -> bottom. First 2xx wins; a non-2xx answer or an unreachable layer
+        // falls through to the next one down.
         for (const std::string &url : r->Urls) {
             if (!mPoolRunning)
                 break;
             session.SetUrl(cpr::Url{url});
 
-            cpr::Response resp;
-            for (int attempt = 0; attempt < kPerLayerAttempts && mPoolRunning; attempt++) {
-                resp = (r->Method == "GET") ? session.Get()
-                     : (r->Method == "PUT") ? session.Put()
-                                            : session.Post();
-                bool netOk = (resp.error.code == cpr::ErrorCode::OK);
-                bool serverErr = resp.status_code >= 500 && resp.status_code <= 599;
-                if (netOk && !serverErr)
-                    break; // got a usable HTTP answer (2xx/3xx/4xx) from this layer
-                if (attempt == kPerLayerAttempts - 1)
-                    break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(150 * (attempt + 1)));
-            }
-
+            cpr::Response resp = (r->Method == "GET") ? session.Get()
+                               : (r->Method == "PUT") ? session.Put()
+                                                      : session.Post();
             if (resp.error.code != cpr::ErrorCode::OK)
                 continue; // layer unreachable -> try the one below
 
@@ -294,6 +283,10 @@ void EmulatorProxy::OnComplete(std::shared_ptr<ProxyRequest> r, ProxyResult resu
     };
 
     if (result.Served) {
+        // Let the handler overlay client-only data onto the proxied body (e.g. local player identity
+        // onto a host-authored join script) before it goes out.
+        if (r->Transform)
+            result.Body = r->Transform(std::move(result.Body));
         reply(static_cast<int>(result.Status), result.ContentType, result.ContentDisposition, result.Body);
         return;
     }

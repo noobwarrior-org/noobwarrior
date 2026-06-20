@@ -18,22 +18,24 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AvatarFetchHandler.h
+// File: AvatarOverrideHandler.h
 // Started by: Hattozo
-// Started on: 6/5/2026
-// Description:
+// Started on: 6/20/2026
+// Description: Receives an avatar appearance federated from a joining client. The client only knows
+//              its own appearance (stored in its local registry), so when it joins a remote host it
+//              POSTs that appearance here, keyed by its user id. The host then serves it from
+//              AvatarFetchHandler so its game server builds the joining player's character correctly.
+//              Some assistance by Claude Opus 4.8
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
 class ServerEmulator;
-class AvatarFetchHandler : public Handler {
+class AvatarOverrideHandler : public Handler {
 public:
-    AvatarFetchHandler(ServerEmulator* emu);
+    AvatarOverrideHandler(ServerEmulator* emu);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
-    void ServeLocal(evhttp_request *req);
-
     ServerEmulator* mEmu;
 };
 }

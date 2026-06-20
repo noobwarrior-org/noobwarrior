@@ -60,6 +60,10 @@ class ServerEmulator;
 class EmulatorProxy {
 public:
     using LocalFallback = std::function<void(evhttp_request *)>;
+    // Applied (on the event-loop thread) to the winning layer's 2xx response body before it is sent
+    // to the client. Lets a handler merge client-only data into a proxied response — e.g. overlay the
+    // local player's identity onto a join script fetched from the host. Returns the body to send.
+    using ResponseTransform = std::function<std::vector<unsigned char>(std::vector<unsigned char>)>;
     using Layer = std::pair<std::string, uint16_t>; // host, port
 
     explicit EmulatorProxy(ServerEmulator *emu);
@@ -77,7 +81,7 @@ public:
     // ownership of the request, forwards it down the stack on a worker thread, and returns true
     // (the reply happens later). If the stack is empty, returns false and the caller answers the
     // request locally. If every layer misses, localFallback (if given) runs as the bottom layer.
-    bool TryProxy(evhttp_request *req, LocalFallback localFallback = {});
+    bool TryProxy(evhttp_request *req, LocalFallback localFallback = {}, ResponseTransform transform = {});
 
     // Lifecycle, mirrors AssetHandler. Pause MUST run before the server's evhttp is freed so an
     // in-flight forward gives up quietly instead of replying to a destroyed connection.
@@ -97,6 +101,7 @@ private:
         std::string              ContentType;   // forwarded request Content-Type
         std::string              Accept;        // forwarded request Accept (asset content negotiation)
         LocalFallback            Fallback;      // run on the event loop if every layer misses
+        ResponseTransform        Transform;     // applied to a winning layer's body before replying
     };
 
     // The decoded result of walking the layer stack, handed back to the event loop.
@@ -135,6 +140,5 @@ private:
     std::unordered_set<std::shared_ptr<ProxyRequest>> mActiveRequests;
 
     static constexpr size_t kThreadCount = 6;
-    static constexpr int    kPerLayerAttempts = 2; // retry a layer on network error / 5xx before falling through
 };
 }

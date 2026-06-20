@@ -26,6 +26,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 
 #include <nlohmann/json.hpp>
 #if !defined(_WIN32)
@@ -44,8 +45,26 @@ GameJoinHandler::GameJoinHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
-    if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); })) {
-        Out("GameJoinHandler", "Proxying join-game to joined remote emulator");
+    // When joining a remote host, the host's emulator authors the join script (only it knows the real
+    // game server address/port/place). But the joining PLAYER's identity (name, id) lives only on
+    // this client, so we overlay it onto the host's join script before handing it back. The player's
+    // avatar is a separate, purely-local concern (see AvatarFetchHandler).
+    auto mergeIdentity = [this](std::vector<unsigned char> body) -> std::vector<unsigned char> {
+        try {
+            nlohmann::json j = nlohmann::json::parse(body);
+            if (j.contains("joinScript") && j["joinScript"].is_object()) {
+                ApplyLocalIdentity(j["joinScript"]);
+                std::string merged = j.dump();
+                return std::vector<unsigned char>(merged.begin(), merged.end());
+            }
+        } catch (const nlohmann::json::exception &e) {
+            Out("GameJoinHandler", "Couldn't merge local identity into proxied join script: {}", e.what());
+        }
+        return body; // not JSON / no joinScript -> forward the host's response untouched
+    };
+
+    if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }, mergeIdentity)) {
+        Out("GameJoinHandler", "Proxying join-game to joined remote emulator (with local identity)");
         return;
     }
     HandleLocally(req);
@@ -171,6 +190,9 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         {"PrivateServerID", ""},
     };
 
+    // Stamp this client's local player identity over the defaults above.
+    ApplyLocalIdentity(joinScript);
+
     nlohmann::json response = {
         {"jobId", gameJoinAttemptId},
         {"status", 2}, // 2 == Done/ready to join
@@ -187,4 +209,21 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
     evbuffer_add(reply, body.data(), body.size());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
+}
+
+void GameJoinHandler::ApplyLocalIdentity(nlohmann::json &joinScript) {
+    Registry* reg = mEmu->GetCore()->GetRegistry();
+    if (reg == nullptr)
+        return;
+
+    int64_t userId      = reg->GetKeyValue<int64_t>("user.id").value_or(1000);
+    std::string name    = reg->GetKeyValue<std::string>("user.name").value_or("Player");
+    std::string display = reg->GetKeyValue<std::string>("user.display_name").value_or(name);
+
+    joinScript["UserId"] = userId;
+    joinScript["UserName"] = name;
+    joinScript["DisplayName"] = display;
+    // characterAppearanceId is the user id the engine fetches the avatar for; keep it consistent with
+    // UserId so /v1/avatar-fetch?userId=<UserId> resolves to this same local player.
+    joinScript["characterAppearanceId"] = userId;
 }

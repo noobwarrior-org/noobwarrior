@@ -194,6 +194,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/GameJoinHandler.cpp
     Source/HttpServer/Emulator/AuthTicketRedeemHandler.cpp
     Source/HttpServer/Emulator/AvatarFetchHandler.cpp
+    Source/HttpServer/Emulator/AvatarOverrideHandler.cpp
     Source/HttpServer/Emulator/AppBehaviorsHandler.cpp
     Source/HttpServer/Emulator/AvatarHandler.cpp
     Source/HttpServer/Emulator/AvatarAppearance.cpp

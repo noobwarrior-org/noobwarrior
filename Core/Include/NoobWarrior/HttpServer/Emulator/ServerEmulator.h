@@ -74,6 +74,7 @@
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
 #include "AvatarFetchHandler.h"
+#include "AvatarOverrideHandler.h"
 #include "EmulatorProxy.h"
 
 #include <atomic>
@@ -81,7 +82,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -133,7 +137,18 @@ public:
     void ClearProxyLayers();
     std::vector<std::pair<std::string, uint16_t>> GetProxyLayers() const;
     
-    bool TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback = {});
+    bool TryProxyRequest(evhttp_request *req,
+                         std::function<void(evhttp_request *)> localFallback = {},
+                         EmulatorProxy::ResponseTransform responseTransform = {});
+
+    /* Avatar appearance federation. A joining client only knows its own appearance (it lives in that
+     * client's local registry), so on join it POSTs that appearance to the host it's joining, keyed
+     * by its user id. The host caches it here; AvatarFetchHandler then serves the cached appearance
+     * when its game server asks for that user id, so the joining player's character is built with
+     * their own look instead of the host's. avatarFetchJson is the /v1.1/avatar-fetch response body. */
+    void SetAvatarOverride(int64_t userId, const std::string &avatarFetchJson);
+    std::optional<std::string> GetAvatarOverride(int64_t userId) const;
+    void ClearAvatarOverrides();
 
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
@@ -174,6 +189,7 @@ private:
     OmniRecHandler mOmniRecHandler;
     GamesSortsHandler mGamesSortsHandler;
     AvatarFetchHandler mAvatarFetchHandler;
+    AvatarOverrideHandler mAvatarOverrideHandler;
     GamesListHandler mGamesListHandler;
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
@@ -199,6 +215,11 @@ private:
 
     mutable std::mutex mInstancesMutex;
     std::vector<RunningInstance> mInstances;
+
+    // Avatar appearances federated from joining clients, keyed by their user id (see the public
+    // Set/Get/ClearAvatarOverride methods). Each value is a /v1.1/avatar-fetch response body.
+    mutable std::mutex mAvatarOverridesMutex;
+    std::map<int64_t, std::string> mAvatarOverrides;
 
     AssetEnricher mAssetEnricher;
 
