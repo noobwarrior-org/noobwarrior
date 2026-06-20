@@ -379,6 +379,59 @@ static void PatchVerifyPreauthMac() {
 }
 
 // -----------------------------------------------------------------------------
+// Patch: RakPeer "recently connected" 100ms window -> never reject
+//
+// THE actual intermittent team-test reject (verifyPreauthMac above turned out to
+// be a red herring -- its result only selects a SessionCrypto log string and
+// never rejects, which is why forcing it to 1 changed nothing). In
+// RakPeer::AssignSystemAddressToRemoteSystemList (called from
+// processRbxOpenRequest2 while handling OPEN_CONNECTION_REQUEST_2) a loop over the
+// existing remotes does: if (NOW - remote[i].connectionTime) < 100ms, set a
+// "recentlyConnected" flag; the caller then replies RbxOpenError reason 0x1A
+// ("recently connected"), which the Player surfaces as the generic "handshake
+// failed / version out of date / Invalid password". RakNet RETRANSMITS the open
+// request during the slower cross-version handshake, so retransmit #2 lands inside
+// the 100ms window opened by #1 and trips this -- a wall-clock timer is the only
+// time-based gate, which is exactly why it's intermittent (the first packet of a
+// burst can win, so the join sometimes succeeds).
+//
+// Fix: NOP the `jb set-recentlyConnected` so the flag is never set; the loop just
+// continues and the connection is added normally. Anchor on the version-stable
+// elapsed/100ms compare `sub rcx,rdx ; cmp rcx,0x64 ; jb` -- the 0x64 (=100ms)
+// constant survives across builds even though the connectionTime struct offset
+// (0x1188 in 0.548, 0x10B8 in 0.574) and the prologue do not. Confirmed on Studio
+// 0.574: jb @ 0x...EB9F6B (72 0A) -> set-flag.
+// -----------------------------------------------------------------------------
+
+static void PatchRecentlyConnectedWindow() {
+    // sub rcx,rdx ; cmp rcx,0x64 ; jb <set recentlyConnected=1>
+    auto* anchor = reinterpret_cast<uint8_t*>(ScanAny("recentlyConnected.window", {
+        "48 2B CA 48 83 F9 64 72",
+    }));
+    if (!anchor) {
+        Log("recent", "100ms-window pattern not found -- host may still reject handshake retransmits");
+        return;
+    }
+    uint8_t* jb = anchor + 7;            // the `72` (jb rel8 opcode) is the last byte of the pattern
+    if (jb[0] != 0x72) {
+        Log("recent", "expected jb (0x72) at %p, got 0x%02x -- not patching", jb, jb[0]);
+        return;
+    }
+    // `72 xx` (jb rel8) -> `90 90` (nop nop): the elapsed<100ms case no longer sets
+    // recentlyConnected, so the duplicate-suppression reject never fires.
+    static const uint8_t kNop[] = { 0x90, 0x90 };
+    DWORD oldProtect;
+    if (!VirtualProtect(jb, sizeof(kNop), PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        Log("recent", "VirtualProtect failed @ %p", jb);
+        return;
+    }
+    std::memcpy(jb, kNop, sizeof(kNop));
+    VirtualProtect(jb, sizeof(kNop), oldProtect, &oldProtect);
+    FlushInstructionCache(GetCurrentProcess(), jb, sizeof(kNop));
+    Log("recent", "patched recently-connected 100ms reject @ %p (NOP jb) -- retransmit race killed", jb);
+}
+
+// -----------------------------------------------------------------------------
 // Pattern scanning
 // -----------------------------------------------------------------------------
 
@@ -527,9 +580,12 @@ static DWORD WINAPI WorkerThread(LPVOID) {
         PatchTypeForProperty();
         Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
 
-        // Accept cross-version Players: neuter the host's preauth-MAC gate so the
-        // 0.573 Player isn't rejected with ID_INVALID_PASSWORD ("version out of date").
+        // Accept cross-version Players. PatchRecentlyConnectedWindow is the real fix
+        // (kills the 100ms handshake-retransmit reject race). PatchVerifyPreauthMac is
+        // kept as a harmless belt-and-suspenders (it only forces the preauth log string
+        // to "accepted"; it is NOT the reject gate).
         PatchVerifyPreauthMac();
+        PatchRecentlyConnectedWindow();
     }
 
     Log("main", "LocalRcc ready -- credits: 7ap & Epix @ https://github.com/rsblox");
