@@ -432,6 +432,60 @@ static void PatchRecentlyConnectedWindow() {
 }
 
 // -----------------------------------------------------------------------------
+// Patch: RakPeer::ParseConnectionRequestPacket password compare -> always accept
+//
+// THE gate that emits the "Invalid password" the Player actually sees (verified:
+// the reject block writes `mov byte[rbp+0x250],0x18` = ID_INVALID_PASSWORD). After
+// the crypto open-connection handshake, the host parses the online
+// ID_CONNECTION_REQUEST and compares the client's password to the one it stored via
+// SetIncomingPassword: length at this+0x198, bytes at this+0x199 (0.574 offsets;
+// 0x188/0x189 in 0.548). Cross-version (0.573 Player vs 0.574 host) the length
+// and/or bytes don't match, so the host rejects with ID_INVALID_PASSWORD ->
+// "handshake failed / version out of date / Invalid password".
+//
+//   movzx eax,[rsi+0x198]   ; stored pw length
+//   cmp   eax,ebx           ; vs client pw length
+//   jne   reject            ; (1) NOP
+//   mov   r8d,eax ; lea rdx,[rsi+0x199] ; call memcmp ; test eax,eax
+//   jne   reject            ; (2) NOP
+//   mov   dword[rdi+0x1120],5  ; accept (connectMode=5)
+//
+// NOP both `jne reject` so any password falls through to accept. Anchor on the
+// register-stable `cmp eax,ebx ; jne ; mov r8d,eax ; lea rdx,[rsi+disp32]` core
+// (unique in the image; the struct offsets and call rel vary by build, the
+// instruction *lengths* don't, so jne2 is a fixed +21 from the anchor).
+// -----------------------------------------------------------------------------
+
+static void PatchConnectionRequestPassword() {
+    auto* anchor = reinterpret_cast<uint8_t*>(ScanAny("connReqPassword.compare", {
+        "3B C3 75 ? 44 8B C0 48 8D 96",
+    }));
+    if (!anchor) {
+        Log("pwgate", "ParseConnectionRequest password-compare pattern not found -- host will still reject with ID_INVALID_PASSWORD");
+        return;
+    }
+    // jne1 (length mismatch) right after `cmp eax,ebx`; jne2 (memcmp mismatch) after
+    // lea(7)+call(5)+test(2) => +21. Verify the test/jne shape before touching anything.
+    uint8_t* jne1 = anchor + 2;
+    uint8_t* jne2 = anchor + 21;
+    if (jne1[0] != 0x75 || anchor[19] != 0x85 || anchor[20] != 0xC0 || jne2[0] != 0x75) {
+        Log("pwgate", "unexpected layout @ %p (j1=%02x test=%02x%02x j2=%02x) -- not patching",
+            anchor, jne1[0], anchor[19], anchor[20], jne2[0]);
+        return;
+    }
+    DWORD oldProtect;
+    if (!VirtualProtect(anchor, 32, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        Log("pwgate", "VirtualProtect failed @ %p", anchor);
+        return;
+    }
+    jne1[0] = 0x90; jne1[1] = 0x90;   // 75 xx -> 90 90
+    jne2[0] = 0x90; jne2[1] = 0x90;
+    VirtualProtect(anchor, 32, oldProtect, &oldProtect);
+    FlushInstructionCache(GetCurrentProcess(), anchor, 32);
+    Log("pwgate", "patched ParseConnectionRequest password compare @ %p (NOP'd both jne) -- ID_INVALID_PASSWORD killed", anchor);
+}
+
+// -----------------------------------------------------------------------------
 // Pattern scanning
 // -----------------------------------------------------------------------------
 
@@ -586,6 +640,7 @@ static DWORD WINAPI WorkerThread(LPVOID) {
         // to "accepted"; it is NOT the reject gate).
         PatchVerifyPreauthMac();
         PatchRecentlyConnectedWindow();
+        PatchConnectionRequestPassword();   // the verified gate: kills ID_INVALID_PASSWORD
     }
 
     Log("main", "LocalRcc ready -- credits: 7ap & Epix @ https://github.com/rsblox");
