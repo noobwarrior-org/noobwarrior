@@ -108,10 +108,6 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         if (chosen->Port.has_value()) port = chosen->Port.value();
         if (placeId == 0 && chosen->PlaceId.has_value()) placeId = chosen->PlaceId.value();
     }
-    if (IsLoopbackOrEmpty(address)) {
-        std::string advertised = mEmu->ResolveAdvertisedAddress(localAddr);
-        if (!advertised.empty()) address = advertised;
-    }
     if (placeId == 0) placeId = 1818;
 
     Out("GameJoinHandler", "Issuing joinScript -> {}:{} placeId={}", address, port, placeId);
