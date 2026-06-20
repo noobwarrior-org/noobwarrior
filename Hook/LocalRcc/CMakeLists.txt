@@ -20,6 +20,7 @@ CPMAddPackage(
         "LUAU_STATIC_CRT ON"
 )
 
+set(ZSTD_MULTITHREAD_SUPPORT OFF CACHE BOOL "" FORCE)
 CPMAddPackage(
     URI "gh:facebook/zstd#48c0ed7"
     SOURCE_SUBDIR build/cmake
@@ -28,6 +29,7 @@ CPMAddPackage(
         "ZSTD_BUILD_SHARED OFF"
         "ZSTD_BUILD_PROGRAMS OFF"
         "ZSTD_BUILD_TESTS OFF"
+        "ZSTD_MULTITHREAD_SUPPORT OFF"
 )
 
 CPMAddPackage(
