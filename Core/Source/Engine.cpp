@@ -26,7 +26,6 @@
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Paths.h>
-#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 
 #include <curl/curl.h>
 #include <zip.h>
@@ -544,9 +543,6 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
         bool success = WriteServerRbxl(params.PlaceId.value(), 0);
         if (!success)
             return EngineLaunchResponse::FailedToLoadPlace;
-        
-        if (mServerEmulator != nullptr)
-            mServerEmulator->ArmStudioRccFlag();
     }
 
     std::filesystem::path exe = FindEngineExecutable(engineDir);

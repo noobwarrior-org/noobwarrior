@@ -288,18 +288,6 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
     return servers;
 }
 
-void ServerEmulator::ArmStudioRccFlag() {
-    mStudioRccFlagArmedUntil.store(std::time(nullptr) + kStudioRccFlagArmWindowSecs,
-                                   std::memory_order_relaxed);
-    Out(mLogName, "Armed Studio RCC flag for {}s (Team Test host launching)",
-        kStudioRccFlagArmWindowSecs);
-}
-
-bool ServerEmulator::IsStudioRccFlagArmed() const {
-    time_t armedUntil = mStudioRccFlagArmedUntil.load(std::memory_order_relaxed);
-    return armedUntil != 0 && std::time(nullptr) <= armedUntil;
-}
-
 void ServerEmulator::StartAnnouncer() {
     if (mAnnouncerRunning.exchange(true))
         return;

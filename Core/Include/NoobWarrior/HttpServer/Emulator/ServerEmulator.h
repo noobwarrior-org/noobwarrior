@@ -122,9 +122,6 @@ public:
     std::vector<RunningInstance> GetRunningInstances() const;
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
 
-    void ArmStudioRccFlag();
-    bool IsStudioRccFlagArmed() const;
-
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
 private:
@@ -186,9 +183,6 @@ private:
 
     mutable std::mutex mInstancesMutex;
     std::vector<RunningInstance> mInstances;
-    
-    std::atomic<time_t> mStudioRccFlagArmedUntil {0};
-    static constexpr int kStudioRccFlagArmWindowSecs = 60;
 
     AssetEnricher mAssetEnricher;
 

@@ -46,7 +46,7 @@ void ClientSettingsV2StudioHandler::OnRequest(evhttp_request *req, void *userdat
     Out("ClientSettingsV2StudioHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
     nlohmann::json fuckyou = nlohmann::json::parse(PCStudioAppV2_json);
-    if (mEmu->IsStudioRccFlagArmed()) {
+    if (!mEmu->GetRunningGameServers().empty()) {
         fuckyou["applicationSettings"]["FFlagDebugLocalRccServerConnection"] = "True";
     }
 

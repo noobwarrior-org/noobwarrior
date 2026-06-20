@@ -317,6 +317,68 @@ static void PatchTypeForProperty() {
 }
 
 // -----------------------------------------------------------------------------
+// Patch: RakNet::RakPeer::verifyPreauthMac -> always "allow"
+//
+// Roblox gates every incoming connection on a "preauth MAC" -- a keyed MAC over
+// the open-connection handshake, checked host-side in RakPeer::verifyPreauthMac
+// (processRbxOpenRequest2 calls it). A cross-version Player (0.573) and Studio
+// host (0.574) derive different MACs, so the host rejects the Player with
+// ID_INVALID_PASSWORD: in the Player log, "handshake failed ... version is out
+// of date" + "Invalid password from <host>". It looks like a race because the
+// MAC is time-keyed -- occasionally the windows line up and it connects.
+//
+// verifyPreauthMac returns a PreauthResult enum, and returns 1 ("allow") on its
+// preauth-disabled early-out (`if (this->preauthEnabled == 0) return 1;`), which
+// the caller treats as success. So forcing the whole function to `mov eax,1; ret`
+// makes the host accept any client regardless of the MAC.
+//
+// The prologue shifts between builds, so we anchor on the version-stable preauth
+// blob length check -- cmp rax,0x21 / cmp rax,0x32 (the 33- and 50-byte MAC
+// formats) -- then walk back over the function body (which contains no 0xCC
+// bytes) to the int3-padded `mov rax,rsp` entry. Confirmed on Studio 0.574;
+// entry was 0x...ECFC10, ~0x55 bytes before the anchor.
+// -----------------------------------------------------------------------------
+
+static void PatchVerifyPreauthMac() {
+    // cmp rax,0x21 ; je ; cmp rax,0x32 ; je ; xor eax,eax
+    auto* anchor = reinterpret_cast<uint8_t*>(ScanAny("verifyPreauthMac.lencheck", {
+        "48 83 F8 21 74 ? 48 83 F8 32 74 ? 33 C0",
+    }));
+    if (!anchor) {
+        Log("preauth", "length-check pattern not found -- host will reject cross-version clients");
+        return;
+    }
+
+    // Walk back to the int3 padding that precedes the function, immediately
+    // followed by the `mov rax,rsp` (48 8B C4) prologue. Requiring both bytes the
+    // padding AND the prologue makes us robust against a stray 0xCC displacement.
+    uint8_t* entry = nullptr;
+    for (int i = 1; i <= 0x140; i++) {
+        if (anchor[-i] == 0xCC &&
+            anchor[-i + 1] == 0x48 && anchor[-i + 2] == 0x8B && anchor[-i + 3] == 0xC4) {
+            entry = anchor - i + 1;
+            break;
+        }
+    }
+    if (!entry) {
+        Log("preauth", "could not find int3-padded `mov rax,rsp` entry near %p", anchor);
+        return;
+    }
+
+    // mov eax,1 ; ret  -> PreauthResult "allow", returned before any stack setup.
+    static const uint8_t kPatch[] = { 0xB8, 0x01, 0x00, 0x00, 0x00, 0xC3 };
+    DWORD oldProtect;
+    if (!VirtualProtect(entry, sizeof(kPatch), PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        Log("preauth", "VirtualProtect failed @ %p", entry);
+        return;
+    }
+    std::memcpy(entry, kPatch, sizeof(kPatch));
+    VirtualProtect(entry, sizeof(kPatch), oldProtect, &oldProtect);
+    FlushInstructionCache(GetCurrentProcess(), entry, sizeof(kPatch));
+    Log("preauth", "patched verifyPreauthMac @ %p to always allow", entry);
+}
+
+// -----------------------------------------------------------------------------
 // Pattern scanning
 // -----------------------------------------------------------------------------
 
@@ -464,6 +526,10 @@ static DWORD WINAPI WorkerThread(LPVOID) {
     if (teamTest) {
         PatchTypeForProperty();
         Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
+
+        // Accept cross-version Players: neuter the host's preauth-MAC gate so the
+        // 0.573 Player isn't rejected with ID_INVALID_PASSWORD ("version out of date").
+        PatchVerifyPreauthMac();
     }
 
     Log("main", "LocalRcc ready -- credits: 7ap & Epix @ https://github.com/rsblox");
