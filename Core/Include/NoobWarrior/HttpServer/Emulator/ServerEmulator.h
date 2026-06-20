@@ -74,13 +74,16 @@
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
 #include "AvatarFetchHandler.h"
+#include "EmulatorProxy.h"
 
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace NoobWarrior {
@@ -123,6 +126,14 @@ public:
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
     
     std::string ResolveAdvertisedAddress(const std::string &localAddr);
+
+    void PushProxyLayer(const std::string &host, uint16_t port);
+    bool PopProxyLayer();
+    void RemoveProxyLayer(const std::string &host, uint16_t port);
+    void ClearProxyLayers();
+    std::vector<std::pair<std::string, uint16_t>> GetProxyLayers() const;
+    
+    bool TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback = {});
 
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
@@ -177,6 +188,9 @@ private:
     OAuthUserinfoHandler mOAuthUserinfoHandler;
     StudioLoginHandler mStudioLoginHandler;
     StudioOpenPlaceHandler mStudioOpenPlaceHandler;
+
+    // Layered reverse proxy to the remote emulator(s) the local client is currently joined to.
+    EmulatorProxy mEmulatorProxy;
 
     void SetupHandlers() override;
     void SweepStaleInstancesLocked();

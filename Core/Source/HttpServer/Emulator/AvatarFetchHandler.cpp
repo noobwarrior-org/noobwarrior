@@ -34,6 +34,12 @@ AvatarFetchHandler::AvatarFetchHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void AvatarFetchHandler::OnRequest(evhttp_request *req, void *userdata) {
+    if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }))
+        return;
+    HandleLocally(req);
+}
+
+void AvatarFetchHandler::HandleLocally(evhttp_request *req) {
     nlohmann::json j = AvatarAppearance::BuildAvatarFetchJson(mEmu->GetCore());
 
     const std::string body = j.dump();

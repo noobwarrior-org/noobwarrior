@@ -88,6 +88,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mOAuthUserinfoHandler(),
     mStudioLoginHandler(),
     mStudioOpenPlaceHandler(this),
+    mEmulatorProxy(this),
     mAssetEnricher(mCore)
 {
     mAssetEnricher.Start();
@@ -204,14 +205,40 @@ void ServerEmulator::SetupHandlers() {
 
 int ServerEmulator::Start(uint16_t port) {
     mAssetHandler.ResumeProxy();
+    mEmulatorProxy.Resume();
     return HttpServer::Start(port);
 }
 
 int ServerEmulator::Stop() {
-    // Must pause the proxy pool before HttpServer::Stop frees the evhttp, so no in-flight proxy
-    // fetch replies to a freed connection.
+    // Must pause the proxy pools before HttpServer::Stop frees the evhttp, so no in-flight proxy
+    // fetch/forward replies to a freed connection.
     mAssetHandler.PauseProxy();
+    mEmulatorProxy.Pause();
     return HttpServer::Stop();
+}
+
+void ServerEmulator::PushProxyLayer(const std::string &host, uint16_t port) {
+    mEmulatorProxy.PushLayer(host, port);
+}
+
+bool ServerEmulator::PopProxyLayer() {
+    return mEmulatorProxy.PopLayer();
+}
+
+void ServerEmulator::RemoveProxyLayer(const std::string &host, uint16_t port) {
+    mEmulatorProxy.RemoveLayer(host, port);
+}
+
+void ServerEmulator::ClearProxyLayers() {
+    mEmulatorProxy.ClearLayers();
+}
+
+std::vector<std::pair<std::string, uint16_t>> ServerEmulator::GetProxyLayers() const {
+    return mEmulatorProxy.GetLayers();
+}
+
+bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback) {
+    return mEmulatorProxy.TryProxy(req, std::move(localFallback));
 }
 
 void ServerEmulator::SetMode(Mode mode) {

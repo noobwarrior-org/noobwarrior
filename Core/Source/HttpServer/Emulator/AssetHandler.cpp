@@ -356,6 +356,12 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
 }
 
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
+    if (mServerEmulator->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }))
+        return;
+    HandleLocally(req);
+}
+
+void AssetHandler::HandleLocally(evhttp_request *req) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
 

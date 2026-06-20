@@ -95,6 +95,8 @@ struct EngineStartParameters {
     std::optional<uint16_t> Port { std::nullopt };
     std::optional<int64_t> PlaceId { std::nullopt };
     std::optional<EngineSide> LaunchSide {};
+    std::optional<std::string> RemoteEmulatorHost { std::nullopt };
+    std::optional<uint16_t> RemoteEmulatorPort { std::nullopt };
 };
 
 enum class EngineInstallState {

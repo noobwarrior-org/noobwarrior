@@ -436,6 +436,8 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             }
 
             params.Engine.Side = EngineSide::Client;
+            params.RemoteEmulatorHost = ip;
+            params.RemoteEmulatorPort = port;
             paramsList.push_back(params);
         }
 

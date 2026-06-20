@@ -50,6 +50,14 @@ GameJoinHandler::GameJoinHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
+    if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); })) {
+        Out("GameJoinHandler", "Proxying join-game to joined remote emulator");
+        return;
+    }
+    HandleLocally(req);
+}
+
+void GameJoinHandler::HandleLocally(evhttp_request *req) {
     const char* uri = evhttp_request_get_uri(req);
     Out("GameJoinHandler", "join-game requested: {}", uri ? uri : "");
 

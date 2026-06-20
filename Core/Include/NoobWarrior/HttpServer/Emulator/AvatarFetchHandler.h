@@ -32,6 +32,8 @@ public:
     AvatarFetchHandler(ServerEmulator* emu);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
+    void HandleLocally(evhttp_request *req);
+
     ServerEmulator* mEmu;
 };
 }

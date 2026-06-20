@@ -25,6 +25,7 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>
@@ -527,6 +528,12 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
 EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
+    if (mServerEmulator != nullptr) {
+        mServerEmulator->ClearProxyLayers();
+        if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value())
+            mServerEmulator->PushProxyLayer(*params.RemoteEmulatorHost, *params.RemoteEmulatorPort);
+    }
+
     if (!IsEngineInManifest(params.Engine))
         return EngineLaunchResponse::NotInstalled;
 
