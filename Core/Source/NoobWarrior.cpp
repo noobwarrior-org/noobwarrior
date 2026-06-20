@@ -436,8 +436,10 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             }
 
             params.Engine.Side = EngineSide::Client;
-            params.RemoteEmulatorHost = ip;
-            params.RemoteEmulatorPort = port;
+            if (!IsLoopbackOrEmpty(ip)) {
+                params.RemoteEmulatorHost = ip;
+                params.RemoteEmulatorPort = port;
+            }
             paramsList.push_back(params);
         }
 
@@ -562,4 +564,12 @@ std::string NoobWarrior::WideCharToUTF8(wchar_t* wc) {
 #else
     return "";
 #endif
+}
+
+bool NoobWarrior::IsLoopbackOrEmpty(const std::string &ip) {
+    return ip.empty()
+        || ip == "localhost"
+        || ip == "::1"
+        || ip == "::ffff:127.0.0.1"
+        || ip.rfind("127.", 0) == 0;
 }

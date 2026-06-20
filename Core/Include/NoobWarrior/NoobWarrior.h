@@ -121,7 +121,7 @@ enum class ServerEmulatorConnectFailReason {
 };
 
 std::string WideCharToUTF8(wchar_t* wc);
-
+bool IsLoopbackOrEmpty(const std::string &ip);
 class Core {
 public:
     enum class Response {

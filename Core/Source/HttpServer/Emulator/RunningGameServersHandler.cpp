@@ -25,6 +25,7 @@
 #include <NoobWarrior/HttpServer/Emulator/RunningGameServersHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <nlohmann/json.hpp>
 #if !defined(_WIN32)
@@ -35,13 +36,6 @@
 #endif
 
 using namespace NoobWarrior;
-
-static bool IsLoopbackOrEmpty(const std::string &ip) {
-    return ip.empty()
-        || ip == "::1"
-        || ip == "::ffff:127.0.0.1"
-        || ip.rfind("127.", 0) == 0;
-}
 
 RunningGameServersHandler::RunningGameServersHandler(ServerEmulator* emu) : mEmu(emu) {
 
