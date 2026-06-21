@@ -44,6 +44,12 @@ public:
     void AddDatabase(EmuDb* db, bool isTemp = false);
     EmuDb* GetSelectedDatabase();
     QList<EmuDb*> GetSelectedDatabases();
+signals:
+    void filesDropped(const QStringList& filePaths);
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 private:
     Mode mMode;
 };

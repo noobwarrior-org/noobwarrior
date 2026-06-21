@@ -25,10 +25,12 @@
 #pragma once
 #include <QDialog>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QFrame>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QStringList>
 
 #include "Sdk/EmuDbListWidget.h"
 
@@ -38,6 +40,8 @@ class DatabaseDialog : public QDialog {
 public:
     DatabaseDialog(QWidget *parent = nullptr);
     void InitWidgets();
+protected:
+    void closeEvent(QCloseEvent* event) override;
 private:
     QGridLayout* mGridLayout;
 
@@ -58,12 +62,29 @@ private:
     QPushButton* mSelectorArrow_MoveOneLeft;
     QPushButton* mSelectorArrow_MoveAllLeft;
 
+    QHBoxLayout* mBottomLayout;
+    QPushButton* mOpenFolderButton;
+    QPushButton* mDiscardButton;
+    QPushButton* mSaveButton;
+    
+    bool mCommitted = false;
+
     void SaveToRegistry();
+    void RevertManager();
+    void ImportFiles(const QStringList& filePaths, bool mountThem);
+    bool IsPathMounted(const std::filesystem::path& filePath);
+    void DeleteDatabases(const QList<QListWidgetItem*>& items);
 private slots:
     void OnMoveOneRight();
     void OnMoveAllRight();
     void OnMoveOneLeft();
     void OnMoveAllLeft();
     void OnSelectedOrderChanged();
+    void OnAvailableFilesDropped(const QStringList& filePaths);
+    void OnSelectedFilesDropped(const QStringList& filePaths);
+    void OnOpenFolder();
+    void OnSave();
+    void OnDiscard();
+    void OnContextMenuRequested(const QPoint& pos);
 };
 }

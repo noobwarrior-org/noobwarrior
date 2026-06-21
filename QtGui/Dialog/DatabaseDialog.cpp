@@ -27,6 +27,14 @@
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <filesystem>
 
+#include <QCloseEvent>
+#include <QDesktopServices>
+#include <QFileInfo>
+#include <QIcon>
+#include <QMenu>
+#include <QMessageBox>
+#include <QUrl>
+
 using namespace NoobWarrior;
 
 DatabaseDialog::DatabaseDialog(QWidget *parent) : QDialog(parent) {
@@ -81,12 +89,41 @@ void DatabaseDialog::InitWidgets() {
     mSelectedList->setDropIndicatorShown(true);
     mSelectedList->setDragDropMode(QAbstractItemView::InternalMove);
 
+    mAvailableList->setAcceptDrops(true);
+    mAvailableList->setDropIndicatorShown(true);
+
+    mAvailableList->setContextMenuPolicy(Qt::CustomContextMenu);
+    mSelectedList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mAvailableList, &EmuDbListWidget::customContextMenuRequested,
+            this, &DatabaseDialog::OnContextMenuRequested);
+    connect(mSelectedList, &EmuDbListWidget::customContextMenuRequested,
+            this, &DatabaseDialog::OnContextMenuRequested);
+
     connect(mSelectedList->model(), &QAbstractItemModel::rowsMoved,
             this, &DatabaseDialog::OnSelectedOrderChanged);
+    connect(mAvailableList, &EmuDbListWidget::filesDropped,
+            this, &DatabaseDialog::OnAvailableFilesDropped);
+    connect(mSelectedList, &EmuDbListWidget::filesDropped,
+            this, &DatabaseDialog::OnSelectedFilesDropped);
+
+    mBottomLayout = new QHBoxLayout();
+    mOpenFolderButton = new QPushButton("Open Databases Folder");
+    mDiscardButton = new QPushButton("Discard");
+    mSaveButton = new QPushButton("Save");
+
+    mBottomLayout->addWidget(mOpenFolderButton);
+    mBottomLayout->addStretch();
+    mBottomLayout->addWidget(mDiscardButton);
+    mBottomLayout->addWidget(mSaveButton);
+
+    connect(mOpenFolderButton, &QPushButton::clicked, this, &DatabaseDialog::OnOpenFolder);
+    connect(mDiscardButton, &QPushButton::clicked, this, &DatabaseDialog::OnDiscard);
+    connect(mSaveButton, &QPushButton::clicked, this, &DatabaseDialog::OnSave);
 
     mGridLayout->addWidget(mAvailableFrame, 0, 0);
     mGridLayout->addWidget(mSelectorArrowFrame, 0, 1);
     mGridLayout->addWidget(mSelectedFrame, 0, 2);
+    mGridLayout->addLayout(mBottomLayout, 1, 0, 1, 3);
 }
 
 void DatabaseDialog::OnMoveOneRight() {
@@ -101,7 +138,6 @@ void DatabaseDialog::OnMoveOneRight() {
         manager->Mount(filePath, priority++);
     }
 
-    SaveToRegistry();
     mAvailableList->Refresh();
     mSelectedList->Refresh();
 }
@@ -114,7 +150,6 @@ void DatabaseDialog::OnMoveAllRight() {
         manager->Mount(filePath, priority++);
     }
 
-    SaveToRegistry();
     mAvailableList->Refresh();
     mSelectedList->Refresh();
 }
@@ -131,7 +166,6 @@ void DatabaseDialog::OnMoveOneLeft() {
         delete db;
     }
 
-    SaveToRegistry();
     mAvailableList->Refresh();
     mSelectedList->Refresh();
 }
@@ -144,7 +178,6 @@ void DatabaseDialog::OnMoveAllLeft() {
         delete db;
     }
 
-    SaveToRegistry();
     mAvailableList->Refresh();
     mSelectedList->Refresh();
 }
@@ -157,7 +190,153 @@ void DatabaseDialog::OnSelectedOrderChanged() {
         if (db) newOrder.push_back(db);
     }
     manager->SetMountOrder(newOrder);
+}
+
+bool DatabaseDialog::IsPathMounted(const std::filesystem::path& filePath) {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    for (auto* db : manager->GetMountedDatabases()) {
+        std::error_code ec;
+        if (std::filesystem::equivalent(db->GetFilePath(), filePath, ec) && !ec)
+            return true;
+    }
+    return false;
+}
+
+void DatabaseDialog::ImportFiles(const QStringList& filePaths, bool mountThem) {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    std::filesystem::path dbDir = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
+
+    for (const QString& src : filePaths) {
+        std::filesystem::path srcPath(src.toStdString());
+        std::filesystem::path destPath = dbDir / srcPath.filename();
+
+        std::error_code ec;
+        // Copy the file into the databases folder unless it is already there.
+        if (!std::filesystem::equivalent(srcPath, destPath, ec)) {
+            ec.clear();
+            if (!std::filesystem::exists(destPath, ec))
+                std::filesystem::copy_file(srcPath, destPath, ec);
+            if (ec) {
+                QMessageBox::warning(this, "Import failed",
+                    QString("Could not import \"%1\":\n%2")
+                        .arg(QString::fromStdString(srcPath.filename().string()))
+                        .arg(QString::fromStdString(ec.message())));
+                continue;
+            }
+        }
+
+        if (mountThem && !IsPathMounted(destPath)) {
+            unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
+            manager->Mount(destPath, priority);
+        }
+    }
+
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnAvailableFilesDropped(const QStringList& filePaths) {
+    ImportFiles(filePaths, false);
+}
+
+void DatabaseDialog::OnSelectedFilesDropped(const QStringList& filePaths) {
+    ImportFiles(filePaths, true);
+}
+
+void DatabaseDialog::OnContextMenuRequested(const QPoint& pos) {
+    auto* list = qobject_cast<EmuDbListWidget*>(sender());
+    if (list == nullptr)
+        return;
+
+    QListWidgetItem* clicked = list->itemAt(pos);
+    if (clicked == nullptr)
+        return;
+
+    if (!clicked->isSelected()) {
+        list->clearSelection();
+        clicked->setSelected(true);
+    }
+    QList<QListWidgetItem*> items = list->selectedItems();
+
+    QMenu menu;
+    QAction* deleteAction = menu.addAction(QIcon(":/images/silk/cross.png"), "Delete");
+    connect(deleteAction, &QAction::triggered, this, [this, items]() {
+        DeleteDatabases(items);
+    });
+    menu.exec(list->viewport()->mapToGlobal(pos));
+}
+
+void DatabaseDialog::DeleteDatabases(const QList<QListWidgetItem*>& items) {
+    if (items.isEmpty())
+        return;
+
+    QString message;
+    if (items.size() == 1)
+        message = QString("Are you sure you want to permanently delete \"%1\"?").arg(items.first()->text());
+    else
+        message = QString("Are you sure you want to permanently delete these %1 databases?").arg(items.size());
+    message += "\n\nThis removes the database file from your computer and cannot be undone.";
+
+    QMessageBox::StandardButton answer = QMessageBox::warning(
+        this, "Permanently delete database", message,
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes)
+        return;
+
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    for (auto* item : items) {
+        std::filesystem::path path(item->toolTip().toStdString());
+        if (path.empty())
+            continue;
+
+        EmuDb* db = reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>());
+        if (db) {
+            manager->Unmount(db);
+            delete db;
+        }
+
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+        if (ec) {
+            QMessageBox::warning(this, "Delete failed",
+                QString("Could not delete \"%1\":\n%2")
+                    .arg(QString::fromStdString(path.filename().string()))
+                    .arg(QString::fromStdString(ec.message())));
+        }
+    }
+
+    mAvailableList->Refresh();
+    mSelectedList->Refresh();
+}
+
+void DatabaseDialog::OnOpenFolder() {
+    std::filesystem::path dbDir = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(dbDir.string())));
+}
+
+void DatabaseDialog::OnSave() {
     SaveToRegistry();
+    mCommitted = true;
+    close();
+}
+
+void DatabaseDialog::OnDiscard() {
+    RevertManager();
+    mCommitted = true;
+    close();
+}
+
+void DatabaseDialog::closeEvent(QCloseEvent* event) {
+    if (!mCommitted)
+        RevertManager();
+    QDialog::closeEvent(event);
+}
+
+void DatabaseDialog::RevertManager() {
+    EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+    manager->UnmountDatabases();
+    manager->MountDatabases();
+    manager->MountMasterDbIfNotAlreadyMounted();
 }
 
 void DatabaseDialog::SaveToRegistry() {

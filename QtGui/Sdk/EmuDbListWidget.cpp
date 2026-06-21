@@ -29,6 +29,11 @@
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <QDir>
 #include <QFileInfo>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
 
 using namespace NoobWarrior;
 
@@ -124,6 +129,49 @@ EmuDb* EmuDbListWidget::GetSelectedDatabase() {
     if (item != nullptr)
         return reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>());
     return nullptr;
+}
+
+static QStringList ExtractNwdbPaths(const QMimeData* mime) {
+    QStringList paths;
+    if (mime == nullptr || !mime->hasUrls())
+        return paths;
+    for (const QUrl& url : mime->urls()) {
+        if (!url.isLocalFile())
+            continue;
+        QString path = url.toLocalFile();
+        if (path.endsWith(".nwdb", Qt::CaseInsensitive))
+            paths << path;
+    }
+    return paths;
+}
+
+void EmuDbListWidget::dragEnterEvent(QDragEnterEvent* event) {
+    if (!ExtractNwdbPaths(event->mimeData()).isEmpty()) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return;
+    }
+    QListWidget::dragEnterEvent(event);
+}
+
+void EmuDbListWidget::dragMoveEvent(QDragMoveEvent* event) {
+    if (!ExtractNwdbPaths(event->mimeData()).isEmpty()) {
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return;
+    }
+    QListWidget::dragMoveEvent(event);
+}
+
+void EmuDbListWidget::dropEvent(QDropEvent* event) {
+    QStringList paths = ExtractNwdbPaths(event->mimeData());
+    if (!paths.isEmpty()) {
+        emit filesDropped(paths);
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        return;
+    }
+    QListWidget::dropEvent(event);
 }
 
 QList<EmuDb*> EmuDbListWidget::GetSelectedDatabases() {
