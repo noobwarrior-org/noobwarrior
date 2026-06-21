@@ -170,9 +170,7 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
     allPluginPaths.insert(allPluginPaths.end(), pluginPaths.begin(), pluginPaths.end());
 
     for (std::filesystem::path path : allPluginPaths) {
-        std::string file_name = path.filename().string();
-        
-        Plugin* plugin = new Plugin(file_name, mCore);
+        Plugin* plugin = new Plugin(path, mCore);
         if (plugin->Fail()) {
             NOOBWARRIOR_FREE_PTR(plugin)
             continue;
