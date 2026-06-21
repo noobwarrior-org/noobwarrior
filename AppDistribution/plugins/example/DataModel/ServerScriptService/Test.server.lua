@@ -1,1 +1,0 @@
-print("Hello world from example plugin! I have put myself in the DataModel.")

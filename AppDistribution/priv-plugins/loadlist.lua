@@ -3,5 +3,6 @@ return {
     "http-base",
     "emu-frontend",
     "master-server",
-    "docs"
+    "docs",
+    "example"
 }
