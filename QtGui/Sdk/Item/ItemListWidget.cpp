@@ -45,6 +45,8 @@
 #include <QStyle>
 #include <QStyleOptionViewItem>
 #include <QUrl>
+#include <QApplication>
+#include <QClipboard>
 
 #include <algorithm>
 
@@ -86,6 +88,7 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
     };
     mOnContextMenuShown = [this](QMenu* menu, ItemWidget* item) {
         QAction* config = menu->addAction(QIcon(":/images/silk/cog.png"), "Configure Item");
+        QAction* copyId = menu->addAction(QIcon(":/images/silk/page_white_copy.png"), "Copy ID");
 
         if (item && item->GetType() == ItemType::Asset) {
             QAction* download = menu->addAction(QIcon(":/images/silk/disk.png"), "Download Asset Data");
@@ -101,6 +104,11 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
         menu->addSeparator();
         QAction* del = menu->addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
         QAction* rename = menu->addAction(QIcon(":/images/silk/pencil.png"), "Rename");
+
+        connect(copyId, &QAction::triggered, [this, item]() {
+            QClipboard* clipboard = QApplication::clipboard();
+            clipboard->setText(QString::number(item->GetId()));
+        });
 
         connect(copy, &QAction::triggered, [this]() { CopySelectedItems(false); });
         connect(cut, &QAction::triggered, [this]() { CopySelectedItems(true); });
