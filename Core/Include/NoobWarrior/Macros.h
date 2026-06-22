@@ -24,9 +24,10 @@
 // Description: Contains useful macros
 #pragma once
 
+#define NOOBWARRIOR_BRAND "noobWarrior"
 #define NOOBWARRIOR_VERSION "0.0.6"
 #define NOOBWARRIOR_AUTHORS \
-"Hattozo - Creator of the noobWarrior project and software\n"
+"Hattozo - Creator of the " NOOBWARRIOR_BRAND " project and software\n"
 #define NOOBWARRIOR_CONTRIBUTORS \
 "Hattozo\n"
 #define NOOBWARRIOR_ATTRIBUTIONS_BRIEF \

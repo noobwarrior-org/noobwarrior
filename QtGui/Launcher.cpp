@@ -23,6 +23,7 @@
 // Started on: 12/15/2024
 // Description: This is the startup window that appears when the user launches the application.
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Macros.h>
 
 #include "Launcher.h"
 #include "Application.h"
@@ -33,8 +34,12 @@
 #include "Dialog/SelectStudioVersionDialog.h"
 #include "ServerHost/HostServerDialog.h"
 
+#include <memory>
+
 #include <QLabel>
 #include <QMessageBox>
+#include <QPointer>
+#include <QTimer>
 
 #define ADD_BUTTONS(arr) for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(arr); i++) { \
     auto *button = new QPushButton(this); \
@@ -61,7 +66,56 @@ using namespace NoobWarrior;
 
 // static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
 static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostServerDialog, HostServerDialog) }
-static void ShowJoinServer(Launcher &launcher) { HANDLE_QDIALOG(launcher.mOnlineWindow, OnlineWindow) }
+static void ShowJoinServer(Launcher &launcher) {
+    if (!gApp->GetCore()->GetRegistry()->GetKeyValue<bool>("gui.acknowledged_online_disclaimer").value_or(false)) {
+        QString msg =
+            "Caution: Online play is unrated\n\n"
+            "This message will show only once.\n\n"
+            "All noobWarrior servers are decentralized and are potentially ran by strangers that you don't know. "
+            "The creators of " NOOBWARRIOR_BRAND " are not responsible for whatever you "
+            "may see on these servers. We are not a law enforcement entity and we have no agency to "
+            "moderate any servers that you join. We advise you to take caution.\n\n"
+            "If you agree to these statements, click Yes to open this window. Otherwise, click No.";
+        QMessageBox msgBox;
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle("Disclaimer");
+        msgBox.setText(msg);
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+
+        QPointer<QAbstractButton> yes = msgBox.button(QMessageBox::Yes);
+        if (yes) {
+            yes->setEnabled(false);
+            yes->setText("Yes (15)");
+        }
+
+        QTimer *timer = new QTimer(&msgBox);
+        auto counter = std::make_shared<int>(15);
+
+        launcher.connect(timer, &QTimer::timeout, [yes, timer, counter]() {
+            --*counter;
+            if (yes)
+                yes->setText(QString("Yes (%1)").arg(QString::number(*counter)));
+
+            if (*counter == 0) {
+                timer->stop();
+
+                if (yes) {
+                    yes->setText("Yes");
+                    yes->setEnabled(true);
+                }
+            }
+        });
+
+        timer->start(1000);
+        int res = msgBox.exec();
+        if (res == QMessageBox::Yes) {
+            gApp->GetCore()->GetRegistry()->SetKeyValue<bool>("gui.acknowledged_online_disclaimer", true);
+        } else {
+            return;
+        }
+    }
+    HANDLE_QDIALOG(launcher.mOnlineWindow, OnlineWindow)
+}
 static void ShowAboutDialog(Launcher &launcher) { HANDLE_QDIALOG(launcher.mAboutDialog, AboutDialog) }
 static void ShowSettings(Launcher &launcher) { HANDLE_QDIALOG(launcher.mSettings, SettingsDialog) }
 static void LaunchDatabaseEditor(Launcher& launcher) { HANDLE_QDIALOG(launcher.mSdk, Sdk) }

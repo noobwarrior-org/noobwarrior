@@ -91,7 +91,7 @@ Core::Core(Init init) :
 #endif
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
-    // These explicit init calls were removed in OpenSSL 3; initialisation is now automatic.
+    // These explicit init calls were removed in OpenSSL 3; initialization is now automatic
     SSL_library_init();
     ERR_load_crypto_strings();
     SSL_load_error_strings();
