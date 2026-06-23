@@ -267,6 +267,10 @@ public:
     // database or has no start place set.
     std::optional<int64_t> GetStartPlaceIdForUniverse(int64_t universeId);
 
+    // Returns a universe's avatar type (a Roblox::UniverseAvatarType value stored in UniverseMisc),
+    // or std::nullopt if the universe has no UniverseMisc row / the column is unset in this database.
+    std::optional<int> GetUniverseAvatarType(int64_t universeId);
+
     // The columns the develop "search/universes" homepage list needs to describe one universe.
     struct UniverseSummary {
         int64_t Id {0};

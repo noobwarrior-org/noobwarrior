@@ -62,6 +62,7 @@
 #include "IdeToolboxHandler.h"
 #include "DevelopHandler.h"
 #include "DataUploadHandler.h"
+#include "DataStorePersistenceHandler.h"
 #include "ThumbnailHandler.h"
 #include "AssetPermissionsHandler.h"
 #include "OmniRecHandler.h"
@@ -208,6 +209,7 @@ private:
     OAuthUserinfoHandler mOAuthUserinfoHandler;
     StudioLoginHandler mStudioLoginHandler;
     StudioOpenPlaceHandler mStudioOpenPlaceHandler;
+    DataStorePersistenceHandler mDataStorePersistenceHandler;
 
     // Layered reverse proxy to the remote emulator(s) the local client is currently joined to.
     EmulatorProxy mEmulatorProxy;

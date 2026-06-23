@@ -60,6 +60,14 @@ namespace NoobWarrior::Roblox {
         default: return "Player Choice";
         }
     }
+    
+    inline const char* UniverseAvatarTypeAsApiString(UniverseAvatarType type) {
+        switch (type) {
+        case UniverseAvatarType::MorphToR6: return "MorphToR6";
+        case UniverseAvatarType::MorphToR15: return "MorphToR15";
+        default: return "PlayerChoice";
+        }
+    }
 
     constexpr int UniverseAccessTypeCount = 3;
     enum class UniverseAccessType { Public = 0, Private = 1, FriendsOnly = 2 };

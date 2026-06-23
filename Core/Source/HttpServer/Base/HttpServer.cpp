@@ -107,6 +107,8 @@ int HttpServer::Start(uint16_t port) {
 
     mPreStartSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     mServer = evhttp_new(mCore->GetEventBase());
+    evhttp_set_allowed_methods(mServer, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD |
+        EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_OPTIONS | EVHTTP_REQ_PATCH);
     evhttp_bind_socket(mServer, "0.0.0.0", port);
 
     if (!mHandlersSetUp) {
@@ -185,6 +187,8 @@ int HttpServer::StartSecure(uint16_t port) {
     }
 
     mServerSecure = evhttp_new(mCore->GetEventBase());
+    evhttp_set_allowed_methods(mServerSecure, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD |
+        EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_OPTIONS | EVHTTP_REQ_PATCH);
     evhttp_bind_socket(mServerSecure, "0.0.0.0", port);
     evhttp_set_bevcb(mServerSecure, bevcb, mSslCtx);
 

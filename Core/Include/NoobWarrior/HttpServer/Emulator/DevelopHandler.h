@@ -47,6 +47,10 @@ private:
     void HandleUserCanManagePlace(evhttp_request *req);
     // GET /v1/universes/multiget/teamcreate?ids=... — per-universe team-create status (all inactive).
     void HandleTeamCreateMultiget(evhttp_request *req);
+    // GET /v{1,2}/universes/:universeId/configuration — universe settings. Reports
+    // isStudioAccessToApisAllowed = true, which is the gate Studio checks before it will issue
+    // DataStore/HttpService (persistence) calls; without it those calls fail with a 404 in Studio.
+    void HandleUniverseConfiguration(evhttp_request *req);
 
     HttpServer *mHttpServer;
     EmuDbManager *mEmuDbManager;

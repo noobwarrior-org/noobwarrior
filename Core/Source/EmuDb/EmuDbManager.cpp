@@ -189,6 +189,14 @@ std::optional<int64_t> EmuDbManager::GetStartPlaceIdForUniverse(int64_t universe
     return std::nullopt;
 }
 
+std::optional<int> EmuDbManager::GetUniverseAvatarType(int64_t universeId) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto avatarType = db->GetUniverseAvatarType(universeId))
+            return avatarType;
+    }
+    return std::nullopt;
+}
+
 std::optional<std::string> EmuDbManager::GetItemName(ItemType type, int64_t id) {
     for (EmuDb* db : mMountedDatabases) {
         if (auto name = db->GetItemName(type, id))

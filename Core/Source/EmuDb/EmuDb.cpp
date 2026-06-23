@@ -58,6 +58,8 @@
 #include "migrations/v14.sql.inc.cpp"
 #include "migrations/v15.sql.inc.cpp"
 #include "migrations/v16.sql.inc.cpp"
+#include "migrations/v17.sql.inc.cpp"
+#include "migrations/v18.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -287,6 +289,11 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v15)
 	/* V16: recreated UniverseSocialLink keyed by (Id, LinkType) so a universe can have multiple social links */
 	MIGRATE(v16)
+	/* V17: added DataStore, DataStoreEntry and DataStoreVersion tables for DataStoreService persistence */
+	MIGRATE(v17)
+	/* V18: re-creates the v17 DataStore tables (IF NOT EXISTS) to repair databases that recorded an
+	   earlier, incomplete v17 and therefore skipped it */
+	MIGRATE(v18)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
@@ -1499,6 +1506,17 @@ std::optional<int64_t> EmuDb::GetStartPlaceIdForUniverse(int64_t universeId) {
 	stmt.Bind(1, universeId);
 	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
 		return stmt.GetInt64FromColumnIndex(0);
+	return std::nullopt;
+}
+
+std::optional<int> EmuDb::GetUniverseAvatarType(int64_t universeId) {
+	if (Fail()) return std::nullopt;
+	
+	Statement stmt = PrepareStatement("SELECT AvatarType FROM UniverseMisc WHERE Id = ?;");
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, universeId);
+	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
+		return stmt.GetIntFromColumnIndex(0);
 	return std::nullopt;
 }
 

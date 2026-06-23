@@ -91,6 +91,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mOAuthUserinfoHandler(),
     mStudioLoginHandler(),
     mStudioOpenPlaceHandler(this),
+    mDataStorePersistenceHandler(this, mCore->GetEmuDbManager()),
     mEmulatorProxy(this),
     mAssetEnricher(mCore)
 {
@@ -159,6 +160,9 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/user/groups/canmanage", &mDevelopHandler);
     SetRequestHandler("/v1/user/:userId/canmanage/:placeId", &mDevelopHandler);
     SetRequestHandler("/v1/universes/multiget/teamcreate", &mDevelopHandler);
+    // Universe configuration — gates DataStore/HttpService access in Studio (isStudioAccessToApisAllowed).
+    SetRequestHandler("/v1/universes/:universeId/configuration", &mDevelopHandler);
+    SetRequestHandler("/v2/universes/:universeId/configuration", &mDevelopHandler);
 
     SetRequestHandler("/toolbox-service/v1/home/:assetType/configuration", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/home/:typeId/section/:sectionName/assets", &mToolboxServiceHandler);
@@ -217,6 +221,21 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/studio-login/v1/login", &mStudioLoginHandler);
 
     SetRequestHandler("/studio-open-place/v1/openplace", &mStudioOpenPlaceHandler);
+    
+    SetRequestHandler("/v2/persistence/:universeId/datastores/objects/object/versions/version", &mDataStorePersistenceHandler);
+    SetRequestHandler("/v2/persistence/:universeId/datastores/objects/object/versions", &mDataStorePersistenceHandler);
+    SetRequestHandler("/v2/persistence/:universeId/datastores/objects/object/increment", &mDataStorePersistenceHandler);
+    SetRequestHandler("/v2/persistence/:universeId/datastores/objects/object", &mDataStorePersistenceHandler);
+    SetRequestHandler("/v2/persistence/:universeId/datastores/objects", &mDataStorePersistenceHandler);
+    SetRequestHandler("/v2/persistence/:universeId/datastores", &mDataStorePersistenceHandler);
+
+    SetRequestHandler("/persistence/getV2", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/getv2", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/set", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/increment", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/remove", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/getSortedValues", &mDataStorePersistenceHandler);
+    SetRequestHandler("/persistence/getsortedvalues", &mDataStorePersistenceHandler);
 }
 
 int ServerEmulator::Start(uint16_t port) {

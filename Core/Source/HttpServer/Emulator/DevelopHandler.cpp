@@ -33,6 +33,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
+#include <NoobWarrior/Roblox/Api/Universe.h>
 
 #include <nlohmann/json.hpp>
 
@@ -133,6 +134,8 @@ void DevelopHandler::OnRequest(evhttp_request *req, void *userdata) {
         HandleGameTemplates(req);
     else if (path.find("multiget/teamcreate") != std::string::npos)
         HandleTeamCreateMultiget(req);
+    else if (path.find("configuration") != std::string::npos)
+        HandleUniverseConfiguration(req); // /v{1,2}/universes/:universeId/configuration
     else if (path.find("groups/canmanage") != std::string::npos)
         HandleGroupsCanManage(req);
     else if (path.find("canmanage") != std::string::npos)
@@ -224,6 +227,56 @@ void DevelopHandler::HandleUserCanManagePlace(evhttp_request *req) {
     nlohmann::json j;
     j["Success"] = true;
     j["CanManage"] = true;
+    SendJson(req, j);
+}
+
+void DevelopHandler::HandleUniverseConfiguration(evhttp_request *req) {
+    int64_t universeId = strtoll(mHttpServer->GetRouteParam("universeId").c_str(), nullptr, 10);
+
+    std::optional<EmuDb::UniverseSummary> s = mEmuDbManager->GetUniverseSummary(universeId);
+    Registry* reg = mHttpServer->GetCore()->GetRegistry();
+    int64_t selfUserId = reg->GetKeyValue<int64_t>("user.id").value_or(1);
+    std::string selfUserName = reg->GetKeyValue<std::string>("user.name").value_or("Player");
+
+    std::string name = s && !s->Name.empty() ? s->Name : std::string("noobWarrior Place");
+    int64_t creatorId = s && s->UserId && *s->UserId != 0 ? *s->UserId : selfUserId;
+
+    // The universe's avatar type as configured in EmuDb (UniverseMisc.AvatarType): R6, R15 or Player
+    // Choice. Falls back to MorphToR6 when the universe has no setting stored.
+    Roblox::UniverseAvatarType avatarType = Roblox::UniverseAvatarType::MorphToR6;
+    if (auto stored = mEmuDbManager->GetUniverseAvatarType(universeId))
+        if (*stored == static_cast<int>(Roblox::UniverseAvatarType::MorphToR6) ||
+            *stored == static_cast<int>(Roblox::UniverseAvatarType::PlayerChoice) ||
+            *stored == static_cast<int>(Roblox::UniverseAvatarType::MorphToR15))
+            avatarType = static_cast<Roblox::UniverseAvatarType>(*stored);
+
+    nlohmann::json j;
+    j["id"] = universeId;
+    j["name"] = name;
+    j["description"] = "";
+    j["universeAvatarType"] = Roblox::UniverseAvatarTypeAsApiString(avatarType);
+    j["isArchived"] = false;
+    j["isFriendsOnly"] = false;
+    j["genre"] = "All";
+    j["playableDevices"] = nlohmann::json::array({"Computer", "Phone", "Tablet", "Console", "VR"});
+    j["isForSale"] = false;
+    j["price"] = nullptr;
+    j["allowPrivateServers"] = false;
+    j["privateServerPrice"] = nullptr;
+    j["privacyType"] = "Public";
+    j["creatorType"] = "User";
+    j["creatorTargetId"] = creatorId;
+    j["creatorName"] = selfUserName;
+    // The persistence gate: Studio only issues DataStore/HttpService calls when API access is allowed,
+    // which it learns from this field and re-checks periodically (FInt TimeBetweenCheckingApiAccessMillis).
+    // Emit both the "is"-prefixed and bare spellings so every engine build's parser finds it.
+    j["isStudioAccessToApisAllowed"] = true;
+    j["studioAccessToApisAllowed"] = true;
+    j["permissions"] = nlohmann::json{
+        {"isThirdPartyTeleportAllowed", true},
+        {"isThirdPartyAssetAllowed", true},
+        {"isThirdPartyPurchaseAllowed", true}
+    };
     SendJson(req, j);
 }
 

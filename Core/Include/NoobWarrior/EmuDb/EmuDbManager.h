@@ -60,6 +60,7 @@ public:
     // database with a match wins). Each returns std::nullopt when no mounted database knows about it.
     std::optional<int64_t> GetUniverseIdForPlace(int64_t placeId);
     std::optional<int64_t> GetStartPlaceIdForUniverse(int64_t universeId);
+    std::optional<int> GetUniverseAvatarType(int64_t universeId);
     std::optional<std::string> GetItemName(ItemType type, int64_t id);
     std::optional<int64_t> GetCreatorUserId(ItemType type, int64_t id);
 
