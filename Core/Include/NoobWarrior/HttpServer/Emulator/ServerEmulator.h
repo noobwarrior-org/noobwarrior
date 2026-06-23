@@ -61,6 +61,7 @@
 #include "ToolboxServiceHandler.h"
 #include "IdeToolboxHandler.h"
 #include "DevelopHandler.h"
+#include "DataUploadHandler.h"
 #include "ThumbnailHandler.h"
 #include "AssetPermissionsHandler.h"
 #include "OmniRecHandler.h"
@@ -186,6 +187,7 @@ private:
     ToolboxServiceHandler mToolboxServiceHandler;
     IdeToolboxHandler mIdeToolboxHandler;
     DevelopHandler mDevelopHandler;
+    DataUploadHandler mDataUploadHandler;
     ThumbnailHandler mThumbnailHandler;
     AssetPermissionsHandler mAssetPermissionsHandler;
     OmniRecHandler mOmniRecHandler;

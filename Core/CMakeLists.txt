@@ -209,6 +209,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/ToolboxServiceHandler.cpp
     Source/HttpServer/Emulator/IdeToolboxHandler.cpp
     Source/HttpServer/Emulator/DevelopHandler.cpp
+    Source/HttpServer/Emulator/DataUploadHandler.cpp
     Source/HttpServer/Emulator/ThumbnailHandler.cpp
     Source/HttpServer/Emulator/AssetPermissionsHandler.cpp
     Source/HttpServer/Emulator/OmniRecHandler.cpp

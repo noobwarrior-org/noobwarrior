@@ -71,6 +71,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mToolboxServiceHandler(this, mCore->GetEmuDbManager()),
     mIdeToolboxHandler(mCore->GetEmuDbManager()),
     mDevelopHandler(this, mCore->GetEmuDbManager()),
+    mDataUploadHandler(mCore->GetEmuDbManager()),
     mThumbnailHandler(mCore->GetEmuDbManager()),
     mOmniRecHandler(),
     mGamesSortsHandler(),
@@ -205,6 +206,9 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/Thumbs/GameIcon.ashx", &mGameIconHandler);
     SetRequestHandler("/Thumbs/gameicon.ashx", &mGameIconHandler);
     SetRequestHandler("/v1/games/icons", &mGameIconHandler); // home-grid square icons (batch list)
+    
+    SetRequestHandler("/Data/Upload.ashx", &mDataUploadHandler);
+    SetRequestHandler("/data/upload.ashx", &mDataUploadHandler);
 
     SetRequestHandler("/oauth/.well-known/openid-configuration", &mOAuthDiscoveryHandler);
     SetRequestHandler("/oauth/v1/authorize", &mOAuthAuthorizeHandler);
