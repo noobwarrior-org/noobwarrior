@@ -69,6 +69,13 @@ public:
     std::vector<int64_t> SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset);
     std::optional<EmuDb::AssetSummary> GetAssetSummary(int64_t id);
 
+    // Universe enumeration spanning every mounted database, for the develop "search/universes"
+    // homepage list. ListUniverseIds merges the per-database matches (mount priority order,
+    // de-duplicated) before applying offset/limit; groupOwned selects user-owned (creator:User) vs
+    // group-owned (creator:Team) universes. GetUniverseSummary returns the first mounted database's copy.
+    std::vector<int64_t> ListUniverseIds(bool groupOwned, int limit, int offset);
+    std::optional<EmuDb::UniverseSummary> GetUniverseSummary(int64_t id);
+
     // Image/thumbnail bytes for an item, from the first mounted database that has it (falling back to
     // the highest-priority database, which yields a placeholder icon on a miss). Empty only when no
     // database is mounted.

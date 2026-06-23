@@ -23,13 +23,31 @@
 // Started on: 5/26/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/StudioOpenPlaceHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 
-static constexpr const char* JSON = R"***({"universe":{"Id":1818,"RootPlaceId":1,"Name":"Hello","IsArchived":false,"CreatorType":"User","CreatorTargetId":1,"PrivacyType":"Public","Created":"2013-11-01T08:47:14.07+00:00","Updated":"2023-05-02T22:03:01.107+00:00"},"teamCreateEnabled":false,"place":{"Creator":{"CreatorType":"User","CreatorTargetId":1}}})***";
+#include <nlohmann/json.hpp>
+
+#include <cstdlib>
+#include <string>
 
 using namespace NoobWarrior;
 
-StudioOpenPlaceHandler::StudioOpenPlaceHandler(ServerEmulator *server) {}
+static std::string GetQueryParam(const char* uri, const char* key) {
+    std::string out;
+    if (uri == nullptr) return out;
+    evkeyvalq query;
+    if (evhttp_parse_query(uri, &query) == 0) {
+        if (const char* val = evhttp_find_header(&query, key))
+            out = val;
+        evhttp_clear_headers(&query);
+    }
+    return out;
+}
+
+StudioOpenPlaceHandler::StudioOpenPlaceHandler(ServerEmulator *server) : mServer(server) {}
 
 void StudioOpenPlaceHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
@@ -37,14 +55,43 @@ void StudioOpenPlaceHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const char* peer_address = "";
     uint16_t peer_port {};
-
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("StudioOpenPlaceHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    
+    char* endPtr = nullptr;
+    int64_t placeId = strtoll(GetQueryParam(uri, "placeId").c_str(), &endPtr, 10);
+    if (endPtr == nullptr || *endPtr != '\0' || placeId <= 0)
+        placeId = 1;
 
+    EmuDbManager* dbm = mServer->GetCore()->GetEmuDbManager();
+    int64_t universeId = dbm->GetUniverseIdForPlace(placeId).value_or(placeId);
+    std::string name = dbm->GetItemName(ItemType::Universe, universeId).value_or("noobWarrior Place");
+
+    Registry* reg = mServer->GetCore()->GetRegistry();
+    int64_t creatorId = dbm->GetCreatorUserId(ItemType::Universe, universeId).value_or(0);
+    if (creatorId == 0)
+        creatorId = reg->GetKeyValue<int64_t>("user.id").value_or(1);
+
+    nlohmann::json j;
+    j["universe"] = {
+        {"Id", universeId},
+        {"RootPlaceId", placeId},
+        {"Name", name},
+        {"IsArchived", false},
+        {"CreatorType", "User"},
+        {"CreatorTargetId", creatorId},
+        {"PrivacyType", "Public"},
+        {"Created", "2013-11-01T08:47:14.07+00:00"},
+        {"Updated", "2023-05-02T22:03:01.107+00:00"},
+    };
+    j["teamCreateEnabled"] = false;
+    j["place"] = {{"Creator", {{"CreatorType", "User"}, {"CreatorTargetId", creatorId}}}};
+
+    const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", JSON);
+    evbuffer_add(reply, body.data(), body.size());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

@@ -60,6 +60,7 @@
 #include "PlaceUniverseHandler.h"
 #include "ToolboxServiceHandler.h"
 #include "IdeToolboxHandler.h"
+#include "DevelopHandler.h"
 #include "ThumbnailHandler.h"
 #include "AssetPermissionsHandler.h"
 #include "OmniRecHandler.h"
@@ -184,6 +185,7 @@ private:
     PlaceUniverseHandler mPlaceUniverseHandler;
     ToolboxServiceHandler mToolboxServiceHandler;
     IdeToolboxHandler mIdeToolboxHandler;
+    DevelopHandler mDevelopHandler;
     ThumbnailHandler mThumbnailHandler;
     AssetPermissionsHandler mAssetPermissionsHandler;
     OmniRecHandler mOmniRecHandler;

@@ -234,6 +234,35 @@ std::optional<EmuDb::AssetSummary> EmuDbManager::GetAssetSummary(int64_t id) {
     return std::nullopt;
 }
 
+std::vector<int64_t> EmuDbManager::ListUniverseIds(bool groupOwned, int limit, int offset) {
+    if (limit <= 0) limit = 50;
+    if (offset < 0) offset = 0;
+
+    // Pull enough from each database to satisfy offset+limit, then merge in mount-priority order
+    // while dropping ids already seen in a higher-priority database.
+    std::vector<int64_t> merged;
+    std::unordered_set<int64_t> seen;
+    for (EmuDb* db : mMountedDatabases) {
+        for (int64_t id : db->ListUniverseIds(groupOwned, limit + offset, 0)) {
+            if (seen.insert(id).second)
+                merged.push_back(id);
+        }
+    }
+
+    std::vector<int64_t> out;
+    for (size_t i = static_cast<size_t>(offset); i < merged.size() && out.size() < static_cast<size_t>(limit); i++)
+        out.push_back(merged[i]);
+    return out;
+}
+
+std::optional<EmuDb::UniverseSummary> EmuDbManager::GetUniverseSummary(int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto summary = db->GetUniverseSummary(id))
+            return summary;
+    }
+    return std::nullopt;
+}
+
 std::vector<unsigned char> EmuDbManager::RetrieveImageData(ItemType type, int64_t id) {
     if (EmuDb* db = GetFirstDbWhereItemExists(type, id))
         return db->RetrieveImageData(type, id);

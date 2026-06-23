@@ -31,5 +31,7 @@ class StudioOpenPlaceHandler : public Handler {
 public:
     StudioOpenPlaceHandler(ServerEmulator *server);
     void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    ServerEmulator *mServer;
 };
 }

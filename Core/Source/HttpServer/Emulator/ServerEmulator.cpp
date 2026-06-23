@@ -70,6 +70,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mPlaceUniverseHandler(this, mCore->GetEmuDbManager()),
     mToolboxServiceHandler(this, mCore->GetEmuDbManager()),
     mIdeToolboxHandler(mCore->GetEmuDbManager()),
+    mDevelopHandler(this, mCore->GetEmuDbManager()),
     mThumbnailHandler(mCore->GetEmuDbManager()),
     mOmniRecHandler(),
     mGamesSortsHandler(),
@@ -152,6 +153,12 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/universes/v1/places/:placeId/universe", &mPlaceUniverseHandler);
     SetRequestHandler("/v1/places/:placeId/universe", &mPlaceUniverseHandler);
 
+    SetRequestHandler("/v1/search/universes", &mDevelopHandler);
+    SetRequestHandler("/v1/gametemplates", &mDevelopHandler);
+    SetRequestHandler("/v1/user/groups/canmanage", &mDevelopHandler);
+    SetRequestHandler("/v1/user/:userId/canmanage/:placeId", &mDevelopHandler);
+    SetRequestHandler("/v1/universes/multiget/teamcreate", &mDevelopHandler);
+
     SetRequestHandler("/toolbox-service/v1/home/:assetType/configuration", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/home/:typeId/section/:sectionName/assets", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/items/details", &mToolboxServiceHandler);
@@ -197,6 +204,7 @@ void ServerEmulator::SetupHandlers() {
 
     SetRequestHandler("/Thumbs/GameIcon.ashx", &mGameIconHandler);
     SetRequestHandler("/Thumbs/gameicon.ashx", &mGameIconHandler);
+    SetRequestHandler("/v1/games/icons", &mGameIconHandler); // home-grid square icons (batch list)
 
     SetRequestHandler("/oauth/.well-known/openid-configuration", &mOAuthDiscoveryHandler);
     SetRequestHandler("/oauth/v1/authorize", &mOAuthAuthorizeHandler);

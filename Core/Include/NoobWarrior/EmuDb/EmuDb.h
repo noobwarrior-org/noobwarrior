@@ -267,6 +267,26 @@ public:
     // database or has no start place set.
     std::optional<int64_t> GetStartPlaceIdForUniverse(int64_t universeId);
 
+    // The columns the develop "search/universes" homepage list needs to describe one universe.
+    struct UniverseSummary {
+        int64_t Id {0};
+        std::string Name;
+        std::optional<int64_t> StartPlaceId;
+        std::optional<int64_t> UserId;
+        std::optional<int64_t> GroupId;
+        int64_t Created {0};          // unix epoch seconds (0 if unset)
+        int64_t Updated {0};          // unix epoch seconds (0 if unset)
+        bool Active {true};
+    };
+
+    // Ids of universes stored in this database, newest (by Created) first. groupOwned selects between
+    // user-owned universes (GroupId NULL -> develop "creator:User") and group-owned ones (GroupId set
+    // -> "creator:Team"). limit <= 0 falls back to a sane default.
+    std::vector<int64_t> ListUniverseIds(bool groupOwned, int limit, int offset);
+
+    // Reads the descriptive columns of a single universe, or std::nullopt when it isn't in this database.
+    std::optional<UniverseSummary> GetUniverseSummary(int64_t id);
+
     // Returns the Name column of an item, or std::nullopt when the row is absent or its name is NULL.
     std::optional<std::string> GetItemName(ItemType type, int64_t id);
 

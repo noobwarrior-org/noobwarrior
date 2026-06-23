@@ -1570,6 +1570,51 @@ std::optional<EmuDb::AssetSummary> EmuDb::GetAssetSummary(int64_t id) {
 	return summary;
 }
 
+std::vector<int64_t> EmuDb::ListUniverseIds(bool groupOwned, int limit, int offset) {
+	std::vector<int64_t> ids;
+	if (Fail()) return ids;
+	if (limit <= 0) limit = 50;
+	if (offset < 0) offset = 0;
+
+	// No group (GroupId NULL or 0) => user-owned (creator:User); a real GroupId => group-owned
+	// (creator:Team). Most preserved universes store 0 rather than NULL, so 0 must count as "no group".
+	std::string sql = "SELECT Id FROM Universe WHERE ";
+	sql += groupOwned ? "(GroupId IS NOT NULL AND GroupId <> 0)" : "(GroupId IS NULL OR GroupId = 0)";
+	sql += " ORDER BY COALESCE(Created, 0) DESC, Id DESC LIMIT ? OFFSET ?;";
+
+	Statement stmt = PrepareStatement(sql);
+	if (stmt.Fail()) return ids;
+	stmt.Bind(1, limit);
+	stmt.Bind(2, offset);
+
+	while (stmt.Step() == SQLITE_ROW)
+		ids.push_back(stmt.GetInt64FromColumnIndex(0));
+	return ids;
+}
+
+std::optional<EmuDb::UniverseSummary> EmuDb::GetUniverseSummary(int64_t id) {
+	if (Fail()) return std::nullopt;
+
+	// NB: the Universe table has no Description column (Id, Name, Created, Updated, StartPlaceId,
+	// UserId, GroupId, Active, ...), so it isn't selected here.
+	Statement stmt = PrepareStatement("SELECT Id, Name, StartPlaceId, UserId, GroupId, Created, Updated, Active FROM Universe WHERE Id = ?;");
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, id);
+	if (stmt.Step() != SQLITE_ROW)
+		return std::nullopt;
+
+	UniverseSummary summary;
+	summary.Id = stmt.GetInt64FromColumnIndex(0);
+	if (!stmt.IsColumnIndexNull(1)) summary.Name = stmt.GetStringFromColumnIndex(1);
+	if (!stmt.IsColumnIndexNull(2)) summary.StartPlaceId = stmt.GetInt64FromColumnIndex(2);
+	if (!stmt.IsColumnIndexNull(3)) summary.UserId = stmt.GetInt64FromColumnIndex(3);
+	if (!stmt.IsColumnIndexNull(4)) summary.GroupId = stmt.GetInt64FromColumnIndex(4);
+	if (!stmt.IsColumnIndexNull(5)) summary.Created = stmt.GetInt64FromColumnIndex(5);
+	if (!stmt.IsColumnIndexNull(6)) summary.Updated = stmt.GetInt64FromColumnIndex(6);
+	if (!stmt.IsColumnIndexNull(7)) summary.Active = stmt.GetIntFromColumnIndex(7) != 0;
+	return summary;
+}
+
 SqlDb::Response EmuDb::AddAssetLink(const std::string &table, int64_t ownerId, int64_t assetId) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 
