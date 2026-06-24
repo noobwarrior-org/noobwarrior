@@ -321,7 +321,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     args.push_back(injectorPath.string());
     args.push_back("--file");
 #if defined(_WIN32)
-    args.push_back(filePath.string());
+    args.push_back("\"" + filePath.string() + "\"");
 #else
     args.push_back(GetWinePath(filePath));
 #endif
@@ -357,7 +357,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     std::filesystem::path emuCert = GetUserDataDir() / NW_PATH_SSL / "cert.pem";
     if (std::filesystem::exists(emuCert)) {
         args.push_back("--emucert");
-        args.push_back(emuCert.string());
+        args.push_back("\"" + emuCert.string() + "\"");
     }
 
     Out("Engine", params.Engine.Version.substr(2, 3));
