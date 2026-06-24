@@ -36,6 +36,7 @@ set(SOURCES
     Sdk/ExecuteSqlDialog.cpp
     Sdk/CreatorInfoWidget.cpp
     Sdk/EngineTreeWidget.cpp
+    Sdk/PluginTreeWidget.cpp
     Sdk/EmuDbListWidget.cpp
     Sdk/EmuDbComboBox.cpp
     Sdk/PluginListWidget.cpp

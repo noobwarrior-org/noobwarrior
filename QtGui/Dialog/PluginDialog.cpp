@@ -25,6 +25,7 @@
 #include "PluginDialog.h"
 
 #include "../Application.h"
+#include "NoobWarrior/Plugin.h"
 
 using namespace NoobWarrior;
 
@@ -35,6 +36,10 @@ PluginDialog::PluginDialog(QWidget *parent) : QDialog(parent) {
 
 void PluginDialog::InitWidgets() {
     mLayout = new QVBoxLayout(this);
+    mPluginTreeWidget = new PluginTreeWidget();
+    mPluginTreeWidget->Refresh(NW_NON_PRIVILEGED_PLUGINS | NW_PRIVILEGED_PLUGINS);
+    mLayout->addWidget(mPluginTreeWidget);
+    /*
     mView = new QTreeView();
     mModel = new QStandardItemModel(mView);
     mLayout->addWidget(mView);
@@ -58,4 +63,5 @@ void PluginDialog::InitWidgets() {
             << new QStandardItem(QString::fromStdString(props.Description));
         mModel->appendRow(pluginRow);
     }
+    */
 }

@@ -175,6 +175,29 @@ std::string Plugin::GetIdentifier() {
     return mManifestTbl.get_or<std::string>("identifier", "");
 }
 
+std::vector<unsigned char> Plugin::GetIconData() {
+    std::vector<unsigned char> data;
+    if (Fail() || mVfs == nullptr)
+        return data;
+
+    std::string iconName = mManifestTbl.get_or<std::string>("icon", "");
+    if (iconName.empty())
+        return data;
+
+    std::string iconPath = "/" + iconName;
+    if (!mVfs->EntryExists(iconPath))
+        return data;
+
+    FSEntryInfo info = mVfs->GetEntryFromPath(iconPath);
+    if (info.Failed || !info.Exists || info.Type != FSEntryInfo::Type::File || info.Size == 0)
+        return data;
+    
+    FSEntryHandle handle = mVfs->OpenHandle(iconPath);
+    mVfs->ReadHandleChunk(handle, &data, static_cast<unsigned int>(info.Size));
+    mVfs->CloseHandle(handle);
+    return data;
+}
+
 const Plugin::Properties Plugin::GetProperties() {
     if (Fail()) {
         Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
@@ -189,6 +212,17 @@ const Plugin::Properties Plugin::GetProperties() {
     props.Title = mManifestTbl.get_or<std::string>("title", "");
     props.Version = mManifestTbl.get_or<std::string>("version", "");
     props.Description = mManifestTbl.get_or<std::string>("description", "");
+    props.IconFileName = mManifestTbl.get_or<std::string>("icon", "");
+    props.IconData = GetIconData();
+
+    auto authorsTbl = mManifestTbl.get<std::optional<sol::table>>("authors");
+    if (authorsTbl != std::nullopt) {
+        for (int i = 1; i <= authorsTbl->size(); i++) {
+            auto author = authorsTbl->get<std::optional<std::string>>(i);
+            if (author != std::nullopt)
+                props.Authors.push_back(*author);
+        }
+    }
 
     props.IsPrivileged = mFilePath.parent_path().filename().compare("priv-plugins") == 0;
 

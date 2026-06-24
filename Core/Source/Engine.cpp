@@ -22,8 +22,6 @@
 // Started by: Hattozo
 // Started on: 8/8/2025
 // Description: Implementation for all methods related to handling Roblox clients
-// cpr must come before any header that pulls in libevent's evhttp.h: evhttp.h #defines HTTP_OK,
-// HTTP_BADREQUEST, etc. as macros, which would mangle cpr's status_codes.h constants of the same name.
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/Log.h>

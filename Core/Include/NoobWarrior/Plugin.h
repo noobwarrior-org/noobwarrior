@@ -33,6 +33,11 @@
 #include <string>
 
 namespace NoobWarrior {
+enum PluginFlag {
+    NW_NON_PRIVILEGED_PLUGINS = 1 << 0,
+    NW_PRIVILEGED_PLUGINS = 1 << 1
+};
+
 class Core;
 class Plugin {
 public:
@@ -44,6 +49,7 @@ public:
         std::string Version;
         std::string Description;
         std::string IconFileName;
+        std::vector<unsigned char> IconData;
         std::vector<std::string> Authors;
         bool IsPrivileged;
     };

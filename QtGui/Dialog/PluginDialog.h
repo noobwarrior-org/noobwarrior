@@ -25,6 +25,8 @@
 #pragma once
 #include <NoobWarrior/Plugin.h>
 
+#include "../Sdk/PluginTreeWidget.h"
+
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QTreeView>
@@ -38,6 +40,7 @@ public:
     void InitWidgets();
 private:
     QVBoxLayout *mLayout;
+    PluginTreeWidget* mPluginTreeWidget;
     QTreeView *mView;
     QStandardItemModel *mModel;
 };

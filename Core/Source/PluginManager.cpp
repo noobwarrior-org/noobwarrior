@@ -34,16 +34,11 @@ PluginManager::PluginManager(Core* core) : mCore(core) {}
 PluginManager::~PluginManager() {}
 
 Plugin::Response PluginManager::Mount(Plugin *plugin, int priority) {
-    mMountedPlugins.push_back(plugin);
     Plugin::Response res = plugin->GetInitResponse();
-    if (res != Plugin::Response::Success) {
-        mMountedPlugins.pop_back();
-        return res;
-    }
-    Plugin::Response execRes = plugin->Execute();
     if (res != Plugin::Response::Success)
-        mMountedPlugins.pop_back();
-    return execRes;
+        return res;
+    mMountedPlugins.push_back(plugin);
+    return res;
 }
 
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
@@ -69,6 +64,59 @@ void PluginManager::Unmount(Plugin* plugin) {
         NOOBWARRIOR_FREE_PTR(plugin)
         Out("PluginManager", "Unmounted plugin \"{}\"", fileName);
     }
+}
+
+Plugin::Response PluginManager::EnablePlugin(const std::filesystem::path &filePath) {
+    Plugin* plugin = new Plugin(filePath, mCore);
+    Plugin::Response res = Mount(plugin);
+    if (res != Plugin::Response::Success) {
+        NOOBWARRIOR_FREE_PTR(plugin)
+        return res;
+    }
+    // Every other plugin is already mounted and running by the time a plugin is enabled at runtime,
+    // so execute this one immediately rather than deferring it like the startup batch does.
+    plugin->Execute();
+    SetPluginSelected(filePath.filename().string(), true);
+    return res;
+}
+
+void PluginManager::DisablePlugin(const std::string &identifier) {
+    Plugin* plugin = GetPluginFromIdentifier(identifier);
+    if (!plugin)
+        return;
+    std::string fileName = plugin->GetFileName();
+    Unmount(plugin);
+    SetPluginSelected(fileName, false);
+}
+
+bool PluginManager::IsPluginMounted(const std::string &identifier) {
+    return GetPluginFromIdentifier(identifier) != nullptr;
+}
+
+void PluginManager::SetPluginSelected(const std::string &fileName, bool selected) {
+    // Read the current list of selected plugin file names, dropping any existing occurrence of
+    // fileName so we don't create duplicates when re-enabling.
+    std::vector<std::string> fileNames;
+    auto existing = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("plugins.selected");
+    if (existing.has_value() && existing->is_array()) {
+        for (const auto &element : *existing) {
+            if (!element.is_string())
+                continue;
+            std::string name = element.get<std::string>();
+            if (name == fileName)
+                continue;
+            fileNames.push_back(name);
+        }
+    }
+    if (selected)
+        fileNames.push_back(fileName);
+
+    // Arrays in the registry are stored as Lua tables (1-indexed).
+    sol::table tbl = mCore->GetLuaState()->create_table();
+    for (std::size_t i = 0; i < fileNames.size(); i++)
+        tbl[i + 1] = fileNames[i];
+
+    mCore->GetRegistry()->SetKeyValue<sol::table>("plugins.selected", tbl);
 }
 
 void PluginManager::MountPlugins() {
@@ -107,6 +155,13 @@ void PluginManager::MountPlugins() {
     
     if (loaded > 0)
         Out("PluginManager", "Loaded all enabled plugins");
+
+    ExecutePlugins();
+}
+
+void PluginManager::ExecutePlugins() {
+    for (Plugin* plugin : mMountedPlugins)
+        plugin->Execute();
 }
 
 void PluginManager::UnmountPlugins() {
@@ -182,6 +237,17 @@ std::vector<Plugin::Properties> PluginManager::GetAllPluginProperties() {
         NOOBWARRIOR_FREE_PTR(plugin)
     }
     return allProps;
+}
+
+std::vector<Plugin::Properties> PluginManager::GetPluginProperties() {
+    std::vector<Plugin::Properties> props;
+    std::vector<Plugin::Properties> allProps = GetAllPluginProperties();
+    for (const auto &prop : allProps) {
+        if (!prop.IsPrivileged)
+            props.push_back(prop);
+    }
+
+    return props;
 }
 
 std::vector<Plugin::Properties> PluginManager::GetPrivilegedPluginProperties() {

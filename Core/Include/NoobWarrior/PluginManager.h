@@ -44,6 +44,30 @@ public:
     void MountPlugins();
     void UnmountPlugins();
 
+    /**
+     * @brief Runs the autorun code of every currently-mounted plugin, in the order they were
+     * mounted. Called by MountPlugins() once all plugins are mounted so that plugin code can rely on
+     * every other plugin already being available.
+     */
+    void ExecutePlugins();
+
+    /**
+     * @brief Mounts the plugin at filePath and persists it in the plugins.selected registry list so
+     * it loads again on the next startup.
+     */
+    Plugin::Response EnablePlugin(const std::filesystem::path &filePath);
+
+    /**
+     * @brief Unmounts the plugin with the given identifier (if mounted) and removes it from the
+     * plugins.selected registry list so it stays disabled on the next startup.
+     */
+    void DisablePlugin(const std::string &identifier);
+
+    /**
+     * @brief Returns true if a plugin with the given identifier is currently mounted.
+     */
+    bool IsPluginMounted(const std::string &identifier);
+
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
 
     std::vector<std::filesystem::path> GetPrivilegedPluginPaths();
@@ -58,9 +82,16 @@ public:
      * @brief Gets properties of all plugins found in the install & userdata directories
      */
     std::vector<Plugin::Properties> GetAllPluginProperties();
-protected:
+    std::vector<Plugin::Properties> GetPluginProperties();
     std::vector<Plugin::Properties> GetPrivilegedPluginProperties();
+protected:
     void MountPrivilegedPlugins();
+
+    /**
+     * @brief Adds or removes a plugin's file name from the plugins.selected registry list. The list
+     * is stored as a Lua table of file names that MountPlugins() consults on startup.
+     */
+    void SetPluginSelected(const std::string &fileName, bool selected);
 private:
     Core* mCore;
     std::vector<Plugin*> mMountedPlugins;
