@@ -1,0 +1,58 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/reply.lhp
+-- Description: Adds a reply post to an existing forum thread.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+local userId = userRows[1].Id
+
+local threadId = tonumber(_POST["threadId"])
+local content = _POST["content"]
+
+if threadId == nil then
+    http_response_code(400)
+    die("Invalid thread")
+end
+if not content or content:match("^%s*$") then
+    http_response_code(400)
+    die("Reply cannot be empty")
+end
+
+local threadExists = db:QueryTyped("SELECT 1 FROM ForumThread WHERE Id = ?;", threadId)
+if not threadExists or not threadExists[1] then
+    http_response_code(404)
+    die("That thread does not exist")
+end
+
+db:QueryTyped(
+    "INSERT INTO ForumPost (ThreadId, Created, Poster, Content) VALUES (?, unixepoch(), ?, ?);",
+    threadId, userId, content
+)
+db:MarkDirty()
+
+header("Location: /forums?thread=" .. threadId)
+http_response_code(302)
+die("")
+?>

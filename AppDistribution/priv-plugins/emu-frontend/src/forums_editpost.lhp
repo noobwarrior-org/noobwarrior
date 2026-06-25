@@ -1,0 +1,58 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: forums_editpost.lhp
+-- Description: Dedicated page for editing one of your own forum posts.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+local postId = tonumber(_GET["post"])
+
+pageTitle = "Edit Post"
+include("header.lhp")
+include("forums_common.lhp")
+?>
+
+<style>
+.forum-form { background-color: #3a3a3a; border: 1px solid #202020; padding: 12px; margin-top: 12px; }
+.forum-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+</style>
+
+<?lua
+if db == nil then
+    http_response_code(500)
+    echo("<p>No master database available.</p>")
+elseif postId == nil then
+    http_response_code(400)
+    echo("<p>Invalid post.</p>")
+else
+    local me = _SESSION.User
+    local rows = db:QueryTyped("SELECT Id, ThreadId, Poster, Content FROM ForumPost WHERE Id = ?;", postId)
+    local post = rows and rows[1] or nil
+
+    if post == nil then
+        http_response_code(404)
+        echo("<p>That post does not exist.</p>")
+    elseif me == nil or me.Id ~= post.Poster then
+        http_response_code(403)
+        echo("<p>You can only edit your own posts.</p>")
+    else
+        echo(string.format(
+            "<div class=\"forum-crumbs\"><a href=\"/forums?thread=%d\">Back to thread</a> &raquo; Edit Post</div>",
+            post.ThreadId))
+        echo("<h1>Edit Post</h1>")
+        echo(string.format([[
+            <form class="forum-form" action="/v1/forums/edit-post" method="post">
+                <input type="hidden" name="postId" value="%d" />
+                <textarea name="content" rows="10" required>%s</textarea>
+                <button type="submit">Save Changes</button>
+                <a href="/forums?thread=%d">Cancel</a>
+            </form>
+        ]], post.Id, forumEsc(post.Content), post.ThreadId))
+    end
+end
+?>
+
+<?lua include("footer.lhp") ?>

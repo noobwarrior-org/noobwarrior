@@ -18,6 +18,14 @@ body {
     font-family: "Source Sans Pro", "Helvetica", "Arial", "Noto Sans", serif;
 }
 
+a {
+    color: cyan;
+}
+
+a:visited {
+    color: magenta;
+}
+
 .main {
     max-width: 1200px;
     margin: auto;

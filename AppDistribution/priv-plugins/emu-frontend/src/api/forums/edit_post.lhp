@@ -1,0 +1,62 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/edit_post.lhp
+-- Description: Edits the content of one of your own forum posts.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userId = userRows[1].Id
+
+local postId = tonumber(_POST["postId"])
+local content = _POST["content"]
+
+if postId == nil then
+    http_response_code(400)
+    die("Invalid post")
+end
+if not content or content:match("^%s*$") then
+    http_response_code(400)
+    die("Post content cannot be empty")
+end
+
+local postRows = db:QueryTyped("SELECT Poster, ThreadId FROM ForumPost WHERE Id = ?;", postId)
+if not postRows or not postRows[1] then
+    http_response_code(404)
+    die("That post does not exist")
+end
+if postRows[1].Poster ~= userId then
+    http_response_code(403)
+    die("You can only edit your own posts")
+end
+
+db:QueryTyped(
+    "UPDATE ForumPost SET Content = ?, Edited = unixepoch() WHERE Id = ?;",
+    content, postId
+)
+db:MarkDirty()
+
+header("Location: /forums?thread=" .. postRows[1].ThreadId)
+http_response_code(302)
+die("")
+?>

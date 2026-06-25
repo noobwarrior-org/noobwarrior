@@ -1,0 +1,70 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/delete_post.lhp
+-- Description: Deletes one of your own forum posts. If it was the thread's last
+--              post, the (now empty) thread is removed too.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userId = userRows[1].Id
+
+local postId = tonumber(_POST["postId"])
+if postId == nil then
+    http_response_code(400)
+    die("Invalid post")
+end
+
+local postRows = db:QueryTyped("SELECT Poster, ThreadId FROM ForumPost WHERE Id = ?;", postId)
+if not postRows or not postRows[1] then
+    http_response_code(404)
+    die("That post does not exist")
+end
+if postRows[1].Poster ~= userId then
+    http_response_code(403)
+    die("You can only delete your own posts")
+end
+local threadId = postRows[1].ThreadId
+
+local forumRows = db:QueryTyped("SELECT ForumId FROM ForumThread WHERE Id = ?;", threadId)
+local forumId = forumRows and forumRows[1] and forumRows[1].ForumId or nil
+
+db:QueryTyped("DELETE FROM ForumPost WHERE Id = ?;", postId)
+
+-- If the thread is now empty, remove it as well.
+local remaining = db:QueryTyped("SELECT COUNT(*) AS C FROM ForumPost WHERE ThreadId = ?;", threadId)[1].C
+local threadDeleted = false
+if remaining == 0 then
+    db:QueryTyped("DELETE FROM ForumThread WHERE Id = ?;", threadId)
+    threadDeleted = true
+end
+db:MarkDirty()
+
+if threadDeleted and forumId ~= nil then
+    header("Location: /forums?forum=" .. forumId)
+else
+    header("Location: /forums?thread=" .. threadId)
+end
+http_response_code(302)
+die("")
+?>

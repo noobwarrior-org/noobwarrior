@@ -1,0 +1,74 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/create_thread.lhp
+-- Description: Creates a new forum thread and its opening post.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+local userId = userRows[1].Id
+
+local forumId = tonumber(_POST["forumId"])
+local subject = _POST["subject"]
+local content = _POST["content"]
+
+if forumId == nil then
+    http_response_code(400)
+    die("Invalid forum")
+end
+if not subject or subject:match("^%s*$") then
+    http_response_code(400)
+    die("Subject cannot be empty")
+end
+if not content or content:match("^%s*$") then
+    http_response_code(400)
+    die("Post content cannot be empty")
+end
+if #subject > 200 then
+    http_response_code(400)
+    die("Subject cannot be longer than 200 characters")
+end
+
+local forumExists = db:QueryTyped("SELECT 1 FROM Forum WHERE Id = ?;", forumId)
+if not forumExists or not forumExists[1] then
+    http_response_code(404)
+    die("That forum does not exist")
+end
+
+db:QueryTyped(
+    "INSERT INTO ForumThread (Subject, Created, Poster, ForumId) VALUES (?, unixepoch(), ?, ?);",
+    subject, userId, forumId
+)
+local idRows = db:Query("SELECT last_insert_rowid() AS Id;")
+local threadId = idRows[1].Id
+
+db:QueryTyped(
+    "INSERT INTO ForumPost (ThreadId, Created, Poster, Content) VALUES (?, unixepoch(), ?, ?);",
+    threadId, userId, content
+)
+db:MarkDirty()
+
+header("Location: /forums?thread=" .. threadId)
+http_response_code(302)
+die("")
+?>

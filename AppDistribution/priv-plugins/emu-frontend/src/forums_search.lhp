@@ -1,0 +1,116 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: forums_search.lhp
+-- Description: Full-text search across forum threads and posts (FTS5 indexes)
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+local query   = _GET["q"]
+local forumId = tonumber(_GET["forum"])
+local page    = math.max(1, tonumber(_GET["page"]) or 1)
+
+pageTitle = "Search Forums"
+include("header.lhp")
+include("forums_common.lhp")
+?>
+
+<style>
+table { background-color: #454545; width: 100%; }
+table, th, td { border: 1px solid #202020; border-collapse: collapse; padding: 4px 8px; }
+th { text-align: left; }
+.forum-search-box { margin: 12px 0; }
+</style>
+
+<?lua
+echo("<h1>Search Forums</h1>")
+
+-- Search form
+echo("<form class=\"forum-search-box\" action=\"/forums/search\" method=\"get\">")
+if forumId ~= nil then
+    echo(string.format("<input type=\"hidden\" name=\"forum\" value=\"%d\" />", forumId))
+end
+echo(string.format("<input type=\"text\" name=\"q\" value=\"%s\" required /> <button type=\"submit\">Search</button></form>",
+    forumEsc(query)))
+
+if db == nil then
+    http_response_code(500)
+    echo("<p>No master database available.</p>")
+elseif query == nil or query:match("^%s*$") then
+    echo("<p>Enter a search term above.</p>")
+else
+    -- fts5 match
+    -- quote to avoid syntax errors on bare characters by treating the whole input as a phrase prefix search
+    local ftsQuery = '"' .. query:gsub('"', '""') .. '"'
+
+    local PER_PAGE = 25
+    local offset = (page - 1) * PER_PAGE
+
+    -- Thread subject matches, optionally constrained to one forum.
+    local threadSql = [[
+        SELECT t.Id AS Id, t.Subject AS Subject, t.ForumId AS ForumId, f.Name AS ForumName
+        FROM ForumThreadSearchIndex idx
+        JOIN ForumThread t ON t.Id = idx.id
+        JOIN Forum f ON f.Id = t.ForumId
+        WHERE ForumThreadSearchIndex MATCH ?
+    ]]
+    local postSql = [[
+        SELECT p.Id AS Id, p.ThreadId AS ThreadId, t.Subject AS Subject,
+               t.ForumId AS ForumId, snippet(ForumPostSearchIndex, 1, char(1), char(2), '...', 12) AS Snippet
+        FROM ForumPostSearchIndex idx
+        JOIN ForumPost p ON p.Id = idx.id
+        JOIN ForumThread t ON t.Id = p.ThreadId
+        WHERE ForumPostSearchIndex MATCH ?
+    ]]
+    if forumId ~= nil then
+        threadSql = threadSql .. " AND t.ForumId = " .. forumId
+        postSql   = postSql .. " AND t.ForumId = " .. forumId
+    end
+    threadSql = threadSql .. " LIMIT " .. PER_PAGE .. " OFFSET " .. offset .. ";"
+    postSql   = postSql .. " LIMIT " .. PER_PAGE .. " OFFSET " .. offset .. ";"
+
+    local threadHits = db:QueryTyped(threadSql, ftsQuery)
+    local postHits   = db:QueryTyped(postSql, ftsQuery)
+
+    echo("<h2>Matching threads</h2>")
+    if threadHits == nil or threadHits[1] == nil then
+        echo("<p>No thread titles matched.</p>")
+    else
+        echo("<table><tr><th>Thread</th><th>Forum</th></tr>")
+        for _, t in ipairs(threadHits) do
+            echo(string.format("<tr><td><a href=\"/forums?thread=%d\">%s</a></td><td><a href=\"/forums?forum=%d\">%s</a></td></tr>",
+                t.Id, forumEsc(t.Subject), t.ForumId, forumEsc(t.ForumName)))
+        end
+        echo("</table>")
+    end
+
+    echo("<h2>Matching posts</h2>")
+    if postHits == nil or postHits[1] == nil then
+        echo("<p>No posts matched.</p>")
+    else
+        echo("<table><tr><th>Thread</th><th>Excerpt</th></tr>")
+        for _, p in ipairs(postHits) do
+            local snip = forumEsc(p.Snippet or ""):gsub("\1", "<b>"):gsub("\2", "</b>")
+            echo(string.format("<tr><td><a href=\"/forums?thread=%d\">%s</a></td><td>%s</td></tr>",
+                p.ThreadId, forumEsc(p.Subject), snip))
+        end
+        echo("</table>")
+    end
+
+    -- Simple next/prev
+    echo("<div class=\"forum-pager\">")
+    if page > 1 then
+        echo(string.format("<a href=\"/forums/search?q=%s%s&page=%d\">&laquo; Prev</a> ",
+            forumEsc(query), forumId and ("&forum=" .. forumId) or "", page - 1))
+    end
+    if (threadHits and #threadHits == PER_PAGE) or (postHits and #postHits == PER_PAGE) then
+        echo(string.format("<a href=\"/forums/search?q=%s%s&page=%d\">Next &raquo;</a>",
+            forumEsc(query), forumId and ("&forum=" .. forumId) or "", page + 1))
+    end
+    echo("</div>")
+end
+?>
+
+<?lua include("footer.lhp") ?>

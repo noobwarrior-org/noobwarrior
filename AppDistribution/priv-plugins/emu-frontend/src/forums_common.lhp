@@ -1,0 +1,67 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: forums_common.lhp
+-- Description: Shared helpers for the forum pages
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+FORUM_THREADS_PER_PAGE = 25
+FORUM_POSTS_PER_PAGE = 10
+
+function forumEsc(s)
+    if s == nil then return "" end
+    return (tostring(s):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;",
+        ["\""] = "&quot;", ["'"] = "&#39;"
+    }))
+end
+
+function forumDate(ts)
+    ts = tonumber(ts)
+    if ts == nil then return "-" end
+    return os.date("%b %d, %Y @ %I:%M %p", ts)
+end
+
+function forumUserLink(id, name)
+    if id == nil then return forumEsc(name) end
+    return string.format("<a href=\"/users/%d/profile\">%s</a>", id, forumEsc(name))
+end
+
+function forumDb()
+    local db = core.GetMasterDatabase()
+    if db == nil then
+        http_response_code(500)
+        die("No master database available")
+    end
+    return db
+end
+
+-- Resolves the logged-in user from the .LOGINSESSION cookie. Returns a row
+-- { Id, Name, DisplayName } or nil if not logged in
+function forumCurrentUser(db)
+    local token = _COOKIE[".LOGINSESSION"]
+    if not token then return nil end
+    local rows = db:QueryTyped(
+        "SELECT u.Id AS Id, u.Name AS Name, COALESCE(u.DisplayName, u.Name) AS DisplayName " ..
+        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+        token)
+    if not rows or not rows[1] then return nil end
+    return rows[1]
+end
+
+-- Renders simple "Page 1 2 3" navigation. baseUrl must already end with a "?" or "&"
+function forumPager(baseUrl, page, totalPages)
+    if totalPages <= 1 then return end
+    echo("<div class=\"forum-pager\">Page: ")
+    for p = 1, totalPages do
+        if p == page then
+            echo(string.format("<b>%d</b> ", p))
+        else
+            echo(string.format("<a href=\"%spage=%d\">%d</a> ", baseUrl, p, p))
+        end
+    end
+    echo("</div>")
+end
+?>

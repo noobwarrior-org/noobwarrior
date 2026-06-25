@@ -1,0 +1,52 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/create_category.lhp
+-- Description: Creates a forum category (control-panel admin action).
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in")
+end
+
+local name = _POST["name"]
+local description = _POST["description"] or ""
+local sortOrder = tonumber(_POST["sortOrder"]) or 0
+
+if not name or name:match("^%s*$") then
+    http_response_code(400)
+    die("Category name cannot be empty")
+end
+if #name > 100 then
+    http_response_code(400)
+    die("Category name cannot be longer than 100 characters")
+end
+
+db:QueryTyped(
+    "INSERT INTO ForumCategory (Name, Description, SortOrder) VALUES (?, ?, ?);",
+    name, description, sortOrder
+)
+db:MarkDirty()
+
+header("Location: /control-panel?category=forums")
+http_response_code(302)
+die("")
+?>

@@ -28,8 +28,19 @@ local sitemap = {
     ["/register"] = "/src/register.lhp",
     ["/servers"] = "/src/servers.lhp",
     ["/forums"] = "/src/forums.lhp",
+    ["/forums/new-thread"] = "/src/forums_newthread.lhp",
+    ["/forums/edit-post"] = "/src/forums_editpost.lhp",
+    ["/forums/search"] = "/src/forums_search.lhp",
     ["/control-panel"] = "/src/controlpanel.lhp",
-    ["/users/:userId/profile"] = "/src/profile.lhp"
+    ["/users/:userId/profile"] = "/src/profile.lhp",
+
+    -- Forum API (writes; reads are done inline in the forum pages)
+    ["/v1/forums/create-category"] = "/src/api/forums/create_category.lhp",
+    ["/v1/forums/create-forum"] = "/src/api/forums/create_forum.lhp",
+    ["/v1/forums/create-thread"] = "/src/api/forums/create_thread.lhp",
+    ["/v1/forums/reply"] = "/src/api/forums/reply.lhp",
+    ["/v1/forums/edit-post"] = "/src/api/forums/edit_post.lhp",
+    ["/v1/forums/delete-post"] = "/src/api/forums/delete_post.lhp"
 }
 
 http_base.AttachToServer(emu, {

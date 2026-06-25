@@ -1,60 +1,265 @@
 <?lua
-pageTitle = "Forums"
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: forums.lhp
+-- Description: Forum index, thread listing and thread view.
+-- Started by: Hattozo
+-- Started on: 6/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+
+local threadId = tonumber(_GET["thread"])
+local forumId  = tonumber(_GET["forum"])
+local page     = math.max(1, tonumber(_GET["page"]) or 1)
+
+-- Resolve the page title (and validate ids) before the header is rendered.
+local thread, forum
+if threadId ~= nil and db ~= nil then
+    local rows = db:QueryTyped("SELECT Id, Subject, ForumId FROM ForumThread WHERE Id = ?;", threadId)
+    if rows and rows[1] then thread = rows[1] end
+elseif forumId ~= nil and db ~= nil then
+    local rows = db:QueryTyped("SELECT Id, Name, Description FROM Forum WHERE Id = ?;", forumId)
+    if rows and rows[1] then forum = rows[1] end
+end
+
+if thread then
+    pageTitle = thread.Subject
+elseif forum then
+    pageTitle = forum.Name
+else
+    pageTitle = "Forums"
+end
+
 include("header.lhp")
+include("forums_common.lhp")
 ?>
 
 <style>
 table {
     background-color: #454545;
+    width: 100%;
 }
 table, th, td {
     border: 1px solid #202020;
     border-collapse: collapse;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding: 4px 8px;
 }
+th { text-align: left; }
+.forum-crumbs { margin-bottom: 8px; }
+.forum-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; }
+.forum-toolbar form { margin: 0; }
+.forum-icon { width: 16px; height: 16px; vertical-align: middle; }
+td.forum-thread-cell { vertical-align: middle; }
+.forum-post-cell { vertical-align: top; }
+.forum-post-content { white-space: pre-wrap; }
+.forum-post-actions { font-size: 0.85em; margin-top: 8px; }
+.forum-post-actions form { display: inline; margin: 0; }
+.forum-post-actions button {
+    background: none; border: none; color: #c66; cursor: pointer; padding: 0; font: inherit;
+}
+.forum-form { background-color: #3a3a3a; border: 1px solid #202020; padding: 12px; margin-top: 16px; }
+.forum-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+.forum-pager { margin: 10px 0; }
 </style>
 
-<table style="width: 100%">
-    <tr>
-        <th colspan="2">Forum</th>
-        <th>Threads</th>
-        <th>Posts</th>
-        <th>Last Post</th>
-    </tr>
-    <?lua
-    local db = core.GetMasterDatabase()
-    local categoryRows = db:Query("SELECT Id, Name, Description FROM ForumCategory ORDER BY SortOrder DESC;")
-    if categoryRows ~= nil then
-        for _, categoryRow in ipairs(categoryRows) do
-            local categoryId = categoryRow.Id
-            if categoryRow.Name ~= nil then
-                echo("<tr><td colspan=\"5\">"..categoryRow.Name.."</td></tr>")
-                local forumRows = db:QueryTyped("SELECT Id, Name, Description FROM Forum WHERE CategoryId = ?;", categoryId)
-                for _, forumRow in ipairs(forumRows) do
-                    local forumThreads = db:QueryTyped("SELECT COUNT(t.Id) AS ThreadCount FROM ForumThread t WHERE ForumId = ?;", forumRow.Id)
-                    local forumPosts = db:QueryTyped([[
-                    SELECT COUNT(p.Id) AS PostCount
-                    FROM ForumPost p
-                    JOIN ForumThread t ON p.ThreadId = t.Id
-                    WHERE t.ForumId = ?;
-                    ]], forumRow.Id)
-                    echo(string.format([[
-                    <tr>
-                        <td><img src="/img/folder.png" /></td>
-                        <td>%s<br>%s</td>
-                        <td>%s</td>
-                        <td>%s</td>
-                        <td>Today @ 5:54 PM<br>by Hattozo</td>
-                    </tr>
-                    ]], forumRow.Name, forumRow.Description, forumThreads[1]["ThreadCount"], forumPosts[1]["PostCount"]))
-                end
+<?lua
+-- thread view
+if threadId ~= nil then
+    if thread == nil then
+        http_response_code(404)
+        echo("<p>That thread does not exist.</p>")
+    else
+        -- Bump the view counter
+        db:QueryTyped("UPDATE ForumThread SET Views = Views + 1 WHERE Id = ?;", threadId)
+        db:MarkDirty()
+
+        echo(string.format(
+            "<div class=\"forum-crumbs\"><a href=\"/forums\">Forums</a> &raquo; <a href=\"/forums?forum=%d\">Back to forum</a></div>",
+            thread.ForumId))
+        echo("<h1>" .. forumEsc(thread.Subject) .. "</h1>")
+
+        local total = db:QueryTyped("SELECT COUNT(*) AS C FROM ForumPost WHERE ThreadId = ?;", threadId)[1].C
+        local totalPages = math.max(1, math.ceil(total / FORUM_POSTS_PER_PAGE))
+        if page > totalPages then page = totalPages end
+        local offset = (page - 1) * FORUM_POSTS_PER_PAGE
+
+        local baseUrl = string.format("/forums?thread=%d&", threadId)
+        forumPager(baseUrl, page, totalPages)
+
+        local me = _SESSION.User
+        local posts = db:QueryTyped([[
+            SELECT p.Id AS Id, p.Created AS Created, p.Edited AS Edited, p.Content AS Content,
+                   u.Id AS PosterId, COALESCE(u.DisplayName, u.Name) AS PosterName
+            FROM ForumPost p
+            JOIN User u ON p.Poster = u.Id
+            WHERE p.ThreadId = ?
+            ORDER BY p.Created ASC, p.Id ASC
+            LIMIT ? OFFSET ?;
+        ]], threadId, FORUM_POSTS_PER_PAGE, offset)
+
+        echo("<table><tr><th style=\"width: 180px;\">Author</th><th>Post</th></tr>")
+        for _, post in ipairs(posts or {}) do
+            local body = forumEsc(post.Content):gsub("\n", "<br>")
+            local edited = ""
+            if post.Edited ~= nil then
+                edited = "<br><small>edited " .. forumDate(post.Edited) .. "</small>"
             end
+            local actions = ""
+            if me ~= nil and me.Id == post.PosterId then
+                actions = string.format([[
+                    <div class="forum-post-actions">
+                        <a href="/forums/edit-post?post=%d">edit</a> |
+                        <form action="/v1/forums/delete-post" method="post" onsubmit="return confirm('Delete this post?');">
+                            <input type="hidden" name="postId" value="%d" />
+                            <button type="submit">delete</button>
+                        </form>
+                    </div>
+                ]], post.Id, post.Id)
+            end
+            echo(string.format([[
+                <tr>
+                    <td class="forum-post-cell" style="width: 180px;">%s<br><small>%s</small></td>
+                    <td class="forum-post-cell"><div class="forum-post-content">%s%s</div>%s</td>
+                </tr>
+            ]], forumUserLink(post.PosterId, post.PosterName), forumDate(post.Created), body, edited, actions))
+        end
+        echo("</table>")
+
+        forumPager(baseUrl, page, totalPages)
+
+        if me then
+            echo(string.format([[
+                <form class="forum-form" action="/v1/forums/reply" method="post">
+                    <h3>Post a reply</h3>
+                    <input type="hidden" name="threadId" value="%d" />
+                    <textarea name="content" rows="5" placeholder="Write your reply..." required></textarea>
+                    <button type="submit">Reply</button>
+                </form>
+            ]], threadId))
+        else
+            echo("<p><a href=\"/login\">Log in</a> to reply.</p>")
         end
     end
-    ?>
-</table>
+
+-- forum view
+elseif forumId ~= nil then
+    if forum == nil then
+        http_response_code(404)
+        echo("<p>That forum does not exist.</p>")
+    else
+        echo("<div class=\"forum-crumbs\"><a href=\"/forums\">Forums</a> &raquo; " .. forumEsc(forum.Name) .. "</div>")
+        echo("<h1>" .. forumEsc(forum.Name) .. "</h1>")
+        if forum.Description and forum.Description ~= "" then
+            echo("<p>" .. forumEsc(forum.Description) .. "</p>")
+        end
+
+        -- Toolbar: New Thread button + per-forum search box.
+        echo("<div class=\"forum-toolbar\">")
+        if _SESSION.User then
+            echo(string.format("<a href=\"/forums/new-thread?forum=%d\">New Thread</a>", forumId))
+        else
+            echo("<a href=\"/login\">Log in to post</a>")
+        end
+        echo(string.format([[
+            <form action="/forums/search" method="get">
+                <input type="hidden" name="forum" value="%d" />
+                Search this forum: <input type="text" name="q" required />
+                <button type="submit">Go</button>
+            </form>
+        ]], forumId))
+        echo("</div>")
+
+        local total = db:QueryTyped("SELECT COUNT(*) AS C FROM ForumThread WHERE ForumId = ?;", forumId)[1].C
+        local totalPages = math.max(1, math.ceil(total / FORUM_THREADS_PER_PAGE))
+        if page > totalPages then page = totalPages end
+        local offset = (page - 1) * FORUM_THREADS_PER_PAGE
+
+        local threads = db:QueryTyped([[
+            SELECT t.Id AS Id, t.Subject AS Subject, t.Views AS Views,
+                   u.Id AS PosterId, COALESCE(u.DisplayName, u.Name) AS PosterName,
+                   (SELECT COUNT(*) FROM ForumPost p WHERE p.ThreadId = t.Id) AS PostCount,
+                   (SELECT p.Created FROM ForumPost p WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastCreated,
+                   (SELECT pu.Id FROM ForumPost p JOIN User pu ON p.Poster = pu.Id WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastPosterId,
+                   (SELECT COALESCE(pu.DisplayName, pu.Name) FROM ForumPost p JOIN User pu ON p.Poster = pu.Id WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastPosterName
+            FROM ForumThread t
+            JOIN User u ON t.Poster = u.Id
+            WHERE t.ForumId = ?
+            ORDER BY LastCreated DESC
+            LIMIT ? OFFSET ?;
+        ]], forumId, FORUM_THREADS_PER_PAGE, offset)
+
+        echo("<table><tr><th>Thread</th><th>Started By</th><th>Replies</th><th>Views</th><th>Last Post</th></tr>")
+        if threads == nil or threads[1] == nil then
+            echo("<tr><td colspan=\"5\">No threads yet. Be the first to post!</td></tr>")
+        else
+            for _, t in ipairs(threads) do
+                local replies = math.max(0, (tonumber(t.PostCount) or 1) - 1)
+                local lastPost = "-"
+                if t.LastCreated ~= nil then
+                    lastPost = forumDate(t.LastCreated) .. "<br>by " .. forumUserLink(t.LastPosterId, t.LastPosterName)
+                end
+                echo(string.format([[
+                    <tr>
+                        <td class="forum-thread-cell"><img class="forum-icon" src="/img/folder.png" /> <a href="/forums?thread=%d">%s</a></td>
+                        <td>%s</td>
+                        <td>%d</td>
+                        <td>%d</td>
+                        <td>%s</td>
+                    </tr>
+                ]], t.Id, forumEsc(t.Subject), forumUserLink(t.PosterId, t.PosterName),
+                    replies, tonumber(t.Views) or 0, lastPost))
+            end
+        end
+        echo("</table>")
+
+        forumPager(string.format("/forums?forum=%d&", forumId), page, totalPages)
+    end
+
+-- index view
+else
+    echo("<table><tr><th colspan=\"2\">Forum</th><th>Threads</th><th>Posts</th><th>Last Post</th></tr>")
+    local categories = db ~= nil and db:Query("SELECT Id, Name, Description FROM ForumCategory ORDER BY SortOrder DESC;") or nil
+    for _, category in ipairs(categories or {}) do
+        echo("<tr><td colspan=\"5\"><b>" .. forumEsc(category.Name) .. "</b></td></tr>")
+        local forums = db:QueryTyped(
+            "SELECT Id, Name, Description FROM Forum WHERE CategoryId = ? ORDER BY SortOrder DESC;",
+            category.Id)
+        for _, f in ipairs(forums or {}) do
+            local threadCount = db:QueryTyped(
+                "SELECT COUNT(*) AS C FROM ForumThread WHERE ForumId = ?;", f.Id)[1].C
+            local postCount = db:QueryTyped([[
+                SELECT COUNT(*) AS C FROM ForumPost p
+                JOIN ForumThread t ON p.ThreadId = t.Id
+                WHERE t.ForumId = ?;
+            ]], f.Id)[1].C
+            local lastRows = db:QueryTyped([[
+                SELECT p.Created AS Created, u.Id AS PosterId,
+                       COALESCE(u.DisplayName, u.Name) AS PosterName
+                FROM ForumPost p
+                JOIN ForumThread t ON p.ThreadId = t.Id
+                JOIN User u ON p.Poster = u.Id
+                WHERE t.ForumId = ?
+                ORDER BY p.Created DESC LIMIT 1;
+            ]], f.Id)
+            local lastPost = "No posts yet"
+            if lastRows and lastRows[1] then
+                lastPost = forumDate(lastRows[1].Created) .. "<br>by " ..
+                    forumUserLink(lastRows[1].PosterId, lastRows[1].PosterName)
+            end
+            echo(string.format([[
+                <tr>
+                    <td><img class="forum-icon" src="/img/folder.png" /></td>
+                    <td><a href="/forums?forum=%d">%s</a><br>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                </tr>
+            ]], f.Id, forumEsc(f.Name), forumEsc(f.Description), threadCount, postCount, lastPost))
+        end
+    end
+    echo("</table>")
+end
+?>
 
 <?lua include("footer.lhp") ?>

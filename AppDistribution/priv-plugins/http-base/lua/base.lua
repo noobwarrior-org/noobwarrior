@@ -70,6 +70,13 @@ function http_base.ReadFileBinary(vfs, localUrl)
     return fullData
 end
 
+local function url_decode(str)
+    if str == nil then return nil end
+    str = string.gsub(str, "+", " ")
+    str = string.gsub(str, "%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end)
+    return str
+end
+
 local function match_sitemap(sitemap, uri)
     if sitemap[uri] then
         return sitemap[uri], {}
@@ -116,8 +123,8 @@ function http_base.AttachToServer(srv, params)
         for param in string.gmatch(uri_with_params_only, '([^&]+)') do
             local equals_index = string.find(param, "=")
             if equals_index then
-                local key = string.sub(param, 1, equals_index - 1)
-                local val = string.sub(param, equals_index + 1, -1)
+                local key = url_decode(string.sub(param, 1, equals_index - 1))
+                local val = url_decode(string.sub(param, equals_index + 1, -1))
                 get_tbl[key] = val
             end
         end
@@ -126,8 +133,8 @@ function http_base.AttachToServer(srv, params)
             for param in string.gmatch(req.PostBody, '([^&]+)') do
                 local equals_index = string.find(param, "=")
                 if equals_index then
-                    local key = string.sub(param, 1, equals_index - 1)
-                    local val = string.sub(param, equals_index + 1, -1)
+                    local key = url_decode(string.sub(param, 1, equals_index - 1))
+                    local val = url_decode(string.sub(param, equals_index + 1, -1))
                     post_tbl[key] = val
                 end
             end

@@ -9,6 +9,7 @@ local button_names = {
     ["items"] = "Items",
     ["databases"] = "Databases",
     ["plugins"] = "Plugins",
+    ["forums"] = "Forums",
     ["avatar"] = "Avatar",
     ["banners"] = "Banners",
     ["themes"] = "Themes",
@@ -53,6 +54,7 @@ end
                             "items",
                             "databases",
                             "plugins",
+                            "forums",
                             "avatar",
                             "banners",
                             "themes"
@@ -101,6 +103,73 @@ end
         <label for="file">Icon</label>
         <input type="file" accept="image/*" name="file"/>
         <?lua elseif _GET["category"] == "items" then ?>
+        <?lua elseif _GET["category"] == "forums" then ?>
+        <!-- Forums -->
+        <?lua
+        local fdb = core.GetMasterDatabase()
+        local function fesc(s)
+            if s == nil then return "" end
+            return (tostring(s):gsub("[&<>\"']", {
+                ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;",
+                ["\""] = "&quot;", ["'"] = "&#39;"
+            }))
+        end
+        local categories = fdb ~= nil and fdb:Query("SELECT Id, Name, SortOrder FROM ForumCategory ORDER BY SortOrder DESC;") or nil
+
+        echo("<h2>Existing forums</h2>")
+        if categories == nil or categories[1] == nil then
+            echo("<p>No categories yet. Create one below.</p>")
+        else
+            for _, category in ipairs(categories) do
+                echo("<h3>" .. fesc(category.Name) .. "</h3><ul>")
+                local forums = fdb:QueryTyped("SELECT Id, Name FROM Forum WHERE CategoryId = ? ORDER BY SortOrder DESC;", category.Id)
+                if forums == nil or forums[1] == nil then
+                    echo("<li><i>(no forums)</i></li>")
+                else
+                    for _, f in ipairs(forums) do
+                        echo("<li>" .. fesc(f.Name) .. "</li>")
+                    end
+                end
+                echo("</ul>")
+            end
+        end
+        ?>
+
+        <hr>
+        <h2>Create category</h2>
+        <form action="/v1/forums/create-category" method="post">
+            <label for="cat-name">Name</label>
+            <input type="text" id="cat-name" name="name" maxlength="100" required />
+            <label for="cat-desc">Description</label>
+            <input type="text" id="cat-desc" name="description" />
+            <label for="cat-sort">Sort order</label>
+            <input type="number" id="cat-sort" name="sortOrder" value="0" />
+            <button type="submit">Create Category</button>
+        </form>
+
+        <hr>
+        <h2>Create forum</h2>
+        <?lua if categories == nil or categories[1] == nil then ?>
+        <p>Create a category first before adding forums.</p>
+        <?lua else ?>
+        <form action="/v1/forums/create-forum" method="post">
+            <label for="forum-name">Name</label>
+            <input type="text" id="forum-name" name="name" maxlength="100" required />
+            <label for="forum-desc">Description</label>
+            <input type="text" id="forum-desc" name="description" />
+            <label for="forum-cat">Category</label>
+            <select id="forum-cat" name="categoryId" required>
+                <?lua
+                for _, category in ipairs(categories) do
+                    echo(string.format("<option value=\"%d\">%s</option>", category.Id, fesc(category.Name)))
+                end
+                ?>
+            </select>
+            <label for="forum-sort">Sort order</label>
+            <input type="number" id="forum-sort" name="sortOrder" value="0" />
+            <button type="submit">Create Forum</button>
+        </form>
+        <?lua end ?>
         <?lua elseif _GET["category"] == "about" then ?>
         <!-- About -->
         <p>noobWarrior version: <?lua echo(core.GetVersion()) ?></p>

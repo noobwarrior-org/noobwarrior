@@ -60,6 +60,7 @@
 #include "migrations/v16.sql.inc.cpp"
 #include "migrations/v17.sql.inc.cpp"
 #include "migrations/v18.sql.inc.cpp"
+#include "migrations/v19.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -294,6 +295,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	/* V18: re-creates the v17 DataStore tables (IF NOT EXISTS) to repair databases that recorded an
 	   earlier, incomplete v17 and therefore skipped it */
 	MIGRATE(v18)
+	/* V19: added Views counter to ForumThread for the forum thread listing */
+	MIGRATE(v19)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
