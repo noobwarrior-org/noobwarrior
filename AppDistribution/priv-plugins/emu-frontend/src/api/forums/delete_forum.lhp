@@ -1,0 +1,57 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/forums/delete_forum.lhp
+-- Description: Deletes an empty forum (control-panel admin action).
+--              Refuses while the forum still contains threads.
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userRows = db:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token
+)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in")
+end
+
+local forumId = tonumber(_POST["forumId"])
+if forumId == nil then
+    http_response_code(400)
+    die("Invalid forum")
+end
+
+local exists = db:QueryTyped("SELECT 1 FROM Forum WHERE Id = ?;", forumId)
+if not exists or not exists[1] then
+    http_response_code(404)
+    die("That forum does not exist")
+end
+
+-- ForumThread.ForumId references Forum(Id) with foreign keys enforced, so deleting a forum
+-- with threads would fail anyway. Reject it explicitly with a clear message.
+local children = db:QueryTyped("SELECT 1 FROM ForumThread WHERE ForumId = ? LIMIT 1;", forumId)
+if children and children[1] then
+    http_response_code(409)
+    die("This forum still contains threads. Delete or move them first.")
+end
+
+db:QueryTyped("DELETE FROM Forum WHERE Id = ?;", forumId)
+db:MarkDirty()
+
+header("Location: /control-panel?category=forums")
+http_response_code(302)
+die("")
+?>

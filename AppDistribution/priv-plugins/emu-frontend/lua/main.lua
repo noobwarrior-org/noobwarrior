@@ -36,7 +36,11 @@ local sitemap = {
 
     -- Forum API (writes; reads are done inline in the forum pages)
     ["/v1/forums/create-category"] = "/src/api/forums/create_category.lhp",
+    ["/v1/forums/update-category"] = "/src/api/forums/update_category.lhp",
+    ["/v1/forums/delete-category"] = "/src/api/forums/delete_category.lhp",
     ["/v1/forums/create-forum"] = "/src/api/forums/create_forum.lhp",
+    ["/v1/forums/update-forum"] = "/src/api/forums/update_forum.lhp",
+    ["/v1/forums/delete-forum"] = "/src/api/forums/delete_forum.lhp",
     ["/v1/forums/create-thread"] = "/src/api/forums/create_thread.lhp",
     ["/v1/forums/reply"] = "/src/api/forums/reply.lhp",
     ["/v1/forums/edit-post"] = "/src/api/forums/edit_post.lhp",

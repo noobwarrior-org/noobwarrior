@@ -105,6 +105,8 @@ end
         <?lua elseif _GET["category"] == "items" then ?>
         <?lua elseif _GET["category"] == "forums" then ?>
         <!-- Forums -->
+        <link rel="stylesheet" href="/css/forum-admin.css">
+        <div id="forum-admin">
         <?lua
         local fdb = core.GetMasterDatabase()
         local function fesc(s)
@@ -115,61 +117,94 @@ end
             }))
         end
         local categories = fdb ~= nil and fdb:Query("SELECT Id, Name, SortOrder FROM ForumCategory ORDER BY SortOrder DESC;") or nil
+        
+        echo([[
+            <details class="fa-create">
+                <summary>+ New category</summary>
+                <form class="fa-ajax fa-create-form" action="/v1/forums/create-category" method="post" data-ok-msg="Category created">
+                    <div class="fa-row">
+                        <label>Name <input type="text" name="name" maxlength="100" required></label>
+                        <label>Description <input type="text" name="description"></label>
+                        <label class="fa-sortf">Sort order <input type="number" name="sortOrder" value="0"></label>
+                        <button type="submit" class="fa-btn fa-btn-primary">Create category</button>
+                    </div>
+                </form>
+            </details>
+        ]])
 
-        echo("<h2>Existing forums</h2>")
         if categories == nil or categories[1] == nil then
-            echo("<p>No categories yet. Create one below.</p>")
+            echo([[<p class="fa-empty">No categories yet &mdash; create one above to get started.</p>]])
         else
             for _, category in ipairs(categories) do
-                echo("<h3>" .. fesc(category.Name) .. "</h3><ul>")
-                local forums = fdb:QueryTyped("SELECT Id, Name FROM Forum WHERE CategoryId = ? ORDER BY SortOrder DESC;", category.Id)
-                if forums == nil or forums[1] == nil then
-                    echo("<li><i>(no forums)</i></li>")
+                local forums = fdb:QueryTyped("SELECT Id, Name, SortOrder FROM Forum WHERE CategoryId = ? ORDER BY SortOrder DESC;", category.Id)
+                local forumCount = (forums and #forums) or 0
+
+                echo(string.format([[
+                    <div class="fa-cat">
+                        <div class="fa-cat-head">
+                            <form class="fa-ajax fa-inline" action="/v1/forums/update-category" method="post" data-ok-msg="Category saved">
+                                <input type="hidden" name="categoryId" value="%d">
+                                <input type="text" class="fa-name" name="name" value="%s" maxlength="100" required aria-label="Category name">
+                                <input type="number" class="fa-sort" name="sortOrder" value="%d" title="Sort order" aria-label="Sort order">
+                                <button type="submit" class="fa-btn">Save</button>
+                            </form>
+                            <form class="fa-ajax fa-inline" action="/v1/forums/delete-category" method="post" data-confirm="Delete the &quot;%s&quot; category?" data-ok-msg="Category deleted">
+                                <input type="hidden" name="categoryId" value="%d">
+                                <button type="submit" class="fa-btn fa-btn-danger"%s>Delete</button>
+                            </form>
+                        </div>
+                        <div class="fa-forums">
+                ]], category.Id, fesc(category.Name), tonumber(category.SortOrder) or 0,
+                    fesc(category.Name), category.Id,
+                    forumCount > 0 and " disabled title=\"Move or delete its forums first\"" or ""))
+
+                if forumCount == 0 then
+                    echo([[<p class="fa-noforums">No forums in this category yet.</p>]])
                 else
                     for _, f in ipairs(forums) do
-                        echo("<li>" .. fesc(f.Name) .. "</li>")
+                        local threadCount = fdb:QueryTyped("SELECT COUNT(*) AS C FROM ForumThread WHERE ForumId = ?;", f.Id)[1].C
+                        echo(string.format([[
+                            <div class="fa-forum">
+                                <img class="fa-forum-icon" src="/img/folder.png" alt="">
+                                <form class="fa-ajax fa-inline" action="/v1/forums/update-forum" method="post" data-ok-msg="Forum saved">
+                                    <input type="hidden" name="forumId" value="%d">
+                                    <input type="text" class="fa-name" name="name" value="%s" maxlength="100" required aria-label="Forum name">
+                                    <input type="number" class="fa-sort" name="sortOrder" value="%d" title="Sort order" aria-label="Sort order">
+                                    <button type="submit" class="fa-btn">Save</button>
+                                </form>
+                                <form class="fa-ajax fa-inline" action="/v1/forums/delete-forum" method="post" data-confirm="Delete the &quot;%s&quot; forum?" data-ok-msg="Forum deleted">
+                                    <input type="hidden" name="forumId" value="%d">
+                                    <button type="submit" class="fa-btn fa-btn-danger"%s>Delete</button>
+                                </form>
+                            </div>
+                        ]], f.Id, fesc(f.Name), tonumber(f.SortOrder) or 0,
+                            fesc(f.Name), f.Id,
+                            threadCount > 0 and " disabled title=\"Delete or move its threads first\"" or ""))
                     end
                 end
-                echo("</ul>")
+
+                echo(string.format([[
+                            <details class="fa-addforum">
+                                <summary>+ Add forum</summary>
+                                <form class="fa-ajax fa-create-form" action="/v1/forums/create-forum" method="post" data-ok-msg="Forum created">
+                                    <input type="hidden" name="categoryId" value="%d">
+                                    <div class="fa-row">
+                                        <label>Name <input type="text" name="name" maxlength="100" required></label>
+                                        <label>Description <input type="text" name="description"></label>
+                                        <label class="fa-sortf">Sort order <input type="number" name="sortOrder" value="0"></label>
+                                        <button type="submit" class="fa-btn fa-btn-primary">Create forum</button>
+                                    </div>
+                                </form>
+                            </details>
+                        </div>
+                    </div>
+                ]], category.Id))
             end
         end
         ?>
-
-        <hr>
-        <h2>Create category</h2>
-        <form action="/v1/forums/create-category" method="post">
-            <label for="cat-name">Name</label>
-            <input type="text" id="cat-name" name="name" maxlength="100" required />
-            <label for="cat-desc">Description</label>
-            <input type="text" id="cat-desc" name="description" />
-            <label for="cat-sort">Sort order</label>
-            <input type="number" id="cat-sort" name="sortOrder" value="0" />
-            <button type="submit">Create Category</button>
-        </form>
-
-        <hr>
-        <h2>Create forum</h2>
-        <?lua if categories == nil or categories[1] == nil then ?>
-        <p>Create a category first before adding forums.</p>
-        <?lua else ?>
-        <form action="/v1/forums/create-forum" method="post">
-            <label for="forum-name">Name</label>
-            <input type="text" id="forum-name" name="name" maxlength="100" required />
-            <label for="forum-desc">Description</label>
-            <input type="text" id="forum-desc" name="description" />
-            <label for="forum-cat">Category</label>
-            <select id="forum-cat" name="categoryId" required>
-                <?lua
-                for _, category in ipairs(categories) do
-                    echo(string.format("<option value=\"%d\">%s</option>", category.Id, fesc(category.Name)))
-                end
-                ?>
-            </select>
-            <label for="forum-sort">Sort order</label>
-            <input type="number" id="forum-sort" name="sortOrder" value="0" />
-            <button type="submit">Create Forum</button>
-        </form>
-        <?lua end ?>
+        </div>
+        <div id="fa-toasts" class="fa-toasts" aria-live="polite"></div>
+        <script src="/js/forum-admin.js"></script>
         <?lua elseif _GET["category"] == "about" then ?>
         <!-- About -->
         <p>noobWarrior version: <?lua echo(core.GetVersion()) ?></p>

@@ -15,10 +15,7 @@ include("header.lhp")
 include("forums_common.lhp")
 ?>
 
-<style>
-.forum-form { background-color: #3a3a3a; border: 1px solid #202020; padding: 12px; margin-top: 12px; }
-.forum-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
-</style>
+<link rel="stylesheet" href="/css/forums.css">
 
 <?lua
 if db == nil then

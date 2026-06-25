@@ -35,33 +35,7 @@ include("header.lhp")
 include("forums_common.lhp")
 ?>
 
-<style>
-table {
-    background-color: #454545;
-    width: 100%;
-}
-table, th, td {
-    border: 1px solid #202020;
-    border-collapse: collapse;
-    padding: 4px 8px;
-}
-th { text-align: left; }
-.forum-crumbs { margin-bottom: 8px; }
-.forum-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; }
-.forum-toolbar form { margin: 0; }
-.forum-icon { width: 16px; height: 16px; vertical-align: middle; }
-td.forum-thread-cell { vertical-align: middle; }
-.forum-post-cell { vertical-align: top; }
-.forum-post-content { white-space: pre-wrap; }
-.forum-post-actions { font-size: 0.85em; margin-top: 8px; }
-.forum-post-actions form { display: inline; margin: 0; }
-.forum-post-actions button {
-    background: none; border: none; color: #c66; cursor: pointer; padding: 0; font: inherit;
-}
-.forum-form { background-color: #3a3a3a; border: 1px solid #202020; padding: 12px; margin-top: 16px; }
-.forum-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
-.forum-pager { margin: 10px 0; }
-</style>
+<link rel="stylesheet" href="/css/forums.css">
 
 <?lua
 -- thread view

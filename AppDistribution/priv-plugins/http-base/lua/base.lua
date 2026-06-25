@@ -29,6 +29,7 @@ end
 local file_extension_map = {
     ["txt"] = "text/plain",
     ["css"] = "text/css",
+    ["js"] = "text/javascript",
     ["csv"] = "text/csv",
     ["html"] = "text/html",
     ["xml"] = "text/xml",

@@ -17,12 +17,7 @@ include("header.lhp")
 include("forums_common.lhp")
 ?>
 
-<style>
-table { background-color: #454545; width: 100%; }
-table, th, td { border: 1px solid #202020; border-collapse: collapse; padding: 4px 8px; }
-th { text-align: left; }
-.forum-search-box { margin: 12px 0; }
-</style>
+<link rel="stylesheet" href="/css/forums.css">
 
 <?lua
 echo("<h1>Search Forums</h1>")

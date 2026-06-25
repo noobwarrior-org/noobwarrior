@@ -1,0 +1,218 @@
+/* ////////////////////////////////////////////////////////////////////////////////
+ * noobWarrior
+ * Plugin: HTTP Server Base
+ * File: forum-admin.css
+ * Description:
+ * Started by: Hattozo
+ * Started on: 6/25/2026
+ * //////////////////////////////////////////////////////////////////////////////// */
+
+#forum-admin {
+    max-width: 800px;
+}
+
+/* --- Category card --- */
+#forum-admin .fa-cat {
+    background: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    margin-bottom: 14px;
+}
+
+#forum-admin .fa-cat-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #333;
+    border-bottom: 1px solid #1c1c1c;
+    border-radius: 8px 8px 0 0;
+}
+
+/* --- Forum rows inside a category --- */
+#forum-admin .fa-forums {
+    padding: 4px 12px 10px;
+}
+
+#forum-admin .fa-forum {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #242424;
+}
+
+#forum-admin .fa-forum:last-of-type {
+    border-bottom: none;
+}
+
+#forum-admin .fa-forum-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+
+#forum-admin .fa-empty,
+#forum-admin .fa-noforums {
+    color: #888;
+    font-style: italic;
+}
+
+#forum-admin .fa-noforums {
+    margin: 4px 0;
+}
+
+/* --- Inline edit form (name + sort + Save, then a Delete form) --- */
+#forum-admin .fa-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+/* The first inline form (the editor) grows; the Delete form stays its natural size. */
+#forum-admin .fa-inline:first-of-type {
+    flex: 1;
+}
+
+#forum-admin .fa-name {
+    flex: 1;
+    min-width: 150px;
+}
+
+#forum-admin .fa-sort {
+    width: 60px;
+}
+
+/* --- Create panels (<details>): new category / add forum --- */
+#forum-admin details.fa-create {
+    background: #262626;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+#forum-admin details.fa-addforum {
+    margin-top: 8px;
+}
+
+#forum-admin summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    color: #7fd0c0;
+    user-select: none;
+    list-style: none;
+}
+
+#forum-admin summary::-webkit-details-marker {
+    display: none;
+}
+
+#forum-admin summary:hover {
+    color: #a7e6da;
+}
+
+#forum-admin details.fa-create > .fa-create-form {
+    padding: 0 12px 12px;
+}
+
+#forum-admin details.fa-addforum > .fa-create-form {
+    padding: 8px 0 4px;
+}
+
+#forum-admin .fa-row {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#forum-admin .fa-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: .82em;
+    color: #aeadac;
+}
+
+#forum-admin .fa-sortf input {
+    width: 70px;
+}
+
+/* --- Inputs --- */
+#forum-admin input[type=text],
+#forum-admin input[type=number] {
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #e8e8e8;
+    padding: 5px 8px;
+    font: inherit;
+}
+
+#forum-admin input:focus {
+    border-color: #4a9d8e;
+    outline: none;
+}
+
+/* --- Buttons (also reused outside #forum-admin) --- */
+.fa-btn {
+    background: #3a3a3a;
+    border: 1px solid #555;
+    color: #e8e8e8;
+    border-radius: 4px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.fa-btn:hover:not(:disabled) {
+    background: #454545;
+}
+
+.fa-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.fa-btn-primary {
+    background: #2e6f63;
+    border-color: #3f8d7d;
+}
+
+.fa-btn-primary:hover:not(:disabled) {
+    background: #377e70;
+}
+
+.fa-btn-danger {
+    background: #7a2f2f;
+    border-color: #9c3c3c;
+}
+
+.fa-btn-danger:hover:not(:disabled) {
+    background: #8a3838;
+}
+
+/* --- Toasts (bottom-right notifications from forum-admin.js) --- */
+.fa-toasts {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 9999;
+}
+
+.fa-toast {
+    max-width: 320px;
+    padding: 10px 14px;
+    background: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-left: 4px solid #4a9d8e;
+    border-radius: 6px;
+    color: #e8e8e8;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+}
