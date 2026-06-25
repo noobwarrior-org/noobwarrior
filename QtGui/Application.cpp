@@ -42,11 +42,11 @@
 #include <QSocketNotifier>
 #include <QMessageBox>
 #include <QStyleFactory>
+#include <QSystemTrayIcon>
+#include <QSharedMemory>
 
 #include <curl/curl.h>
 #include <event.h>
-#include <qnamespace.h>
-#include <qsystemtrayicon.h>
 
 #define USE_CUSTOM_STYLE 1
 #define SHOW_DISCLAIMER 0
@@ -65,6 +65,28 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv),
 }
 
 int Application::Run() {
+#if USE_CUSTOM_STYLE
+    /*
+    QFile styleFile(":/css/style.css");
+    if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&styleFile);
+        setStyleSheet(in.readAll());
+    }
+    */
+    QApplication::setStyle(new DefaultStyle());
+#else
+    #if defined(Q_OS_WIN32)
+        QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
+    #endif
+#endif
+
+    QSharedMemory sharedMemory("noobWarrior");
+
+    if (!sharedMemory.create(1)) {
+        QMessageBox::critical(nullptr, "Error", "Another instance is already running!");
+        return 0; 
+    }
+
     int ret = 1;
 
     mCore = new Core(mInit);
@@ -96,21 +118,6 @@ int Application::Run() {
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Regular.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Medium.ttf");
     QFontDatabase::addApplicationFont(":/fonts/FiraMono-Bold.ttf");
-
-#if USE_CUSTOM_STYLE
-    /*
-    QFile styleFile(":/css/style.css");
-    if (styleFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&styleFile);
-        setStyleSheet(in.readAll());
-    }
-    */
-    QApplication::setStyle(new DefaultStyle());
-#else
-    #if defined(Q_OS_WIN32)
-        QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
-    #endif
-#endif
 
     mTrayMenu = new QMenu();
         QAction* rbxAcc = mTrayMenu->addAction("");
