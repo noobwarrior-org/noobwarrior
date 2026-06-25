@@ -45,14 +45,16 @@ void ClientSettingsV2StudioHandler::OnRequest(evhttp_request *req, void *userdat
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("ClientSettingsV2StudioHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
+    /*
     nlohmann::json fuckyou = nlohmann::json::parse(PCStudioAppV2_json);
     if (!mEmu->GetRunningGameServers().empty()) {
         fuckyou["applicationSettings"]["FFlagDebugLocalRccServerConnection"] = "True";
     }
+    */
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", fuckyou.dump().c_str());
+    evbuffer_add_printf(reply, "%s", PCStudioAppV2_json);
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

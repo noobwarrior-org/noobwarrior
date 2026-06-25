@@ -187,3 +187,10 @@ end
     <a href="/control-panel?category=items&item=badge">Badge</a>
 </div>
 <?lua end ?>
+
+<?lua
+if _GET["category"] == nil then
+    header("Location: /control-panel?category=general")
+    http_response_code(302)
+end
+?>
