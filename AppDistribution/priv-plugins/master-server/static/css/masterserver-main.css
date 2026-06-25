@@ -6,8 +6,10 @@
     background-image: url("../img/workshop-banner.png");
     background-position: center right;
     background-repeat: no-repeat;
-    background-size: 800px 250px;
+    background-size: 640px 200px;
     background-color: rgb(0, 0, 0);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
 .workshop-banner h1 {
