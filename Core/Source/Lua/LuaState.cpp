@@ -473,7 +473,17 @@ int LuaState::Open() {
         int idx = 0;
         for (auto v : va) {
             idx++;
-            stmt.Bind(idx, v.as<SqlValue>());
+            sol::object o = v;
+            if (o.get_type() == sol::type::number) {
+                // LuaJIT numbers are doubles; bind whole numbers as 64-bit ints so that
+                // ids above 2^31 (User.Id, asset ids, ...) aren't truncated to int32.
+                double d = o.as<double>();
+                int64_t i = static_cast<int64_t>(d);
+                if (static_cast<double>(i) == d) stmt.Bind(idx, i);
+                else stmt.Bind(idx, d);
+            } else {
+                stmt.Bind(idx, o.as<SqlValue>());
+            }
         }
         while (stmt.Step() == SQLITE_ROW) {
             rows.push_back(stmt.GetColumns());
@@ -506,7 +516,17 @@ int LuaState::Open() {
         for (const auto &kv : tbl) {
             if (kv.first.get_type() != sol::type::string)
                 continue;
-            row.push_back({kv.first.as<std::string>(), kv.second.as<SqlValue>()});
+            const sol::object &o = kv.second;
+            SqlValue val;
+            if (o.get_type() == sol::type::number) {
+                // Whole numbers -> int64 so large ids aren't truncated to int32.
+                double d = o.as<double>();
+                int64_t i = static_cast<int64_t>(d);
+                val = (static_cast<double>(i) == d) ? SqlValue(i) : SqlValue(d);
+            } else {
+                val = o.as<SqlValue>();
+            }
+            row.push_back({kv.first.as<std::string>(), val});
         }
         return row;
     };

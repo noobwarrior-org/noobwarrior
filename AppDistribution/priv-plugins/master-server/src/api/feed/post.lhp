@@ -1,0 +1,38 @@
+<?lua
+-- Post a status (top-level) or a reply. A reply to a remote status auto-federates.
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+
+local body = _POST["body"]
+if not body or body:match("^%s*$") then
+    http_response_code(400)
+    die("Status cannot be empty")
+end
+
+local parentStatusId = tonumber(_POST["parentStatusId"])
+if parentStatusId then
+    local parentOrigin = _POST["parentOrigin"] or "local"
+    local ok, err = _G.MASTERSERVER_FEDERATION.ReplyToStatus(user.Id, user.Name, parentOrigin, parentStatusId, body)
+    if not ok then
+        http_response_code(400)
+        die(tostring(err or "Failed to reply"))
+    end
+    header("Location: /feed?origin=" .. _G.MASTERSERVER_URL_ENCODE(parentOrigin) .. "&status=" .. tostring(parentStatusId))
+else
+    local ok, idOrErr = _G.MASTERSERVER_FEDERATION.PostStatus(_G.MASTERSERVER_FULL_IDENTITY(user.Name), body)
+    if not ok then
+        http_response_code(400)
+        die(tostring(idOrErr or "Failed to post status"))
+    end
+    header("Location: /")
+end
+http_response_code(302)
+die("")

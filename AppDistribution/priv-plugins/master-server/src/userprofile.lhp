@@ -1,0 +1,105 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: userprofile.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local raw = _PARAMS["username"]
+local idParam = tonumber(_PARAMS["userId"])
+
+local name, displayname, bio, joindate, identity, isRemote
+
+if raw and not raw:match("^%s*$") then
+    local uname, domain = _G.MASTERSERVER_FEDERATION.ParseIdentity(raw)
+    if uname and domain and not _G.MASTERSERVER_FEDERATION.IsLocalDomain(domain) then
+        -- Federated user on another server, resolve their public profile.
+        local p = _G.MASTERSERVER_FEDERATION.ResolveUser(raw)
+        if not p then
+            http_response_code(404)
+            die("Could not resolve federated user " .. raw)
+        end
+        isRemote    = true
+        name        = p.Name or uname
+        displayname = p.DisplayName or name
+        identity    = p.Identity or raw
+    else
+        -- Local user ("name" or "name@<our domain>")
+        local lookupName = uname or raw
+        local m = core.GetMasterDatabase()
+        if m == nil then http_response_code(500) die("No master database available") end
+        local rows = m:QueryTyped("SELECT Name, DisplayName, Bio, JoinDate FROM User WHERE Name = ? COLLATE NOCASE;", lookupName)
+        if not rows or rows == false or not rows[1] then http_response_code(404) die("No user found!") end
+        local u = rows[1]
+        name, displayname, bio, joindate = u.Name, u.DisplayName or u.Name, u.Bio, u.JoinDate
+        identity = _G.MASTERSERVER_FULL_IDENTITY(name)
+    end
+elseif idParam then
+    local d = core.GetEmuDbManager():GetFirstDbWhereItemExists(ItemType.User, idParam)
+    if d == nil then http_response_code(404) die("No user found!") end
+    local rows = d:QueryTyped("SELECT Name, DisplayName, Bio, JoinDate FROM User WHERE Id = ?;", idParam)
+    if not rows or rows == false or not rows[1] then http_response_code(404) die("No user found!") end
+    local u = rows[1]
+    name, displayname, bio, joindate = u.Name, u.DisplayName or u.Name, u.Bio, u.JoinDate
+    identity = _G.MASTERSERVER_FULL_IDENTITY(name)
+else
+    http_response_code(400)
+    die("No user specified")
+end
+
+if bio == nil or tostring(bio):match("^%s*$") then
+    bio = "This user hasn't set a bio yet."
+end
+
+pageTitle = displayname
+include("header.lhp")
+
+local esc = _G.MASTERSERVER_HTML_ESCAPE
+local function fdate(ts)
+    ts = tonumber(ts)
+    if not ts then return "Unknown" end
+    return os.date("%m/%d/%Y", ts)
+end
+?>
+
+<div class="profile">
+    <h1><?lua echo(esc(displayname)) ?></h1>
+    <p class="profile-identity"><?lua echo(esc(identity)) ?><?lua if isRemote then echo("  (federated)") end ?></p>
+
+    <table class="server-list" style="max-width: 480px;">
+        <tr><th>Username</th><td>@<?lua echo(esc(name)) ?></td></tr>
+        <tr><th>Online identity</th><td><?lua echo(esc(identity)) ?></td></tr>
+        <?lua if not isRemote then ?>
+        <tr><th>Bio</th><td><?lua echo(esc(bio)) ?></td></tr>
+        <tr><th>Joined</th><td><?lua echo(fdate(joindate)) ?></td></tr>
+        <?lua end ?>
+    </table>
+
+    <h2>Recent statuses</h2>
+    <?lua
+    if isRemote then
+        echo([[<p class="server-list-empty">This is a federated user; their statuses live on their home server.</p>]])
+    else
+        local statuses = _G.MASTERSERVER_FEDERATION.StatusesByAuthor(identity, 20)
+        if statuses == nil or #statuses == 0 then
+            echo([[<p class="server-list-empty">No statuses yet.</p>]])
+        else
+            echo([[<div class="feed">]])
+            for _, s in ipairs(statuses) do
+                local cls = s.ParentId and " feed-reply" or ""
+                local meta = fdate(s.Created)
+                if not s.ParentId then
+                    meta = string.format([[<a href="/feed?origin=local&status=%d">%s</a>]], tonumber(s.Id) or 0, fdate(s.Created))
+                end
+                echo(string.format([[<div class="feed-item%s"><div class="feed-body">%s</div><div class="feed-meta">%s</div></div>]],
+                    cls, (esc(s.Body):gsub("\n", "<br>")), meta))
+            end
+            echo([[</div>]])
+        end
+    end
+    ?>
+</div>
+
+<?lua include("footer.lhp") ?>

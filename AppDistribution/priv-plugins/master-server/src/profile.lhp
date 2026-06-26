@@ -1,6 +1,18 @@
 <?lua
-pageTitle = "Profile"
-include("header.lhp")
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: profile.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user ~= nil and user.Name ~= nil then
+    header("Location: /@" .. user.Name)
+else
+    header("Location: /login")
+end
+http_response_code(302)
+die("")
 ?>
-
-<?lua include("footer.lhp") ?>

@@ -79,4 +79,22 @@ table, th, td {
     </tr>
 </table>
 
+<?lua
+if _G.MASTERSERVER_FEDERATION ~= nil and _G.MASTERSERVER_FULL_IDENTITY ~= nil then
+    local function sesc(s)
+        return (tostring(s or ""):gsub("[&<>\"']", {
+            ["&"]="&amp;", ["<"]="&lt;", [">"]="&gt;", ["\""]="&quot;", ["'"]="&#39;" }))
+    end
+    local statuses = _G.MASTERSERVER_FEDERATION.StatusesByAuthor(_G.MASTERSERVER_FULL_IDENTITY(name), 20)
+    if statuses ~= nil and #statuses > 0 then
+        echo("<h3 style=\"width: 420px;\">Recent statuses</h3>")
+        echo("<table style=\"width: 420px;\">")
+        for _, s in ipairs(statuses) do
+            echo("<tr><td>" .. (sesc(s.Body):gsub("\n", "<br>")) .. "</td></tr>")
+        end
+        echo("</table>")
+    end
+end
+?>
+
 <?lua include("footer.lhp") ?>

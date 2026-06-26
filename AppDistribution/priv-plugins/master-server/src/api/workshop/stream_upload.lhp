@@ -4,7 +4,7 @@ if _SERVER.REQUEST_METHOD ~= "POST" then
     die("Request method needs to be POST")
 end
 
-local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
 if user == nil then
     http_response_code(401)
     die("You must be logged in to upload to the workshop")
@@ -16,7 +16,7 @@ if not uploadToken or uploadToken:match("^%s*$") then
     die("Missing upload token")
 end
 
-_G.SweepWorkshopUploads()
+_G.MASTERSERVER_SWEEP_WORKSHOP_UPLOADS()
 
 local up = _G.WORKSHOP_UPLOADS[uploadToken]
 if up == nil then
@@ -34,7 +34,7 @@ if #chunk == 0 then
     die("Empty chunk")
 end
 
-local maxBytes = _G.WorkshopMaxUploadBytes()
+local maxBytes = _G.MASTERSERVER_WORKSHOP_MAX_UPLOAD_BYTES()
 local newTotal = up.ReceivedBytes + #chunk
 if newTotal > maxBytes then
     _G.WORKSHOP_UPLOADS[uploadToken] = nil

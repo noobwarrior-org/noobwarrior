@@ -22,7 +22,7 @@ end
 
 local key = ip .. ":" .. tostring(port)
 
-_G.SweepEmuServers()
+_G.MASTERSERVER_SWEEP_EMU_SERVERS()
 
 if event == "Goodbye" then
     _G.EMU_SERVERS[key] = nil
@@ -37,19 +37,48 @@ end
 
 local now = os.time()
 local existing = _G.EMU_SERVERS[key]
+local prevServers = existing and existing.Servers or {}
+
+local servers = {}
+local incoming = type(body.Servers) == "table" and body.Servers or nil
+if incoming then
+    for _, s in ipairs(incoming) do
+        local pid = tonumber(s.Pid)
+        if pid then
+            local prev = prevServers[pid]
+            servers[pid] = {
+                Pid       = pid,
+                PlaceId   = tonumber(s.PlaceId),
+                Port      = tonumber(s.Port),
+                Version   = tostring(s.Version or body.Version or ""),
+                FirstSeen = prev and prev.FirstSeen or now,
+                LastSeen  = now,
+            }
+        end
+    end
+else
+    local placeId = tonumber(body.PlaceId)
+    if placeId then
+        local prev = prevServers[0]
+        servers[0] = {
+            Pid       = 0,
+            PlaceId   = placeId,
+            Port      = nil,
+            Version   = tostring(body.Version or ""),
+            FirstSeen = prev and prev.FirstSeen or now,
+            LastSeen  = now,
+        }
+    end
+end
 
 _G.EMU_SERVERS[key] = {
-    Ip = ip,
-    Port = port,
-    Name = tostring(body.Name or ""),
-    Version = tostring(body.Version or ""),
-    Game = tostring(body.Game or ""),
-    PlaceId = tonumber(body.PlaceId),
-    ServerCount = tonumber(body.ServerCount) or 0,
-    Players = tonumber(body.Players) or 0,
-    MaxPlayers = tonumber(body.MaxPlayers) or 0,
+    Ip        = ip,
+    Port      = port,
+    Name      = tostring(body.Name or ""),
+    Version   = tostring(body.Version or ""),
     FirstSeen = existing and existing.FirstSeen or now,
-    LastSeen = now,
+    LastSeen  = now,
+    Servers   = servers,
 }
 
 http_response_code(200)

@@ -1,0 +1,184 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: forums.lhp
+-- Description: this is unholy
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Forums"
+include("header.lhp")
+
+local esc = _G.MASTERSERVER_HTML_ESCAPE
+local enc = _G.MASTERSERVER_URL_ENCODE
+local function fdate(ts)
+    ts = tonumber(ts)
+    if not ts then return "-" end
+    return os.date("%b %d, %Y @ %I:%M %p", ts)
+end
+local function isPeer(p) return p ~= nil and not p:match("^%s*$") end
+
+local peer       = isPeer(_GET["peer"]) and _GET["peer"] or nil
+local threadId   = tonumber(_GET["thread"])
+local forumId    = tonumber(_GET["forum"])
+local loggedIn   = _SESSION.User ~= nil
+
+local function threadHref(peerDomain, tid)
+    return (peerDomain and ("/forums?peer=" .. enc(peerDomain) .. "&thread=") or "/forums?thread=") .. (tonumber(tid) or 0)
+end
+local function forumHref(peerDomain, fid)
+    return (peerDomain and ("/forums?peer=" .. enc(peerDomain) .. "&forum=") or "/forums?forum=") .. (tonumber(fid) or 0)
+end
+
+local function posterLink(peerDomain, userName, displayName)
+    local identity = userName
+    if peerDomain and userName and not userName:find("@") then
+        identity = userName .. "@" .. peerDomain
+    end
+    return string.format("<a href=\"%s\">%s</a>",
+        _G.MASTERSERVER_PROFILE_URL(identity or displayName), esc(displayName))
+end
+
+local function findForum(tree, id)
+    for _, cat in ipairs((tree and tree.Categories) or {}) do
+        for _, f in ipairs(cat.Forums or {}) do
+            if tonumber(f.Id) == id then return f, cat end
+        end
+    end
+end
+
+local function peerTree(peerDomain)
+    for _, entry in ipairs(_G.MASTERSERVER_FEDERATION.AggregatePeerForums() or {}) do
+        if entry.Peer.Domain == peerDomain then return entry.Tree end
+    end
+end
+
+local function replyForm(peerDomain, tid)
+    if not loggedIn then
+        echo("<p class=\"server-list-empty\"><a href=\"/login\">Log in</a> to reply.</p>")
+        return
+    end
+    echo(string.format([[<div class="msg-compose"><form action="/v1/forums/post" method="post">
+            <input type="hidden" name="type" value="reply">
+            <input type="hidden" name="threadId" value="%d">
+            <input type="hidden" name="peer" value="%s">
+            <textarea name="content" rows="5" placeholder="Write your reply..." required></textarea>
+            <button type="submit" class="ws-button">Reply</button>
+        </form></div>]], tid, esc(peerDomain or "")))
+end
+
+local function newThreadButton(peerDomain, forum)
+    if not loggedIn then return end
+    local href = "/forums/new-thread?forum=" .. (tonumber(forum.Id) or 0)
+        .. (peerDomain and ("&peer=" .. enc(peerDomain)) or "")
+    echo(string.format("<a href=\"%s\">New Thread</a>", href))
+end
+
+if threadId then
+    -- thread view
+    local data = peer and _G.MASTERSERVER_FEDERATION.FetchPeerThread(peer, threadId)
+        or _G.MASTERSERVER_FEDERATION.LocalForumTree(threadId)
+    if not data or not data.Thread then
+        echo("<p><a href=\"/forums\">&laquo; Back to forums</a></p>")
+        echo("<p class=\"server-list-empty\">That thread could not be loaded.</p>")
+    else
+        echo(string.format("<p class=\"forum-crumbs\"><a href=\"/forums\">Forums</a> &raquo; <a href=\"%s\">Back to forum</a></p>",
+            forumHref(peer, data.Thread.ForumId)))
+        echo("<h1>" .. esc(data.Thread.Subject) .. (peer and (" <small>@ " .. esc(peer) .. "</small>") or "") .. "</h1>")
+        echo("<table class=\"forum-index\"><thead><tr><th style=\"width:200px;\">Author</th><th>Post</th></tr></thead><tbody>")
+        for _, p in ipairs(data.Posts or {}) do
+            echo(string.format("<tr><td>%s<br><small>%s</small></td><td class=\"forum-post-cell\">%s</td></tr>",
+                posterLink(peer, p.PosterUserName, p.PosterName), fdate(p.Created), (esc(p.Content):gsub("\n", "<br>"))))
+        end
+        echo("</tbody></table>")
+        replyForm(peer, threadId)
+    end
+elseif forumId then
+    -- forum view
+    local tree = peer and peerTree(peer) or _G.MASTERSERVER_FEDERATION.LocalForumTree()
+    local forum = findForum(tree, forumId)
+    echo("<p class=\"forum-crumbs\"><a href=\"/forums\">Forums</a>"
+        .. (peer and (" &raquo; <small>@ " .. esc(peer) .. "</small>") or "") .. "</p>")
+    if not forum then
+        echo("<h1>Forums</h1><p class=\"server-list-empty\">That forum could not be loaded.</p>")
+    else
+        echo("<h1>" .. esc(forum.Name) .. "</h1>")
+        if forum.Description and forum.Description ~= "" then
+            echo("<p>" .. esc(forum.Description) .. "</p>")
+        end
+        newThreadButton(peer, forum)
+        echo("<table class=\"forum-index\"><thead><tr><th>Thread</th><th>Started By</th><th>Posts</th></tr></thead><tbody>")
+        if forum.Threads == nil or #forum.Threads == 0 then
+            echo("<tr><td colspan=\"3\">No threads yet.</td></tr>")
+        else
+            for _, t in ipairs(forum.Threads) do
+                echo(string.format("<tr><td><a href=\"%s\">%s</a></td><td>%s</td><td>%d</td></tr>",
+                    threadHref(peer, t.Id), esc(t.Subject),
+                    posterLink(peer, t.PosterUserName, t.PosterName), tonumber(t.PostCount) or 0))
+            end
+        end
+        echo("</tbody></table>")
+    end
+else
+    -- index view
+    local function postCountOf(f)
+        local pc = tonumber(f.PostCount)
+        if pc then
+            return pc
+        end
+        pc = 0
+        for _, t in ipairs(f.Threads or {}) do
+            pc = pc + (tonumber(t.PostCount) or 0)
+        end
+        return pc
+    end
+
+    local function renderTable(tree, peerDomain)
+        echo("<table class=\"forum-index\"><thead><tr>"
+            .. "<th colspan=\"2\">Forum</th><th>Threads</th><th>Posts</th><th>Last Post</th>"
+            .. "</tr></thead><tbody>")
+        for _, cat in ipairs((tree and tree.Categories) or {}) do
+            echo("<tr class=\"forum-category\"><td colspan=\"5\"><b>" .. esc(cat.Name) .. "</b></td></tr>")
+            for _, f in ipairs(cat.Forums or {}) do
+                local threadCount = tonumber(f.ThreadCount) or (f.Threads and #f.Threads) or 0
+                local lastPost = "No posts yet"
+                if f.LastPost and f.LastPost.Created then
+                    lastPost = fdate(f.LastPost.Created) .. "<br><small>by "
+                        .. posterLink(peerDomain, f.LastPost.PosterUserName, f.LastPost.PosterName) .. "</small>"
+                end
+                echo(string.format([[<tr>
+                        <td class="forum-icon-cell"><img class="forum-icon" src="/img/folder.png" alt=""></td>
+                        <td><a href="%s">%s</a><br><small>%s</small></td>
+                        <td>%d</td><td>%d</td><td>%s</td>
+                    </tr>]], forumHref(peerDomain, f.Id), esc(f.Name), esc(f.Description or ""),
+                    threadCount, postCountOf(f), lastPost))
+            end
+        end
+        echo("</tbody></table>")
+    end
+
+    echo("<h1>Forums</h1>")
+
+    echo("<h2>Your server</h2>")
+    local localTree = _G.MASTERSERVER_FEDERATION.LocalForumTree()
+    if localTree == nil or localTree.Categories == nil or #localTree.Categories == 0 then
+        echo("<p class=\"server-list-empty\">No forums on this server yet.</p>")
+    else
+        renderTable(localTree, nil)
+    end
+
+    echo("<hr><h2>Global</h2><p>Forums from the global noobWarrior network!</p>")
+    local agg = _G.MASTERSERVER_FEDERATION.AggregatePeerForums()
+    if agg == nil or #agg == 0 then
+        echo("<p class=\"server-list-empty\">No federated peers, or none reachable.</p>")
+    else
+        for _, entry in ipairs(agg) do
+            echo("<h3>" .. esc(entry.Peer.Name or entry.Peer.Domain) .. " <small>(" .. esc(entry.Peer.Domain) .. ")</small></h3>")
+            renderTable(entry.Tree, entry.Peer.Domain)
+        end
+    end
+end
+?>
+
+<?lua include("footer.lhp") ?>

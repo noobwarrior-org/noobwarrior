@@ -1,0 +1,7 @@
+<?lua
+local threadId = tonumber(_GET["thread"])
+local tree = _G.MASTERSERVER_FEDERATION.LocalForumTree(threadId)
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify(tree or {}))

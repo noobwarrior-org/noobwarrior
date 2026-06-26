@@ -19,11 +19,15 @@ body {
 }
 
 a {
-    color: cyan;
+    color: #d4c00a;
 }
 
 a:visited {
-    color: yellow;
+    color: #d4c00a;
+}
+
+a:hover {
+    color: #fae103;
 }
 
 .main {

@@ -508,6 +508,17 @@ void ServerEmulator::SendMasterPing(const std::string &event) {
     // Surface the first server's placeId so the master can show a "Game" column.
     if (!servers.empty() && servers.front().PlaceId.has_value())
         body["PlaceId"] = servers.front().PlaceId.value();
+    
+    json serverArr = json::array();
+    for (const auto &s : servers) {
+        json sj;
+        sj["Pid"] = s.Pid;
+        sj["Version"] = s.Version;
+        sj["PlaceId"] = s.PlaceId.has_value() ? json(s.PlaceId.value()) : json(nullptr);
+        sj["Port"] = s.Port.has_value() ? json(s.Port.value()) : json(nullptr);
+        serverArr.push_back(std::move(sj));
+    }
+    body["Servers"] = std::move(serverArr);
 
     cpr::Response res = cpr::Post(
         cpr::Url{url + "/v1/emu-ping"},

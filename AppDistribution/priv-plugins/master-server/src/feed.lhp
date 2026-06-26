@@ -1,0 +1,78 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: feed.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Status"
+include("header.lhp")
+
+local esc = _G.MASTERSERVER_HTML_ESCAPE
+local function fdate(ts)
+    ts = tonumber(ts)
+    if not ts then return "-" end
+    return os.date("%b %d, %Y @ %I:%M %p", ts)
+end
+
+local origin   = _GET["origin"] or "local"
+local statusId = tonumber(_GET["status"])
+?>
+<p><a href="/">&laquo; Back to feed</a></p>
+
+<?lua
+if not statusId then
+    echo([[<p class="server-list-empty">No status specified.</p>]])
+else
+    local isLocal = (origin == "local")
+    local data = isLocal and _G.MASTERSERVER_FEDERATION.LocalStatusThread(statusId)
+        or _G.MASTERSERVER_FEDERATION.FetchPeerStatusThread(origin, statusId)
+
+    if not data or not data.Status then
+        echo([[<p class="server-list-empty">That status could not be loaded.</p>]])
+    else
+        echo(string.format([[<div class="feed-item">
+                <div class="feed-author"><a href="%s">%s</a></div>
+                <div class="feed-body">%s</div>
+                <div class="feed-meta">%s</div>
+            </div>]],
+            esc(_G.MASTERSERVER_PROFILE_URL(data.Status.AuthorIdentity)), esc(data.Status.AuthorIdentity),
+            (esc(data.Status.Body):gsub("\n", "<br>")), fdate(data.Status.Created)))
+
+        echo("<h3>Replies</h3>")
+        if data.Replies == nil or #data.Replies == 0 then
+            echo([[<p class="server-list-empty">No replies yet.</p>]])
+        else
+            echo([[<div class="feed">]])
+            for _, r in ipairs(data.Replies) do
+                echo(string.format([[<div class="feed-item feed-reply">
+                        <div class="feed-author"><a href="%s">%s</a></div>
+                        <div class="feed-body">%s</div>
+                        <div class="feed-meta">%s</div>
+                    </div>]],
+                    esc(_G.MASTERSERVER_PROFILE_URL(r.AuthorIdentity)), esc(r.AuthorIdentity),
+                    (esc(r.Body):gsub("\n", "<br>")), fdate(r.Created)))
+            end
+            echo([[</div>]])
+        end
+
+        if _SESSION.User then
+            echo(string.format([[<div class="msg-compose"><form action="/v1/feed/post" method="post">
+                    <input type="hidden" name="parentOrigin" value="%s">
+                    <input type="hidden" name="parentStatusId" value="%d">
+                    <textarea name="body" rows="3" placeholder="Write a reply..." required></textarea>
+                    <button type="submit" class="ws-button">Reply</button>
+                </form></div>]], esc(origin), statusId))
+            if not isLocal then
+                echo([[<p class="server-list-empty">Replying federates your reply to <code>]] .. esc(origin) .. [[</code>.</p>]])
+            end
+        else
+            echo([[<p class="server-list-empty"><a href="/login">Log in</a> to reply.</p>]])
+        end
+    end
+end
+?>
+
+<?lua include("footer.lhp") ?>

@@ -1,0 +1,24 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local ok, body = pcall(json.parse, _RAW_POST)
+if not ok or type(body) ~= "table" then
+    http_response_code(400)
+    header("Content-Type: application/json")
+    die(json.stringify({ Error = "Malformed JSON" }))
+end
+
+_G.MASTERSERVER_FEDERATION.AutoAccept(body.From, body.OriginBaseUrl)
+local okMsg, err = _G.MASTERSERVER_FEDERATION.ReceiveMessage(body.From, body.To, body.Body, body.ActionId)
+
+header("Content-Type: application/json")
+if not okMsg then
+    http_response_code(400)
+    die(json.stringify({ Error = tostring(err or "rejected") }))
+end
+
+http_response_code(200)
+die(json.stringify({ Ok = true }))

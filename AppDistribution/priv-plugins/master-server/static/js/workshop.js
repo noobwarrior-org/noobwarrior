@@ -1,3 +1,26 @@
+// Replaces a submission's thumbnail from the edit page using the binary
+// set-thumbnail endpoint, then reloads to show the new image.
+async function ReplaceThumbnail(submissionId) {
+    const input = document.getElementById("ws-edit-thumb");
+    const statusEl = document.getElementById("ws-edit-thumb-status");
+    const thumb = input && input.files[0];
+    if (!thumb) { if (statusEl) statusEl.textContent = "Please choose an image first."; return; }
+
+    if (statusEl) statusEl.textContent = "Uploading thumbnail...";
+    try {
+        const res = await fetch(
+            "/v1/workshop/set-thumbnail?id=" + encodeURIComponent(submissionId) +
+                "&mime=" + encodeURIComponent(thumb.type),
+            { method: "POST", headers: { "Content-Type": thumb.type }, body: thumb }
+        );
+        if (!res.ok) throw new Error((await res.text()) || res.statusText);
+        if (statusEl) statusEl.textContent = "Thumbnail updated!";
+        window.location.reload();
+    } catch (err) {
+        if (statusEl) statusEl.textContent = "Thumbnail update failed: " + err.message;
+    }
+}
+
 function SetupSubmissionUploadSystem() {
     const CHUNK_SIZE = 1024 * 1024; // 1 MiB chunks
     const btn = document.getElementById("ws-upload-btn");
@@ -14,11 +37,23 @@ function SetupSubmissionUploadSystem() {
         return res.json();
     }
 
+    async function uploadThumbnail(submissionId, thumb) {
+        const res = await fetch(
+            "/v1/workshop/set-thumbnail?id=" + encodeURIComponent(submissionId) +
+                "&mime=" + encodeURIComponent(thumb.type),
+            { method: "POST", headers: { "Content-Type": thumb.type }, body: thumb }
+        );
+        if (!res.ok) throw new Error((await res.text()) || res.statusText);
+        return res.json();
+    }
+
     btn.addEventListener("click", async function () {
         const name = document.getElementById("ws-name").value.trim();
         const kind = document.getElementById("ws-type").value;
         const description = document.getElementById("ws-desc").value;
         const file = document.getElementById("ws-file").files[0];
+        const thumbInput = document.getElementById("ws-thumb");
+        const thumb = thumbInput ? thumbInput.files[0] : null;
 
         if (!name) { statusEl.textContent = "Please enter a name."; return; }
         if (!file) { statusEl.textContent = "Please choose a file."; return; }
@@ -53,9 +88,21 @@ function SetupSubmissionUploadSystem() {
 
             const done = await postJson("/v1/workshop/end-upload", { UploadToken: uploadToken });
             progress.value = 100;
+
+            if (done.SubmissionId && thumb) {
+                statusEl.textContent = "Uploading thumbnail...";
+                try {
+                    await uploadThumbnail(done.SubmissionId, thumb);
+                } catch (thumbErr) {
+                    // A failed thumbnail shouldn't discard a successful submission.
+                    statusEl.textContent = "Submission uploaded, but the thumbnail failed: " + thumbErr.message;
+                    return;
+                }
+            }
+
             if (done.SubmissionId) {
                 statusEl.innerHTML = "Upload complete! Submission #" + done.SubmissionId +
-                    ' created. <a href="/v1/workshop/download?id=' + done.SubmissionId + '">Download</a>';
+                    ' created. <a href="/workshop?type=details&id=' + done.SubmissionId + '">View it</a>';
             } else {
                 statusEl.textContent = "Upload complete!";
             }

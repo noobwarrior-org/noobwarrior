@@ -1,0 +1,68 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to edit a submission")
+end
+
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local id = tonumber(_POST["id"])
+if not id then
+    http_response_code(400)
+    die("Missing or invalid submission id")
+end
+
+local name = type(_POST["name"]) == "string" and _POST["name"] or ""
+if name:match("^%s*$") then
+    http_response_code(400)
+    die("Name cannot be empty")
+end
+if #name > 64 then
+    http_response_code(400)
+    die("Name cannot be longer than 64 characters")
+end
+
+local description = type(_POST["description"]) == "string" and _POST["description"] or ""
+if #description > 4096 then
+    http_response_code(400)
+    die("Description cannot be longer than 4096 characters")
+end
+
+local kind = type(_POST["type"]) == "string" and _POST["type"]:lower() or ""
+if kind ~= "database" and kind ~= "plugin" then
+    http_response_code(400)
+    die("Type must be either \"database\" or \"plugin\"")
+end
+
+-- Only the uploader may edit their own submission.
+local rows = _G.MASTERSERVER_DB:QueryTyped("SELECT UploaderId FROM WorkshopSubmission WHERE Id = ?;", id)
+if rows == nil or rows[1] == nil then
+    http_response_code(404)
+    die("Submission not found")
+end
+if rows[1].UploaderId ~= user.Id then
+    http_response_code(403)
+    die("This submission does not belong to you")
+end
+
+local updated = _G.MASTERSERVER_DB:QueryTyped(
+    "UPDATE WorkshopSubmission SET Name = ?, Description = ?, Type = ? WHERE Id = ?;",
+    name, description, kind, id)
+if updated == false then
+    http_response_code(500)
+    die("Failed to save changes")
+end
+
+header("Location: /workshop?type=details&id=" .. tostring(id))
+http_response_code(302)
+die("")
+?>

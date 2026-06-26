@@ -1,14 +1,10 @@
 <?lua
--- Deletes a workshop submission you uploaded. The backing file is only removed if no other
--- submission still references the same content hash (see _G.DeleteWorkshopSubmission).
--- Submission id may be given as ?id=<n> or in a JSON body { Id }.
--- Reply: JSON { Deleted }
 if _SERVER.REQUEST_METHOD ~= "POST" then
     http_response_code(405)
     die("Request method needs to be POST")
 end
 
-local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
 if user == nil then
     http_response_code(401)
     die("You must be logged in to manage workshop submissions")
@@ -41,7 +37,7 @@ if rows[1].UploaderId ~= user.Id then
     die("This submission does not belong to you")
 end
 
-local ok, err = _G.DeleteWorkshopSubmission(id)
+local ok, err = _G.MASTERSERVER_DELETE_WORKSHOP_SUBMISSION(id)
 if not ok then
     http_response_code(500)
     die(err or "Failed to delete submission")

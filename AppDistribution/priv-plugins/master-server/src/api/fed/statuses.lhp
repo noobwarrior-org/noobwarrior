@@ -1,0 +1,16 @@
+<?lua
+local statusId = tonumber(_GET["status"])
+
+header("Content-Type: application/json")
+http_response_code(200)
+
+if statusId then
+    local thread = _G.MASTERSERVER_FEDERATION.LocalStatusThread(statusId)
+    if not thread then
+        http_response_code(404)
+        die(json.stringify({ Error = "status not found" }))
+    end
+    die(json.stringify(thread))
+end
+
+die(json.stringify({ Statuses = _G.MASTERSERVER_FEDERATION.LocalStatuses(50) }))

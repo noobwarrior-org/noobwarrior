@@ -1,0 +1,85 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: servers.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Servers"
+include("header.lhp")
+?>
+
+<h1>Game Servers</h1>
+<p>Running game servers hosted across noobWarrior server emulators. Pick one to join.</p>
+
+<?lua
+_G.MASTERSERVER_SWEEP_EMU_SERVERS()
+
+local rows = {}
+for _, node in pairs(_G.EMU_SERVERS) do
+    for _, s in pairs(node.Servers or {}) do
+        rows[#rows + 1] = { node = node, srv = s }
+    end
+end
+
+-- Show the busiest/most recently seen first
+table.sort(rows, function(a, b)
+    return (a.srv.LastSeen or 0) > (b.srv.LastSeen or 0)
+end)
+
+if #rows == 0 then
+    echo([[<p class="server-list-empty">No game servers are online right now.</p>]])
+else
+    echo([[<table class="server-list"><thead><tr>
+        <th>Game</th><th>Server Emulator</th><th>Version</th><th>Players</th><th></th>
+    </tr></thead><tbody>]])
+    for _, r in ipairs(rows) do
+        local placeId = r.srv.PlaceId
+        local gameName = _G.MASTERSERVER_RESOLVE_PLACE_NAME(placeId)
+        local emuName = (r.node.Name ~= nil and r.node.Name ~= "") and r.node.Name
+            or (r.node.Ip .. ":" .. tostring(r.node.Port))
+        local players = string.format("%d", r.srv.Players or 0)
+        echo(string.format([[<tr>
+            <td>%s</td>
+            <td>%s</td>
+            <td>%s</td>
+            <td>%s</td>
+            <td><a class="join-button" href="/join?emu=%s&amp;port=%d&amp;placeId=%s&amp;serverId=%d">Join</a></td>
+        </tr>]],
+            _G.MASTERSERVER_HTML_ESCAPE(gameName),
+            _G.MASTERSERVER_HTML_ESCAPE(emuName),
+            _G.MASTERSERVER_HTML_ESCAPE(r.srv.Version or ""),
+            players,
+            _G.MASTERSERVER_URL_ENCODE(r.node.Ip), tonumber(r.node.Port) or 0,
+            _G.MASTERSERVER_URL_ENCODE(tostring(placeId or "")), tonumber(r.srv.Pid) or 0))
+    end
+    echo("</tbody></table>")
+end
+
+-- Running game servers pulled from peered master servers (cached briefly)
+local peerServers = _G.MASTERSERVER_FEDERATION.AggregatePeerServers()
+if peerServers and #peerServers > 0 then
+    echo([[<h2>From federated servers</h2>]])
+    echo([[<table class="server-list"><thead><tr>
+        <th>Game</th><th>Server Emulator</th><th>Source</th><th>Version</th><th></th>
+    </tr></thead><tbody>]])
+    for _, s in ipairs(peerServers) do
+        local gameName = _G.MASTERSERVER_RESOLVE_PLACE_NAME(s.PlaceId)
+        local emuName = (s.EmulatorName ~= nil and s.EmulatorName ~= "") and s.EmulatorName or "?"
+        local peerBase = tostring(s.PeerBaseUrl or "")
+        local joinHref = peerBase .. "/join?emu=" .. _G.MASTERSERVER_URL_ENCODE(tostring(s.EmulatorIp or "")) ..
+            "&amp;port=" .. tostring(tonumber(s.EmulatorPort) or 0) ..
+            "&amp;placeId=" .. _G.MASTERSERVER_URL_ENCODE(tostring(s.PlaceId or "")) ..
+            "&amp;serverId=" .. tostring(tonumber(s.ServerId) or 0)
+        echo(string.format(
+            [[<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><a class="join-button" href="%s">Join</a></td></tr>]],
+            _G.MASTERSERVER_HTML_ESCAPE(gameName), _G.MASTERSERVER_HTML_ESCAPE(emuName), _G.MASTERSERVER_HTML_ESCAPE(tostring(s.PeerDomain or "")),
+            _G.MASTERSERVER_HTML_ESCAPE(tostring(s.Version or "")), _G.MASTERSERVER_HTML_ESCAPE(joinHref)))
+    end
+    echo([[</tbody></table>]])
+end
+?>
+
+<?lua include("footer.lhp") ?>

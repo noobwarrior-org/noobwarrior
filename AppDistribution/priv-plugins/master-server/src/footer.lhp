@@ -1,3 +1,13 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: footer.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+?>
             </div>
             <div class="footer">
                 <p>Powered by <a href="https://noobwarrior.org">noobWarrior</a> Master Server</p>

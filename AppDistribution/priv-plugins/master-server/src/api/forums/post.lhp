@@ -1,0 +1,54 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to post")
+end
+
+local peer    = _POST["peer"]
+local ptype   = _POST["type"]
+local content = _POST["content"]
+if not content or content:match("^%s*$") then
+    http_response_code(400)
+    die("Post content cannot be empty")
+end
+
+local action = { Type = ptype, Content = content }
+if ptype == "thread" then
+    action.ForumId = tonumber(_POST["forumId"])
+    action.Subject = _POST["subject"]
+elseif ptype == "reply" then
+    action.ThreadId = tonumber(_POST["threadId"])
+else
+    http_response_code(400)
+    die("Unknown post type")
+end
+
+if peer and not peer:match("^%s*$") then
+    -- Federated post to a peer.
+    local ok, err = _G.MASTERSERVER_FEDERATION.SendForumPost(user.Id, user.Name, peer, action)
+    if not ok then
+        http_response_code(400)
+        die(tostring(err or "Failed to deliver the post"))
+    end
+    if ptype == "reply" then
+        header("Location: /forums?peer=" .. _G.MASTERSERVER_URL_ENCODE(peer) .. "&thread=" .. tostring(action.ThreadId))
+    else
+        header("Location: /forums")
+    end
+else
+    -- Local post to this server's own forums.
+    local ok, threadIdOrErr = _G.MASTERSERVER_FEDERATION.PostLocalForum(user.Id, action)
+    if not ok then
+        http_response_code(400)
+        die(tostring(threadIdOrErr or "Failed to post"))
+    end
+    header("Location: /forums?thread=" .. tostring(threadIdOrErr))
+end
+http_response_code(302)
+die("")

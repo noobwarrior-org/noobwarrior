@@ -24,6 +24,10 @@ local button_names = {
     ["about"] = "About"
 }
 
+if cpExtraSections then
+    for _, s in ipairs(cpExtraSections) do button_names[s.Key] = s.Name end
+end
+
 local function SetupSidebar(categories)
     for _, category in ipairs(categories) do
         if category.Name then
@@ -46,7 +50,7 @@ end
         <h1>Control Panel</h1>
         <div class="sidebar">
             <?lua
-                SetupSidebar({
+                local sidebarCats = {
                     {
                         Name = "Server Settings",
                         Buttons = {
@@ -83,7 +87,14 @@ end
                             "about"
                         }
                     }
-                })
+                }
+                -- Insert any caller-provided sections as an unnamed group above "About".
+                if cpExtraSections then
+                    local extraButtons = {}
+                    for _, s in ipairs(cpExtraSections) do extraButtons[#extraButtons + 1] = s.Key end
+                    table.insert(sidebarCats, #sidebarCats, { Buttons = extraButtons })
+                end
+                SetupSidebar(sidebarCats)
             ?>
         </div>
     </div>
@@ -211,6 +222,13 @@ end
         <p>HTTP Server Base plugin version: <?lua echo(_G.HTTP_BASE_VER) ?></p>
         <p>Server Emulator frontend plugin version: <?lua echo(_G.EMU_FRONTEND_VER) ?></p>
         <?lua end ?>
+        <?lua
+        if cpExtraSections then
+            for _, s in ipairs(cpExtraSections) do
+                if _GET["category"] == s.Key then echo(s.Html) end
+            end
+        end
+        ?>
     </div>
 </div>
 

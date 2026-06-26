@@ -1,22 +1,53 @@
 <?lua
-pageTitle = "noobWarrior - Homepage"
-
-if not _G.visitorCount then
-    _G.visitorCount = 0
-end
-_G.visitorCount = _G.visitorCount + 1
-
---[[
-for key, value in pairs(_SERVER) do
-    print(key, value)
-end
-]]
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: index.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "noobWarrior - Home"
+include("header.lhp")
 ?>
 
-<?lua include("header.lhp") ?>
+<?lua
+if _SESSION.User == nil then
+    include("new_user.lhp")
+    return
+end
+?>
 
-<?lua include("new_user.lhp") ?>
+<h2>My Feed</h2>
+<?lua
+if _SESSION.User then
+    echo([[<div class="msg-compose"><form action="/v1/feed/post" method="post">
+            <textarea name="body" rows="3" placeholder="What's on your mind?" required></textarea>
+            <button type="submit" class="ws-button">Post status</button>
+        </form></div>]])
+else
+    echo([[<p class="server-list-empty"><a href="/login">Log in</a> to post a status.</p>]])
+end
 
-<h2>YOU ARE THE <?lua echo(visitorCount) ?> VISITOR!!!!!!!!!</h2>
+local feed = _G.MASTERSERVER_FEDERATION.AggregateFeed(50)
+if feed == nil or #feed == 0 then
+    echo([[<p class="server-list-empty">No statuses yet, here or on any federated peer. Be the first to post!</p>]])
+else
+    echo([[<div class="feed">]])
+    for _, s in ipairs(feed) do
+        local threadHref = "/feed?origin=" .. _G.MASTERSERVER_URL_ENCODE(s.Origin) .. "&status=" .. tostring(s.StatusId)
+        local rc = tonumber(s.ReplyCount) or 0
+        echo(string.format([[<div class="feed-item">
+                <div class="feed-author"><a href="%s">%s</a></div>
+                <div class="feed-body">%s</div>
+                <div class="feed-meta"><a href="%s">%d repl%s</a></div>
+            </div>]],
+            _G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_PROFILE_URL(s.AuthorIdentity)), _G.MASTERSERVER_HTML_ESCAPE(s.AuthorIdentity),
+            (_G.MASTERSERVER_HTML_ESCAPE(s.Body):gsub("\n", "<br>")),
+            threadHref, rc, (rc == 1) and "y" or "ies"))
+    end
+    echo([[</div>]])
+end
+?>
 
 <?lua include("footer.lhp") ?>

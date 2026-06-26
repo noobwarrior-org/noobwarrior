@@ -1,0 +1,48 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to manage comments")
+end
+
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local commentId = tonumber(_POST["commentId"])
+if not commentId then
+    http_response_code(400)
+    die("Missing or invalid comment id")
+end
+
+local rows = _G.MASTERSERVER_DB:QueryTyped(
+    "SELECT c.AuthorId AS AuthorId, c.SubmissionId AS SubmissionId, s.UploaderId AS UploaderId " ..
+    "FROM WorkshopComment c LEFT JOIN WorkshopSubmission s ON s.Id = c.SubmissionId " ..
+    "WHERE c.Id = ?;", commentId)
+if rows == nil or rows[1] == nil then
+    http_response_code(404)
+    die("Comment not found")
+end
+local row = rows[1]
+
+if row.AuthorId ~= user.Id and row.UploaderId ~= user.Id then
+    http_response_code(403)
+    die("You can only delete your own comments")
+end
+
+local deleted = _G.MASTERSERVER_DB:QueryTyped("DELETE FROM WorkshopComment WHERE Id = ?;", commentId)
+if deleted == false then
+    http_response_code(500)
+    die("Failed to delete comment")
+end
+
+header("Location: /workshop?type=details&id=" .. tostring(row.SubmissionId) .. "#comments")
+http_response_code(302)
+die("")
+?>

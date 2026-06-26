@@ -1,0 +1,11 @@
+<?lua
+-- Federation handshake: who is this server?
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({
+    Software = "noobWarrior",
+    Protocol = "v1",
+    Domain   = _G.MASTERSERVER_DOMAIN(),
+    Name     = tostring(reg.GetKeyValue("master.branding.title") or "noobWarrior Master Server"),
+    Tagline  = tostring(reg.GetKeyValue("master.branding.tagline") or ""),
+}))

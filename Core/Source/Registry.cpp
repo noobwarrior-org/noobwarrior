@@ -77,7 +77,7 @@ RegistryResponse Registry::Open() {
     {
         std::random_device rd;
         std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<int64_t> dist(1'000'000, 2'000'000'000);
+        std::uniform_int_distribution<int64_t> dist(1, 2147483646);
         SetKeyValueIfNotSet<int64_t>("user.id", dist(gen));
     }
     SetKeyValueIfNotSet("user.name", "Player");

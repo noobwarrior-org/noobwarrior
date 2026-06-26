@@ -1,6 +1,54 @@
 <?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: controlpanel.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
 pageTitle = "Control Panel"
 include("header.lhp")
+
+local function BuildFederationSection()
+    local h = {}
+    h[#h + 1] = "<p>This server's domain: <code>" .. _G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_DOMAIN()) ..
+        "</code> (set with the <code>master.domain</code> registry key). Online identities are <code>username@" ..
+        _G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_DOMAIN()) .. "</code>.</p>"
+        
+    local autoOn = _G.MASTERSERVER_FEDERATION.AutoEnabled()
+    h[#h + 1] = "<p>Automatic federation is <b>" .. (autoOn and "ON" or "OFF") .. "</b>. " ..
+        (autoOn and "Any server that contacts you is accepted as a peer, and peers-of-peers are discovered as your feed refreshes."
+                 or "Only peers you add by hand below are federated.") .. "</p>"
+    h[#h + 1] = string.format([[<div class="msg-compose"><form action="/v1/federation/set-auto" method="post">
+            <input type="hidden" name="auto" value="%s">
+            <button type="submit" class="ws-button">%s automatic federation</button>
+        </form></div>]], autoOn and "off" or "on", autoOn and "Disable" or "Enable")
+
+    h[#h + 1] = "<h3>Peers</h3>"
+    h[#h + 1] = [[<div class="msg-compose"><form action="/v1/federation/add-peer" method="post">
+            <input type="text" name="url" placeholder="https://other-master.example.com" required>
+            <button type="submit" class="ws-button">Add peer</button>
+        </form></div>]]
+
+    local peers = _G.MASTERSERVER_FEDERATION.GetPeers()
+    if peers == nil or #peers == 0 then
+        h[#h + 1] = [[<p class="server-list-empty">No peers yet &mdash; add another master server above to federate with it.</p>]]
+    else
+        h[#h + 1] = [[<table class="server-list"><thead><tr><th>Domain</th><th>Name</th><th>Base URL</th><th>Status</th></tr></thead><tbody>]]
+        for _, p in ipairs(peers) do
+            h[#h + 1] = string.format("<tr><td>%s</td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>",
+                _G.MASTERSERVER_HTML_ESCAPE(p.Domain), _G.MASTERSERVER_HTML_ESCAPE(p.Name or ""),
+                _G.MASTERSERVER_HTML_ESCAPE(p.BaseUrl), _G.MASTERSERVER_HTML_ESCAPE(p.Status or ""))
+        end
+        h[#h + 1] = "</tbody></table>"
+    end
+    return table.concat(h)
+end
+
+cpExtraSections = {
+    { Key = "federation", Name = "Federation", Html = BuildFederationSection() }
+}
 ?>
 
 <?lua include("plugin://http-base@noobwarrior.org/src/controlpanel.lhp") ?>

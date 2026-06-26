@@ -20,9 +20,467 @@
     padding-left: 32px;
 }
 
+.workshop-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
 .workshop-submission-card {
-    width: 20%;
-    background-color: #101010;
+    width: 220px;
+    box-sizing: border-box;
+    background-color: #2b2b2b;
     color: white;
-    padding: 8px;
+    padding: 12px;
+    border: 1px solid #1c1c1c;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ws-card-type {
+    align-self: flex-start;
+    font-size: 11px;
+    background-color: #505050;
+    color: #bbb;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.ws-card-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.ws-card-meta {
+    color: #999;
+    font-size: 12px;
+    margin: 4px 0;
+}
+
+.ws-card-desc {
+    color: #ccc;
+    font-size: 13px;
+    margin: 4px 0 8px 0;
+    flex-grow: 1;
+}
+
+.ws-card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: auto;
+}
+
+.ws-delete-form {
+    margin: 0;
+}
+
+.ws-button {
+    display: inline-block;
+    padding: 4px 14px;
+    background-color: #d4c00a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.ws-button:hover {
+    background-color: #b9a80c;
+}
+
+.ws-button-danger {
+    background-color: #5a1e1e;
+}
+
+.ws-button-danger:hover {
+    background-color: #7a2a2a;
+}
+
+.ws-details-container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.ws-details-title {
+    margin-bottom: 12px;
+}
+
+.ws-details {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.ws-details-media {
+    flex: 1 1 360px;
+    min-width: 0;
+    max-width: 820px;
+}
+
+.ws-details-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    background-color: #1c1c1c;
+}
+
+.ws-details-icon {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+}
+
+.ws-details-side {
+    flex: 0 0 260px;
+    box-sizing: border-box;
+    background-color: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.ws-details-typebadge {
+    display: inline-block;
+    font-size: 11px;
+    background-color: #505050;
+    color: #ddd;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+}
+
+.ws-details-meta {
+    margin: 0 0 16px 0;
+}
+
+.ws-details-meta dt {
+    color: #999;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+}
+
+.ws-details-meta dt:first-child {
+    margin-top: 0;
+}
+
+.ws-details-meta dd {
+    margin: 2px 0 0 0;
+    color: #eee;
+    font-size: 14px;
+}
+
+.ws-button-block {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 8px 14px;
+    margin-top: 8px;
+}
+
+.ws-details-desc {
+    max-width: 760px;
+    margin-top: 24px;
+}
+
+.ws-details-desc h2 {
+    font-size: 18px;
+    border-bottom: 1px solid #2a2a2a;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+}
+
+.ws-details-desc p {
+    color: #ccc;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.ws-button-secondary {
+    background-color: #3a3a3a;
+    color: #eee;
+}
+
+.ws-button-secondary:hover {
+    background-color: #4a4a4a;
+}
+
+/* Comments */
+.ws-comments {
+    max-width: 760px;
+    margin-top: 28px;
+}
+
+.ws-comments h2 {
+    font-size: 18px;
+    border-bottom: 1px solid #2a2a2a;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+
+.ws-comment-form {
+    margin-bottom: 18px;
+}
+
+.ws-comment-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+    min-height: 64px;
+    resize: vertical;
+}
+
+.ws-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ws-comment {
+    background-color: #101010;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.ws-comment-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.ws-comment-author {
+    color: #6ea8fe;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.ws-comment-date {
+    color: #999;
+    font-size: 12px;
+}
+
+.ws-comment-delete {
+    margin: 0 0 0 auto;
+}
+
+.ws-comment-delete button {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.ws-comment-delete button:hover {
+    color: #e06666;
+}
+
+.ws-comment-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ddd;
+}
+
+/* Edit form */
+.ws-edit-form {
+    max-width: 560px;
+}
+
+.ws-edit-sep {
+    border: none;
+    border-top: 1px solid #2a2a2a;
+    margin: 20px 0 12px 0;
+}
+
+.ws-edit-thumb-preview {
+    display: block;
+    max-width: 240px;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid #1c1c1c;
+    margin-bottom: 10px;
+}
+
+.server-list {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+
+.server-list th,
+.server-list td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.server-list thead th {
+    border-bottom: 2px solid #444;
+    font-weight: bold;
+}
+
+.server-list tbody tr:hover {
+    background-color: #161616;
+}
+
+.join-button {
+    display: inline-block;
+    padding: 4px 14px;
+    background-color: #2e7d32;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.join-button:hover {
+    background-color: #388e3c;
+}
+
+.server-list-empty {
+    color: #999;
+}
+
+.msg-compose {
+    background-color: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    max-width: 520px;
+}
+
+.msg-compose input[type="text"],
+.msg-compose textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+
+.msg-compose textarea {
+    min-height: 70px;
+}
+
+.msg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 640px;
+}
+
+.msg-item {
+    background-color: #101010;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.msg-from {
+    color: #6ea8fe;
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.msg-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 640px;
+}
+
+.feed-item {
+    background-color: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.feed-reply {
+    margin-left: 24px;
+    background-color: #161616;
+}
+
+.feed-author {
+    color: #6ea8fe;
+    font-size: 13px;
+}
+
+.feed-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 4px 0;
+}
+
+.feed-meta {
+    color: #999;
+    font-size: 12px;
+}
+
+.feed-meta a {
+    color: #999;
+}
+
+.profile-identity {
+    color: #6ea8fe;
+    margin-top: -8px;
+}
+
+/* Forum index / listing tables */
+.forum-index {
+    width: 100%;
+    background-color: #454545;
+    border-collapse: collapse;
+    margin: 8px 0 16px;
+}
+
+.forum-index th,
+.forum-index td {
+    border: 1px solid #202020;
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.forum-index tr.forum-category td {
+    background-color: #303030;
+}
+
+.forum-index td.forum-icon-cell {
+    width: 32px;
+    text-align: center;
+}
+
+.forum-index .forum-icon {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+}
+
+.forum-index td.forum-post-cell {
+    white-space: pre-wrap;
+    vertical-align: top;
+}
+
+.forum-crumbs {
+    margin-bottom: 8px;
 }

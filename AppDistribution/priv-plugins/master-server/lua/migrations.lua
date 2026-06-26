@@ -25,6 +25,94 @@ CREATE TABLE IF NOT EXISTS WorkshopSubmission (
 );
 ]]
     },
+    {
+        -- Federation: peers + cross-server messages (inbound Message; OutboundMessage
+        -- is kept so we can answer a recipient's origin callback).
+        version = "v2",
+        sql = [[
+CREATE TABLE IF NOT EXISTS Peer (
+    Id        INTEGER PRIMARY KEY,
+    Domain    TEXT    NOT NULL UNIQUE,
+    BaseUrl   TEXT    NOT NULL,
+    Name      TEXT,
+    FirstSeen INTEGER NOT NULL DEFAULT (unixepoch()),
+    LastSeen  INTEGER NOT NULL DEFAULT (unixepoch()),
+    Status    TEXT    NOT NULL DEFAULT 'active'
+);
+
+CREATE TABLE IF NOT EXISTS Message (
+    Id               INTEGER PRIMARY KEY,
+    FromIdentity     TEXT    NOT NULL,
+    ToUserId         INTEGER NOT NULL,
+    ToUsername       TEXT    NOT NULL,
+    Body             TEXT    NOT NULL,
+    ActionId         TEXT,
+    Verified         INTEGER NOT NULL DEFAULT 0,
+    ReadFlag         INTEGER NOT NULL DEFAULT 0,
+    CreatedTimestamp INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_message_to ON Message(ToUserId);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_message_action ON Message(ActionId) WHERE ActionId IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS OutboundMessage (
+    Id               INTEGER PRIMARY KEY,
+    ActionId         TEXT    NOT NULL UNIQUE,
+    FromUserId       INTEGER NOT NULL,
+    FromUsername     TEXT    NOT NULL,
+    ToIdentity       TEXT    NOT NULL,
+    Body             TEXT    NOT NULL,
+    BodyHash         TEXT    NOT NULL,
+    CreatedTimestamp INTEGER NOT NULL DEFAULT (unixepoch())
+);
+]]
+    },
+    {
+        -- Dedup for inbound federated actions not keyed by an action id elsewhere (forum posts).
+        version = "v3",
+        sql = [[
+CREATE TABLE IF NOT EXISTS ReceivedAction (
+    ActionId   TEXT PRIMARY KEY,
+    Kind       TEXT,
+    ReceivedAt INTEGER NOT NULL DEFAULT (unixepoch())
+);
+]]
+    },
+    {
+        -- "My Feed" statuses: top-level (ParentId NULL) + replies, keyed by full identity.
+        version = "v4",
+        sql = [[
+CREATE TABLE IF NOT EXISTS Status (
+    Id             INTEGER PRIMARY KEY,
+    AuthorIdentity TEXT    NOT NULL,
+    Body           TEXT    NOT NULL,
+    ParentId       INTEGER,
+    ActionId       TEXT,
+    Created        INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_status_parent ON Status(ParentId);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_status_action ON Status(ActionId) WHERE ActionId IS NOT NULL;
+]]
+    },
+    {
+        version = "v5",
+        sql = [[
+ALTER TABLE WorkshopSubmission ADD COLUMN ThumbnailHash TEXT;
+ALTER TABLE WorkshopSubmission ADD COLUMN ThumbnailMime TEXT;
+]]
+    },
+    {
+        version = "v6",
+        sql = [[
+CREATE TABLE IF NOT EXISTS WorkshopComment (
+    Id               INTEGER PRIMARY KEY,
+    SubmissionId     INTEGER NOT NULL,
+    AuthorId         INTEGER NOT NULL,
+    Body             TEXT    NOT NULL,
+    CreatedTimestamp INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_workshopcomment_submission ON WorkshopComment(SubmissionId);
+]]
+    },
 }
 
 local SCHEMA_MIGRATION = [[

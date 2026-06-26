@@ -1,0 +1,54 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: messages.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Messages"
+include("header.lhp")
+
+if not _SESSION.User then
+    echo([[<h1>Messages</h1><p>You must <a href="/login">log in</a> to view your messages.</p>]])
+    include("footer.lhp")
+    die("")
+end
+
+local rows = _G.MASTERSERVER_DB:QueryTyped(
+    "SELECT Id, FromIdentity, Body, CreatedTimestamp, ReadFlag FROM Message WHERE ToUserId = ? ORDER BY CreatedTimestamp DESC;",
+    _SESSION.User.Id)
+?>
+
+<h1>Messages</h1>
+<p>Send a message to anyone on this server, or to someone on another master server
+   (e.g. <code>bob@<?lua echo(_G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_DOMAIN())) ?></code> or <code>bob@other-server.com</code>).</p>
+
+<div class="msg-compose">
+    <form action="/v1/messages/send" method="post">
+        <input type="text" name="to" placeholder="recipient (username or username@domain)" required>
+        <textarea name="body" placeholder="Your message..." required></textarea>
+        <button type="submit" class="ws-button">Send</button>
+    </form>
+</div>
+
+<h2>Inbox</h2>
+<?lua
+if rows == nil or rows == false or #rows == 0 then
+    echo([[<p class="server-list-empty">No messages yet.</p>]])
+else
+    echo([[<div class="msg-list">]])
+    for _, m in ipairs(rows) do
+        echo(string.format(
+            [[<div class="msg-item"><div class="msg-from">%s</div><div class="msg-body">%s</div></div>]],
+            _G.MASTERSERVER_HTML_ESCAPE(m.FromIdentity), _G.MASTERSERVER_HTML_ESCAPE(m.Body)))
+    end
+    echo([[</div>]])
+
+    -- mark everything in the inbox as read now that it's been shown
+    _G.MASTERSERVER_DB:QueryTyped("UPDATE Message SET ReadFlag = 1 WHERE ToUserId = ? AND ReadFlag = 0;", _SESSION.User.Id)
+end
+?>
+
+<?lua include("footer.lhp") ?>

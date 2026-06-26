@@ -3,12 +3,17 @@
 -- noobWarrior
 -- Plugin: Master Server
 -- File: workshop.lhp
--- Description:
+-- Description: Main workshop page
 -- Started by: Hattozo
 -- Started on: 5/21/2026
 -- ////////////////////////////////////////////////////////////////////////////////
 pageTitle = "Workshop"
 include("header.lhp")
+
+local unpack = unpack or table.unpack
+local viewType = _GET["type"]
+local searchQuery = _GET["q"]
+local searchValue = (searchQuery and not searchQuery:match("^%s*$")) and searchQuery or nil
 ?>
 
 <script src="/js/workshop.js"></script>
@@ -34,7 +39,7 @@ include("header.lhp")
         </div>
         <div class="navbar-right">
             <form action="/workshop" method="get">
-                <input type="search" id="site-search" name="q" placeholder="Search..." value=<?lua echo(_GET["q"] and "\"" .. _GET["q"] .. "\"" or "\"\"") ?>>
+                <input type="search" id="site-search" name="q" placeholder="Search..." value="<?lua echo(_G.MASTERSERVER_HTML_ESCAPE(searchValue or "")) ?>">
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -44,63 +49,297 @@ include("header.lhp")
 <br>
 
 <?lua
-local type = _GET["type"]
+local function RenderCard(row, mine)
+    local uploader = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(row.UploaderId)
+    local typeLabel = (row.Type == "plugin") and "Plugin" or "Database"
+    local desc = row.Description or ""
+    if #desc > 160 then desc = desc:sub(1, 157) .. "..." end
 
-if type == nil or type:match("^%s*$") or type == "databases" or type == "plugins" then
-    echo([[<h1>Most Popular Submissions</h1>]])
-    local submissionQuery = _G.MASTERSERVER_DB:Query("SELECT Id, Name, UploaderId FROM WorkshopSubmission;")
-    if submissionQuery ~= nil then
-        for index, row in ipairs(submissionQuery) do
-            local username = "No One!"
-            local userDb = core.GetEmuDbManager():GetFirstDbWhereItemExists(ItemType.User, row.UploaderId)
-            if userDb then
-                local userQuery = userDb:QueryTyped("SELECT Name FROM User WHERE Id = ?;", row.UploaderId)
-                if userQuery ~= nil and userQuery ~= false then
-                    username = userQuery[1].Name
-                end
-            end
-            
-            echo([[
-            <div class="workshop-submission-card">
-                <img src="https://i.pinimg.com/736x/7f/1e/06/7f1e069f7718a860470d8cfc2dcfd4ad.jpg" alt="Submission" style="width:100%">
-                <a>]]) echo(row.Name) echo([[</a>
-                <p style="margin: 0; padding-top: 4px; line-height: 1;">]]) echo("Submitted by "..username) echo([[</p>
-            </div>
-            ]])
-        end
-    else
-        echo("<p>Wow, there really seems to be no submissions. That sucks. How about you upload some of your own?</p>")
+    echo([[<div class="workshop-submission-card">]])
+    echo(string.format([[<div class="ws-card-type">%s</div>]], _G.MASTERSERVER_HTML_ESCAPE(typeLabel)))
+    echo(string.format([[<a class="ws-card-name" href="/workshop?type=details&id=%d">%s</a>]],
+        tonumber(row.Id) or 0, _G.MASTERSERVER_HTML_ESCAPE(row.Name or "Untitled")))
+    echo(string.format([[<p class="ws-card-meta">By %s &middot; %s</p>]],
+        _G.MASTERSERVER_HTML_ESCAPE(uploader), _G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_HUMAN_SIZE(row.SizeBytes))))
+    if not desc:match("^%s*$") then
+        echo(string.format([[<p class="ws-card-desc">%s</p>]], _G.MASTERSERVER_HTML_ESCAPE(desc)))
     end
-elseif type == "my-submissions" then
-    echo([[<h1>My Submissions</h1>]])
-    echo("<p>You really have no submissions of your own? Get motivated and start uploading!</p>")
-elseif type == "upload" then
+    echo([[<div class="ws-card-actions">]])
+    echo(string.format([[<a class="ws-button" href="/v1/workshop/download?id=%d">Download</a>]], tonumber(row.Id) or 0))
+    if mine then
+        echo(string.format(
+            [[<form class="ws-delete-form" action="/v1/workshop/delete?id=%d" method="post" onsubmit="return confirm('Delete this submission?');"><button type="submit" class="ws-button ws-button-danger">Delete</button></form>]],
+            tonumber(row.Id) or 0))
+    end
+    echo([[</div>]])
+    echo([[</div>]])
+end
+
+local function RenderList(rows, mine, emptyMessage)
+    if rows == nil or rows == false or #rows == 0 then
+        echo(string.format([[<p class="server-list-empty">%s</p>]], emptyMessage))
+        return
+    end
+    echo([[<div class="workshop-grid">]])
+    for _, row in ipairs(rows) do
+        RenderCard(row, mine)
+    end
+    echo([[</div>]])
+end
+
+if viewType == "upload" then
     echo([[<h1>Upload</h1>]])
-    echo([==[
-        <div class="container">
-            <label for="ws-name"><b>Name</b></label>
-            <input type="text" id="ws-name" placeholder="Enter name" required>
+    if not _SESSION.User then
+        echo([[<p class="server-list-empty">You must <a href="/login">log in</a> to upload to the workshop.</p>]])
+    else
+        echo([==[
+            <div class="container">
+                <label for="ws-name"><b>Name</b></label>
+                <input type="text" id="ws-name" placeholder="Enter name" required>
 
-            <label for="ws-type"><b>Type</b></label>
-            <select id="ws-type">
-                <option value="database">Database (.nwdb)</option>
-                <option value="plugin">Plugin</option>
-            </select>
+                <label for="ws-type"><b>Type</b></label>
+                <select id="ws-type">
+                    <option value="database">Database (.nwdb)</option>
+                    <option value="plugin">Plugin</option>
+                </select>
 
-            <label for="ws-desc"><b>Description</b></label>
-            <textarea id="ws-desc" placeholder="Describe your submission..."></textarea>
+                <label for="ws-desc"><b>Description</b></label>
+                <textarea id="ws-desc" placeholder="Describe your submission..."></textarea>
 
-            <label for="ws-file"><b>File</b></label>
-            <input type="file" id="ws-file" required>
+                <label for="ws-file"><b>File</b></label>
+                <input type="file" id="ws-file" required>
 
-            <button type="button" id="ws-upload-btn">Upload</button>
-            <progress id="ws-progress" value="0" max="100" style="display:none; width:100%;"></progress>
-            <p id="ws-status"></p>
-        </div>
-        <script>
-        SetupSubmissionUploadSystem();
-        </script>
-    ]==])
+                <label for="ws-thumb"><b>Thumbnail</b> <span style="color:#999;font-weight:normal;">(optional image)</span></label>
+                <input type="file" id="ws-thumb" accept="image/png,image/jpeg,image/gif,image/webp">
+
+                <button type="button" id="ws-upload-btn">Upload</button>
+                <progress id="ws-progress" value="0" max="100" style="display:none; width:100%;"></progress>
+                <p id="ws-status"></p>
+            </div>
+            <script>
+            SetupSubmissionUploadSystem();
+            </script>
+        ]==])
+    end
+
+elseif viewType == "my-submissions" then
+    echo([[<h1>My Submissions</h1>]])
+    if not _SESSION.User then
+        echo([[<p class="server-list-empty">You must <a href="/login">log in</a> to see your submissions.</p>]])
+    else
+        local rows = _G.MASTERSERVER_DB:QueryTyped(
+            "SELECT Id, Name, Description, Type, SizeBytes, UploaderId, CreatedTimestamp " ..
+            "FROM WorkshopSubmission WHERE UploaderId = ? ORDER BY CreatedTimestamp DESC;",
+            _SESSION.User.Id)
+        RenderList(rows, true, "You haven't uploaded anything yet. Get motivated and start uploading!")
+    end
+
+elseif viewType == "details" then
+    local id = _GET["id"]
+    local rows = _G.MASTERSERVER_DB:QueryTyped(
+            "SELECT Id, Name, Description, Type, SizeBytes, UploaderId, CreatedTimestamp, ThumbnailHash " ..
+            "FROM WorkshopSubmission WHERE Id = ? ORDER BY CreatedTimestamp DESC LIMIT 1;",
+            id)
+    local row = _G.MASTERSERVER_FIRST_ROW(rows)
+    if row then
+        local esc = _G.MASTERSERVER_HTML_ESCAPE
+        local submissionId = tonumber(row.Id) or 0
+        local isPlugin = row.Type == "plugin"
+        local typeLabel = isPlugin and "Plugin" or "Database"
+        local uploader = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(row.UploaderId)
+        local sizeText = _G.MASTERSERVER_HUMAN_SIZE(row.SizeBytes)
+        local posted = row.CreatedTimestamp and os.date("%b %d, %Y @ %I:%M %p", tonumber(row.CreatedTimestamp)) or "Unknown"
+
+        local mine = _SESSION.User and _SESSION.User.Id == row.UploaderId
+
+        echo([[<div class="ws-details-container">]])
+        echo(string.format([[<h1 class="ws-details-title">%s</h1>]], esc(row.Name or "Untitled")))
+        echo([[<div class="ws-details">]])
+
+        echo([[<div class="ws-details-media">]])
+        if not _G.MASTERSERVER_BLANK(row.ThumbnailHash) then
+            echo(string.format(
+                [[<img class="ws-details-thumb" src="/v1/workshop/thumbnail?id=%d" alt="%s thumbnail">]],
+                submissionId, esc(row.Name or "Submission")))
+        else
+            echo([[<img class="ws-details-thumb" src="/img/empty-database-wide.png" alt="Empty thumbnail">]])
+        end
+        echo([[</div>]])
+
+        echo([[<aside class="ws-details-side">]])
+        echo([[<img class="ws-details-icon" src="/img/empty-database-256x256.png">]])
+        echo(string.format([[<div class="ws-details-typebadge">%s</div>]], esc(typeLabel)))
+        echo([[<dl class="ws-details-meta">]])
+        echo(string.format([[<dt>Uploaded by</dt><dd>%s</dd>]], esc(uploader)))
+        echo(string.format([[<dt>File size</dt><dd>%s</dd>]], esc(sizeText)))
+        echo(string.format([[<dt>Posted</dt><dd>%s</dd>]], esc(posted)))
+        echo([[</dl>]])
+        echo(string.format(
+            [[<a class="ws-button ws-button-block" href="/v1/workshop/download?id=%d">Download</a>]],
+            submissionId))
+        if mine then
+            echo(string.format(
+                [[<a class="ws-button ws-button-block ws-button-secondary" href="/workshop?type=edit&id=%d">Edit</a>]],
+                submissionId))
+            echo(string.format(
+                [[<form class="ws-delete-form" action="/v1/workshop/delete?id=%d" method="post" onsubmit="return confirm('Delete this submission?');"><button type="submit" class="ws-button ws-button-block ws-button-danger">Delete</button></form>]],
+                submissionId))
+        end
+        echo([[</aside>]])
+
+        echo([[</div>]]) -- .ws-details
+
+        local desc = row.Description or ""
+        echo([[<div class="ws-details-desc">]])
+        echo([[<h2>About</h2>]])
+        if not desc:match("^%s*$") then
+            echo(string.format([[<p>%s</p>]], esc(desc):gsub("\r?\n", "<br>")))
+        else
+            echo([[<p class="server-list-empty">No description was provided.</p>]])
+        end
+        echo([[</div>]])
+
+        local comments = _G.MASTERSERVER_DB:QueryTyped(
+            "SELECT Id, AuthorId, Body, CreatedTimestamp FROM WorkshopComment " ..
+            "WHERE SubmissionId = ? ORDER BY CreatedTimestamp DESC;", submissionId)
+        local commentCount = (type(comments) == "table") and #comments or 0
+
+        echo([[<div class="ws-comments" id="comments">]])
+        echo(string.format([[<h2>Comments (%d)</h2>]], commentCount))
+
+        if _SESSION.User then
+            echo(string.format([[
+                <form class="ws-comment-form" action="/v1/workshop/comment" method="post">
+                    <input type="hidden" name="submissionId" value="%d">
+                    <textarea name="body" rows="3" maxlength="2000" placeholder="Leave a comment..." required></textarea>
+                    <button type="submit" class="ws-button">Post comment</button>
+                </form>]], submissionId))
+        else
+            echo([[<p class="server-list-empty">You must <a href="/login">log in</a> to leave a comment.</p>]])
+        end
+
+        if commentCount == 0 then
+            echo([[<p class="server-list-empty">No comments yet. Be the first!</p>]])
+        else
+            echo([[<div class="ws-comment-list">]])
+            for _, c in ipairs(comments) do
+                local author = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(c.AuthorId)
+                local when = c.CreatedTimestamp and os.date("%b %d, %Y @ %I:%M %p", tonumber(c.CreatedTimestamp)) or ""
+                local canDelete = _SESSION.User and (_SESSION.User.Id == c.AuthorId or mine)
+                echo([[<div class="ws-comment">]])
+                echo([[<div class="ws-comment-head">]])
+                echo(string.format([[<a class="ws-comment-author" href="%s">%s</a>]],
+                    _G.MASTERSERVER_PROFILE_URL(_G.MASTERSERVER_FULL_IDENTITY(author)), esc(author)))
+                echo(string.format([[<span class="ws-comment-date">%s</span>]], esc(when)))
+                if canDelete then
+                    echo(string.format([[
+                        <form class="ws-comment-delete" action="/v1/workshop/comment-delete" method="post" onsubmit="return confirm('Delete this comment?');">
+                            <input type="hidden" name="commentId" value="%d">
+                            <button type="submit" title="Delete comment">&times;</button>
+                        </form>]], tonumber(c.Id) or 0))
+                end
+                echo([[</div>]])
+                echo(string.format([[<div class="ws-comment-body">%s</div>]], esc(c.Body or ""):gsub("\r?\n", "<br>")))
+                echo([[</div>]])
+            end
+            echo([[</div>]])
+        end
+        echo([[</div>]])
+        echo([[</div>]]) -- .ws-details-container
+    else
+        echo([[<h1>Submission not found</h1>]])
+        echo([[<p class="server-list-empty">This submission doesn't exist or has been removed. <a href="/workshop">Back to the workshop</a>.</p>]])
+    end
+
+elseif viewType == "edit" then
+    local esc = _G.MASTERSERVER_HTML_ESCAPE
+    local id = tonumber(_GET["id"])
+    local row
+    if id then
+        local rows = _G.MASTERSERVER_DB:QueryTyped(
+            "SELECT Id, Name, Description, Type, UploaderId, ThumbnailHash FROM WorkshopSubmission WHERE Id = ?;", id)
+        row = _G.MASTERSERVER_FIRST_ROW(rows)
+    end
+
+    if not row then
+        echo([[<h1>Submission not found</h1>]])
+        echo([[<p class="server-list-empty">This submission doesn't exist or has been removed. <a href="/workshop">Back to the workshop</a>.</p>]])
+    elseif not (_SESSION.User and _SESSION.User.Id == row.UploaderId) then
+        echo([[<h1>Not allowed</h1>]])
+        echo([[<p class="server-list-empty">You can only edit your own submissions.</p>]])
+    else
+        local submissionId = tonumber(row.Id) or 0
+        local isPlugin = row.Type == "plugin"
+        echo(string.format([[<h1>Edit &ndash; %s</h1>]], esc(row.Name or "Untitled")))
+        echo(string.format([[<p><a href="/workshop?type=details&id=%d">&laquo; Back to submission</a></p>]], submissionId))
+
+        echo([[<div class="container ws-edit-form">]])
+        echo(string.format([[<form action="/v1/workshop/edit" method="post">]]))
+        echo(string.format([[<input type="hidden" name="id" value="%d">]], submissionId))
+
+        echo([[<label for="ws-edit-name"><b>Name</b></label>]])
+        echo(string.format(
+            [[<input type="text" id="ws-edit-name" name="name" maxlength="64" value="%s" required>]],
+            esc(row.Name or "")))
+
+        echo([[<label for="ws-edit-type"><b>Type</b></label>]])
+        echo(string.format([[<select id="ws-edit-type" name="type">
+            <option value="database"%s>Database (.nwdb)</option>
+            <option value="plugin"%s>Plugin</option>
+        </select>]], isPlugin and "" or " selected", isPlugin and " selected" or ""))
+
+        echo([[<label for="ws-edit-desc"><b>Description</b></label>]])
+        echo(string.format(
+            [[<textarea id="ws-edit-desc" name="description" maxlength="4096" placeholder="Describe your submission...">%s</textarea>]],
+            esc(row.Description or "")))
+
+        echo([[<button type="submit" class="ws-button">Save changes</button>]])
+        echo([[</form>]])
+
+        echo([[<hr class="ws-edit-sep">]])
+        echo([[<label for="ws-edit-thumb"><b>Thumbnail</b></label>]])
+        if not _G.MASTERSERVER_BLANK(row.ThumbnailHash) then
+            echo(string.format(
+                [[<img class="ws-edit-thumb-preview" src="/v1/workshop/thumbnail?id=%d" alt="Current thumbnail">]],
+                submissionId))
+        end
+        echo([[<input type="file" id="ws-edit-thumb" accept="image/png,image/jpeg,image/gif,image/webp">]])
+        echo(string.format(
+            [[<button type="button" class="ws-button ws-button-secondary" onclick="ReplaceThumbnail(%d)">Update thumbnail</button>]],
+            submissionId))
+        echo([[<p id="ws-edit-thumb-status"></p>]])
+        echo([[</div>]])
+        echo([[<script src="/js/workshop.js"></script>]])
+    end
+
+else
+    -- All/Databases/Plugins, optionally filtered by a search query
+    local where, params = {}, {}
+    if viewType == "databases" then
+        where[#where + 1] = "Type = ?"; params[#params + 1] = "database"
+        echo([[<h1>Databases</h1>]])
+    elseif viewType == "plugins" then
+        where[#where + 1] = "Type = ?"; params[#params + 1] = "plugin"
+        echo([[<h1>Plugins</h1>]])
+    elseif searchValue then
+        echo(string.format([[<h1>Search results for "%s"</h1>]], _G.MASTERSERVER_HTML_ESCAPE(searchValue)))
+    else
+        echo([[<h1>Most Recent Submissions</h1>]])
+    end
+
+    if searchValue then
+        local like = "%" .. searchValue .. "%"
+        where[#where + 1] = "(Name LIKE ? OR Description LIKE ?)"
+        params[#params + 1] = like
+        params[#params + 1] = like
+    end
+
+    local sql = "SELECT Id, Name, Description, Type, SizeBytes, UploaderId, CreatedTimestamp FROM WorkshopSubmission"
+    if #where > 0 then sql = sql .. " WHERE " .. table.concat(where, " AND ") end
+    sql = sql .. " ORDER BY CreatedTimestamp DESC;"
+
+    local rows = _G.MASTERSERVER_DB:QueryTyped(sql, unpack(params))
+    RenderList(rows, false, "Wow, there really are no submissions yet. How about you upload some of your own?")
 end
 ?>
 

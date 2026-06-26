@@ -4,7 +4,7 @@ if _SERVER.REQUEST_METHOD ~= "POST" then
     die("Request method needs to be POST")
 end
 
-local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
 if user == nil then
     http_response_code(401)
     die("You must be logged in to upload to the workshop")
@@ -20,7 +20,7 @@ if not uploadToken or uploadToken:match("^%s*$") then
     die("Missing upload id")
 end
 
-_G.SweepWorkshopUploads()
+_G.MASTERSERVER_SWEEP_WORKSHOP_UPLOADS()
 
 local up = _G.WORKSHOP_UPLOADS[uploadToken]
 if up == nil then
@@ -60,7 +60,7 @@ local data = table.concat(up.Chunks)
 up.Chunks = nil  -- release the per-chunk references once we have the whole blob
 
 local digest = hash.Sha256(data)
-if not vfs:WriteFile("/submissions/" .. digest .. ".nwdb", data) then
+if not vfs:WriteFile("/master/submissions/" .. digest .. ".nwdb", data) then
     _G.WORKSHOP_UPLOADS[uploadToken] = nil
     http_response_code(500)
     die("Failed to write submission to storage")
@@ -87,7 +87,7 @@ end
 
 --[[ this stores the workshop submission id as the file name instead of the sha256 hash like from earlier.
     i commented it out because well, preventing data redundancy is nice
-if not vfs:WriteFile("/submissions/" .. submissionId .. ".nwdb", data) then
+if not vfs:WriteFile("/master/submissions/" .. submissionId .. ".nwdb", data) then
     _G.WORKSHOP_UPLOADS[uploadToken] = nil
     http_response_code(500)
     die("Failed to write submission to storage")

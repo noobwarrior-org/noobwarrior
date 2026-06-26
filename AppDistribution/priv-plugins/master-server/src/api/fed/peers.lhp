@@ -1,0 +1,10 @@
+<?lua
+local peers = _G.MASTERSERVER_FEDERATION.GetPeers()
+local out = {}
+for _, p in ipairs(peers or {}) do
+    out[#out + 1] = { Domain = p.Domain, BaseUrl = p.BaseUrl }
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({ Peers = out }))

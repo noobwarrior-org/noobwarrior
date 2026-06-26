@@ -1,21 +1,23 @@
 <?lua
-_G.SweepEmuServers()
+_G.MASTERSERVER_SWEEP_EMU_SERVERS()
 
 local list = {}
-for _, srv in pairs(_G.EMU_SERVERS) do
-    list[#list + 1] = {
-        Ip = srv.Ip,
-        Port = srv.Port,
-        Name = srv.Name,
-        Version = srv.Version,
-        Game = srv.Game or "",
-        PlaceId = srv.PlaceId,
-        ServerCount = srv.ServerCount or 0,
-        Players = srv.Players or 0,
-        MaxPlayers = srv.MaxPlayers or 0,
-        FirstSeen = srv.FirstSeen,
-        LastSeen = srv.LastSeen,
-    }
+for _, node in pairs(_G.EMU_SERVERS) do
+    for _, s in pairs(node.Servers or {}) do
+        list[#list + 1] = {
+            EmulatorIp   = node.Ip,
+            EmulatorPort = node.Port,
+            EmulatorName = node.Name,
+            ServerId   = s.Pid,
+            PlaceId    = s.PlaceId,
+            GamePort   = s.Port,
+            Version    = s.Version or node.Version,
+            Players    = 0,   -- player counts are not reported by the emulator yet
+            MaxPlayers = 0,
+            FirstSeen  = s.FirstSeen,
+            LastSeen   = s.LastSeen,
+        }
+    end
 end
 
 header("Content-Type: application/json")

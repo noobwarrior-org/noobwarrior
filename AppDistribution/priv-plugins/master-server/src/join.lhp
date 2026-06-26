@@ -1,0 +1,74 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: join.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Join Game"
+include("header.lhp")
+
+if not _SESSION.User then
+    echo([[<h1>Join Game</h1>
+        <p>You must <a href="/login">log in</a> to join a game with your online identity.</p>]])
+    include("footer.lhp")
+    die("")
+end
+
+local emu      = _GET["emu"]
+local port     = tonumber(_GET["port"])
+local placeId  = tonumber(_GET["placeId"])
+local serverId = tonumber(_GET["serverId"]) or 0
+
+if not emu or emu:match("^%s*$") or not port then
+    http_response_code(400)
+    echo([[<h1>Join Game</h1><p>Invalid join request: missing the target server emulator</p>]])
+    include("footer.lhp")
+    die("")
+end
+
+local username     = _SESSION.User.Name
+local displayName  = _SESSION.User.DisplayName or username
+local fullId       = _G.MASTERSERVER_FULL_IDENTITY(username)
+local onlineUserId = _G.MASTERSERVER_ONLINE_USER_ID(fullId)
+
+-- Everything a launcher needs to connect to the chosen running game server AS this
+-- online user. The integer UserId is derived (hashed) from the full identifier, so the
+-- same person is the same Roblox-style user id everywhere across the federation.
+local descriptor = {
+    Emulator = { Ip = emu, Port = port },
+    PlaceId  = placeId,
+    ServerId = serverId,
+    Identity = {
+        UserId      = onlineUserId,
+        Name        = username,
+        DisplayName = displayName,
+        FullId      = fullId,
+    },
+}
+
+local descriptorJson = json.stringify(descriptor)
+
+-- Forward-compatible launch hand-off. The noobwarrior:// protocol handler that starts
+-- the launcher is not registered yet (it is deferred together with one-click workshop
+-- install), so this link only does something once that handler exists. Until then the
+-- raw descriptor below is available for launching by hand.
+local launchUrl = "noobwarrior://join?descriptor=" .. _G.MASTERSERVER_URL_ENCODE(descriptorJson)
+local gameName  = _G.MASTERSERVER_RESOLVE_PLACE_NAME(placeId)
+?>
+
+<h1>Join <?lua echo(_G.MASTERSERVER_HTML_ESCAPE(gameName)) ?></h1>
+<p>You are joining as <strong><?lua echo(_G.MASTERSERVER_HTML_ESCAPE(fullId)) ?></strong>
+   (online id <?lua echo(string.format("%d", onlineUserId)) ?>).</p>
+<p>Server emulator: <code><?lua echo(_G.MASTERSERVER_HTML_ESCAPE(emu .. ":" .. tostring(port))) ?></code></p>
+
+<p><a class="join-button" href="<?lua echo(_G.MASTERSERVER_HTML_ESCAPE(launchUrl)) ?>">Launch noobWarrior</a></p>
+
+<p class="server-list-empty">If nothing happens, the noobWarrior launcher /
+   <code>noobwarrior://</code> protocol handler isn't installed yet. The join descriptor
+   below is everything needed to launch by hand.</p>
+<pre><?lua echo(_G.MASTERSERVER_HTML_ESCAPE(descriptorJson)) ?></pre>
+
+<?lua include("footer.lhp") ?>

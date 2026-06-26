@@ -4,7 +4,7 @@ if _SERVER.REQUEST_METHOD ~= "POST" then
     die("Request method needs to be POST")
 end
 
-local user = _G.ResolveSessionUser(_COOKIE[".LOGINSESSION"])
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
 if user == nil then
     http_response_code(401)
     die("You must be logged in to upload to the workshop")
@@ -49,7 +49,7 @@ if #filename > 256 then
     die("Filename cannot be longer than 256 characters")
 end
 
-local maxBytes = _G.WorkshopMaxUploadBytes()
+local maxBytes = _G.MASTERSERVER_WORKSHOP_MAX_UPLOAD_BYTES()
 local expected = tonumber(body.Size) or 0
 if expected < 0 then
     http_response_code(400)
@@ -60,7 +60,7 @@ if expected > maxBytes then
     die(string.format("Upload is too large (max %d bytes)", maxBytes))
 end
 
-_G.SweepWorkshopUploads()
+_G.MASTERSERVER_SWEEP_WORKSHOP_UPLOADS()
 
 local uploadToken = hash.GenerateToken()
 local now = os.time()

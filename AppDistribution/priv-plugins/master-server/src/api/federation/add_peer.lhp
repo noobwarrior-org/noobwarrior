@@ -1,0 +1,27 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to manage federation")
+end
+
+local url = _POST["url"]
+if not url or url:match("^%s*$") then
+    http_response_code(400)
+    die("Peer URL is required")
+end
+
+local peer, err = _G.MASTERSERVER_FEDERATION.AddPeer(url)
+if not peer then
+    http_response_code(400)
+    die(tostring(err or "Failed to add peer"))
+end
+
+header("Location: /control-panel?category=federation")
+http_response_code(302)
+die("")

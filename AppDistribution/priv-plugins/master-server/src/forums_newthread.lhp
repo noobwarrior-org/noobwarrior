@@ -1,0 +1,81 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: forums_newthread.lhp
+-- Description: Dedicated page for composing a new forum thread (local or federated).
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local esc = _G.MASTERSERVER_HTML_ESCAPE
+local enc = _G.MASTERSERVER_URL_ENCODE
+
+local peer    = (_GET["peer"] and not _GET["peer"]:match("^%s*$")) and _GET["peer"] or nil
+local forumId = tonumber(_GET["forum"])
+
+local tree
+if peer then
+    for _, entry in ipairs(_G.MASTERSERVER_FEDERATION.AggregatePeerForums() or {}) do
+        if entry.Peer.Domain == peer then
+            tree = entry.Tree
+            break
+        end
+    end
+else
+    tree = _G.MASTERSERVER_FEDERATION.LocalForumTree()
+end
+
+local forum
+for _, cat in ipairs((tree and tree.Categories) or {}) do
+    for _, f in ipairs(cat.Forums or {}) do
+        if tonumber(f.Id) == forumId then
+            forum = f
+            break
+        end
+    end
+    if forum then
+        break
+    end
+end
+
+pageTitle = forum and ("New Thread - " .. forum.Name) or "New Thread"
+include("header.lhp")
+
+local function forumHref(peerDomain, fid)
+    return (peerDomain and ("/forums?peer=" .. enc(peerDomain) .. "&forum=") or "/forums?forum=") .. (tonumber(fid) or 0)
+end
+?>
+
+<?lua
+if forum == nil then
+    http_response_code(404)
+    echo("<h1>New Thread</h1><p class=\"server-list-empty\">That forum could not be loaded.</p>")
+elseif _SESSION.User == nil then
+    echo("<h1>New Thread</h1><p class=\"server-list-empty\">You must <a href=\"/login\">log in</a> to start a thread.</p>")
+else
+    echo(string.format(
+        "<p class=\"forum-crumbs\"><a href=\"/forums\">Forums</a> &raquo; <a href=\"%s\">%s</a>%s &raquo; New Thread</p>",
+        forumHref(peer, forum.Id), esc(forum.Name),
+        peer and (" <small>@ " .. esc(peer) .. "</small>") or ""))
+    echo("<h1>New Thread</h1>")
+    if peer then
+        echo("<p class=\"server-list-empty\">This thread will be delivered to " .. esc(peer)
+            .. " as your online identity " .. esc(_G.MASTERSERVER_FULL_IDENTITY(_SESSION.User.Name)) .. ".</p>")
+    end
+    echo(string.format([[
+        <div class="msg-compose"><form action="/v1/forums/post" method="post">
+            <input type="hidden" name="type" value="thread">
+            <input type="hidden" name="forumId" value="%d">
+            <input type="hidden" name="peer" value="%s">
+            <label for="subject"><b>Subject</b></label>
+            <input type="text" id="subject" name="subject" maxlength="200" placeholder="Subject" required>
+            <label for="content"><b>Message</b></label>
+            <textarea id="content" name="content" rows="10" placeholder="Write your post..." required></textarea>
+            <button type="submit" class="ws-button">Create thread</button>
+            <a class="ws-button ws-button-secondary" href="%s">Cancel</a>
+        </form></div>
+    ]], tonumber(forum.Id) or 0, esc(peer or ""), forumHref(peer, forum.Id)))
+end
+?>
+
+<?lua include("footer.lhp") ?>

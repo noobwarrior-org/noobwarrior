@@ -20,6 +20,15 @@ reg.SetKeyValueIfNotSet("master.branding.icon", "/img/icon1024.png")
 reg.SetKeyValueIfNotSet("master.branding.tagline", "My noobWarrior server")
 reg.SetKeyComment("master.branding", "The branding that people will see when they connect to your master server.")
 
+reg.SetKeyValueIfNotSet("master.domain", "localhost")
+reg.SetKeyComment("master.domain", "This master server's domain name. Online user identities are formed as username@<domain> (e.g. alice@example.com). Set this to the public hostname other master servers and clients reach you at.")
+
+reg.SetKeyValueIfNotSet("master.public_url", "")
+reg.SetKeyComment("master.public_url", "This server's public base URL that other master servers reach you at (e.g. https://example.com). If blank, https://<master.domain> is assumed.")
+
+reg.SetKeyValueIfNotSet("master.federation.auto", true)
+reg.SetKeyComment("master.federation.auto", "When true, federation is automatic: any server that contacts you is accepted as a peer, and peers-of-peers are discovered as your feed refreshes. Turn off (in the control panel's Federation tab) to only federate with peers you add by hand.")
+
 reg.SetKeyValueIfNotSet("master.workshop.max_upload_mb", 4096)
 reg.SetKeyComment("master.workshop.max_upload_mb", "Maximum size in megabytes of a single .nwdb file uploaded to the workshop.")
 
@@ -36,11 +45,88 @@ end
 _G.MASTERSERVER_PLUGINDATA = "plugindata://master"
 _G.MASTERSERVER_DB = SqlDb.new(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb", "MasterServerDb")
 
+function _G.MASTERSERVER_FIRST_ROW(result)
+    return type(result) == "table" and result[1] or nil
+end
+
+function _G.MASTERSERVER_BLANK(s)
+    return s == nil or tostring(s):match("^%s*$") ~= nil
+end
+
+function _G.MASTERSERVER_DOMAIN()
+    local d = reg.GetKeyValue("master.domain")
+    return _G.MASTERSERVER_BLANK(d) and "localhost" or tostring(d)
+end
+
+function _G.MASTERSERVER_FULL_IDENTITY(username, domain)
+    return tostring(username) .. "@" .. (domain or _G.MASTERSERVER_DOMAIN())
+end
+
+-- "/@name" for a local identity, "/@name@domain" for a remote one.
+function _G.MASTERSERVER_PROFILE_URL(identity)
+    identity = tostring(identity or "")
+    local uname, domain = identity:match("^(.-)@([^@]+)$")
+    if uname and domain and domain:lower() == _G.MASTERSERVER_DOMAIN():lower() then
+        return "/@" .. uname
+    end
+    return "/@" .. identity
+end
+
+function _G.MASTERSERVER_ONLINE_USER_ID(identifier)
+    local n = tonumber(hash.Sha256(tostring(identifier)):sub(1, 13), 16) or 0  -- 52 bits: exact in a double
+    local floor = 1000000000
+    return floor + (n % (2 ^ 53 - floor))
+end
+
+function _G.MASTERSERVER_HTML_ESCAPE(s)
+    return (tostring(s or ""):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ["\""] = "&quot;", ["'"] = "&#39;",
+    }))
+end
+
+function _G.MASTERSERVER_URL_ENCODE(s)
+    return (tostring(s or ""):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+
+function _G.MASTERSERVER_HUMAN_SIZE(bytes)
+    bytes = tonumber(bytes) or 0
+    local units, i = { "B", "KB", "MB", "GB", "TB" }, 1
+    while bytes >= 1024 and i < #units do
+        bytes = bytes / 1024
+        i = i + 1
+    end
+    return string.format(i == 1 and "%d %s" or "%.1f %s", bytes, units[i])
+end
+
+-- Looks up an item's name in whichever mounted EmuDb holds it
+local function resolveItemName(itemType, tableName, id)
+    id = tonumber(id)
+    if not id then return nil end
+    local ok, name = pcall(function()
+        local mgr = core.GetEmuDbManager()
+        local db = mgr and mgr:GetFirstDbWhereItemExists(itemType, id)
+        local row = db and _G.MASTERSERVER_FIRST_ROW(db:QueryTyped("SELECT Name FROM " .. tableName .. " WHERE Id = ?;", id))
+        return row and row.Name
+    end)
+    return (ok and not _G.MASTERSERVER_BLANK(name)) and tostring(name) or nil
+end
+
+function _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(uploaderId)
+    return resolveItemName(ItemType.User, "User", uploaderId) or "Unknown"
+end
+
+function _G.MASTERSERVER_RESOLVE_PLACE_NAME(placeId)
+    if not tonumber(placeId) then return "Unknown Game" end
+    return resolveItemName(ItemType.Asset, "Asset", placeId) or ("Place " .. tostring(tonumber(placeId)))
+end
+
 _G.EMU_SERVERS = {}
 
 local EMU_SERVER_TIMEOUT = 30 -- seconds before a server we haven't heard from is swept
 
-function _G.SweepEmuServers()
+function _G.MASTERSERVER_SWEEP_EMU_SERVERS()
     local now = os.time()
     for key, srv in pairs(_G.EMU_SERVERS) do
         if now - srv.LastSeen > EMU_SERVER_TIMEOUT then
@@ -52,12 +138,24 @@ end
 _G.WORKSHOP_UPLOADS = {} -- in-progress upload sessions
 local WORKSHOP_UPLOAD_TIMEOUT = 600  -- seconds of inactivity before a session is swept
 
-function _G.WorkshopMaxUploadBytes()
+function _G.MASTERSERVER_WORKSHOP_MAX_UPLOAD_BYTES()
     local mb = tonumber(reg.GetKeyValue("master.workshop.max_upload_mb")) or 4096
     return math.floor(mb * 1024 * 1024)
 end
 
-function _G.SweepWorkshopUploads()
+-- Workshop thumbnails are small images stored alongside submissions
+function _G.MASTERSERVER_WORKSHOP_MAX_THUMBNAIL_BYTES()
+    return 8 * 1024 * 1024 -- 8 MiB is plenty for a thumbnail
+end
+
+_G.MASTERSERVER_WORKSHOP_THUMBNAIL_MIMES = {
+    ["image/png"]  = true,
+    ["image/jpeg"] = true,
+    ["image/gif"]  = true,
+    ["image/webp"] = true,
+}
+
+function _G.MASTERSERVER_SWEEP_WORKSHOP_UPLOADS()
     local now = os.time()
     for id, up in pairs(_G.WORKSHOP_UPLOADS) do
         if now - up.LastActivity > WORKSHOP_UPLOAD_TIMEOUT then
@@ -66,7 +164,7 @@ function _G.SweepWorkshopUploads()
     end
 end
 
-function _G.ResolveSessionUser(token)
+function _G.MASTERSERVER_RESOLVE_SESSION_USER(token)
     if not token or token:match("^%s*$") then return nil end
     local db = core.GetMasterDatabase()
     if db == nil then return nil end
@@ -85,22 +183,39 @@ if not migrateOk then
     print("Failed to migrate master server database: " .. tostring(migrateErr))
 end
 
-function _G.DeleteWorkshopSubmission(id)
+_G.MASTERSERVER_FEDERATION = require("plugin://master-server@noobwarrior.org/lua/federation.lua")
+
+function _G.MASTERSERVER_DELETE_WORKSHOP_SUBMISSION(id)
     local db = _G.MASTERSERVER_DB
     if db == nil then return false, "No master server database available" end
 
-    local rows = db:QueryTyped("SELECT Hash FROM WorkshopSubmission WHERE Id = ?;", id)
+    local rows = db:QueryTyped("SELECT Hash, ThumbnailHash FROM WorkshopSubmission WHERE Id = ?;", id)
     if rows == nil or rows[1] == nil then return false, "Submission not found" end
     local hashVal = rows[1].Hash
+    local thumbHash = rows[1].ThumbnailHash
 
     db:QueryTyped("DELETE FROM WorkshopSubmission WHERE Id = ?;", id)
+    db:QueryTyped("DELETE FROM WorkshopComment WHERE SubmissionId = ?;", id)
 
+    local vfs = url.GetVfs(_G.MASTERSERVER_PLUGINDATA .. "/")
+
+    -- Blobs are content-addressed and shared, so only delete one once no other
+    -- submission still references its hash.
     local stillReferenced = db:QueryTyped("SELECT 1 FROM WorkshopSubmission WHERE Hash = ? LIMIT 1;", hashVal)
     if stillReferenced == nil or stillReferenced[1] == nil then
-        local vfs = url.GetVfs(_G.MASTERSERVER_PLUGINDATA .. "/")
-        local path = "/submissions/" .. hashVal .. ".nwdb"
+        local path = "/master/submissions/" .. hashVal .. ".nwdb"
         if vfs ~= nil and vfs:EntryExists(path) then
             vfs:DeleteEntry(path)
+        end
+    end
+
+    if thumbHash ~= nil and not _G.MASTERSERVER_BLANK(thumbHash) then
+        local thumbStillUsed = db:QueryTyped("SELECT 1 FROM WorkshopSubmission WHERE ThumbnailHash = ? LIMIT 1;", thumbHash)
+        if thumbStillUsed == nil or thumbStillUsed[1] == nil then
+            local thumbPath = "/master/thumbnails/" .. thumbHash
+            if vfs ~= nil and vfs:EntryExists(thumbPath) then
+                vfs:DeleteEntry(thumbPath)
+            end
         end
     end
     return true
@@ -111,11 +226,19 @@ local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 local sitemap = {
     ["/"] = "/src/index.lhp",
     ["/home"] = "/src/index.lhp",
+    ["/servers"] = "/src/servers.lhp",
+    ["/join"] = "/src/join.lhp",
     ["/login"] = "/src/login.lhp",
     ["/register"] = "/src/register.lhp",
     ["/workshop"] = "/src/workshop.lhp",
+    ["/messages"] = "/src/messages.lhp",
+    ["/forums"] = "/src/forums.lhp",
+    ["/forums/new-thread"] = "/src/forums_newthread.lhp",
+    ["/feed"] = "/src/feed.lhp",
     ["/control-panel"] = "/src/controlpanel.lhp",
     ["/profile"] = "/src/profile.lhp",
+    ["/@:username"] = "/src/userprofile.lhp",
+    ["/users/:userId/profile"] = "/src/userprofile.lhp",
 
     -- API
     ["/v1/login"] = "/src/api/login.lhp",
@@ -123,11 +246,33 @@ local sitemap = {
     ["/v1/logout"] = "/src/api/logout.lhp",
     ["/v1/servers"] = "/src/api/servers.lhp",
     ["/v1/emu-ping"] = "/src/api/emu-ping.lhp",
+    ["/v1/messages/send"] = "/src/api/messages/send.lhp",
+    ["/v1/forums/post"] = "/src/api/forums/post.lhp",
+    ["/v1/feed/post"] = "/src/api/feed/post.lhp",
+    ["/v1/federation/add-peer"] = "/src/api/federation/add_peer.lhp",
+    ["/v1/federation/set-auto"] = "/src/api/federation/set_auto.lhp",
     ["/v1/workshop/start-upload"] = "/src/api/workshop/start_upload.lhp",
     ["/v1/workshop/stream-upload"] = "/src/api/workshop/stream_upload.lhp",
     ["/v1/workshop/end-upload"] = "/src/api/workshop/end_upload.lhp",
     ["/v1/workshop/download"] = "/src/api/workshop/download.lhp",
-    ["/v1/workshop/delete"] = "/src/api/workshop/delete.lhp"
+    ["/v1/workshop/delete"] = "/src/api/workshop/delete.lhp",
+    ["/v1/workshop/set-thumbnail"] = "/src/api/workshop/set_thumbnail.lhp",
+    ["/v1/workshop/thumbnail"] = "/src/api/workshop/thumbnail.lhp",
+    ["/v1/workshop/edit"] = "/src/api/workshop/edit.lhp",
+    ["/v1/workshop/comment"] = "/src/api/workshop/comment.lhp",
+    ["/v1/workshop/comment-delete"] = "/src/api/workshop/comment_delete.lhp",
+
+    -- Federation protocol
+    ["/fed/v1/info"] = "/src/api/fed/info.lhp",
+    ["/fed/v1/users/:username"] = "/src/api/fed/user.lhp",
+    ["/fed/v1/verify"] = "/src/api/fed/verify.lhp",
+    ["/fed/v1/inbox"] = "/src/api/fed/inbox.lhp",
+    ["/fed/v1/servers"] = "/src/api/servers.lhp",
+    ["/fed/v1/forums"] = "/src/api/fed/forums.lhp",
+    ["/fed/v1/forum-post"] = "/src/api/fed/forum_post.lhp",
+    ["/fed/v1/peers"] = "/src/api/fed/peers.lhp",
+    ["/fed/v1/statuses"] = "/src/api/fed/statuses.lhp",
+    ["/fed/v1/status-reply"] = "/src/api/fed/status_reply.lhp"
 }
 
 master = http_base.CreateServer({

@@ -1,0 +1,28 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to send messages")
+end
+
+local to = _POST["to"]
+local body = _POST["body"]
+if not to or to:match("^%s*$") or not body or body:match("^%s*$") then
+    http_response_code(400)
+    die("Recipient and message body are required")
+end
+
+local ok, err = _G.MASTERSERVER_FEDERATION.SendMessage(user.Id, user.Name, to, body)
+if not ok then
+    http_response_code(400)
+    die(tostring(err or "Failed to send message"))
+end
+
+header("Location: /messages")
+http_response_code(302)
+die("")

@@ -1,4 +1,12 @@
 <?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: header.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
 startRenderTime = os.clock()
 local function AddNavbarButton(url, name)
    echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
@@ -63,7 +71,7 @@ end
                         AddNavbarButton("/control-panel", "Control Panel")
                         AddNavbarButton("/messages", "Messages")
                         AddNavbarButton("/settings", "Settings")
-                        AddNavbarButton(string.format("/users/%d/profile", _SESSION.User.Id), _SESSION.User.DisplayName or _SESSION.User.Name)
+                        AddNavbarButton("/@" .. (_SESSION.User.Name or ""), _SESSION.User.DisplayName or _SESSION.User.Name)
                         AddNavbarButton("/v1/logout", "Logout")
                     else
                         AddNavbarButton("/login", "Login")
