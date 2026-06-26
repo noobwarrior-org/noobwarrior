@@ -18,16 +18,16 @@ if _SESSION.User == nil then
 end
 ?>
 
-<h2>My Feed</h2>
 <?lua
-if _SESSION.User then
-    echo([[<div class="msg-compose"><form action="/v1/feed/post" method="post">
-            <textarea name="body" rows="3" placeholder="What's on your mind?" required></textarea>
-            <button type="submit" class="ws-button">Post status</button>
-        </form></div>]])
-else
-    echo([[<p class="server-list-empty"><a href="/login">Log in</a> to post a status.</p>]])
-end
+echo("<h1>Hello, "..(_SESSION.User.DisplayName or _SESSION.User.Name).."!</h1>")
+echo("<h2>Your friends</h2>")
+echo("<h2>Your feed</h2>")
+echo([[
+    <div class="msg-compose"><form action="/v1/feed/post" method="post">
+        <textarea name="body" rows="3" placeholder="What's on your mind?" required></textarea>
+        <button type="submit" class="ws-button">Post status</button>
+    </form></div>
+    ]])
 
 local feed = _G.MASTERSERVER_FEDERATION.AggregateFeed(50)
 if feed == nil or #feed == 0 then

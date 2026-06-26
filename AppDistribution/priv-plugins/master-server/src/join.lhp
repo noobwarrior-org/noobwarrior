@@ -34,9 +34,6 @@ local displayName  = _SESSION.User.DisplayName or username
 local fullId       = _G.MASTERSERVER_FULL_IDENTITY(username)
 local onlineUserId = _G.MASTERSERVER_ONLINE_USER_ID(fullId)
 
--- Everything a launcher needs to connect to the chosen running game server AS this
--- online user. The integer UserId is derived (hashed) from the full identifier, so the
--- same person is the same Roblox-style user id everywhere across the federation.
 local descriptor = {
     Emulator = { Ip = emu, Port = port },
     PlaceId  = placeId,
@@ -51,10 +48,6 @@ local descriptor = {
 
 local descriptorJson = json.stringify(descriptor)
 
--- Forward-compatible launch hand-off. The noobwarrior:// protocol handler that starts
--- the launcher is not registered yet (it is deferred together with one-click workshop
--- install), so this link only does something once that handler exists. Until then the
--- raw descriptor below is available for launching by hand.
 local launchUrl = "noobwarrior://join?descriptor=" .. _G.MASTERSERVER_URL_ENCODE(descriptorJson)
 local gameName  = _G.MASTERSERVER_RESOLVE_PLACE_NAME(placeId)
 ?>

@@ -94,15 +94,23 @@ end
 
 function fed.AddPeer(baseUrl)
     baseUrl = rstrip(baseUrl)
-    if baseUrl == "" then return nil, "empty url" end
+    if baseUrl == "" then
+        return nil, "empty url"
+    end
 
     local res, err = httpGet(baseUrl .. "/fed/v1/info")
-    if not res then return nil, "could not reach peer: " .. tostring(err) end
+    if not res then
+        return nil, "could not reach peer: " .. tostring(err)
+    end
     local info = parseJson(res.Body)
-    if not info or not info.Domain then return nil, "peer did not return valid federation info" end
+    if not info or not info.Domain then
+        return nil, "peer did not return valid federation info"
+    end
 
     local domain = tostring(info.Domain)
-    if fed.IsLocalDomain(domain) then return nil, "that peer is this server" end
+    if fed.IsLocalDomain(domain) then
+        return nil, "that peer is this server"
+    end
     local name = tostring(info.Name or domain)
 
     if peerKnown(domain) then
@@ -116,24 +124,32 @@ function fed.AddPeer(baseUrl)
 end
 
 function fed.AutoAddPeer(domain, baseUrl)
-    if domain == nil or fed.IsLocalDomain(domain) or peerKnown(domain) then return end
+    if domain == nil or fed.IsLocalDomain(domain) or peerKnown(domain) then
+        return
+    end
     baseUrl = blank(baseUrl) and ("https://" .. domain) or rstrip(baseUrl)
     db():QueryTyped("INSERT INTO Peer (Domain, BaseUrl, Name) VALUES (?, ?, ?);", domain, baseUrl, domain)
 end
 
 function fed.AutoAccept(fromIdentity, baseUrl)
-    if not fed.AutoEnabled() then return end
+    if not fed.AutoEnabled() then
+        return
+    end
     local _, domain = fed.ParseIdentity(fromIdentity)
     fed.AutoAddPeer(domain, baseUrl)
 end
 
 function fed.GossipPeers()
-    if not fed.AutoEnabled() then return end
+    if not fed.AutoEnabled() then
+        return
+    end
     for _, peer in ipairs(fed.GetPeers()) do
         local res = httpGet(rstrip(peer.BaseUrl) .. "/fed/v1/peers")
         local data = res and parseJson(res.Body)
         if data and type(data.Peers) == "table" then
-            for _, p in ipairs(data.Peers) do fed.AutoAddPeer(p.Domain, p.BaseUrl) end
+            for _, p in ipairs(data.Peers) do
+                fed.AutoAddPeer(p.Domain, p.BaseUrl)
+            end
         end
     end
 end
@@ -382,8 +398,12 @@ function fed.LocalForumTree(threadId)
 end
 
 function fed.SendForumPost(fromUserId, fromUsername, peerDomain, action)
-    if peerDomain == nil or fed.IsLocalDomain(peerDomain) then return false, "that is your own server" end
-    if blank(action.Content) then return false, "content is empty" end
+    if peerDomain == nil or fed.IsLocalDomain(peerDomain) then
+        return false, "that is your own server"
+    end
+    if blank(action.Content) then
+        return false, "content is empty"
+    end
 
     local actionId = hash.GenerateToken()
     if not recordOutbound(actionId, fromUserId, fromUsername, "forum:" .. peerDomain, fed.ForumCanonical(action)) then
@@ -400,20 +420,34 @@ function fed.SendForumPost(fromUserId, fromUsername, peerDomain, action)
 end
 
 function fed.ReceiveForumPost(from, action, actionId)
-    if not fed.ParseIdentity(from) then return false, "malformed sender identity" end
-    if blank(actionId) then return false, "missing action id" end
-    if fed.ActionSeen(actionId) then return false, "duplicate post" end
+    if not fed.ParseIdentity(from) then
+        return false, "malformed sender identity"
+    end
+    if blank(actionId) then
+        return false, "missing action id"
+    end
+    if fed.ActionSeen(actionId) then
+        return false, "duplicate post"
+    end
 
     local m = core.GetMasterDatabase()
-    if m == nil then return false, "no master database" end
+    if m == nil then
+        return false, "no master database"
+    end
 
     local ok, err = validateForumTarget(m, action)
-    if not ok then return false, err end
+    if not ok then
+        return false, err
+    end
     ok, err = fed.VerifyRemoteAction(from, actionId, fed.ForumCanonical(action))
-    if not ok then return false, err end
+    if not ok then
+        return false, err
+    end
 
     local authorId = findOrCreateFederatedAuthor(m, from)
-    if not authorId then return false, "could not record author" end
+    if not authorId then
+        return false, "could not record author"
+    end
     insertForumPost(m, action, authorId)
     fed.MarkActionSeen(actionId, "forum")
     return true

@@ -27,6 +27,8 @@ local sitemap = {
     ["/login"] = "/src/login.lhp",
     ["/register"] = "/src/register.lhp",
     ["/servers"] = "/src/servers.lhp",
+    ["/develop"] = "/src/develop.lhp",
+    ["/develop/:category"] = "/src/develop.lhp",
     ["/forums"] = "/src/forums.lhp",
     ["/forums/new-thread"] = "/src/forums_newthread.lhp",
     ["/forums/edit-post"] = "/src/forums_editpost.lhp",
@@ -34,7 +36,6 @@ local sitemap = {
     ["/control-panel"] = "/src/controlpanel.lhp",
     ["/users/:userId/profile"] = "/src/profile.lhp",
 
-    -- Forum API (writes; reads are done inline in the forum pages)
     ["/v1/forums/create-category"] = "/src/api/forums/create_category.lhp",
     ["/v1/forums/update-category"] = "/src/api/forums/update_category.lhp",
     ["/v1/forums/delete-category"] = "/src/api/forums/delete_category.lhp",

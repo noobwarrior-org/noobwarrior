@@ -1,0 +1,46 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: develop.lhp
+-- Description: A replication of the develop page from Roblox
+-- The good one btw, not the shit one
+-- Started by: Hattozo
+-- Started on: 6/25/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Develop"
+include("header.lhp")
+?>
+
+<?lua
+local function Add()
+
+end
+?>
+
+<link rel="stylesheet" href="/css/develop.css">
+
+<div class="tab">
+    <a class="tablink" href="/develop">My Creations</a>
+    <a class="tablink" href="/develop/groups">Group Creations</a>
+    <a class="tablink" href="/develop/library">Library</a>
+</div>
+
+<div class="tabcontent">
+<?lua if _PARAMS["category"] == "library" then ?>
+    <div class="horizontal">
+        <div class="sidebar">
+            <a href="">Models</a>
+            <a href="">Decals</a>
+            <a href="">Audio</a>
+            <a href="">Plugins</a>
+        </div>
+    </div>
+<?lua elseif _PARAMS["category"] == "groups" then ?>
+    <h3>Groups</h3>
+<?lua else ?>
+    <h3>My Creations</h3>
+<?lua end ?>
+</div>
+
+<?lua include("footer.lhp") ?>

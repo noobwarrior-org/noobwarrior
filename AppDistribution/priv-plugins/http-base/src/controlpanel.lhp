@@ -25,7 +25,9 @@ local button_names = {
 }
 
 if cpExtraSections then
-    for _, s in ipairs(cpExtraSections) do button_names[s.Key] = s.Name end
+    for _, s in ipairs(cpExtraSections) do
+        button_names[s.Key] = s.Name
+    end
 end
 
 local function SetupSidebar(categories)
@@ -88,10 +90,11 @@ end
                         }
                     }
                 }
-                -- Insert any caller-provided sections as an unnamed group above "About".
                 if cpExtraSections then
                     local extraButtons = {}
-                    for _, s in ipairs(cpExtraSections) do extraButtons[#extraButtons + 1] = s.Key end
+                    for _, s in ipairs(cpExtraSections) do
+                        extraButtons[#extraButtons + 1] = s.Key
+                    end
                     table.insert(sidebarCats, #sidebarCats, { Buttons = extraButtons })
                 end
                 SetupSidebar(sidebarCats)
@@ -114,6 +117,7 @@ end
         <label for="file">Icon</label>
         <input type="file" accept="image/*" name="file"/>
         <?lua elseif _GET["category"] == "items" then ?>
+        
         <?lua elseif _GET["category"] == "forums" then ?>
         <!-- Forums -->
         <link rel="stylesheet" href="/css/forum-admin.css">

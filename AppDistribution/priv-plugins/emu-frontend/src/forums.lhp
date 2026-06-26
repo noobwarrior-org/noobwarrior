@@ -13,14 +13,17 @@ local threadId = tonumber(_GET["thread"])
 local forumId  = tonumber(_GET["forum"])
 local page     = math.max(1, tonumber(_GET["page"]) or 1)
 
--- Resolve the page title (and validate ids) before the header is rendered.
 local thread, forum
 if threadId ~= nil and db ~= nil then
     local rows = db:QueryTyped("SELECT Id, Subject, ForumId FROM ForumThread WHERE Id = ?;", threadId)
-    if rows and rows[1] then thread = rows[1] end
+    if rows and rows[1] then
+        thread = rows[1]
+    end
 elseif forumId ~= nil and db ~= nil then
     local rows = db:QueryTyped("SELECT Id, Name, Description FROM Forum WHERE Id = ?;", forumId)
-    if rows and rows[1] then forum = rows[1] end
+    if rows and rows[1] then
+        forum = rows[1]
+    end
 end
 
 if thread then
