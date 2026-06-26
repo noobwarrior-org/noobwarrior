@@ -1,0 +1,53 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/items/icon.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/26/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local validTypes = {
+    Asset = ItemType.Asset, Badge = ItemType.Badge, Bundle = ItemType.Bundle,
+    DevProduct = ItemType.DevProduct, Group = ItemType.Group, Outfit = ItemType.Outfit,
+    Pass = ItemType.Pass, Set = ItemType.Set, Universe = ItemType.Universe,
+    User = ItemType.User
+}
+
+local itemType = validTypes[_GET["type"]] or ItemType.Asset
+local id = tonumber(_GET["id"])
+if id == nil then
+    http_response_code(400)
+    die("Missing id")
+end
+
+local dbm = core.GetEmuDbManager()
+local bytes = nil
+local dbName = _GET["db"]
+if dbName then
+    for _, db in ipairs(dbm:GetMountedDatabases()) do
+        if db:GetFileName() == dbName then
+            bytes = db:RetrieveImageData(itemType, id)
+            break
+        end
+    end
+end
+if bytes == nil then
+    bytes = dbm:RetrieveImageData(itemType, id)
+end
+
+local mime = "image/png"
+if bytes and #bytes >= 3 then
+    local b1, b2, b3 = bytes:byte(1, 3)
+    if b1 == 0xFF and b2 == 0xD8 then
+        mime = "image/jpeg"
+    elseif b1 == 0x47 and b2 == 0x49 and b3 == 0x46 then
+        mime = "image/gif"
+    end
+end
+
+header("Content-Type: " .. mime)
+header("Cache-Control: max-age=300")
+http_response_code(200)
+die(bytes or "")
+?>

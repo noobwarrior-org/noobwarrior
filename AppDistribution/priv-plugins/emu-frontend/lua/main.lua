@@ -36,6 +36,9 @@ local sitemap = {
     ["/control-panel"] = "/src/controlpanel.lhp",
     ["/users/:userId/profile"] = "/src/profile.lhp",
 
+    ["/v1/items/upload"] = "/src/api/items/upload.lhp",
+    ["/v1/items/icon"] = "/src/api/items/icon.lhp",
+
     ["/v1/forums/create-category"] = "/src/api/forums/create_category.lhp",
     ["/v1/forums/update-category"] = "/src/api/forums/update_category.lhp",
     ["/v1/forums/delete-category"] = "/src/api/forums/delete_category.lhp",

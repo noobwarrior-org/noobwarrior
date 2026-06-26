@@ -1,0 +1,224 @@
+/* ////////////////////////////////////////////////////////////////////////////////
+ * noobWarrior
+ * Plugin: HTTP Server Base
+ * File: item-admin.css
+ * Description:
+ * Started by: Hattozo
+ * Started on: 6/26/2026
+ * //////////////////////////////////////////////////////////////////////////////// */
+
+#item-admin {
+    max-width: 900px;
+}
+
+#item-admin .ia-flash {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 0 0 12px;
+}
+
+#item-admin .ia-ok {
+    background: #1e3a1e;
+    border: 1px solid #2f5d2f;
+    color: #b6e7b6;
+}
+
+#item-admin .ia-err {
+    background: #3a1e1e;
+    border: 1px solid #5d2f2f;
+    color: #e7b6b6;
+}
+
+#item-admin .ia-upload {
+    background: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    padding: 4px 12px 12px;
+}
+
+#item-admin .ia-upload summary {
+    cursor: pointer;
+    padding: 8px 0;
+    font-weight: bold;
+}
+
+#item-admin .ia-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+#item-admin .ia-row label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85em;
+    gap: 3px;
+}
+
+#item-admin .ia-row label.ia-wide {
+    flex: 1 1 100%;
+}
+
+#item-admin .ia-row label.ia-wide input {
+    width: 100%;
+}
+
+#item-admin .ia-btn {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #444;
+    color: #eee;
+    cursor: pointer;
+}
+
+#item-admin .ia-btn-primary {
+    background: #3a6ea5;
+}
+
+#item-admin .ia-btn-primary:hover {
+    background: #4880bd;
+}
+
+/* ===== Filter bar ===== */
+#item-admin .ia-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+#item-admin .ia-filters .ia-search {
+    flex: 1 1 200px;
+    min-width: 140px;
+}
+
+#item-admin .ia-filters select {
+    flex: 0 1 auto;
+    max-width: 220px;
+}
+
+#item-admin .ia-count {
+    color: #aaa;
+    font-size: 0.9em;
+    margin: 6px 0;
+}
+
+#item-admin .ia-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 8px 0;
+}
+
+#item-admin .ia-card {
+    background: #2b2b2b;
+    border: 1px solid #1c1c1c;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#item-admin .ia-thumb {
+    aspect-ratio: 1 / 1;
+    background: #1f1f1f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#item-admin .ia-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: auto;
+}
+
+#item-admin .ia-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px;
+    min-width: 0;
+}
+
+#item-admin .ia-name {
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #eee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#item-admin .ia-id {
+    font-size: 0.75em;
+    font-family: monospace;
+    color: #9ab;
+}
+
+#item-admin .ia-db {
+    font-size: 0.72em;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#item-admin .ia-empty {
+    grid-column: 1 / -1;
+    color: #888;
+    text-align: center;
+    font-style: italic;
+    padding: 24px 0;
+}
+
+#item-admin .ia-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin: 16px 0;
+}
+
+#item-admin .ia-pager a,
+#item-admin .ia-pager b,
+#item-admin .ia-pager .ia-pg-gap {
+    padding: 4px 9px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    line-height: 1.2;
+}
+
+#item-admin .ia-pager a {
+    color: #cfe3f7;
+    background: #333;
+    border: 1px solid #1c1c1c;
+    text-decoration: none;
+}
+
+#item-admin .ia-pager a:hover {
+    background: #3a6ea5;
+}
+
+#item-admin .ia-pager .ia-pg-edge {
+    background: #2b2b2b;
+}
+
+#item-admin .ia-pager .ia-pg-cur {
+    background: #3a6ea5;
+    color: #fff;
+    border: 1px solid #3a6ea5;
+}
+
+#item-admin .ia-pager .ia-pg-gap {
+    color: #777;
+}

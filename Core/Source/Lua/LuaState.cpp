@@ -150,8 +150,7 @@ LuaState::LuaState(Core* core) :
 
     do_string(rawget_path_lua);
     do_string(global_env_metatable_lua);
-
-    set("core", sol::make_light(mCore));
+    
     set("print", printBS);
 }
 
@@ -443,6 +442,8 @@ int LuaState::Open() {
     };
     sqlDbType["ExecStatement"] = &SqlDb::ExecStatement;
     sqlDbType["SetPragma"] = &SqlDb::SetPragma;
+    sqlDbType["GetFileName"] = &SqlDb::GetFileName;
+    sqlDbType["GetFilePath"] = [](SqlDb &db) -> std::string { return db.GetFilePath().string(); };
 
     // This method works similarly to https://wiki.facepunch.com/gmod/sql.Query
     sqlDbType["Query"] = [this](SqlDb &db, const std::string &stmtStr) -> sol::object {
@@ -660,7 +661,14 @@ int LuaState::Open() {
 
     auto emuDbMgrType = new_usertype<EmuDbManager>("EmuDbManager", sol::no_constructor);
     emuDbMgrType["GetMasterDatabase"] = &EmuDbManager::GetMasterDatabase;
-    emuDbMgrType["GetMountedDatabases"] = &EmuDbManager::GetMountedDatabases;
+    // Return a plain Lua array (1-indexed) of EmuDb* so it can be iterated with
+    // ipairs(); a raw std::vector return is exposed as userdata that ipairs rejects.
+    emuDbMgrType["GetMountedDatabases"] = [this](EmuDbManager &mgr) -> sol::table {
+        sol::table t = create_table();
+        for (EmuDb *db : mgr.GetMountedDatabases())
+            t.add(db);
+        return t;
+    };
     emuDbMgrType["GetFirstDbWhereItemExists"] = &EmuDbManager::GetFirstDbWhereItemExists;
     emuDbMgrType["GetDbFromFileName"] = &EmuDbManager::GetDbFromFileName;
     emuDbMgrType["GetUniverseIdForPlace"] = &EmuDbManager::GetUniverseIdForPlace;

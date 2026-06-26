@@ -1,0 +1,297 @@
+<link rel="stylesheet" href="/css/item-admin.css">
+<div id="item-admin">
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: HTTP Server Base
+-- File: src/items.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/26/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local ITEMS_PER_PAGE = 25
+
+local ITEM_TYPES = {
+    "Asset", "Badge", "Bundle", "DevProduct", "Group",
+    "Outfit", "Pass", "Set", "Universe", "User"
+}
+
+local ASSET_TYPES = {
+    {1,"Image","dev"}, {2,"T-Shirt","avatar"}, {3,"Audio","dev"}, {4,"Mesh","dev"},
+    {5,"Lua","dev"}, {8,"Hat","avatar"}, {9,"Place","dev"}, {10,"Model","dev"},
+    {11,"Shirt","avatar"}, {12,"Pants","avatar"}, {13,"Decal","dev"}, {17,"Head","avatar"},
+    {18,"Face","avatar"}, {19,"Gear","avatar"}, {21,"Badge","dev"}, {24,"Animation","dev"},
+    {27,"Torso","avatar"}, {28,"Right Arm","avatar"}, {29,"Left Arm","avatar"},
+    {30,"Left Leg","avatar"}, {31,"Right Leg","avatar"}, {32,"Package","avatar"},
+    {34,"Gamepass","dev"}, {38,"Plugin","dev"}, {40,"MeshPart","dev"},
+    {41,"Hair Accessory","avatar"}, {42,"Face Accessory","avatar"}, {43,"Neck Accessory","avatar"},
+    {44,"Shoulder Accessory","avatar"}, {45,"Front Accessory","avatar"}, {46,"Back Accessory","avatar"},
+    {47,"Waist Accessory","avatar"}, {48,"Climb Animation","avatar"}, {49,"Death Animation","avatar"},
+    {50,"Fall Animation","avatar"}, {51,"Idle Animation","avatar"}, {52,"Jump Animation","avatar"},
+    {53,"Run Animation","avatar"}, {54,"Swim Animation","avatar"}, {55,"Walk Animation","avatar"},
+    {56,"Pose Animation","avatar"}, {57,"Ear Accessory","avatar"}, {58,"Eye Accessory","avatar"},
+    {61,"Emote Animation","avatar"}, {62,"Video","dev"}, {64,"T-Shirt Accessory","avatar"},
+    {65,"Shirt Accessory","avatar"}, {66,"Pants Accessory","avatar"}, {67,"Jacket Accessory","avatar"},
+    {68,"Sweater Accessory","avatar"}, {69,"Shorts Accessory","avatar"}, {70,"Left Shoe Accessory","avatar"},
+    {71,"Right Shoe Accessory","avatar"}, {72,"Dress Skirt Accessory","avatar"}, {73,"Font Family","dev"},
+    {76,"Eyebrow Accessory","avatar"}, {77,"Eyelash Accessory","avatar"}, {78,"Mood Animation","avatar"},
+    {79,"Dynamic Head","avatar"}, {88,"Face Makeup","avatar"}, {89,"Lip Makeup","avatar"},
+    {90,"Eye Makeup","avatar"}
+}
+
+local ASSET_TYPE_CAT, CAT_TYPE_IDS = {}, { dev = {}, avatar = {} }
+for _, t in ipairs(ASSET_TYPES) do
+    ASSET_TYPE_CAT[t[1]] = t[3]
+    table.insert(CAT_TYPE_IDS[t[3]], t[1])
+end
+CAT_TYPE_IDS.dev = table.concat(CAT_TYPE_IDS.dev, ",")
+CAT_TYPE_IDS.avatar = table.concat(CAT_TYPE_IDS.avatar, ",")
+
+-- helpers
+local function esc(s)
+    if s == nil then return "" end
+    return (tostring(s):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ["\""] = "&quot;", ["'"] = "&#39;"
+    }))
+end
+
+local function urlEncode(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+
+local function blank(s) return s == nil or s:match("^%s*$") ~= nil end
+
+local function option(value, label, selected)
+    return string.format('<option value="%s"%s>%s</option>',
+        esc(value), selected and " selected" or "", esc(label))
+end
+
+local function assetTypeOptions(selectedId, category, includeAll)
+    local out = includeAll and { option("", "All types", selectedId == nil) } or {}
+    for _, t in ipairs(ASSET_TYPES) do
+        if not category or t[3] == category then
+            out[#out + 1] = option(t[1], t[2], selectedId == t[1])
+        end
+    end
+    return table.concat(out)
+end
+
+local dbm = core.GetEmuDbManager()
+local databases = (dbm and dbm:GetMountedDatabases()) or {}
+
+local function dbLabel(db)
+    local title = db:GetTitle()
+    return blank(title) and db:GetFileName() or title
+end
+
+local function findDatabase(fileName)
+    for _, db in ipairs(databases) do
+        if db:GetFileName() == fileName then return db end
+    end
+    return nil
+end
+
+local validType = {}
+for _, t in ipairs(ITEM_TYPES) do validType[t] = true end
+local itemType = validType[_GET["item"]] and _GET["item"] or "Asset"
+local isAsset = (itemType == "Asset")
+
+for _, flash in ipairs({ { "msg", "ia-ok" }, { "err", "ia-err" } }) do
+    if _GET[flash[1]] then
+        echo(string.format('<p class="ia-flash %s">%s</p>', flash[2], esc(_GET[flash[1]])))
+    end
+end
+
+local query = not blank(_GET["q"]) and _GET["q"] or nil
+
+local dbFilter = not blank(_GET["db"]) and _GET["db"] or nil
+local listDatabases, dbFilterLabel = databases, nil
+if dbFilter then
+    local db = findDatabase(dbFilter)
+    if db then
+        listDatabases, dbFilterLabel = { db }, dbLabel(db)
+    else
+        dbFilter = nil
+    end
+end
+
+local category = isAsset and not blank(_GET["cat"]) and _GET["cat"] or nil
+if category ~= "dev" and category ~= "avatar" then category = nil end
+local atype = isAsset and tonumber(_GET["atype"]) or nil
+if atype and (ASSET_TYPE_CAT[atype] == nil or (category and ASSET_TYPE_CAT[atype] ~= category)) then
+    atype = nil
+end
+
+local conds, likeParam = {}, nil
+if query then
+    conds[#conds + 1] = "Name LIKE ? ESCAPE '\\'"
+    likeParam = "%" .. query:gsub("[\\%%_]", "\\%0") .. "%"
+end
+if atype then
+    conds[#conds + 1] = "Type = " .. atype
+elseif category then
+    conds[#conds + 1] = "Type IN (" .. CAT_TYPE_IDS[category] .. ")"
+end
+local whereSql = #conds > 0 and (" WHERE " .. table.concat(conds, " AND ")) or ""
+
+local function runQuery(db, sql)
+    if likeParam then return db:QueryTyped(sql, likeParam) end
+    return db:Query(sql)
+end
+
+local dbOptions = {}
+for _, db in ipairs(databases) do
+    dbOptions[#dbOptions + 1] = option(db:GetFileName(), dbLabel(db), false)
+end
+dbOptions = #dbOptions > 0 and table.concat(dbOptions) or '<option value="">(no databases mounted)</option>'
+
+local extraFields = ""
+if isAsset then
+    extraFields = '<div class="ia-row"><label>Asset type <select name="assetType">'
+        .. assetTypeOptions(nil, nil, false)
+        .. '</select></label><label class="ia-wide">File <input type="file" name="file"></label></div>'
+elseif itemType == "Bundle" then
+    extraFields = '<div class="ia-row"><label>Bundle type <input type="number" name="bundleType" value="1"></label></div>'
+elseif itemType == "Badge" then
+    extraFields = '<div class="ia-row"><label>Universe Id <input type="number" name="universeId" required></label></div>'
+elseif itemType == "DevProduct" then
+    extraFields = [[<div class="ia-row">
+        <label>Universe Id <input type="number" name="universeId" required></label>
+        <label>Currency type <input type="number" name="currencyType" value="1"></label>
+        <label>Price <input type="number" name="price" value="0"></label></div>]]
+elseif itemType == "Pass" then
+    extraFields = [[<div class="ia-row">
+        <label>Universe Id <input type="number" name="universeId" required></label>
+        <label>Price in Robux <input type="number" name="priceInRobux" value="0"></label></div>]]
+end
+
+echo(string.format([[
+<details class="ia-upload"><summary>Upload a new %s</summary>
+<form class="ia-form" action="/v1/items/upload" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="itemType" value="%s">
+    <div class="ia-row">
+        <label>Database <select name="database" required>%s</select></label>
+        <label>Id <input type="number" name="id" placeholder="random" min="1"></label>
+        <label>Name <input type="text" name="name" maxlength="100"></label>
+    </div>
+    <div class="ia-row"><label class="ia-wide">Description <input type="text" name="description"></label></div>
+    %s
+    <button type="submit" class="ia-btn ia-btn-primary">Upload</button>
+</form></details>]], esc(itemType), esc(itemType), dbOptions, extraFields))
+
+local dbFilterOptions = { option("", "All databases", dbFilter == nil) }
+for _, db in ipairs(databases) do
+    dbFilterOptions[#dbFilterOptions + 1] = option(db:GetFileName(), dbLabel(db), dbFilter == db:GetFileName())
+end
+
+echo(string.format([[
+<form class="ia-filters" method="get">
+    <input type="hidden" name="category" value="items">
+    <input type="hidden" name="item" value="%s">
+    <input class="ia-search" type="text" name="q" value="%s" placeholder="Search %ss by name...">
+    <select name="db" onchange="this.form.submit()">%s</select>
+]], esc(itemType), esc(query or ""), esc(itemType), table.concat(dbFilterOptions)))
+
+if isAsset then
+    echo(string.format([[
+    <select name="cat" onchange="this.form.submit()">%s%s%s</select>
+    <select name="atype" onchange="this.form.submit()">%s</select>
+]], option("", "Any category", category == nil),
+        option("dev", "Development Item", category == "dev"),
+        option("avatar", "Avatar Item", category == "avatar"),
+        assetTypeOptions(atype, category, true)))
+end
+echo('<button type="submit" class="ia-btn">Search</button></form>')
+
+local page = math.max(1, tonumber(_GET["page"]) or 1)
+
+local counts, totalCount = {}, 0
+for i, db in ipairs(listDatabases) do
+    local r = runQuery(db, string.format('SELECT COUNT(*) AS c FROM "%s"%s;', itemType, whereSql))
+    counts[i] = (r and r[1] and tonumber(r[1].c)) or 0
+    totalCount = totalCount + counts[i]
+end
+
+local totalPages = math.max(1, math.ceil(totalCount / ITEMS_PER_PAGE))
+page = math.min(page, totalPages)
+
+local skip, remaining, rows = (page - 1) * ITEMS_PER_PAGE, ITEMS_PER_PAGE, {}
+for i, db in ipairs(listDatabases) do
+    if remaining <= 0 then break end
+    if skip >= counts[i] then
+        skip = skip - counts[i]
+    else
+        local result = runQuery(db, string.format(
+            'SELECT Id, Name FROM "%s"%s ORDER BY Id DESC LIMIT %d OFFSET %d;',
+            itemType, whereSql, remaining, skip)) or {}
+        for _, row in ipairs(result) do
+            rows[#rows + 1] = { id = row.Id, name = row.Name, dbFile = db:GetFileName(), dbLabel = dbLabel(db) }
+        end
+        remaining = remaining - #result
+        skip = 0
+    end
+end
+
+local scope = dbFilter and ("in " .. esc(dbFilterLabel))
+    or string.format("across %d database%s", #databases, #databases == 1 and "" or "s")
+echo(string.format('<p class="ia-count">%d%s %s%s %s &mdash; page %d of %d</p>',
+    totalCount, whereSql ~= "" and " matching" or "",
+    esc(itemType), totalCount == 1 and "" or "s", scope, page, totalPages))
+
+echo('<div class="ia-grid">')
+if #rows == 0 then
+    echo(string.format('<p class="ia-empty">%s</p>',
+        (whereSql ~= "" or dbFilter) and "No items match your filters." or "No items of this type yet."))
+end
+for _, row in ipairs(rows) do
+    local icon = string.format('/v1/items/icon?db=%s&type=%s&id=%s',
+        urlEncode(row.dbFile), urlEncode(itemType), urlEncode(row.id))
+    echo(string.format([[
+        <div class="ia-card">
+            <div class="ia-thumb"><img loading="lazy" src="%s" alt=""></div>
+            <div class="ia-meta">
+                <span class="ia-name" title="%s">%s</span>
+                <span class="ia-id">%s</span>
+                <span class="ia-db" title="%s">%s</span>
+            </div>
+        </div>]], icon, esc(row.name), esc(row.name), esc(row.id), esc(row.dbLabel), esc(row.dbLabel)))
+end
+echo('</div>')
+
+if totalPages > 1 then
+    local filterQs = (query and "&q=" .. urlEncode(query) or "")
+        .. (dbFilter and "&db=" .. urlEncode(dbFilter) or "")
+        .. (category and "&cat=" .. category or "")
+        .. (atype and "&atype=" .. atype or "")
+    local base = string.format("/control-panel?category=items&item=%s%s&page=", itemType, filterQs)
+
+    local function link(p, label, edge)
+        return string.format('<a class="ia-pg%s" href="%s%d">%s</a>',
+            edge and " ia-pg-edge" or "", base, p, label)
+    end
+
+    echo('<div class="ia-pager">')
+    if page > 1 then
+        echo(link(1, "&laquo; First", true) .. link(page - 1, "&lsaquo; Prev", true))
+    end
+
+    local first, last = math.max(1, page - 3), math.min(totalPages, page + 3)
+    if first > 1 then echo('<span class="ia-pg-gap">&hellip;</span>') end
+    for p = first, last do
+        if p == page then
+            echo(string.format('<b class="ia-pg-cur">%d</b>', p))
+        else
+            echo(link(p, tostring(p)))
+        end
+    end
+    if last < totalPages then echo('<span class="ia-pg-gap">&hellip;</span>') end
+
+    if page < totalPages then
+        echo(link(page + 1, "Next &rsaquo;", true) .. link(totalPages, "Last &raquo;", true))
+    end
+    echo('</div>')
+end
+?>
+</div>

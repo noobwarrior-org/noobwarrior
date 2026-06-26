@@ -1,0 +1,133 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/items/upload.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/26/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local master = core.GetMasterDatabase()
+if master == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local function enc(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+local function fail(itemType, message)
+    header(string.format("Location: /control-panel?category=items&item=%s&err=%s",
+        itemType or "Asset", enc(message)))
+    http_response_code(302)
+    die("")
+end
+local function ok(itemType, message)
+    header(string.format("Location: /control-panel?category=items&item=%s&msg=%s",
+        itemType or "Asset", enc(message)))
+    http_response_code(302)
+    die("")
+end
+
+local token = _COOKIE[".LOGINSESSION"]
+if not token then
+    http_response_code(401)
+    die("You must be logged in")
+end
+local userRows = master:QueryTyped(
+    "SELECT u.Id AS Id FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
+    token)
+if not userRows or not userRows[1] then
+    http_response_code(401)
+    die("You must be logged in")
+end
+
+local validTypes = {
+    Asset = ItemType.Asset, Badge = ItemType.Badge, Bundle = ItemType.Bundle,
+    DevProduct = ItemType.DevProduct, Group = ItemType.Group, Outfit = ItemType.Outfit,
+    Pass = ItemType.Pass, Set = ItemType.Set, Universe = ItemType.Universe,
+    User = ItemType.User
+}
+
+local itemTypeName = _POST["itemType"] or "Asset"
+local itemTypeEnum = validTypes[itemTypeName]
+if itemTypeEnum == nil then
+    fail("Asset", "Unknown item type: " .. tostring(itemTypeName))
+end
+
+local dbName = _POST["database"]
+if not dbName or dbName:match("^%s*$") then
+    fail(itemTypeName, "Please choose a database")
+end
+local dbm = core.GetEmuDbManager()
+local targetDb = nil
+for _, db in ipairs(dbm:GetMountedDatabases()) do
+    if db:GetFileName() == dbName then
+        targetDb = db
+        break
+    end
+end
+if targetDb == nil then
+    fail(itemTypeName, "Database not found: " .. dbName)
+end
+
+local id = tonumber(_POST["id"])
+if id == nil or id <= 0 then
+    local attempts = 0
+    repeat
+        id = math.random(1, 2147483647)
+        attempts = attempts + 1
+    until not targetDb:DoesItemExist(itemTypeEnum, id) or attempts > 20
+end
+if targetDb:DoesItemExist(itemTypeEnum, id) then
+    fail(itemTypeName, string.format("An item with id %d already exists in that database", id))
+end
+
+local name = _POST["name"]
+if name and name:match("^%s*$") then name = nil end
+local description = _POST["description"]
+if description and description:match("^%s*$") then description = nil end
+
+local row = { Id = id }
+if name and itemTypeName ~= "User" then row.Name = name end
+if description then row.Description = description end
+
+if itemTypeName == "Asset" then
+    row.Type = tonumber(_POST["assetType"]) or 1
+    if not row.Name then row.Name = "Uploaded Asset" end
+elseif itemTypeName == "Outfit" then
+    if not row.Name then row.Name = "Uploaded Outfit" end
+elseif itemTypeName == "Bundle" then
+    row.Type = tonumber(_POST["bundleType"]) or 1
+elseif itemTypeName == "Badge" then
+    row.UniverseId = tonumber(_POST["universeId"])
+    if row.UniverseId == nil then fail(itemTypeName, "Badge requires a Universe Id") end
+elseif itemTypeName == "DevProduct" then
+    row.UniverseId = tonumber(_POST["universeId"])
+    row.CurrencyType = tonumber(_POST["currencyType"]) or 1
+    row.Price = tonumber(_POST["price"]) or 0
+    if row.UniverseId == nil then fail(itemTypeName, "Developer Product requires a Universe Id") end
+elseif itemTypeName == "Pass" then
+    row.UniverseId = tonumber(_POST["universeId"])
+    row.PriceInRobux = tonumber(_POST["priceInRobux"]) or 0
+    if row.UniverseId == nil then fail(itemTypeName, "Pass requires a Universe Id") end
+end
+
+local res = targetDb:AddItem(itemTypeEnum, row)
+if res ~= SqlResponse.Success then
+    fail(itemTypeName, string.format("Failed to create item (code %d). Referenced ids must exist in the same database.", res))
+end
+
+local file = _FILES["file"]
+if itemTypeName == "Asset" and file and file.data and #file.data > 0 then
+    local attachRes = targetDb:AttachDataToAsset(id, 0, file.data)
+    if attachRes ~= SqlResponse.Success then
+        fail(itemTypeName, string.format("Item created (id %d) but failed to store the uploaded file (code %d).", id, attachRes))
+    end
+end
+
+targetDb:MarkDirty()
+ok(itemTypeName, string.format("Created %s #%d in %s", itemTypeName, id, targetDb:GetFileName()))
+?>

@@ -128,9 +128,10 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
     reqTbl["PeerPort"] = peer_port;
     
     sol::table headersTbl = mServer->GetCore()->GetLuaState()->create_table();
-    headersTbl["Cookie"]     = evhttp_find_header(headers, "Cookie");
-    headersTbl["User-Agent"] = evhttp_find_header(headers, "User-Agent");
-    headersTbl["Host"]       = evhttp_find_header(headers, "Host");
+    headersTbl["Cookie"]       = evhttp_find_header(headers, "Cookie");
+    headersTbl["User-Agent"]   = evhttp_find_header(headers, "User-Agent");
+    headersTbl["Host"]         = evhttp_find_header(headers, "Host");
+    headersTbl["Content-Type"] = evhttp_find_header(headers, "Content-Type");
     reqTbl["Headers"] = headersTbl;
 
     evhttp_cmd_type method = evhttp_request_get_command(req);

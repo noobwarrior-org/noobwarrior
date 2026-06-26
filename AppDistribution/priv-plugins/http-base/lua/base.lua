@@ -78,6 +78,59 @@ local function url_decode(str)
     return str
 end
 
+-- Parses a multipart/form-data body (binary-safe). Returns two tables:
+--   fields = { [name] = value }                       (plain form fields)
+--   files  = { [name] = { name=filename, type=mime, data=bytes, size=n } }
+-- The body always begins with "--<boundary>" and each part is separated by
+-- "\r\n--<boundary>", terminated by "--<boundary>--".
+local function parse_multipart(body, boundary)
+    local fields, files = {}, {}
+    if body == nil or boundary == nil or boundary == "" then
+        return fields, files
+    end
+
+    local delim = "--" .. boundary
+    local dlen = #delim
+
+    local first = body:find(delim, 1, true)
+    if not first then return fields, files end
+    local cursor = first + dlen
+
+    while true do
+        -- "--" immediately after a boundary marks the terminating delimiter.
+        if body:sub(cursor, cursor + 1) == "--" then break end
+        -- Skip the CRLF that follows the boundary line.
+        if body:sub(cursor, cursor + 1) == "\r\n" then cursor = cursor + 2 end
+
+        local headerEnd = body:find("\r\n\r\n", cursor, true)
+        if not headerEnd then break end
+        local headerBlock = body:sub(cursor, headerEnd - 1)
+        local contentStart = headerEnd + 4
+
+        -- The part's content runs up to the CRLF preceding the next boundary.
+        local nextDelim = body:find("\r\n" .. delim, contentStart, true)
+        if not nextDelim then break end
+        local content = body:sub(contentStart, nextDelim - 1)
+
+        local name = headerBlock:match('[Nn]ame="([^"]*)"')
+        local filename = headerBlock:match('[Ff]ilename="([^"]*)"')
+        local ctype = headerBlock:match('[Cc]ontent%-[Tt]ype:%s*([^\r\n]+)')
+
+        if name then
+            if filename then
+                files[name] = { name = filename, type = ctype, data = content, size = #content }
+            else
+                fields[name] = content
+            end
+        end
+
+        -- Advance past the "\r\n" + boundary we just found.
+        cursor = nextDelim + 2 + dlen
+    end
+
+    return fields, files
+end
+
 local function match_sitemap(sitemap, uri)
     if sitemap[uri] then
         return sitemap[uri], {}
@@ -116,6 +169,7 @@ function http_base.AttachToServer(srv, params)
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}
         local post_tbl = {}
+        local files_tbl = {}
         local cookies_tbl = {}
 
         local uri_query_pos = string.find(req.Uri, "?")
@@ -130,7 +184,13 @@ function http_base.AttachToServer(srv, params)
             end
         end
 
-        if req.PostBody ~= nil then
+        local content_type = req.Headers and req.Headers["Content-Type"] or ""
+        if req.PostBody ~= nil and content_type:find("multipart/form%-data") then
+            local boundary = content_type:match('boundary="([^"]+)"') or content_type:match("boundary=([^;]+)")
+            local fields, files = parse_multipart(req.PostBody, boundary)
+            for k, v in pairs(fields) do post_tbl[k] = v end
+            files_tbl = files
+        elseif req.PostBody ~= nil then
             for param in string.gmatch(req.PostBody, '([^&]+)') do
                 local equals_index = string.find(param, "=")
                 if equals_index then
@@ -203,7 +263,7 @@ function http_base.AttachToServer(srv, params)
                     ["_GET"] = get_tbl,
                     ["_POST"] = post_tbl,
                     ["_RAW_POST"] = req.PostBody or "",
-                    ["_FILES"] = {},
+                    ["_FILES"] = files_tbl,
                     ["_COOKIE"] = cookies_tbl,
                     ["_PARAMS"] = url_params,
                     ["_SESSION"] = session_proxy,
