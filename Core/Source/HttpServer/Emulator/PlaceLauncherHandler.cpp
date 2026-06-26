@@ -54,16 +54,14 @@ void PlaceLauncherHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const char* ipStr = evhttp_find_header(&headers, "ip");
     const char* portStr = evhttp_find_header(&headers, "port");
-    const char* localStr = evhttp_find_header(&headers, "local");
     const char* placeIdStr = evhttp_find_header(&headers, "placeId");
 
     nlohmann::json json = nlohmann::json::object();
     json["jobId"] = "Test";
     json["status"] = 2;
-    json["joinScriptUrl"] = std::format("http://www.roblox.com/Game/Join.ashx?ip={}&port={}&local={}&placeId={}",
+    json["joinScriptUrl"] = std::format("http://www.roblox.com/Game/Join.ashx?ip={}&port={}&placeId={}",
         ipStr == nullptr ? "" : ipStr,
         portStr == nullptr ? "" : portStr,
-        localStr == nullptr ? "" : localStr,
         placeIdStr == nullptr ? "" : placeIdStr);
     json["authenticationUrl"] = "http://www.roblox.com/Login/Negotiate.ashx";
     // json["joinScriptUrl"] = "http://localhost/2021/game/join.ashx?placeid=1818&ip=localhost&port=53640&user=greg&id=7601610&membership=&app=http://localhost/charscript/Custom.php?hat=0;password=7601610|Pastel brown;Cyan;Pastel brown;Pastel brown;Cyan;Cyan";

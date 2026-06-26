@@ -52,12 +52,10 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const char* ipStr = evhttp_find_header(&headers, "ip");
     const char* portStr = evhttp_find_header(&headers, "port");
-    const char* localStr = evhttp_find_header(&headers, "local");
     const char* placeIdStr = evhttp_find_header(&headers, "placeId");
 
     std::string ipCppStr = ipStr == nullptr ? "localhost" : ipStr;
     int port = portStr == nullptr ? 53640 : strtol(portStr, nullptr, 10);
-    std::string localCppStr = localStr == nullptr ? "{}" : localStr;
     int64_t placeId = placeIdStr == nullptr || *placeIdStr == '\0' ? 1818 : strtoll(placeIdStr, nullptr, 10);
 
     nlohmann::json joinScript = nlohmann::json::object();

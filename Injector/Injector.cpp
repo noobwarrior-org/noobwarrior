@@ -236,7 +236,12 @@ Args:
 --file: a path to the file you want to launch and inject a DLL to.
 --ip: the IP address of the server to connect to.
 --port: the port of the server to connect to.
---local: JSON data containing the player's name, user id, membership, and character appearance. Percent encoded. Only works on servers set to Local mode.)",
+--placeid: The place ID that the server should load.
+--emuhttp: The HTTP port of the Server Emulator that noobHook should make requests to.
+--emuhttps: The HTTPS port of the Server Emulator that noobHook should make requests to.
+--emucert: A path to a certificate file that the Roblox engine will point towards.
+--side: If set to \"server\", it will tell Roblox Studio to start a local server instance. Otherwise, Studio will run as usual.
+--scheme: Roblox has changed their launch parameters over the years. Setting this to "new" will use the recommended parameters for a 2023 version, while setting it to any other value will use the legacy parameters for older clients.)",
             "noobHook Injector",
             MB_ICONINFORMATION | MB_OK);
         return 0;
@@ -245,7 +250,6 @@ Args:
     std::wstring filePathStr;
     std::wstring ipStr;
     std::wstring portStr;
-    std::wstring localStr;
     std::wstring placeIdStr;
     std::wstring emuHttpStr;
     std::wstring emuHttpsStr;
@@ -266,10 +270,6 @@ Args:
 
         if (wcscmp(argv[i], L"--port") == 0) {
             portStr = argv[i + 1];
-        }
-
-        if (wcscmp(argv[i], L"--local") == 0) {
-            localStr = argv[i + 1];
         }
 
         if (wcscmp(argv[i], L"--placeid") == 0) {
@@ -297,8 +297,8 @@ Args:
         }
     }
 
-    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nLocal arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
-        filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), localStr.c_str(), placeIdStr.c_str(),
+    printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
+        filePathStr.c_str(), ipStr.c_str(), portStr.c_str(), placeIdStr.c_str(),
         emuHttpStr.c_str(), emuHttpsStr.c_str(), sideStr.c_str());
 
     std::wstring wargs;
@@ -324,8 +324,8 @@ Args:
             std::wstring ip = ipStr.empty() ? L"127.0.0.1" : ipStr;
             std::wstring port = portStr.empty() ? L"53640" : portStr;
             std::wstring placeLauncher = std::format(
-                L"http://www.roblox.com/Game/PlaceLauncher.ashx?request=RequestGame&ip={}&port={}&placeId={}&local={}",
-                ip, port, placeId, localStr);
+                L"http://www.roblox.com/Game/PlaceLauncher.ashx?request=RequestGame&ip={}&port={}&placeId={}",
+                ip, port, placeId);
             std::wstring deeplink = std::format(L"roblox://experiences/start?placeId={}", placeId);
             wargs += std::format(
                 L" --play -b \"12345678\" -t \"1\" --launchtime 1716000000000 --rloc en_us --gloc en_us"
@@ -333,7 +333,7 @@ Args:
                 deeplink, placeLauncher);
         } else {
             // Pre-2023: the -a/-j/-t launch (the --play flag did not exist yet)
-            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&local={}&placeId={}\" -t \"1\"", ipStr, portStr, localStr, placeIdStr);
+            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&placeId={}\" -t \"1\"", ipStr, portStr, placeIdStr);
         }
     } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
         std::wstring port = portStr.empty() ? L"53640" : portStr;
