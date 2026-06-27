@@ -23,13 +23,14 @@
 // Started on: 4/21/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/MySettingsJsonHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Log.h>
-
-static constexpr const char* JSON = R"({"ChangeUsernameEnabled":true,"IsAdmin":false,"UserId":86121841,"Name":"Hattozo","DisplayName":"Hattozo","IsEmailOnFile":true,"IsEmailVerified":true,"IsPhoneFeatureEnabled":true,"RobuxRemainingForUsernameChange":573,"PreviousUserNames":"MohammadHasan2","UseSuperSafePrivacyMode":false,"IsAppChatSettingEnabled":true,"IsGameChatSettingEnabled":true,"IsParentalSpendControlsEnabled":true,"IsSetPasswordNotificationEnabled":false,"ChangePasswordRequiresTwoStepVerification":false,"ChangeEmailRequiresTwoStepVerification":false,"UserEmail":"t*********@gmail.com","UserEmailMasked":true,"UserEmailVerified":true,"CanHideInventory":true,"CanTrade":false,"MissingParentEmail":false,"IsUpdateEmailSectionShown":true,"IsUnder13UpdateEmailMessageSectionShown":false,"IsUserConnectedToFacebook":false,"IsTwoStepToggleEnabled":false,"AgeBracket":0,"UserAbove13":true,"ClientIpAddress":"108.17.63.2","AccountAgeInDays":3975,"IsPremium":false,"HasRobloxSubscription":false,"IsBcRenewalMembership":false,"PremiumFeatureId":null,"HasCurrencyOperationError":false,"CurrencyOperationErrorMessage":null,"Tab":null,"ChangePassword":false,"IsAccountPinEnabled":false,"IsAccountRestrictionsFeatureEnabled":true,"IsAccountSettingsSocialNetworksV2Enabled":false,"IsUiBootstrapModalV2Enabled":true,"IsDateTimeI18nPickerEnabled":true,"InApp":false,"MyAccountSecurityModel":{"IsEmailSet":true,"IsEmailVerified":true,"IsTwoStepEnabled":true,"ShowSignOutFromAllSessions":true,"TwoStepVerificationViewModel":{"UserId":86121841,"IsEnabled":true,"CodeLength":0,"ValidCodeCharacters":null}},"ApiProxyDomain":"https://api.roblox.com","AccountSettingsApiDomain":"https://accountsettings.roblox.com","AuthDomain":"https://auth.roblox.com","IsDisconnectFacebookEnabled":true,"IsDisconnectXboxEnabled":true,"NotificationSettingsDomain":"https://notifications.roblox.com","AllowedNotificationSourceTypes":["Test","FriendRequestReceived","FriendRequestAccepted","PartyInviteReceived","PartyMemberJoined","ChatNewMessage","PrivateMessageReceived","UserAddedToPrivateServerWhiteList","ConversationUniverseChanged","TeamCreateInvite","GameUpdate","DeveloperMetricsAvailable","GroupJoinRequestAccepted","Sendr","ExperienceInvitation"],"AllowedReceiverDestinationTypes":["NotificationStream"],"BlacklistedNotificationSourceTypesForMobilePush":[],"MinimumChromeVersionForPushNotifications":50,"PushNotificationsEnabledOnFirefox":false,"LocaleApiDomain":"https://locale.roblox.com","HasValidPasswordSet":true,"IsFastTrackAccessible":false,"IsAgeDownEnabled":true,"IsDisplayNamesEnabled":true,"IsBirthdateLocked":false})";
+#include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 
-MySettingsJsonHandler::MySettingsJsonHandler() {
+MySettingsJsonHandler::MySettingsJsonHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
@@ -44,9 +45,98 @@ void MySettingsJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("MySettingsJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
+    auto* registry = mEmu->GetCore()->GetRegistry();
+    auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
+    auto name = registry->GetKeyValue<std::string>("user.name").value_or("Player");
+    auto displayName = registry->GetKeyValue<std::string>("user.display_name").value_or("Player");
+
+    nlohmann::json j = {
+        {"ChangeUsernameEnabled", true},
+        {"IsAdmin", false},
+        {"UserId", id},
+        {"Name", name},
+        {"DisplayName", displayName},
+        {"IsEmailOnFile", true},
+        {"IsEmailVerified", true},
+        {"IsPhoneFeatureEnabled", true},
+        {"RobuxRemainingForUsernameChange", 573},
+        {"PreviousUserNames", ""},
+        {"UseSuperSafePrivacyMode", false},
+        {"IsAppChatSettingEnabled", true},
+        {"IsGameChatSettingEnabled", true},
+        {"IsParentalSpendControlsEnabled", true},
+        {"IsSetPasswordNotificationEnabled", false},
+        {"ChangePasswordRequiresTwoStepVerification", false},
+        {"ChangeEmailRequiresTwoStepVerification", false},
+        {"UserEmail", "contact@noobwarrior.org"},
+        {"UserEmailMasked", true},
+        {"UserEmailVerified", true},
+        {"CanHideInventory", true},
+        {"CanTrade", false},
+        {"MissingParentEmail", false},
+        {"IsUpdateEmailSectionShown", true},
+        {"IsUnder13UpdateEmailMessageSectionShown", false},
+        {"IsUserConnectedToFacebook", false},
+        {"IsTwoStepToggleEnabled", false},
+        {"AgeBracket", 0},
+        {"UserAbove13", true},
+        {"ClientIpAddress", "localhost"},
+        {"AccountAgeInDays", 3975},
+        {"IsPremium", false},
+        {"HasRobloxSubscription", false},
+        {"IsBcRenewalMembership", false},
+        {"PremiumFeatureId", nullptr},
+        {"HasCurrencyOperationError", false},
+        {"CurrencyOperationErrorMessage", nullptr},
+        {"Tab", nullptr},
+        {"ChangePassword", false},
+        {"IsAccountPinEnabled", false},
+        {"IsAccountRestrictionsFeatureEnabled", true},
+        {"IsAccountSettingsSocialNetworksV2Enabled", false},
+        {"IsUiBootstrapModalV2Enabled", true},
+        {"IsDateTimeI18nPickerEnabled", true},
+        {"InApp", false},
+        {"MyAccountSecurityModel", {
+            {"IsEmailSet", true},
+            {"IsEmailVerified", true},
+            {"IsTwoStepEnabled", true},
+            {"ShowSignOutFromAllSessions", true},
+            {"TwoStepVerificationViewModel", {
+                {"UserId", id},
+                {"IsEnabled", true},
+                {"CodeLength", 0},
+                {"ValidCodeCharacters", nullptr}
+            }}
+        }},
+        {"ApiProxyDomain", "https://api.roblox.com"},
+        {"AccountSettingsApiDomain", "https://accountsettings.roblox.com"},
+        {"AuthDomain", "https://auth.roblox.com"},
+        {"IsDisconnectFacebookEnabled", true},
+        {"IsDisconnectXboxEnabled", true},
+        {"NotificationSettingsDomain", "https://notifications.roblox.com"},
+        {"AllowedNotificationSourceTypes", {
+            "Test", "FriendRequestReceived", "FriendRequestAccepted", "PartyInviteReceived",
+            "PartyMemberJoined", "ChatNewMessage", "PrivateMessageReceived",
+            "UserAddedToPrivateServerWhiteList", "ConversationUniverseChanged", "TeamCreateInvite",
+            "GameUpdate", "DeveloperMetricsAvailable", "GroupJoinRequestAccepted", "Sendr",
+            "ExperienceInvitation"
+        }},
+        {"AllowedReceiverDestinationTypes", {"NotificationStream"}},
+        {"BlacklistedNotificationSourceTypesForMobilePush", nlohmann::json::array()},
+        {"MinimumChromeVersionForPushNotifications", 50},
+        {"PushNotificationsEnabledOnFirefox", false},
+        {"LocaleApiDomain", "https://locale.roblox.com"},
+        {"HasValidPasswordSet", true},
+        {"IsFastTrackAccessible", false},
+        {"IsAgeDownEnabled", true},
+        {"IsDisplayNamesEnabled", true},
+        {"IsBirthdateLocked", false}
+    };
+
+    const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", JSON);
+    evbuffer_add_printf(reply, "%s", body.c_str());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

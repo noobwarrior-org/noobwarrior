@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: OAuthUserinfoHandler.h
+// File: OAuthUserInfoHandler.h
 // Started by: Hattozo
 // Started on: 6/6/2026
 // Description:
@@ -26,9 +26,12 @@
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class OAuthUserinfoHandler : public Handler {
+class ServerEmulator;
+class OAuthUserInfoHandler : public Handler {
 public:
-    OAuthUserinfoHandler();
+    OAuthUserInfoHandler(ServerEmulator* emu);
     void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    ServerEmulator* mEmu;
 };
 }

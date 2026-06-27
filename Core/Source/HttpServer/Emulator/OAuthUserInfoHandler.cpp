@@ -18,26 +18,32 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: OAuthUserinfoHandler.cpp
+// File: OAuthUserInfoHandler.cpp
 // Started by: Hattozo
 // Started on: 6/6/2026
 // Description:
-#include <NoobWarrior/HttpServer/Emulator/OAuthUserinfoHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/OAuthUserInfoHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 
-OAuthUserinfoHandler::OAuthUserinfoHandler() {}
+OAuthUserInfoHandler::OAuthUserInfoHandler(ServerEmulator* emu) : mEmu(emu) {}
 
-void OAuthUserinfoHandler::OnRequest(evhttp_request *req, void *userdata) {
+void OAuthUserInfoHandler::OnRequest(evhttp_request *req, void *userdata) {
+    auto name = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.name").value_or("Player");
+    auto displayname = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.display_name").value_or("Player");
+    auto id = mEmu->GetCore()->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1);
+    
     nlohmann::json j;
-    j["sub"] = "86121841";
-    j["name"] = "Hattozo";
-    j["nickname"] = "Hattozo";
-    j["preferred_username"] = "Hattozo";
+    j["sub"] = std::to_string(id);
+    j["name"] = name;
+    j["nickname"] = displayname;
+    j["preferred_username"] = displayname;
     j["created_at"] = 1;
-    j["profile"] = "https://www.roblox.com/users/86121841/profile";
-    j["picture"] = "http://localhost/headshots/default.png";
+    j["profile"] = "https://www.roblox.com/users/" + std::to_string(id) + "/profile";
+    j["picture"] = "https://www.roblox.com/headshots/default.png";
     j["age_bracket"] = "Age13OrOver";
     j["premium"] = false;
     j["roles"] = nlohmann::json::array();

@@ -79,17 +79,17 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mAvatarFetchHandler(this),
     mAvatarOverrideHandler(this),
     mUniversalAppConfigStudioHandler(),
-    mMySettingsJsonHandler(),
-    mAuthenticatedUserHandler(),
-    mCurrentUserHandler(),
+    mMySettingsJsonHandler(this),
+    mAuthenticatedUserHandler(this),
+    mCurrentUserHandler(this),
     mRequestAuthHandler(),
     mStudioEditHandler(),
     mGameIconHandler(this, mCore->GetEmuDbManager()),
     mOAuthDiscoveryHandler(),
     mOAuthAuthorizeHandler(),
-    mOAuthTokenHandler(),
-    mOAuthUserinfoHandler(),
-    mStudioLoginHandler(),
+    mOAuthTokenHandler(this),
+    mOAuthUserInfoHandler(this),
+    mStudioLoginHandler(this),
     mStudioOpenPlaceHandler(this),
     mDataStorePersistenceHandler(this, mCore->GetEmuDbManager()),
     mEmulatorProxy(this),
@@ -217,7 +217,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/oauth/.well-known/openid-configuration", &mOAuthDiscoveryHandler);
     SetRequestHandler("/oauth/v1/authorize", &mOAuthAuthorizeHandler);
     SetRequestHandler("/oauth/v1/token", &mOAuthTokenHandler);
-    SetRequestHandler("/oauth/v1/userinfo", &mOAuthUserinfoHandler);
+    SetRequestHandler("/oauth/v1/userinfo", &mOAuthUserInfoHandler);
     SetRequestHandler("/studio-login/v1/login", &mStudioLoginHandler);
 
     SetRequestHandler("/studio-open-place/v1/openplace", &mStudioOpenPlaceHandler);

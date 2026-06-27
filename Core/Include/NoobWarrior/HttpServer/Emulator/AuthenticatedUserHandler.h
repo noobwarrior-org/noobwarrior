@@ -26,9 +26,14 @@
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
+class ServerEmulator;
+
 class AuthenticatedUserHandler : public Handler {
 public:
-    AuthenticatedUserHandler();
+    AuthenticatedUserHandler(ServerEmulator* emu);
     void OnRequest(evhttp_request *req, void *userdata) override;
+
+private:
+    ServerEmulator* mEmu;
 };
 }

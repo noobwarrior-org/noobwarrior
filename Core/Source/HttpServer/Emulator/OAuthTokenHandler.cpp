@@ -23,19 +23,66 @@
 // Started on: 6/6/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/OAuthTokenHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <nlohmann/json.hpp>
+
+#include "../../algorithm/base64.h"
 
 using namespace NoobWarrior;
 
-OAuthTokenHandler::OAuthTokenHandler() {}
+namespace {
+std::string Base64Url(const std::string &in) {
+    std::string s = base64_encode(reinterpret_cast<const BYTE*>(in.data()),
+                                  static_cast<unsigned int>(in.size()));
+    for (char &c : s) {
+        if (c == '+') c = '-';
+        else if (c == '/') c = '_';
+    }
+    s.erase(s.find_last_not_of('=') + 1);
+    return s;
+}
+
+std::string MakeJwt(const nlohmann::json &payload) {
+    static const std::string header =
+        Base64Url(R"({"alg":"ES256","kid":"noobwarrior","typ":"JWT"})");
+    return header + "." + Base64Url(payload.dump()) + ".";
+}
+}
+
+OAuthTokenHandler::OAuthTokenHandler(ServerEmulator* emu) : mEmu(emu) {}
 
 void OAuthTokenHandler::OnRequest(evhttp_request *req, void *userdata) {
+    auto* registry = mEmu->GetCore()->GetRegistry();
+    auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
+    auto name = registry->GetKeyValue<std::string>("user.name").value_or("Player");
+    auto displayName = registry->GetKeyValue<std::string>("user.display_name").value_or("Player");
+    const std::string sub = std::to_string(id);
+
+    nlohmann::json accessPayload = {
+        {"sub", sub},
+        {"scope", "openid profile"},
+        {"iss", "https://apis.roblox.com/oauth/"},
+        {"aud", "noobwarrior"},
+    };
+
+    nlohmann::json idPayload = {
+        {"sub", sub},
+        {"name", name},
+        {"nickname", displayName},
+        {"preferred_username", displayName},
+        {"created_at", 1},
+        {"profile", "https://www.roblox.com/users/" + sub + "/profile"},
+        {"iss", "https://apis.roblox.com/oauth/"},
+        {"aud", "noobwarrior"},
+    };
+
     nlohmann::json j;
-    j["access_token"] = "eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.";
+    j["access_token"] = MakeJwt(accessPayload);
     j["refresh_token"] = "noobwarrior_refresh";
     j["token_type"] = "Bearer";
     j["expires_in"] = 2592000;
-    j["id_token"] = "eyJhbGciOiJFUzI1NiIsImtpZCI6Im5vb2J3YXJyaW9yIiwidHlwIjoiSldUIn0.eyJzdWIiOiI4NjEyMTg0MSIsIm5hbWUiOiJIYXR0b3pvIiwibmlja25hbWUiOiJIYXR0b3pvIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiSGF0dG96byIsImNyZWF0ZWRfYXQiOjEsInByb2ZpbGUiOiJodHRwczovL3d3dy5yb2Jsb3guY29tL3VzZXJzLzg2MTIxODQxL3Byb2ZpbGUiLCJpc3MiOiJodHRwczovL2FwaXMucm9ibG94LmNvbS9vYXV0aC8iLCJhdWQiOiJub29id2FycmlvciJ9.";
+    j["id_token"] = MakeJwt(idPayload);
     j["scope"] = "openid profile";
 
     const std::string body = j.dump();

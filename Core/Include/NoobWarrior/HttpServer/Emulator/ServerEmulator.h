@@ -71,7 +71,7 @@
 #include "ClientSettingsV2DesktopHandler.h"
 #include "OAuthDiscoveryHandler.h"
 #include "OAuthTokenHandler.h"
-#include "OAuthUserinfoHandler.h"
+#include "OAuthUserInfoHandler.h"
 #include "StudioLoginHandler.h"
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
@@ -206,7 +206,7 @@ private:
     OAuthDiscoveryHandler mOAuthDiscoveryHandler;
     OAuthAuthorizeHandler mOAuthAuthorizeHandler;
     OAuthTokenHandler mOAuthTokenHandler;
-    OAuthUserinfoHandler mOAuthUserinfoHandler;
+    OAuthUserInfoHandler mOAuthUserInfoHandler;
     StudioLoginHandler mStudioLoginHandler;
     StudioOpenPlaceHandler mStudioOpenPlaceHandler;
     DataStorePersistenceHandler mDataStorePersistenceHandler;

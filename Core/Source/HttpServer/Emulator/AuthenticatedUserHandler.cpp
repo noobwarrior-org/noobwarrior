@@ -23,21 +23,34 @@
 // Started on: 4/21/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/AuthenticatedUserHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Log.h>
-
-static constexpr const char* JSON = R"({"id":86121841,"name":"Hattozo","displayName":"Hattozo"})";
+#include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 
-AuthenticatedUserHandler::AuthenticatedUserHandler() {
+AuthenticatedUserHandler::AuthenticatedUserHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
 void AuthenticatedUserHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("AuthenticatedUserHandler", "Sent!");
+
+    auto* registry = mEmu->GetCore()->GetRegistry();
+    auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
+    auto name = registry->GetKeyValue<std::string>("user.name").value_or("Player");
+    auto displayName = registry->GetKeyValue<std::string>("user.display_name").value_or("Player");
+
+    nlohmann::json j;
+    j["id"] = id;
+    j["name"] = name;
+    j["displayName"] = displayName;
+
+    const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", JSON);
+    evbuffer_add_printf(reply, "%s", body.c_str());
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }

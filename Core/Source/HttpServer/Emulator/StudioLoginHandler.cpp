@@ -23,21 +23,26 @@
 // Started on: 6/6/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/StudioLoginHandler.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <nlohmann/json.hpp>
 
 using namespace NoobWarrior;
 
-StudioLoginHandler::StudioLoginHandler() {}
+StudioLoginHandler::StudioLoginHandler(ServerEmulator* emu) : mEmu(emu) {}
 
 void StudioLoginHandler::OnRequest(evhttp_request *req, void *userdata) {
+    auto name = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.name").value_or("Player");
+    auto displayname = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.display_name").value_or("Player");
+    auto id = mEmu->GetCore()->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1);
+
     nlohmann::json j;
     j["success"] = true;
-    j["user"]["UserId"] = 86121841;
-    j["user"]["Username"] = "Hattozo";
-    j["user"]["DisplayName"] = "Hattozo";
+    j["user"]["UserId"] = id;
+    j["user"]["Username"] = name;
+    j["user"]["DisplayName"] = displayname;
     j["user"]["AgeBracket"] = 0;
     j["user"]["Roles"] = nlohmann::json::array();
-    j["user"]["Email"]["value"] = "hattozo@noobwarrior.local";
+    j["user"]["Email"]["value"] = "contact@noobwarrior.org";
     j["user"]["Email"]["isVerified"] = true;
     j["user"]["IsBanned"] = false;
     j["user"]["isInternal"] = false;

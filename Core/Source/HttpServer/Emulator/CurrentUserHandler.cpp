@@ -23,19 +23,24 @@
 // Started on: 4/21/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/CurrentUserHandler.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
 
-CurrentUserHandler::CurrentUserHandler() {
+CurrentUserHandler::CurrentUserHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
 void CurrentUserHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("CurrentUserHandler", "Sent!");
+
+    auto* registry = mEmu->GetCore()->GetRegistry();
+    auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
+
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%d", 86121841);
+    evbuffer_add_printf(reply, "%lld", id);
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }
