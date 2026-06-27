@@ -37,11 +37,27 @@ BackgroundTaskStatusBarWidget::BackgroundTaskStatusBarWidget(QWidget *parent) : 
 {
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     mLayout.setSizeConstraint(QLayout::SetMaximumSize);
+    mLayout.setContentsMargins(0, 0, 0, 0);
+    mLayout.setSpacing(4);
+
+    mProgressBar.setTextVisible(false);
+    mProgressBar.setMaximumHeight(10);
+    mProgressBar.setStyleSheet(
+        R"(QProgressBar {
+            border: 1px solid gray;
+            border-radius: 4px;
+            padding: 0px;
+        }
+        QProgressBar::chunk {
+            margin: 0px;
+        })"
+    );
     
     mLayout.addWidget(&mLabel);
     mLayout.addWidget(&mProgressBar);
 
     auto bellLabel = new QLabel();
+    bellLabel->setContentsMargins(0, 0, 0, 0);
     QIcon bellIcon = QIcon(":/images/silk/bell.png");
     bellLabel->setPixmap(bellIcon.pixmap(QSize(16, 16)));
     mLayout.addWidget(bellLabel);

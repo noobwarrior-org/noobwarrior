@@ -35,6 +35,7 @@
 #include "Application.h"
 #include "Dialog/AuthTokenDialog.h"
 #include "Dialog/AboutDialog.h"
+#include "Sdk/BackgroundTask/ExampleTask.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -52,7 +53,6 @@
 
 #include <format>
 #include <fstream>
-#include <qnamespace.h>
 
 #define ADD_ITEMTYPE(typeName, iconStr, itemType) \
     QString typeName##_Name = QString::fromStdString(#typeName); \
@@ -101,6 +101,10 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
     InitMenus();
     InitStatusBarWidgets();
     InitWidgets();
+
+    auto *task = new ExampleTask();
+    task->Register(&mBackgroundTasks);
+    mBackgroundTasks.AddTask(task);
 }
 
 Sdk::~Sdk() {
