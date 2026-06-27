@@ -6,3 +6,27 @@
     padding-right: 8px;
     display: inline-block;
 }
+
+.asset-preview-card {
+    max-width: 75%;
+    margin: 0 auto;
+    background-color: #555555;
+    padding: 24px;
+    display: flex;
+    gap: 16px;
+}
+
+.asset-preview-left {
+    flex: 0.75;
+}
+
+.asset-preview-right {
+    flex: 1;
+}
+
+.asset-preview-left img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+}

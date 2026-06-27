@@ -1,0 +1,61 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: asset_preview.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 6/26/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+pageTitle = "Asset Preview"
+include("header.lhp")
+?>
+
+<?lua
+local function urlEncode(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+
+local id = _PARAMS["id"]
+if not id then
+    die("Id cannot be empty")
+end
+local db = core.GetEmuDbManager():GetFirstDbWhereItemExists(ItemType.Asset, id)
+if db == nil then
+    http_response_code(404)
+    die("404 not found")
+end
+local summary = db:GetAssetSummary(id)
+if summary == nil then
+    http_response_code(404)
+    die("404 not found")
+end
+local urlName = urlEncode(string.gsub(summary.Name, " ", "-"))
+if id ~= nil and _PARAMS["name"] ~= urlName then
+    header("Location: /library/" .. id .. "/" .. urlName)
+    http_response_code(302)
+    die("")
+end
+?>
+
+<div class="asset-preview-card">
+    <div class="asset-preview-left">
+        <?lua
+        local icon = string.format('/v1/items/icon?db=%s&type=%s&id=%s',
+            urlEncode(db:GetFileName()), "Asset", urlEncode(id))
+        echo("<img src=\""..icon.."\">")
+        ?>
+    </div>
+    <div class="asset-preview-right">
+        <?lua
+        echo("<h1>"..summary.Name.."</h1>")
+        if summary.UserId then
+            echo("<p>By "..summary.UserId.."</p>")
+        end
+        ?>
+    </div>
+</div>
+
+<?lua include("footer.lhp") ?>

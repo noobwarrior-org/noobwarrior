@@ -35,6 +35,9 @@ local sitemap = {
     ["/forums/search"] = "/src/forums_search.lhp",
     ["/control-panel"] = "/src/controlpanel.lhp",
     ["/users/:userId/profile"] = "/src/profile.lhp",
+    ["/library/:id"] = "/src/asset_preview.lhp",
+    ["/library/:id/"] = "/src/asset_preview.lhp",
+    ["/library/:id/:name"] = "/src/asset_preview.lhp",
 
     ["/v1/items/upload"] = "/src/api/items/upload.lhp",
     ["/v1/items/icon"] = "/src/api/items/icon.lhp",
