@@ -51,6 +51,7 @@ void PlaceLauncherHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, 500, "Failed to parse URL parameters");
         return;
     }
+    ScopedHeaders headersGuard(&headers);
 
     const char* ipStr = evhttp_find_header(&headers, "ip");
     const char* portStr = evhttp_find_header(&headers, "port");

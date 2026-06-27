@@ -29,6 +29,17 @@
 #include <map>
 
 namespace NoobWarrior {
+class ScopedHeaders {
+public:
+    explicit ScopedHeaders(evkeyvalq *headers) : mHeaders(headers) {}
+    ~ScopedHeaders() { evhttp_clear_headers(mHeaders); }
+    ScopedHeaders(const ScopedHeaders &) = delete;
+    ScopedHeaders &operator=(const ScopedHeaders &) = delete;
+
+private:
+    evkeyvalq *mHeaders;
+};
+
 class Handler {
 public:
     static std::map<std::string, std::string> GetPostFormParameters(evhttp_request *req);

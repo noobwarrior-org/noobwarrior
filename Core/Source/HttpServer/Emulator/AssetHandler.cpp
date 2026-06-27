@@ -371,6 +371,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, 500, "Failed to parse URL parameters");
         return;
     }
+    ScopedHeaders headersGuard(&headers);
 
     const char* idStr = evhttp_find_header(&headers, "id");
     if (idStr == NULL) {
