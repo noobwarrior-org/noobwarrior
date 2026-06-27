@@ -70,7 +70,7 @@ void OAuthTokenHandler::OnRequest(evhttp_request *req, void *userdata) {
         {"sub", sub},
         {"name", name},
         {"nickname", displayName},
-        {"preferred_username", displayName},
+        {"preferred_username", name},
         {"created_at", 1},
         {"profile", "https://www.roblox.com/users/" + sub + "/profile"},
         {"iss", "https://apis.roblox.com/oauth/"},

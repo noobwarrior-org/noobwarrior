@@ -35,12 +35,12 @@ void OAuthUserInfoHandler::OnRequest(evhttp_request *req, void *userdata) {
     auto name = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.name").value_or("Player");
     auto displayname = mEmu->GetCore()->GetRegistry()->GetKeyValue<std::string>("user.display_name").value_or("Player");
     auto id = mEmu->GetCore()->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1);
-    
+
     nlohmann::json j;
     j["sub"] = std::to_string(id);
     j["name"] = name;
     j["nickname"] = displayname;
-    j["preferred_username"] = displayname;
+    j["preferred_username"] = name;
     j["created_at"] = 1;
     j["profile"] = "https://www.roblox.com/users/" + std::to_string(id) + "/profile";
     j["picture"] = "https://www.roblox.com/headshots/default.png";
