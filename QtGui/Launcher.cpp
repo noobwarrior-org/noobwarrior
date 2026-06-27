@@ -40,6 +40,8 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
+#include <QDate>
+#include <QDesktopServices>
 
 #define ADD_BUTTONS(arr) for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(arr); i++) { \
     auto *button = new QPushButton(this); \
@@ -192,6 +194,21 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     Layout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(Layout);
 
+    if (QDate::currentDate() == QDate(QDate::currentDate().year(), 4, 1)) {
+        // APRIL FOOLS!!!!!!!
+        auto *label = new QLabel();
+        label->setStyleSheet("QLabel { background-color: red; color: white; }");
+        label->setTextFormat(Qt::RichText);
+        label->setOpenExternalLinks(false);
+        label->setTextInteractionFlags(Qt::TextBrowserInteraction);
+        label->setText("<center><a href=\"https://www.youtube.com/watch?v=9sJUDx7iEJw\" style=\"color: white;\"><h3>Complete your age check!!!!!</h3></a></center>");
+        Layout->addWidget(label);
+        connect(label, &QLabel::linkActivated, [label]() {
+            QDesktopServices::openUrl(QUrl("https://www.youtube.com/watch?v=9sJUDx7iEJw"));
+            label->deleteLater();
+        });
+    }
+
     QImage logoImg(":/images/icon1024.png");
     QPixmap logoPix = QPixmap::fromImage(logoImg).scaled(64 * static_cast<int>(devicePixelRatio()), 64 * static_cast<int>(devicePixelRatio()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     logoPix.setDevicePixelRatio(devicePixelRatio());
@@ -242,6 +259,17 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
         case 2: ADD_BUTTONS(sApplication) break;
         }
     }
+
+    /*
+    auto *button = new QPushButton(this);
+    button->setText("whatever");
+    button->setIcon(QIcon(":/images/silk/vcard.png"));
+    button->setStyleSheet("text-align: left;");
+    QObject::connect(button, &QPushButton::clicked, []() {
+        
+    });
+    frameGrid->addWidget(button);
+    */
 
     auto *versionLabel = new QLabel(QString("noobWarrior v%1").arg(NOOBWARRIOR_VERSION));
     Layout->addWidget(versionLabel);
