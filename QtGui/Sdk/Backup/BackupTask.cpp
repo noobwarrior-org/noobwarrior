@@ -37,15 +37,6 @@
 using namespace NoobWarrior;
 using namespace NoobWarrior::Backup;
 
-BackupTaskItemWidget::BackupTaskItemWidget(QWidget *parent) : BackgroundTaskItemWidget(parent) {
-    mTreeView = new BackupTreeView(this);
-    mLayout->addWidget(mTreeView);
-}
-
-BackupTreeView* BackupTaskItemWidget::GetTreeView() {
-    return mTreeView;
-}
-
 BackupTask::BackupTask(Core *core, Backup::ProcessOptions options) :
     mCore(core),
     mOptions(std::move(options))
@@ -63,20 +54,17 @@ BackupTask::~BackupTask() {
     delete mProc;
 }
 
-void BackupTask::Register(BackgroundTasks* parent) {
-    BackgroundTask::Register(parent);
-    SetTitle("Importing from Roblox...");
-    SetCaption("Queued");
-    SetProgress(0.0);
-}
-
-void BackupTask::OnStart() {
+void BackupTask::Start() {
     Core* core = mCore;
+
+    mNotification = mSdk->GetNotifications()->StartTask("Importing from Roblox...", "Queued");
+    mTreeView = new BackupTreeView();
+    mNotification->SetContent(mTreeView);
 
     // The Qt app pumps Core::ProcessEvents() from the event-loop thread, so Core::RunOnEventLoop()
     // is our marshal-onto-the-UI-thread primitive.
 
-    // Progress: hop to the UI thread, then update the widgets.
+    // Progress: hop to the UI thread, then update the notification.
     mOptions.Callback = [this, core](Backup::State state, std::string msg, double progress) {
         core->RunOnEventLoop([this, state, msg, progress]() {
             OnProgress(state, QString::fromStdString(msg), progress);
@@ -107,16 +95,17 @@ void BackupTask::OnStart() {
 }
 
 void BackupTask::OnProgress(Backup::State state, const QString& message, double progress) {
-    SetCaption(message);
-    if (progress >= 0.0)
-        SetProgress(progress);
+    if (mNotification) {
+        mNotification->SetMessage(message);
+        if (progress >= 0.0)
+            mNotification->SetProgress(progress);
+    }
 
     // Populate is finished by the time the first download is reported, so the tree is now stable
     // and safe to hand to the model.
     if (!mTreeShown && state == Backup::State::Downloading) {
         mTreeShown = true;
-        if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
-            w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+        mTreeView->SetDescriptor(mProc->GetRoot());
     }
 }
 
@@ -127,17 +116,17 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
     // Make sure the tree is shown even if the backup produced no downloadable items.
     if (!mTreeShown && mProc) {
         mTreeShown = true;
-        if (auto *w = dynamic_cast<BackupTaskItemWidget*>(mItemWidget))
-            w->GetTreeView()->SetDescriptor(mProc->GetRoot());
+        mTreeView->SetDescriptor(mProc->GetRoot());
     }
 
-    if (response == Backup::Response::Ok) {
-        SetCaption("Done");
-        SetProgress(1.0);
-    } else if (response == Backup::Response::Cancelled) {
-        SetCaption("Cancelled");
+    if (mNotification) {
+        if (response == Backup::Response::Ok)
+            mNotification->SetMessage("Done");
+        else if (response == Backup::Response::Cancelled)
+            mNotification->SetMessage("Cancelled");
+        mNotification->SetProgress(1.0); // mark complete so the toast can dismiss itself
     }
-    
+
     if (mSdk)
         mSdk->Refresh();
 
@@ -157,7 +146,7 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
             reg->SetKeyValue<bool>("emu.enable_roblox_proxy", true);
             if (!grabDbPath.empty())
                 reg->SetKeyValue<std::string>("emu.asset_grab_db", grabDbPath);
-            
+
             if (project != nullptr)
                 project->Save();
 
@@ -173,20 +162,4 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
             "Want the assets from the place file in this database too? Turn on Asset Grab Mode and play the game; every asset the engine downloads will be saved straight into this database.",
             actions);
     }
-}
-
-void BackupTask::OnPause() {
-
-}
-
-void BackupTask::OnCancel(BackgroundTaskCancelReason reason) {
-    // Just signal cancellation. The worker notices, unwinds, and reports completion via
-    // OnWorkerFinished (which joins it). We must not join here: the worker may be blocked waiting
-    // for this same UI thread to run a marshalled DB write.
-    if (mProc)
-        mProc->Cancel();
-}
-
-BackgroundTaskItemWidget* BackupTask::CreateItemWidget(QWidget *parent) {
-    return new BackupTaskItemWidget(parent);
 }

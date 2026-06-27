@@ -29,13 +29,9 @@
 #include "Sdk/Item/ItemDialog.h"
 #include "Sdk/Backup/BackupDialog.h"
 #include "Sdk/Project/Wizard/ProjectWizard.h"
-#include "Sdk/BackgroundTask/BackgroundTask.h"
-#include "Sdk/BackgroundTask/BackgroundTaskPopupWidget.h"
-#include "Sdk/BackgroundTask/BackgroundTaskStatusBarWidget.h"
 #include "Application.h"
 #include "Dialog/AuthTokenDialog.h"
 #include "Dialog/AboutDialog.h"
-#include "Sdk/BackgroundTask/ExampleTask.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -92,19 +88,16 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
     mWelcomeWidget(nullptr),
     mItemBrowser(nullptr),
     mFileManager(nullptr),
-    mBackgroundTaskStatusBarWidget(nullptr),
     mNotifications(new NotificationManager(this))
 {
     setWindowTitle("noobWarrior SDK");
     setAcceptDrops(true);
     // setWindowState(Qt::WindowMaximized);
     InitMenus();
-    InitStatusBarWidgets();
     InitWidgets();
 
-    auto *task = new ExampleTask();
-    task->Register(&mBackgroundTasks);
-    mBackgroundTasks.AddTask(task);
+    statusBar()->setContentsMargins(0, 0, 0, 0);
+    statusBar()->addPermanentWidget(new NotificationHistoryButton(mNotifications, this));
 }
 
 Sdk::~Sdk() {
@@ -310,10 +303,6 @@ ItemBrowserWidget *Sdk::GetItemBrowser() {
     return mItemBrowser;
 }
 
-BackgroundTasks *Sdk::GetBackgroundTasks() {
-    return &mBackgroundTasks;
-}
-
 NotificationManager *Sdk::GetNotifications() {
     return mNotifications;
 }
@@ -444,17 +433,6 @@ launchdialog:
             backupDialog.exec();
         }
     });
-}
-
-void Sdk::InitStatusBarWidgets() {
-    mBackgroundTaskPopupWidget = new BackgroundTaskPopupWidget(this);
-    mBackgroundTaskPopupWidget->hide();
-
-    mBackgroundTaskStatusBarWidget = new BackgroundTaskStatusBarWidget();
-    statusBar()->addPermanentWidget(mBackgroundTaskStatusBarWidget);
-
-    mBackgroundTasks.SetStatusBarWidget(mBackgroundTaskStatusBarWidget);
-    mBackgroundTasks.SetPopupWidget(mBackgroundTaskPopupWidget);
 }
 
 void Sdk::InitWidgets() {

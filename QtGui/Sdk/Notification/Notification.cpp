@@ -28,6 +28,7 @@
 #include <QLabel>
 #include <QToolButton>
 #include <QPushButton>
+#include <QProgressBar>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTimer>
@@ -36,14 +37,19 @@
 #include <QEnterEvent>
 #include <QEvent>
 #include <QIcon>
+#include <QMenu>
+#include <QWidgetAction>
+#include <QTime>
+
+#include <algorithm>
 
 using namespace NoobWarrior;
 
 static constexpr int kAutoDismissMs = 12000;
 static constexpr int kFadeMs = 200;
 
-NotificationWidget::NotificationWidget(const QString& title, const QString& message,
-                                       const std::vector<NotificationAction>& actions, QWidget* parent)
+Notification::Notification(const QString& title, const QString& message,
+                           const std::vector<NotificationAction>& actions, QWidget* parent)
     : QFrame(parent)
 {
     setObjectName("NotificationToast");
@@ -57,19 +63,17 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
         "#NotificationToast QPushButton { padding: 3px 10px; margin: 0px; }"
     );
 
-    auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(8, 6, 5, 7);
-    layout->setSpacing(2);
+    mLayout = new QVBoxLayout(this);
+    mLayout->setContentsMargins(8, 6, 5, 7);
+    mLayout->setSpacing(2);
 
     auto* titleRow = new QHBoxLayout();
     titleRow->setSpacing(4);
 
-    auto* titleLabel = new QLabel(title, this);
-    titleLabel->setObjectName("NotifTitle");
-    titleLabel->setWordWrap(false);
-    titleLabel->setMargin(0);
-    titleLabel->setContentsMargins(0, 0, 0, 0);
-    titleRow->addWidget(titleLabel, 0, Qt::AlignVCenter);
+    mTitleLabel = new QLabel(title, this);
+    mTitleLabel->setObjectName("NotifTitle");
+    mTitleLabel->setWordWrap(false);
+    titleRow->addWidget(mTitleLabel, 0, Qt::AlignVCenter);
     titleRow->addStretch(1);
 
     auto* closeButton = new QToolButton(this);
@@ -80,24 +84,31 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
     closeButton->setCursor(Qt::PointingHandCursor);
     closeButton->setToolTip("Dismiss");
     titleRow->addWidget(closeButton, 0, Qt::AlignTop);
-    connect(closeButton, &QToolButton::clicked, this, &NotificationWidget::Dismiss);
+    connect(closeButton, &QToolButton::clicked, this, &Notification::Dismiss);
 
-    layout->addLayout(titleRow);
+    mLayout->addLayout(titleRow);
 
-    auto* messageLabel = new QLabel(message, this);
-    messageLabel->setWordWrap(true);
-    messageLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    messageLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    messageLabel->setOpenExternalLinks(true);
-    layout->addWidget(messageLabel);
-    mMessageLabel = messageLabel;
+    mMessageLabel = new QLabel(message, this);
+    mMessageLabel->setWordWrap(true);
+    mMessageLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    mMessageLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    mMessageLabel->setOpenExternalLinks(true);
+    mLayout->addWidget(mMessageLabel);
+
+    // Created up front but hidden; SetProgress reveals it so it always sits right under the message.
+    mProgressBar = new QProgressBar(this);
+    mProgressBar->setTextVisible(false);
+    mProgressBar->setFixedHeight(8);
+    mProgressBar->hide();
+    mLayout->addWidget(mProgressBar);
 
     if (!actions.empty()) {
-        auto* actionRow = new QHBoxLayout();
-        actionRow->setContentsMargins(0, 4, 0, 0);
-        actionRow->addStretch(1);
+        mActionRow = new QWidget(this);
+        auto* actionLayout = new QHBoxLayout(mActionRow);
+        actionLayout->setContentsMargins(0, 4, 0, 0);
+        actionLayout->addStretch(1);
         for (const NotificationAction& action : actions) {
-            auto* button = new QPushButton(action.Label, this);
+            auto* button = new QPushButton(action.Label, mActionRow);
             button->setCursor(Qt::PointingHandCursor);
             std::function<void()> callback = action.OnTriggered;
             connect(button, &QPushButton::clicked, this, [this, callback]() {
@@ -105,11 +116,11 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
                     callback();
                 Dismiss();
             });
-            actionRow->addWidget(button);
+            actionLayout->addWidget(button);
         }
-        layout->addLayout(actionRow);
+        mLayout->addWidget(mActionRow);
     }
-    
+
     mOpacity = new QGraphicsOpacityEffect(this);
     mOpacity->setOpacity(0.0);
     setGraphicsEffect(mOpacity);
@@ -120,23 +131,65 @@ NotificationWidget::NotificationWidget(const QString& title, const QString& mess
     mDismissTimer = new QTimer(this);
     mDismissTimer->setSingleShot(true);
     mDismissTimer->setInterval(kAutoDismissMs);
-    connect(mDismissTimer, &QTimer::timeout, this, &NotificationWidget::Dismiss);
+    connect(mDismissTimer, &QTimer::timeout, this, &Notification::Dismiss);
 }
 
-void NotificationWidget::Appear() {
-    show();
-    if (mMessageLabel)
+void Notification::SetTitle(const QString& title) {
+    mTitleLabel->setText(title);
+}
+
+void Notification::SetMessage(const QString& message) {
+    mMessageLabel->setText(message);
+    if (isVisible())
         mMessageLabel->setFixedHeight(mMessageLabel->heightForWidth(mMessageLabel->width()));
+    adjustSize();
+    emit resized();
+}
+
+void Notification::SetProgress(double progress) {
+    mProgressBar->show();
+    if (progress < 0.0) {
+        mProgressBar->setRange(0, 0); // indeterminate "busy" bar
+    } else {
+        mProgressBar->setRange(0, 100);
+        mProgressBar->setValue(static_cast<int>(std::min(progress, 1.0) * 100));
+    }
+
+    // While work is ongoing the toast must stay put; once it's done, let it fade like any other.
+    mPersistent = progress < 1.0;
+    if (mPersistent)
+        mDismissTimer->stop();
+    else
+        ScheduleDismiss();
+
+    adjustSize();
+    emit resized();
+}
+
+void Notification::SetContent(QWidget* content) {
+    if (!content)
+        return;
+    content->setParent(this);
+    // Sit above the action row (if any) but below the message/progress.
+    const int index = mActionRow ? mLayout->indexOf(mActionRow) : mLayout->count();
+    mLayout->insertWidget(index, content);
+    adjustSize();
+    emit resized();
+}
+
+void Notification::Appear() {
+    show();
+    mMessageLabel->setFixedHeight(mMessageLabel->heightForWidth(mMessageLabel->width()));
     adjustSize();
     raise();
     mFade->stop();
     mFade->setStartValue(mOpacity->opacity());
     mFade->setEndValue(1.0);
     mFade->start();
-    mDismissTimer->start();
+    ScheduleDismiss();
 }
 
-void NotificationWidget::Dismiss() {
+void Notification::Dismiss() {
     if (mClosing)
         return;
     mClosing = true;
@@ -152,14 +205,20 @@ void NotificationWidget::Dismiss() {
     mFade->start();
 }
 
-void NotificationWidget::enterEvent(QEnterEvent* event) {
+void Notification::ScheduleDismiss() {
+    // Persistent toasts and toasts under the cursor stay until the user is done with them.
+    if (mPersistent || mClosing || underMouse())
+        return;
+    mDismissTimer->start();
+}
+
+void Notification::enterEvent(QEnterEvent* event) {
     mDismissTimer->stop();
     QFrame::enterEvent(event);
 }
 
-void NotificationWidget::leaveEvent(QEvent* event) {
-    if (!mClosing)
-        mDismissTimer->start();
+void Notification::leaveEvent(QEvent* event) {
+    ScheduleDismiss();
     QFrame::leaveEvent(event);
 }
 
@@ -168,19 +227,40 @@ NotificationManager::NotificationManager(QWidget* anchor) : QObject(anchor), mAn
         mAnchor->installEventFilter(this);
 }
 
-void NotificationManager::Notify(const QString& title, const QString& message,
-                                 const std::vector<NotificationAction>& actions) {
-    if (!mAnchor)
-        return;
+Notification* NotificationManager::Notify(const QString& title, const QString& message,
+                                          const std::vector<NotificationAction>& actions) {
+    static constexpr int kMaxHistory = 50;
+    mHistory.append(NotificationRecord{ title, message, QTime::currentTime().toString("HH:mm"), actions });
+    while (mHistory.size() > kMaxHistory)
+        mHistory.removeFirst();
+    emit historyChanged();
 
-    auto* toast = new NotificationWidget(title, message, actions, mAnchor);
-    connect(toast, &NotificationWidget::closed, this, &NotificationManager::Remove);
+    return Add(title, message, actions);
+}
+
+Notification* NotificationManager::StartTask(const QString& title, const QString& message) {
+    Notification* toast = Add(title, message, {});
+    if (toast)
+        toast->SetProgress(-1.0); // indeterminate until the caller reports real progress
+    return toast;
+}
+
+Notification* NotificationManager::Add(const QString& title, const QString& message,
+                                       const std::vector<NotificationAction>& actions) {
+    if (!mAnchor)
+        return nullptr;
+
+    auto* toast = new Notification(title, message, actions, mAnchor);
+    connect(toast, &Notification::closed, this, &NotificationManager::Remove);
+    connect(toast, &Notification::resized, this, &NotificationManager::Reposition);
     mToasts.append(toast);
     toast->Appear();
     Reposition();
 
     if (!mAnchor->isActiveWindow() && gApp)
         gApp->ShowSystemNotification(title, message);
+
+    return toast;
 }
 
 void NotificationManager::Reposition() {
@@ -193,7 +273,7 @@ void NotificationManager::Reposition() {
 
     int y = mAnchor->height() - bottomInset;
     for (int i = mToasts.size() - 1; i >= 0; --i) {
-        NotificationWidget* toast = mToasts[i];
+        Notification* toast = mToasts[i];
         y -= toast->height();
         toast->move(mAnchor->width() - toast->width() - margin, y);
         toast->raise();
@@ -201,7 +281,7 @@ void NotificationManager::Reposition() {
     }
 }
 
-void NotificationManager::Remove(NotificationWidget* toast) {
+void NotificationManager::Remove(Notification* toast) {
     mToasts.removeOne(toast);
     Reposition();
 }
@@ -210,4 +290,85 @@ bool NotificationManager::eventFilter(QObject* watched, QEvent* event) {
     if (watched == mAnchor && event->type() == QEvent::Resize)
         Reposition();
     return QObject::eventFilter(watched, event);
+}
+
+NotificationHistoryButton::NotificationHistoryButton(NotificationManager* manager, QWidget* parent)
+    : QToolButton(parent), mManager(manager)
+{
+    setIcon(QIcon(":/images/silk/bell.png"));
+    setIconSize(QSize(16, 16));
+    setAutoRaise(true);
+    setCursor(Qt::PointingHandCursor);
+    setToolTip("Notifications");
+    setPopupMode(QToolButton::InstantPopup);
+    // Keep the button as small as the icon so it doesn't grow the status bar's minimum height.
+    setStyleSheet("QToolButton { border: none; padding: 0px; margin: 0px; }"
+                  "QToolButton::menu-indicator { image: none; width: 0px; }");
+    setFixedSize(QSize(16, 16));
+
+    mMenu = new QMenu(this);
+    mMenu->setStyleSheet("QMenu { menu-scrollable: 1; }");
+    setMenu(mMenu);
+
+    if (mManager)
+        connect(mManager, &NotificationManager::historyChanged, this, &NotificationHistoryButton::RebuildMenu);
+    RebuildMenu();
+}
+
+void NotificationHistoryButton::RebuildMenu() {
+    mMenu->clear();
+
+    const QList<NotificationRecord>& history = mManager ? mManager->History() : QList<NotificationRecord>{};
+    if (history.isEmpty()) {
+        QAction* empty = mMenu->addAction("No notifications yet");
+        empty->setEnabled(false);
+        return;
+    }
+
+    // Newest first.
+    for (int i = history.size() - 1; i >= 0; --i) {
+        const NotificationRecord& record = history[i];
+
+        auto* entry = new QWidget(mMenu);
+        auto* layout = new QVBoxLayout(entry);
+        layout->setContentsMargins(8, 4, 8, 4);
+        layout->setSpacing(1);
+
+        auto* titleLabel = new QLabel(QString("<b>%1</b>  <span style='color:#9a9a9a'>%2</span>")
+                                          .arg(record.Title.toHtmlEscaped(), record.Time), entry);
+        layout->addWidget(titleLabel);
+
+        if (!record.Message.isEmpty()) {
+            auto* messageLabel = new QLabel(record.Message, entry);
+            messageLabel->setWordWrap(true);
+            messageLabel->setFixedWidth(300);
+            messageLabel->setStyleSheet("color: #c8c8c8;");
+            layout->addWidget(messageLabel);
+        }
+
+        if (!record.Actions.empty()) {
+            auto* buttonRow = new QHBoxLayout();
+            buttonRow->setContentsMargins(0, 2, 0, 0);
+            buttonRow->addStretch(1);
+            for (const NotificationAction& act : record.Actions) {
+                auto* button = new QPushButton(act.Label, entry);
+                button->setCursor(Qt::PointingHandCursor);
+                std::function<void()> callback = act.OnTriggered;
+                connect(button, &QPushButton::clicked, mMenu, [this, callback]() {
+                    if (callback)
+                        callback();
+                    mMenu->close();
+                });
+                buttonRow->addWidget(button);
+            }
+            layout->addLayout(buttonRow);
+        }
+
+        auto* action = new QWidgetAction(mMenu);
+        action->setDefaultWidget(entry);
+        mMenu->addAction(action);
+
+        if (i > 0)
+            mMenu->addSeparator();
+    }
 }

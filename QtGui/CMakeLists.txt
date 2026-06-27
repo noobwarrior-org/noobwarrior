@@ -72,11 +72,6 @@ set(SOURCES
     Sdk/Project/Wizard/Template/EmuDbEmpty.cpp
     Sdk/Project/Wizard/Template/EmuDbGameBackup.cpp
     Sdk/Project/Wizard/Template/PluginEmpty.cpp
-    Sdk/BackgroundTask/BackgroundTask.cpp
-    Sdk/BackgroundTask/BackgroundTaskItemWidget.cpp
-    Sdk/BackgroundTask/BackgroundTaskStatusBarWidget.cpp
-    Sdk/BackgroundTask/BackgroundTaskPopupWidget.cpp
-    Sdk/BackgroundTask/ExampleTask.cpp
     Sdk/Notification/Notification.cpp
     Ui/Launcher.ui
     Resources/resources.qrc

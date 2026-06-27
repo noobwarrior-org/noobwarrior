@@ -26,7 +26,6 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
 #include "Project/Project.h"
-#include "BackgroundTask/BackgroundTask.h"
 #include "Notification/Notification.h"
 #include "WelcomeWidget.h"
 #include "FileManagerWidget.h"
@@ -63,7 +62,6 @@ public:
     Project* GetFocusedProject();
 
     ItemBrowserWidget *GetItemBrowser();
-    BackgroundTasks *GetBackgroundTasks();
     NotificationManager *GetNotifications();
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -76,7 +74,6 @@ protected:
     void DisableRequiredProjectButtons(bool val);
 private:
     void InitMenus();
-    void InitStatusBarWidgets();
     void InitWidgets();
 
     //////////////////// Menu Bar ////////////////////
@@ -123,11 +120,6 @@ private:
 
     std::vector<Project*> mProjects;
     Project* mFocusedProject;
-
-    //////////////////// Status Bar ////////////////////
-    BackgroundTasks mBackgroundTasks;
-    BackgroundTaskStatusBarWidget *mBackgroundTaskStatusBarWidget;
-    BackgroundTaskPopupWidget *mBackgroundTaskPopupWidget;
 
     //////////////////// Notifications ////////////////////
     NotificationManager *mNotifications;

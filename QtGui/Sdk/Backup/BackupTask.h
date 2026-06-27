@@ -23,7 +23,6 @@
 // Started on: 12/28/2025
 // Description:
 #pragma once
-#include "Sdk/BackgroundTask/BackgroundTask.h"
 #include "BackupTreeView.h"
 #include <NoobWarrior/Backup.h>
 
@@ -32,20 +31,12 @@
 namespace NoobWarrior {
 class Sdk;
 class Project;
+class Notification;
 
-class BackupTaskItemWidget : public BackgroundTaskItemWidget {
-    Q_OBJECT
-public:
-    BackupTaskItemWidget(QWidget *parent = nullptr);
-    BackupTreeView* GetTreeView();
-private:
-    BackupTreeView *mTreeView;
-};
-
-// Drives a Backup::Process on a worker thread so the UI stays responsive. All progress reporting
-// and database writes are marshalled back onto the Qt/event-loop thread (see OnStart), because the
-// destination EmuDb connection is owned by that thread.
-class BackupTask : public BackgroundTask {
+// Drives a Backup::Process on a worker thread so the UI stays responsive, reporting progress through
+// a notification toast. All progress reporting and database writes are marshalled back onto the
+// Qt/event-loop thread (see Start), because the destination EmuDb connection is owned by that thread.
+class BackupTask {
 public:
     BackupTask(Core* core, Backup::ProcessOptions options);
     ~BackupTask();
@@ -53,12 +44,8 @@ public:
     void SetSdk(Sdk* sdk) { mSdk = sdk; }
     void SetProject(Project* project) { mProject = project; }
 
-    void Register(BackgroundTasks* parent) override;
-    void OnStart() override;
-    void OnPause() override;
-    void OnCancel(BackgroundTaskCancelReason reason) override;
-
-    BackgroundTaskItemWidget* CreateItemWidget(QWidget *parent = nullptr) override;
+    // Posts the progress notification and kicks off the worker. SetSdk must be called first.
+    void Start();
 private:
     // Both run on the event-loop (UI) thread, marshalled from the worker thread.
     void OnProgress(Backup::State state, const QString& message, double progress);
@@ -71,6 +58,8 @@ private:
     std::thread mWorker;
     Sdk* mSdk { nullptr };
     Project* mProject { nullptr };
+    Notification* mNotification { nullptr };
+    BackupTreeView* mTreeView { nullptr };
     bool mTreeShown { false };
 };
 }

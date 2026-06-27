@@ -126,7 +126,6 @@ bool BackupDialog::StartBackup() {
     auto *task = new BackupTask(gApp->GetCore(), std::move(opts));
     task->SetSdk(sdk);
     task->SetProject(sdk->GetFocusedProject());
-    task->Register(sdk->GetBackgroundTasks());
     task->Start();
     return true;
 }
