@@ -297,6 +297,9 @@ void Sdk::Refresh() {
 
     if (mItemBrowser != nullptr)
         mItemBrowser->Refresh();
+
+    if (mFileManager != nullptr)
+        mFileManager->Reload();
 }
 
 ItemBrowserWidget *Sdk::GetItemBrowser() {
@@ -491,6 +494,18 @@ void Sdk::InitWidgets() {
     mFileManager = new FileManagerWidget(this);
     mFileManager->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mFileManager);
+
+    // The View toolbar/menu entries toggle each dock widget's visibility (and raise it when shown).
+    connect(mItemBrowserViewAction, &QAction::triggered, this, [this]() {
+        bool show = !mItemBrowser->isVisible();
+        mItemBrowser->setVisible(show);
+        if (show) mItemBrowser->raise();
+    });
+    connect(mFileManagerViewAction, &QAction::triggered, this, [this]() {
+        bool show = !mFileManager->isVisible();
+        mFileManager->setVisible(show);
+        if (show) mFileManager->raise();
+    });
 }
 
 void Sdk::DisableRequiredProjectButtons(bool val) {

@@ -151,6 +151,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
     Source/FileSystem/ZipFileSystem.cpp
+    Source/FileSystem/DatabaseFileSystem.cpp
     Source/Keychain/Keychain.cpp
     Source/Keychain/EmuKeychain.cpp
     Source/Keychain/MasterKeychain.cpp

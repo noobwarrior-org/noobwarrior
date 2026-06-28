@@ -61,6 +61,7 @@
 #include "migrations/v17.sql.inc.cpp"
 #include "migrations/v18.sql.inc.cpp"
 #include "migrations/v19.sql.inc.cpp"
+#include "migrations/v20.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -297,6 +298,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v18)
 	/* V19: added Views counter to ForumThread for the forum thread listing */
 	MIGRATE(v19)
+	/* V20: added timestamps and shortcut target columns to FsNode for the file manager */
+	MIGRATE(v20)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.

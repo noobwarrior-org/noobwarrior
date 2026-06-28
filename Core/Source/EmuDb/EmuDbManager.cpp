@@ -34,6 +34,7 @@
 
 #include <sol/sol.hpp>
 
+#include <algorithm>
 #include <unordered_set>
 #include <vector>
 
@@ -94,7 +95,9 @@ SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {
 SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
     auto *database = new EmuDb(filePath.string(), true);
     if (database->Fail()) return database->GetFailReason();
-    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
+    mMountedDatabases.insert(
+        mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
+        database);
     Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return database->GetFailReason();
 }
@@ -103,7 +106,9 @@ SqlDb::FailReason EmuDbManager::Mount(const std::string &dbName, unsigned int pr
     std::filesystem::path absolutePath = mCore->GetUserDataDir() / NW_PATH_DATABASES / (dbName + ".nwdb");
     auto *database = new EmuDb(absolutePath.string(), true);
     if (database->Fail()) return database->GetFailReason();
-    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
+    mMountedDatabases.insert(
+        mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
+        database);
     Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return database->GetFailReason();
 }
@@ -112,7 +117,9 @@ bool EmuDbManager::Mount(EmuDb* database, unsigned int priority) {
     if (database->Fail()) return false;
     if (std::find(mMountedDatabases.begin(), mMountedDatabases.end(), database) != mMountedDatabases.end())
         return false;
-    mMountedDatabases.insert(mMountedDatabases.begin() + priority, database);
+    mMountedDatabases.insert(
+        mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
+        database);
     Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return true;
 }
