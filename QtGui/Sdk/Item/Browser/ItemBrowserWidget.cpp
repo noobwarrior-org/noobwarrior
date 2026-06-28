@@ -166,6 +166,7 @@ void ItemBrowserWidget::InitWidgets() {
     });
 
     NoDatabaseFoundLabel = new QLabel("Switch to a database project in order to browse it", MainWidget);
+    NoDatabaseFoundLabel->setAlignment(Qt::AlignCenter);
     NoDatabaseFoundLabel->setWordWrap(true);
 
     MainLayout->addWidget(ItemTypeDropdown);

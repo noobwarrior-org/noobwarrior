@@ -28,6 +28,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <QListWidget>
+#include <QMessageBox>
 
 using namespace NoobWarrior;
 
@@ -64,6 +65,9 @@ void SelectStudioVersionDialog::InitWidgets() {
                 .Engine = engine,
                 .LaunchSide = EngineSide::Studio
             });
+        } else {
+            QMessageBox::critical(this, "Error", "You need to select a version!");
+            return;
         }
         close();
     });
