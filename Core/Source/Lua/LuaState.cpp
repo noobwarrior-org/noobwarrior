@@ -155,6 +155,7 @@ LuaState::LuaState(Core* core) :
 }
 
 int LuaState::Open() {
+    Out("LuaState::Open()");
     // lua_pushcfunction(mLuaState, printBS);
     // lua_setglobal(mLuaState, "error");
 
