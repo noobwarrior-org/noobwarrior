@@ -21,7 +21,7 @@
 // File: Injector.cpp
 // Started by: Hattozo
 // Started on: 3/17/2025
-// Description: A separate program that injects into 32 bit processes, since 64-bit Windows processes cannot do this job.
+// Description: Bootstrapper for launching Roblox w/ noobHook
 #include <windows.h>
 
 #include <string>
@@ -130,6 +130,19 @@ static int GetDllBitness(const wchar_t* dllPath) {
 #endif
 }
 
+static std::filesystem::path GetExeDirectory() {
+    wchar_t buffer[MAX_PATH];
+
+    DWORD length = GetModuleFileNameW(NULL, buffer, MAX_PATH);
+
+    if (length == 0) {
+        return "";
+    }
+
+    std::filesystem::path exe_path(buffer);
+    return exe_path.parent_path();
+}
+
 static EngineLaunchResponse Inject(unsigned long pid, const wchar_t *dllPath) {
     EngineLaunchResponse res = EngineLaunchResponse::InjectFailed;
 
@@ -223,7 +236,18 @@ cleanup:
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int showCmd) {
-    FILE* file = freopen("noobhook_injector.log", "w", stdout);
+    std::filesystem::path exeDir = GetExeDirectory();
+
+    std::filesystem::path logDir = exeDir / "noobhook_injector.log";
+    std::string logDirStr = logDir.string();
+
+    std::filesystem::path dllx86Dir = exeDir / "noobhook_x86.dll";
+    std::wstring dllx86DirStr = dllx86Dir.wstring();
+
+    std::filesystem::path dllx64Dir = exeDir / "noobhook_x86-64.dll";
+    std::wstring dllx64DirStr = dllx64Dir.wstring();
+
+    FILE* file = freopen(logDirStr.c_str(), "w", stdout);
 
     int argc;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -375,7 +399,7 @@ Args:
         printf("CreateProcessW failed: %lu (%s)\n", err, LastErrorStr(err).c_str());
         return 7;
     }
-    EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), IsProcess64Bit(pi.hProcess) ? L"./noobhook_x86-64.dll" : L"./noobhook_x86.dll");
+    EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), IsProcess64Bit(pi.hProcess) ? dllx64DirStr.c_str() : dllx86DirStr.c_str());
     if (inject != EngineLaunchResponse::Success) {
         printf("Failed to inject to target process: error %d\n", inject);
         TerminateProcess(pi.hProcess, 0xEEEEEEEE);
