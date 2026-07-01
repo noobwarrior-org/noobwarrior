@@ -131,6 +131,7 @@ void DatabaseDialog::OnMoveOneRight() {
     if (items.isEmpty())
         return;
 
+    mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
     for (auto* item : items) {
@@ -143,6 +144,9 @@ void DatabaseDialog::OnMoveOneRight() {
 }
 
 void DatabaseDialog::OnMoveAllRight() {
+    if (mAvailableList->count() == 0)
+        return;
+    mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
     for (int i = 0; i < mAvailableList->count(); i++) {
@@ -159,6 +163,7 @@ void DatabaseDialog::OnMoveOneLeft() {
     if (dbs.isEmpty())
         return;
 
+    mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     for (auto* db : dbs) {
         if (!db) continue;
@@ -173,6 +178,9 @@ void DatabaseDialog::OnMoveOneLeft() {
 void DatabaseDialog::OnMoveAllLeft() {
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
+    if (dbs.empty())
+        return;
+    mDirty = true;
     for (auto* db : dbs) {
         manager->Unmount(db);
         delete db;
@@ -183,6 +191,7 @@ void DatabaseDialog::OnMoveAllLeft() {
 }
 
 void DatabaseDialog::OnSelectedOrderChanged() {
+    mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     std::vector<EmuDb*> newOrder;
     for (int i = 0; i < mSelectedList->count(); i++) {
@@ -228,6 +237,7 @@ void DatabaseDialog::ImportFiles(const QStringList& filePaths, bool mountThem) {
         if (mountThem && !IsPathMounted(destPath)) {
             unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
             manager->Mount(destPath, priority);
+            mDirty = true;
         }
     }
 
@@ -283,6 +293,7 @@ void DatabaseDialog::DeleteDatabases(const QList<QListWidgetItem*>& items) {
     if (answer != QMessageBox::Yes)
         return;
 
+    mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     for (auto* item : items) {
         std::filesystem::path path(item->toolTip().toStdString());
@@ -327,8 +338,23 @@ void DatabaseDialog::OnDiscard() {
 }
 
 void DatabaseDialog::closeEvent(QCloseEvent* event) {
-    if (!mCommitted)
+    if (!mCommitted && mDirty) {
+        QMessageBox::StandardButton answer = QMessageBox::warning(
+            this, "Unsaved Changes",
+            "You have unsaved changes to your database selection.\n\nDo you want to save before closing?",
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save);
+        if (answer == QMessageBox::Cancel) {
+            event->ignore();
+            return;
+        }
+        if (answer == QMessageBox::Save)
+            SaveToRegistry();
+        else
+            RevertManager();
+    } else if (!mCommitted) {
         RevertManager();
+    }
     QDialog::closeEvent(event);
 }
 

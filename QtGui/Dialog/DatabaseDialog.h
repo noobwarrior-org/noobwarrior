@@ -68,6 +68,7 @@ private:
     QPushButton* mSaveButton;
     
     bool mCommitted = false;
+    bool mDirty = false;
 
     void SaveToRegistry();
     void RevertManager();
