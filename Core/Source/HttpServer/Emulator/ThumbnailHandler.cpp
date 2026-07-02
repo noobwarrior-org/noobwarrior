@@ -29,39 +29,12 @@
 
 #include <nlohmann/json.hpp>
 
-#include <zlib.h>
+#include "../../algorithm/gzip.h"
 
 #include <cstdlib>
 #include <string>
 
 using namespace NoobWarrior;
-
-// Inflates a gzip- or zlib-wrapped buffer (Studio gzip-compresses the /v1/batch POST body).
-// Returns false if the input isn't a complete gzip/zlib stream.
-static bool Inflate(const std::string& in, std::string& out) {
-    if (in.empty()) return false;
-    z_stream zs{};
-    if (inflateInit2(&zs, 15 + 32) != Z_OK) // 15+32 = auto-detect gzip or zlib header
-        return false;
-    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
-    zs.avail_in = static_cast<uInt>(in.size());
-
-    char buf[8192];
-    int ret;
-    do {
-        zs.next_out = reinterpret_cast<Bytef*>(buf);
-        zs.avail_out = sizeof(buf);
-        ret = inflate(&zs, Z_NO_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
-            inflateEnd(&zs);
-            return false;
-        }
-        out.append(buf, sizeof(buf) - zs.avail_out);
-    } while (ret == Z_OK);
-
-    inflateEnd(&zs);
-    return ret == Z_STREAM_END;
-}
 
 static std::string GetQueryParam(const char* uri, const char* key) {
     std::string out;
@@ -109,12 +82,7 @@ void ThumbnailHandler::ServeBatch(evhttp_request *req) {
             evbuffer_copyout(in, bodyStr.data(), len);
     }
 
-    // Studio gzip-compresses the POST body. If it doesn't already look like JSON, inflate it.
-    if (!bodyStr.empty() && bodyStr.front() != '[' && bodyStr.front() != '{') {
-        std::string inflated;
-        if (Inflate(bodyStr, inflated))
-            bodyStr = std::move(inflated);
-    }
+    GunzipIfNeeded(bodyStr);
 
     nlohmann::json requests = nlohmann::json::parse(bodyStr, nullptr, false);
 

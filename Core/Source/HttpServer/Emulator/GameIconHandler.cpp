@@ -86,9 +86,8 @@ void GameIconHandler::ServeIconsBatch(evhttp_request *req) {
         char* endPtr = nullptr;
         int64_t id = strtoll(tok.c_str(), &endPtr, 10);
         if (!tok.empty() && endPtr && *endPtr == '\0') {
-            // imageUrl points back at this handler's square-icon route on an rbxcdn host (Studio only
-            // accepts image urls on rbxcdn; the connect-hook redirects the host back to us). The icon
-            // bytes come straight from EmuDb when that url is fetched — no extra service in between.
+            // imageUrl points back at this handler on an rbxcdn host (Studio only accepts image urls
+            // there; the connect-hook redirects it to us), where the icon is read straight from EmuDb.
             nlohmann::json entry;
             entry["targetId"] = id;
             entry["state"] = "Completed";
@@ -116,8 +115,7 @@ void GameIconHandler::ServeIconsBatch(evhttp_request *req) {
 void GameIconHandler::ServeIconImage(evhttp_request *req) {
     const char* uri = evhttp_request_get_uri(req);
 
-    // Modern home grid: ?universeId=<id> -> the universe's square icon, pulled directly from EmuDb
-    // (RetrieveImageData chases Universe -> start place -> Asset.ImageId -> stored thumbnail blob).
+    // Modern home grid: ?universeId=<id> -> the universe's square icon, straight from EmuDb.
     std::string universeStr = GetQueryParam(uri, "universeId");
     if (!universeStr.empty()) {
         char* endPtr = nullptr;

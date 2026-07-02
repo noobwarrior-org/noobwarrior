@@ -49,10 +49,10 @@
 #include <NoobWarrior/NoobWarrior.h>
 
 #include "../../algorithm/base64.h"
+#include "../../algorithm/gzip.h"
 
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
-#include <zlib.h>
 
 #include <algorithm>
 #include <chrono>
@@ -101,30 +101,6 @@ static std::string RequestHeader(evhttp_request *req, const char *name) {
     return v ? std::string(v) : std::string();
 }
 
-// Inflates gzip/zlib in place (Studio gzip-compresses POST bodies). Auto-detects the wrapper.
-static bool Inflate(const std::string &in, std::string &out) {
-    if (in.empty()) return false;
-    z_stream zs{};
-    if (inflateInit2(&zs, 15 + 32) != Z_OK)
-        return false;
-    zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.data()));
-    zs.avail_in = static_cast<uInt>(in.size());
-    char buf[8192];
-    int ret;
-    do {
-        zs.next_out = reinterpret_cast<Bytef *>(buf);
-        zs.avail_out = sizeof(buf);
-        ret = inflate(&zs, Z_NO_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
-            inflateEnd(&zs);
-            return false;
-        }
-        out.append(buf, sizeof(buf) - zs.avail_out);
-    } while (ret == Z_OK);
-    inflateEnd(&zs);
-    return ret == Z_STREAM_END;
-}
-
 // The full request body, transparently inflated when gzip-encoded.
 static std::string ReadBody(evhttp_request *req) {
     std::string body;
@@ -134,15 +110,7 @@ static std::string ReadBody(evhttp_request *req) {
         if (len > 0)
             evbuffer_copyout(in, body.data(), len);
     }
-    if (body.empty()) return body;
-    const char *enc = evhttp_find_header(evhttp_request_get_input_headers(req), "Content-Encoding");
-    bool looksGzip = body.size() >= 2 && static_cast<unsigned char>(body[0]) == 0x1f &&
-                     static_cast<unsigned char>(body[1]) == 0x8b;
-    if ((enc && std::strstr(enc, "gzip")) || looksGzip) {
-        std::string inflated;
-        if (Inflate(body, inflated))
-            body = std::move(inflated);
-    }
+    GunzipIfNeeded(body);
     return body;
 }
 

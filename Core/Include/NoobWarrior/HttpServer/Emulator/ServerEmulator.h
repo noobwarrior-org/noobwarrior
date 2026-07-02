@@ -62,6 +62,7 @@
 #include "IdeToolboxHandler.h"
 #include "DevelopHandler.h"
 #include "DataUploadHandler.h"
+#include "IdePublishHandler.h"
 #include "DataStorePersistenceHandler.h"
 #include "ThumbnailHandler.h"
 #include "AssetPermissionsHandler.h"
@@ -153,6 +154,11 @@ public:
     std::optional<std::string> GetAvatarOverride(int64_t userId) const;
     void ClearAvatarOverrides();
 
+    // File name of the database holding the place currently open for editing (set by
+    // StudioOpenPlaceHandler). Lets descendant-asset publishing land in the same .nwdb as the game.
+    void SetActiveEditDbFile(const std::string &dbFileName);
+    std::string GetActiveEditDbFile() const;
+
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
 private:
@@ -189,6 +195,7 @@ private:
     IdeToolboxHandler mIdeToolboxHandler;
     DevelopHandler mDevelopHandler;
     DataUploadHandler mDataUploadHandler;
+    IdePublishHandler mIdePublishHandler;
     ThumbnailHandler mThumbnailHandler;
     AssetPermissionsHandler mAssetPermissionsHandler;
     OmniRecHandler mOmniRecHandler;
@@ -226,6 +233,10 @@ private:
     // Set/Get/ClearAvatarOverride methods). Each value is a /v1.1/avatar-fetch response body.
     mutable std::mutex mAvatarOverridesMutex;
     std::map<int64_t, std::string> mAvatarOverrides;
+
+    // Database file name of the place currently open for editing (see Set/GetActiveEditDbFile).
+    mutable std::mutex mActiveEditDbMutex;
+    std::string mActiveEditDbFile;
 
     AssetEnricher mAssetEnricher;
 

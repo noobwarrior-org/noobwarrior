@@ -25,10 +25,9 @@
 #include <NoobWarrior/HttpServer/Emulator/DataUploadHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
-#include <zlib.h>
+#include "../../algorithm/gzip.h"
 
 #include <cstdlib>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -44,31 +43,6 @@ static std::string GetQueryParam(const char* uri, const char* key) {
         evhttp_clear_headers(&query);
     }
     return out;
-}
-
-static bool Inflate(const std::string& in, std::string& out) {
-    if (in.empty()) return false;
-    z_stream zs{};
-    if (inflateInit2(&zs, 15 + 32) != Z_OK) // auto-detect gzip or zlib header
-        return false;
-    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
-    zs.avail_in = static_cast<uInt>(in.size());
-
-    char buf[8192];
-    int ret;
-    do {
-        zs.next_out = reinterpret_cast<Bytef*>(buf);
-        zs.avail_out = sizeof(buf);
-        ret = inflate(&zs, Z_NO_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
-            inflateEnd(&zs);
-            return false;
-        }
-        out.append(buf, sizeof(buf) - zs.avail_out);
-    } while (ret == Z_OK);
-
-    inflateEnd(&zs);
-    return ret == Z_STREAM_END;
 }
 
 DataUploadHandler::DataUploadHandler(EmuDbManager *dbm) : mEmuDbManager(dbm) {}
@@ -98,15 +72,8 @@ void DataUploadHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    const char* enc = evhttp_find_header(evhttp_request_get_input_headers(req), "Content-Encoding");
-    bool looksGzip = (body.size() >= 2 &&
-                      static_cast<unsigned char>(body[0]) == 0x1f &&
-                      static_cast<unsigned char>(body[1]) == 0x8b);
-    if ((enc && std::strstr(enc, "gzip")) || looksGzip) {
-        std::string inflated;
-        if (Inflate(body, inflated))
-            body = std::move(inflated);
-    }
+    // Studio may gzip the upload; store the raw rbxl (what /v1/asset must serve back).
+    GunzipIfNeeded(body);
 
     EmuDb* db = mEmuDbManager->GetFirstDbWhereItemExists(ItemType::Asset, assetId);
     if (db == nullptr)

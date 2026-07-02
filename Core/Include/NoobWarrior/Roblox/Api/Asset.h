@@ -30,7 +30,7 @@
 #include <string>
 
 namespace NoobWarrior::Roblox {
-    constexpr int AssetTypeCount = 90;
+    constexpr int AssetTypeCount = 101;
     // Note: "None" is a fallback if the asset does not have a type. It's not a real value in the Roblox API
     enum class AssetType { None = 0, Image = 1, TShirt = 2, Audio = 3, Mesh = 4, Lua = 5,
         Hat = 8, Place = 9, Model = 10, Shirt = 11, Pants = 12,
@@ -48,7 +48,9 @@ namespace NoobWarrior::Roblox {
         SweaterAccessory = 68, ShortsAccessory = 69, LeftShoeAccessory = 70,
         RightShoeAccessory = 71, DressSkirtAccessory = 72, FontFamily = 73,
         EyebrowAccessory = 76, EyelashAccessory = 77, MoodAnimation = 78,
-        DynamicHead = 79, FaceMakeup = 88, LipMakeup = 89, EyeMakeup = 90 };
+        DynamicHead = 79, FaceMakeup = 88, LipMakeup = 89, EyeMakeup = 90,
+        // not in the actual Roblox API, used for unions
+        SolidModel = 100 };
 
     enum class ProductType {
         None,
@@ -160,6 +162,7 @@ namespace NoobWarrior::Roblox {
         case AssetType::FaceMakeup: return "Face Makeup";
         case AssetType::LipMakeup: return "Lip Makeup";
         case AssetType::EyeMakeup: return "Eye Makeup";
+        case AssetType::SolidModel: return "SolidModel";
         default: return "None";
         }
     }

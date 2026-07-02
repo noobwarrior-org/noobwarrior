@@ -73,6 +73,14 @@ void StudioOpenPlaceHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (creatorId == 0)
         creatorId = reg->GetKeyValue<int64_t>("user.id").value_or(1);
 
+    // Remember which database holds this game so its descendant-asset publishes (uploadnewasset) and
+    // its place upload land in the same .nwdb.
+    EmuDb* placeDb = dbm->GetFirstDbWhereItemExists(ItemType::Asset, placeId);
+    if (placeDb == nullptr)
+        placeDb = dbm->GetFirstDbWhereItemExists(ItemType::Universe, universeId);
+    if (placeDb != nullptr)
+        mServer->SetActiveEditDbFile(placeDb->GetFileName());
+
     nlohmann::json j;
     j["universe"] = {
         {"Id", universeId},

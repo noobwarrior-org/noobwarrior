@@ -32,38 +32,11 @@
 
 #include <nlohmann/json.hpp>
 
-#include <zlib.h>
+#include "../../algorithm/gzip.h"
 
 #include <string>
 
 using namespace NoobWarrior;
-
-// Inflates a gzip-/zlib-wrapped buffer (Studio gzip-compresses POST bodies). Returns false on a partial
-// or non-gzip stream so the caller can fall back to the raw bytes.
-static bool Inflate(const std::string& in, std::string& out) {
-    if (in.empty()) return false;
-    z_stream zs{};
-    if (inflateInit2(&zs, 15 + 32) != Z_OK) // auto-detect gzip or zlib header
-        return false;
-    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(in.data()));
-    zs.avail_in = static_cast<uInt>(in.size());
-
-    char buf[8192];
-    int ret;
-    do {
-        zs.next_out = reinterpret_cast<Bytef*>(buf);
-        zs.avail_out = sizeof(buf);
-        ret = inflate(&zs, Z_NO_FLUSH);
-        if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
-            inflateEnd(&zs);
-            return false;
-        }
-        out.append(buf, sizeof(buf) - zs.avail_out);
-    } while (ret == Z_OK);
-
-    inflateEnd(&zs);
-    return ret == Z_STREAM_END;
-}
 
 // Pulls assetId out of a request entry whether it's a string or a number.
 static std::string AssetIdOf(const nlohmann::json& r) {
@@ -82,12 +55,7 @@ void AssetPermissionsHandler::OnRequest(evhttp_request *req, void *userdata) {
         if (len > 0)
             evbuffer_copyout(in, body.data(), len);
     }
-    // Studio gzip-compresses the POST body; inflate when it doesn't already look like JSON.
-    if (!body.empty() && body.front() != '{' && body.front() != '[') {
-        std::string inflated;
-        if (Inflate(body, inflated))
-            body = std::move(inflated);
-    }
+    GunzipIfNeeded(body);
 
     nlohmann::json reqJson = nlohmann::json::parse(body, nullptr, false);
 

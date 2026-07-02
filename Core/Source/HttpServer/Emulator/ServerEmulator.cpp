@@ -72,6 +72,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mIdeToolboxHandler(mCore->GetEmuDbManager()),
     mDevelopHandler(this, mCore->GetEmuDbManager()),
     mDataUploadHandler(mCore->GetEmuDbManager()),
+    mIdePublishHandler(this),
     mThumbnailHandler(mCore->GetEmuDbManager()),
     mOmniRecHandler(),
     mGamesSortsHandler(),
@@ -213,6 +214,11 @@ void ServerEmulator::SetupHandlers() {
     
     SetRequestHandler("/Data/Upload.ashx", &mDataUploadHandler);
     SetRequestHandler("/data/upload.ashx", &mDataUploadHandler);
+    
+    SetRequestHandler("/ide/publish/uploadnewasset", &mIdePublishHandler);
+    SetRequestHandler("/ide/publish/uploadexistingasset", &mIdePublishHandler);
+    SetRequestHandler("/IDE/Publish/UploadNewAsset", &mIdePublishHandler);
+    SetRequestHandler("/IDE/Publish/UploadExistingAsset", &mIdePublishHandler);
 
     SetRequestHandler("/oauth/.well-known/openid-configuration", &mOAuthDiscoveryHandler);
     SetRequestHandler("/oauth/v1/authorize", &mOAuthAuthorizeHandler);
@@ -293,6 +299,16 @@ std::optional<std::string> ServerEmulator::GetAvatarOverride(int64_t userId) con
 void ServerEmulator::ClearAvatarOverrides() {
     std::lock_guard lock(mAvatarOverridesMutex);
     mAvatarOverrides.clear();
+}
+
+void ServerEmulator::SetActiveEditDbFile(const std::string &dbFileName) {
+    std::lock_guard lock(mActiveEditDbMutex);
+    mActiveEditDbFile = dbFileName;
+}
+
+std::string ServerEmulator::GetActiveEditDbFile() const {
+    std::lock_guard lock(mActiveEditDbMutex);
+    return mActiveEditDbFile;
 }
 
 void ServerEmulator::SetMode(Mode mode) {

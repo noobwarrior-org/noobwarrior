@@ -82,6 +82,7 @@ Roblox::AssetType AssetTypeFromString(const std::string &s) {
         {"DressSkirtAccessory", Roblox::AssetType::DressSkirtAccessory}, {"FontFamily", Roblox::AssetType::FontFamily},
         {"EyebrowAccessory", Roblox::AssetType::EyebrowAccessory}, {"EyelashAccessory", Roblox::AssetType::EyelashAccessory},
         {"MoodAnimation", Roblox::AssetType::MoodAnimation}, {"DynamicHead", Roblox::AssetType::DynamicHead},
+        {"SolidModel", Roblox::AssetType::SolidModel},
     };
     auto it = map.find(s);
     return it != map.end() ? it->second : Roblox::AssetType::None;

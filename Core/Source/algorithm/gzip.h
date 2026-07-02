@@ -24,6 +24,7 @@
 // Description:
 #pragma once
 #include <vector>
+#include <string>
 #include <cstddef>
 #include <algorithm>
 
@@ -71,5 +72,14 @@ inline void GunzipIfNeeded(std::vector<unsigned char>& data) {
     std::vector<unsigned char> inflated = GzipInflate(data.data(), data.size());
     if (!inflated.empty())
         data = std::move(inflated);
+}
+
+inline void GunzipIfNeeded(std::string& data) {
+    const auto* bytes = reinterpret_cast<const unsigned char*>(data.data());
+    if (!IsGzip(bytes, data.size()))
+        return;
+    std::vector<unsigned char> inflated = GzipInflate(bytes, data.size());
+    if (!inflated.empty())
+        data.assign(inflated.begin(), inflated.end());
 }
 }
