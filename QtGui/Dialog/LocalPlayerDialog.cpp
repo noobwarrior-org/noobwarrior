@@ -317,8 +317,8 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
     auto slot = [](const char* n, AT t, const char* key) {
         return AvatarSubgroup{ n, t, Kind::Slot, key };
     };
-    auto acc = [](const char* n, AT t) {
-        return AvatarSubgroup{ n, t, Kind::Accessory, QString() };
+    auto acc = [](const char* n, AT t, bool single = false) {
+        return AvatarSubgroup{ n, t, Kind::Accessory, QString(), single };
     };
 
     {
@@ -350,9 +350,10 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
         AvatarTab def;
         def.name = "Body";
         def.subgroups = {
-            acc("Hair",       AT::HairAccessory),
-            slot("Faces",     AT::Face,     "user.appearance.face"),
-            slot("Torso",     AT::Torso,    "user.appearance.body.torso"),
+            acc("Hair",          AT::HairAccessory),
+            acc("Dynamic Heads", AT::DynamicHead, /*single*/ true),
+            slot("Faces",        AT::Face,     "user.appearance.face"),
+            slot("Torso",        AT::Torso,    "user.appearance.body.torso"),
             slot("Left Arms", AT::LeftArm,  "user.appearance.body.left_arm"),
             slot("Right Arms",AT::RightArm, "user.appearance.body.right_arm"),
             slot("Left Legs", AT::LeftLeg,  "user.appearance.body.left_leg"),
@@ -605,6 +606,16 @@ void LocalPlayerDialog::WearItem(AvatarTab& tab, qint64 id) {
     if (sg.kind == Kind::Slot) {
         mWornSlots[sg.regKey] = id;
     } else if (sg.kind == Kind::Accessory) {
+        if (sg.single) {
+            QList<qint64> replaced;
+            for (qint64 wid : mWornAccessories)
+                if (wid != id && mWornAccType.value(wid, -1) == (int)sg.type)
+                    replaced.append(wid);
+            for (qint64 wid : replaced) {
+                mWornAccessories.remove(wid);
+                mWornAccType.remove(wid);
+            }
+        }
         mWornAccessories.insert(id);
         mWornAccType[id] = (int)sg.type;
     } else {

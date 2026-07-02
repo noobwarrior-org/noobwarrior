@@ -69,6 +69,7 @@ struct AvatarSubgroup {
     Roblox::AssetType type { Roblox::AssetType::None };
     Kind kind { Kind::Slot };
     QString regKey; // Slot only: the registry key this subgroup writes
+    bool single { false }; // Accessory only: at most one of this type worn (e.g. dynamic heads)
 };
 
 // A top-level editor tab holding several subgroups. The catalog for the active subgroup is paginated
