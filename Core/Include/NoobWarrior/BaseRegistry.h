@@ -114,11 +114,14 @@ public:
 
     std::string GetGlobalName();
 protected:
+    std::string ApplyKeyComments(const std::string &serialized);
+
     std::string             mGlobalName;
     std::string             mLastError;
     std::filesystem::path   mFilePath;
-    std::ostream*           mFileOutput;
     LuaState*               mLua;
+    
+    std::map<std::string, std::string> mKeyComments;
 
     std::mutex AccessRegistryMutex;
 };

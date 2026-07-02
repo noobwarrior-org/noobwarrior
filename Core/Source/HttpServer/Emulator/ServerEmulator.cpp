@@ -478,8 +478,8 @@ void ServerEmulator::AnnouncerLoop() {
         Registry* reg = mCore->GetRegistry();
         if (reg == nullptr)
             continue;
-        bool enabled = reg->GetKeyValue<bool>("emu.master_list.announce").value_or(false);
-        std::string url = reg->GetKeyValue<std::string>("emu.master_list.url").value_or("");
+        bool enabled = reg->GetKeyValue<bool>("emu.master.announce").value_or(false);
+        std::string url = reg->GetKeyValue<std::string>("emu.auth.master").value_or("");
         if (!enabled || url.empty()) {
             // If announcing was just turned off while we were live, say Goodbye once.
             if (mAnnouncedToMaster) {
@@ -504,7 +504,7 @@ void ServerEmulator::SendMasterPing(const std::string &event) {
     Registry* reg = mCore->GetRegistry();
     if (reg == nullptr)
         return;
-    std::string url = reg->GetKeyValue<std::string>("emu.master_list.url").value_or("");
+    std::string url = reg->GetKeyValue<std::string>("emu.auth.master").value_or("");
     if (url.empty())
         return;
     if (url.back() == '/')

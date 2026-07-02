@@ -25,67 +25,58 @@
 #include <NoobWarrior/BaseRegistry.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <cstdio>
+#include <sstream>
 #include <utility>
+#include <vector>
 
 #include "Lua/files/registry_metatable.lua.inc.cpp"
 #include "Lua/files/serpent.lua.inc.cpp"
 
-static int custom_serializer_func(lua_State *L) {
-    const char *tag = luaL_checkstring(L, 1);
-    const char *head = luaL_checkstring(L, 2);
-    const char *body = luaL_checkstring(L, 3);
-    const char *tail = luaL_checkstring(L, 4);
-
-    lua_pushstring(L, (std::string(tag) + std::string(head) + std::string(body) + std::string(tail) + " -- Hey guys").c_str());
-
-    return 1;
-}
-
 NoobWarrior::BaseRegistry::BaseRegistry(std::string globalName, std::filesystem::path filePath, LuaState* lua) :
     mGlobalName(std::move(globalName)),
     mFilePath(std::move(filePath)),
-    mFileOutput(nullptr),
     mLua(lua)
 {}
 
 NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
-    lua_State* L = mLua->Get();
+    sol::state& lua = *mLua;
     mLastError = "";
 
-    if (!std::filesystem::exists(mFilePath))
-        lua_newtable(L); // file doesn't exist, create a new empty table.
-    else {
-        int res = 0;
-
-        res = luaL_loadfile(L, reinterpret_cast<const char*>(mFilePath.generic_string().c_str()));
-        if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
-        switch (res) {
-            case LUA_OK: break;
-            case LUA_ERRSYNTAX: return RegistryResponse::SyntaxError;
-            case LUA_ERRMEM: return RegistryResponse::MemoryError;
-            case LUA_ERRFILE: return RegistryResponse::CantReadFile;
-            default: return RegistryResponse::Failed;
+    if (!std::filesystem::exists(mFilePath)) {
+        // file doesn't exist, create a new empty table.
+        lua[mGlobalName] = lua.create_table();
+    } else {
+        sol::load_result chunk = lua.load_file(mFilePath.generic_string());
+        if (!chunk.valid()) {
+            sol::error err = chunk;
+            mLastError = err.what();
+            switch (chunk.status()) {
+                case sol::load_status::syntax: return RegistryResponse::SyntaxError;
+                case sol::load_status::memory: return RegistryResponse::MemoryError;
+                case sol::load_status::file:   return RegistryResponse::CantReadFile;
+                default:                       return RegistryResponse::Failed;
+            }
         }
 
-        res = lua_pcall(L, 0, 1, 0);
-
-        if (res != LUA_OK) {
-            mLastError = lua_tostring(L, -1);
-            lua_pop(L, 1);
+        sol::protected_function loaded = chunk;
+        sol::protected_function_result res = loaded();
+        if (!res.valid()) {
+            sol::error err = res;
+            mLastError = err.what();
             return RegistryResponse::ErrorDuringExecution;
         }
 
-        if (!lua_istable(L, -1)) {
-            lua_getglobal(L, "error");
-            lua_pushstring(L, std::format("expected table, got {}", lua_typename(L, lua_type(L, -2))).c_str());
-            res = lua_pcall(L, 1, 0, 0);
-            mLastError = lua_tostring(L, -1);
-            lua_pop(L, 2);
+        sol::object ret = res;
+        if (ret.get_type() != sol::type::table) {
+            mLastError = std::format("expected table, got {}",
+                lua_typename(lua.lua_state(), static_cast<int>(ret.get_type())));
             return RegistryResponse::ReturningWrongType;
         }
-    }
 
-    lua_setglobal(L, mGlobalName.c_str()); // set our global as what our registry file returned, a table. also pops it off the stack
+        // set our global as what our registry file returned, a table.
+        lua[mGlobalName] = ret;
+    }
 
     // Attach a metatable to our registry table that will make it so that if you index anything in it, it will make it a table if its nil.
     // This is really good for doing assignments that require access to a lot of tables like "registry.gui.database_editor.content_browser.size.x = 200"
@@ -94,13 +85,10 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
     // Of course this can get messy, so when we serialize the table we remove any empty tables beforehand so that it
     // doesn't look godawful when you open it in your text editor
     char buf[2048];
-    snprintf(buf, 2048, registry_metatable_lua, mGlobalName.c_str());
-    luaL_dostring(L, buf);
-
-    if (lua_isstring(L, -1)) {
-        // uh oh, error message was pushed onto the stack
-        mLastError = lua_tostring(L, -1);
-        lua_pop(L, 1);
+    snprintf(buf, sizeof(buf), registry_metatable_lua, mGlobalName.c_str());
+    if (sol::protected_function_result metaRes = lua.safe_script(buf, sol::script_pass_on_error); !metaRes.valid()) {
+        sol::error err = metaRes;
+        mLastError = err.what();
         return RegistryResponse::ErrorDuringExecution;
     }
 
@@ -109,7 +97,8 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
 }
 
 NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
-    lua_State* L = mLua->Get();
+    sol::state& lua = *mLua;
+
     // First lets remove all empty tables in our registry table.
     // Since our metatable will automatically set any indexed nil value to a table, it creates a lot of clutter and junk
     std::string pruneSrc = std::format(R"(
@@ -126,67 +115,56 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
         prune({});
     )", mGlobalName);
 
-    if (int err = luaL_dostring(L, pruneSrc.c_str()); err != LUA_OK) {
-        mLastError = lua_tostring(L, -1);
-        lua_pop(L, 1);
+    if (sol::protected_function_result pruneRes = lua.safe_script(pruneSrc, sol::script_pass_on_error); !pruneRes.valid()) {
+        sol::error err = pruneRes;
+        mLastError = err.what();
         return RegistryResponse::ErrorDuringExecution;
     }
 
     // Load in serpent.lua through our header file that embeds it into the program.
     // It's a lua serializer that reconstructs a source-code version of the table.
-    int res = luaL_loadstring(L, serpent_lua);
-    if (res != LUA_OK) { mLastError = lua_tostring(L, -1); lua_pop(L, 1); }
-    switch (res) {
-        case LUA_OK: break;
-        case LUA_ERRSYNTAX: return RegistryResponse::SyntaxError;
-        case LUA_ERRMEM: return RegistryResponse::MemoryError;
-        case LUA_ERRFILE: return RegistryResponse::CantReadFile;
-        default: return RegistryResponse::Failed;
+    sol::load_result serpentChunk = lua.load(serpent_lua);
+    if (!serpentChunk.valid()) {
+        sol::error err = serpentChunk;
+        mLastError = err.what();
+        switch (serpentChunk.status()) {
+            case sol::load_status::syntax: return RegistryResponse::SyntaxError;
+            case sol::load_status::memory: return RegistryResponse::MemoryError;
+            case sol::load_status::file:   return RegistryResponse::CantReadFile;
+            default:                       return RegistryResponse::Failed;
+        }
     }
 
-    res = lua_pcall(L, 0, 1, 0);
-
-    if (res != LUA_OK) {
-        mLastError = lua_tostring(L, -1);
-        lua_pop(L, 1);
+    sol::protected_function serpentLoad = serpentChunk;
+    sol::protected_function_result serpentRes = serpentLoad();
+    if (!serpentRes.valid()) {
+        sol::error err = serpentRes;
+        mLastError = err.what();
         return RegistryResponse::ErrorDuringExecution;
     }
 
-    // now that we have serpent.lua on our stack, access one of the functions it has (block) and add our registry global
-    // as the arguments. and then call it.
-    lua_getfield(L, -1, "block");
+    sol::table serpent = serpentRes;
+    sol::protected_function block = serpent["block"];
 
-    lua_getglobal(L, mGlobalName.c_str()); // arg 1: our global registry table
+    sol::table opts = lua.create_table();
+    opts["indent"] = "    ";
+    opts["comment"] = false;
 
-    lua_newtable(L); // arg 2: options table
-        lua_pushstring(L, "    ");
-            lua_setfield(L, -2, "indent");
-        // disable the printing of addresses of tables because it's unnecessary.
-        lua_pushboolean(L, false);
-            lua_setfield(L, -2, "comment");
-        // lua_pushcfunction(mLuaState, custom_serializer_func);
-            // lua_setfield(mLuaState, -2, "custom");
-
-
-    res = lua_pcall(L, 2, 1, 0);
-
-    if (res != LUA_OK) {
-        mLastError = lua_tostring(L, -1);
-        lua_pop(L, 2); // you still have this error message and the serpent.lua table on the stack so pop those 2
+    sol::object registryTable = lua[mGlobalName];
+    sol::protected_function_result blockRes = block(registryTable, opts);
+    if (!blockRes.valid()) {
+        sol::error err = blockRes;
+        mLastError = err.what();
         return RegistryResponse::ErrorDuringExecution;
     }
 
-    const char *serializedRegistryTable = lua_tostring(L, -1); // now we have our serialized table
+    std::string serialized = ApplyKeyComments(blockRes.get<std::string>());
 
     // open file and write to it
-    if (mFileOutput != nullptr) { NOOBWARRIOR_FREE_PTR(mFileOutput) }
-    mFileOutput = new std::ofstream(mFilePath);
-    if (mFileOutput->fail())
+    std::ofstream fileOutput(mFilePath);
+    if (fileOutput.fail())
         return RegistryResponse::CantReadFile;
-    *mFileOutput << "return " << serializedRegistryTable;
-    NOOBWARRIOR_FREE_PTR(mFileOutput)
-
-    lua_pop(L, 2); // pop the string and table
+    fileOutput << "return " << serialized;
 
     Out("Registry", "Closed registry");
 
@@ -198,7 +176,105 @@ std::string NoobWarrior::BaseRegistry::GetLuaError() {
 }
 
 void NoobWarrior::BaseRegistry::SetKeyComment(const char *key, const char *comment) {
+    if (key == nullptr || comment == nullptr)
+        return;
 
+    std::string keyStr(key);
+    if (keyStr.empty()) {
+        Out("BaseRegistry", "Error setting comment: key is empty");
+        return;
+    }
+    if (keyStr.starts_with('.') || keyStr.ends_with('.')) {
+        Out("BaseRegistry", "Error setting comment for key \"{}\": key cannot start or end with a period", keyStr);
+        return;
+    }
+
+    mKeyComments[keyStr] = comment;
+}
+
+std::string NoobWarrior::BaseRegistry::ApplyKeyComments(const std::string &serialized) {
+    if (mKeyComments.empty())
+        return serialized;
+
+    constexpr int kIndentUnit = 4;
+
+    std::vector<std::string> pathStack;
+    std::vector<std::string> outLines;
+
+    std::istringstream in(serialized);
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        const size_t indentSpaces = line.find_first_not_of(' ');
+        if (indentSpaces == std::string::npos) { // blank line
+            outLines.push_back(line);
+            continue;
+        }
+
+        std::string content = line.substr(indentSpaces);
+        std::string rtrim = content;
+        while (!rtrim.empty() && (rtrim.back() == ' ' || rtrim.back() == '\t'))
+            rtrim.pop_back();
+
+        const int depth = static_cast<int>(indentSpaces / kIndentUnit);
+        
+        if (rtrim == "}" || rtrim == "},") {
+            if (depth >= 1 && static_cast<int>(pathStack.size()) >= depth)
+                pathStack.resize(depth - 1);
+            outLines.push_back(line);
+            continue;
+        }
+
+        const bool isOpener = !rtrim.empty() && rtrim.back() == '{';
+
+        std::string key;
+        bool hasKey = false;
+        if (const size_t eq = content.find(" = "); eq != std::string::npos) {
+            key = content.substr(0, eq);
+            hasKey = true;
+        }
+
+        if (depth >= 1 && static_cast<int>(pathStack.size()) > depth - 1)
+            pathStack.resize(depth - 1);
+
+        if (hasKey) {
+            std::string full;
+            for (const std::string &seg : pathStack) {
+                if (!full.empty()) full += '.';
+                full += seg;
+            }
+            if (!full.empty()) full += '.';
+            full += key;
+
+            if (const auto it = mKeyComments.find(full); it != mKeyComments.end()) {
+                const std::string indentStr(indentSpaces, ' ');
+                const std::string &c = it->second;
+                size_t start = 0;
+                while (true) {
+                    const size_t nl = c.find('\n', start);
+                    outLines.push_back(indentStr + "-- " +
+                        c.substr(start, nl == std::string::npos ? std::string::npos : nl - start));
+                    if (nl == std::string::npos) break;
+                    start = nl + 1;
+                }
+            }
+        }
+
+        outLines.push_back(line);
+
+        if (isOpener)
+            pathStack.push_back(hasKey ? key : std::string());
+    }
+
+    std::string result;
+    for (size_t i = 0; i < outLines.size(); ++i) {
+        result += outLines[i];
+        if (i + 1 < outLines.size())
+            result += '\n';
+    }
+    return result;
 }
 
 std::string NoobWarrior::BaseRegistry::GetGlobalName() {

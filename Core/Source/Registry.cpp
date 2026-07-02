@@ -72,7 +72,7 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.place_universe", "https://apis.roblox.com/universes/v1/places/{}/universe");
 
     SetKeyValueIfNotSet("backup.max_depth", 6);
-    SetKeyComment("backup.max_depth", "How many levels deep a backup follows related items (an item -> its creator/children -> theirs, and so on). Higher captures more related items but is slower; it is clamped to a safe maximum (20) to avoid runaway recursion / stack overflow.");
+    SetKeyComment("backup.max_depth", "How many levels deep a backup follows related items. Higher captures more related items but is slower; it is clamped to a safe maximum (20) to avoid recursion/stack overflow.");
     
     {
         std::random_device rd;
@@ -127,17 +127,17 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.branding.tagline", "My noobWarrior server");
     SetKeyComment("emu.branding", "The branding that people will see when they connect to your website.");
 
+    SetKeyValueIfNotSet("emu.auth.enabled", false);
+    SetKeyComment("emu.auth.enabled", "If set to true, requires people to authenticate to join your server.");
+
     SetKeyValueIfNotSet("emu.auth.type", "master");
     SetKeyComment("emu.auth.type", "If set to \"master\", your server is responsible for all authentication. If set to \"slave\", the server URL set in the \"master\" variable will be responsible for all authentication.");
 
     SetKeyValueIfNotSet("emu.auth.master", "");
     SetKeyComment("emu.auth.master", "The URL of the master server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
 
-    SetKeyValueIfNotSet("emu.master_list.announce", false);
-    SetKeyComment("emu.master_list.announce", "If enabled, this server emulator will announce itself to the master server at emu.master_list.url whenever it has running game servers, so it appears in that master server's public server list. It stops announcing (and is removed from the list) once it has no running game servers.");
-
-    SetKeyValueIfNotSet("emu.master_list.url", "");
-    SetKeyComment("emu.master_list.url", "Base URL of the master server to announce to (e.g. http://example.com:80). Only used if emu.master_list.announce is true.");
+    SetKeyValueIfNotSet("emu.master.announce", false);
+    SetKeyComment("emu.master.announce", "If enabled, this server emulator will announce itself to the master server at emu.auth.master whenever it has running game servers, so it appears in that master server's public server list. It stops announcing (and is removed from the list) once it has no running game servers.");
     
     SetKeyValueIfNotSet("emu.auth.allow_registration", false);
     SetKeyComment("emu.auth.allow_registration", "If this is set to false, registrations for guests will be disabled and administrators must manually create accounts in a database.");

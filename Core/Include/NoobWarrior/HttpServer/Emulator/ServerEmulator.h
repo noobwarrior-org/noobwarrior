@@ -240,8 +240,8 @@ private:
 
     AssetEnricher mAssetEnricher;
 
-    /* Master-list announcer. When emu.master_list.announce is enabled, a background
-     * thread periodically POSTs a Hello/Heartbeat to emu.master_list.url/v1/emu-ping
+    /* Master-list announcer. When emu.master.announce is enabled, a background
+     * thread periodically POSTs a Hello/Heartbeat to emu.auth.master/v1/emu-ping
      * for as long as there is at least one running game server (Side == Server), and
      * a Goodbye once there are none (or on shutdown). This is the outbound counterpart
      * to ProcessPingHandler's inbound process-pings. */
