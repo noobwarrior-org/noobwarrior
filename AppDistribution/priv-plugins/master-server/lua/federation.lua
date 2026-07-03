@@ -26,14 +26,14 @@ local function rstrip(url)
     return (tostring(url or ""):gsub("/+$", ""))
 end
 
-local function newClient()
+local function newClient(timeout)
     local c = NetClient.new()
-    c:SetTimeout(8)
+    c:SetTimeout(timeout or 8)
     return c
 end
 
-local function httpGet(url)
-    local res = newClient():Get(url)
+local function httpGet(url, timeout)
+    local res = newClient(timeout):Get(url)
     if not res or not res.Ok then return nil, (res and res.Error) or "request failed" end
     return res
 end
@@ -234,7 +234,10 @@ function fed.PeerPublicKey(domain)
     local row = firstRow(db():QueryTyped("SELECT PublicKey FROM Peer WHERE Domain = ? COLLATE NOCASE;", domain))
     if row and not blank(row.PublicKey) then return row.PublicKey end
 
-    local res = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/info")
+    -- First-contact key fetch. Runs inline on the single-threaded request loop and stalls it while it
+    -- waits, so use a short timeout: an unreachable/unknown peer must fail fast (well under the caller's
+    -- verify timeout) instead of hanging every request behind it.
+    local res = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/info", 3)
     local info = res and parseJson(res.Body)
     if not info or blank(info.PublicKey) then return nil end
     if peerKnown(domain) then

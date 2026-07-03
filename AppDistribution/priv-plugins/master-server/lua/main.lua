@@ -26,6 +26,9 @@ reg.SetKeyComment("master.domain", "This master server's domain name. Online use
 reg.SetKeyValueIfNotSet("master.public_url", "")
 reg.SetKeyComment("master.public_url", "This server's public base URL that other master servers reach you at (e.g. https://example.com). If blank, https://<master.domain> is assumed.")
 
+reg.SetKeyValueIfNotSet("master.online_id_32bit", true)
+reg.SetKeyComment("master.online_id_32bit", "Keep online user ids inside a signed 32-bit integer so older Roblox clients that store user ids as 32-bit don't overflow.")
+
 reg.SetKeyValueIfNotSet("master.federation.auto", true)
 reg.SetKeyComment("master.federation.auto", "When true, federation is automatic: any server that contacts you is accepted as a peer, and peers-of-peers are discovered as your feed refreshes. Turn off (in the control panel's Federation tab) to only federate with peers you add by hand.")
 
@@ -87,7 +90,9 @@ function _G.MASTERSERVER_ONLINE_USER_ID(identifier)
     local lo = tonumber(hex:sub(6, 13), 16) or 0   -- 32 bits
     local n = hi * 4294967296 + lo                 -- 52-bit value
     local floor = 1000000000
-    return floor + (n % (2 ^ 53 - floor))
+    -- Default to a signed-32-bit-safe ceiling for older clients; the wider 53-bit space is opt-in.
+    local ceiling = (reg.GetKeyValue("master.online_id_32bit") == false) and (2 ^ 53) or (2 ^ 31)
+    return floor + (n % (ceiling - floor))
 end
 
 function _G.MASTERSERVER_HTML_ESCAPE(s)
