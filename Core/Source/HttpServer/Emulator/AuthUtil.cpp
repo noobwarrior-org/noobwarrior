@@ -186,20 +186,8 @@ std::optional<SessionUser> RedeemAuthTicket(EmuDb *master, const std::string &ti
     );
     stmt.Bind(1, ticket);
     stmt.Bind(2, ttlSeconds);
-    if (stmt.Step() != SQLITE_ROW) {
-        // TEMP DIAG: say exactly why the redeem missed.
-        Statement diag = master->PrepareStatement(
-            "SELECT Redeemed, (unixepoch() - CreatedTimestamp), UserId, "
-            "(SELECT COUNT(*) FROM User WHERE Id = AuthTicket.UserId) FROM AuthTicket WHERE Ticket = ?;");
-        diag.Bind(1, ticket);
-        if (diag.Step() == SQLITE_ROW)
-            Out("AuthUtil", "Redeem MISS: Redeemed={} age={}s ttl={} UserId={} hasUserRow={}",
-                diag.GetIntFromColumnIndex(0), diag.GetInt64FromColumnIndex(1), ttlSeconds,
-                diag.GetInt64FromColumnIndex(2), diag.GetIntFromColumnIndex(3));
-        else
-            Out("AuthUtil", "Redeem MISS: no AuthTicket row for this ticket (len={})", ticket.size());
+    if (stmt.Step() != SQLITE_ROW)
         return std::nullopt;
-    }
 
     SessionUser user;
     user.id = stmt.GetInt64FromColumnIndex(0);
