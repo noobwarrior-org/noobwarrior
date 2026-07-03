@@ -12,7 +12,7 @@ set(SOURCES
     Settings/DatabasePage.cpp
     Settings/PluginPage.cpp
     Settings/InstallationPage.cpp
-    Settings/AccountPage.cpp
+    Settings/AccountsPage.cpp
     Settings/ServerEmulatorPage.cpp
     Dialog/AssetDownloaderDialog.cpp
     Dialog/AboutDialog.cpp
@@ -30,6 +30,7 @@ set(SOURCES
     OnlineWindow/ServerListWidget.cpp
     OnlineWindow/DirectConnectDialog.cpp
     OnlineWindow/ServerLoginDialog.cpp
+    OnlineWindow/MasterLoginDialog.cpp
     Sdk/Sdk.cpp
     Sdk/WelcomeWidget.cpp
     Sdk/FileManagerWidget.cpp

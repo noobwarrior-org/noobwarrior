@@ -483,6 +483,111 @@ std::optional<std::string> Core::LoginToRemoteHost(const std::string &ip, uint16
     return std::nullopt;
 }
 
+static std::string StripTrailingSlash(std::string url) {
+    while (!url.empty() && url.back() == '/')
+        url.pop_back();
+    return url;
+}
+
+bool Core::LoginToMaster(const std::string &masterUrl, const std::string &username, const std::string &password) {
+    std::string base = StripTrailingSlash(masterUrl);
+    if (base.empty())
+        return false;
+
+    cpr::Response login = cpr::Post(
+        cpr::Url{base + "/v1/login"},
+        cpr::Payload{{"username", username}, {"password", password}},
+        cpr::Redirect{false},
+        cpr::Timeout{std::chrono::seconds(10)},
+        cpr::VerifySsl{false});
+    if (login.error.code != cpr::ErrorCode::OK || login.status_code >= 400) {
+        Out("LoginToMaster", "Login to {} failed (HTTP {})", base, static_cast<long>(login.status_code));
+        return false;
+    }
+
+    std::string token;
+    auto range = login.header.equal_range("Set-Cookie");
+    for (auto it = range.first; it != range.second; ++it) {
+        std::string t = AuthUtil::ExtractCookieValue(it->second.c_str(), ".LOGINSESSION");
+        if (!t.empty() && t != "deleted") {
+            token = t;
+            break;
+        }
+    }
+    if (token.empty()) {
+        Out("LoginToMaster", "Login to {} returned no .LOGINSESSION cookie", base);
+        return false;
+    }
+
+    // Resolve the online identity (username@domain, OnlineUserId) from the master's federation profile.
+    cpr::Response profile = cpr::Get(
+        cpr::Url{base + "/fed/v1/users/" + cpr::util::urlEncode(username)},
+        cpr::Timeout{std::chrono::seconds(10)},
+        cpr::VerifySsl{false});
+    std::string identity, displayName;
+    int64_t userId = 0;
+    if (profile.error.code == cpr::ErrorCode::OK && profile.status_code < 400) {
+        try {
+            nlohmann::json p = nlohmann::json::parse(profile.text);
+            identity = p.value("Identity", "");
+            displayName = p.value("DisplayName", "");
+            userId = p.value("UserId", static_cast<int64_t>(0));
+        } catch (nlohmann::json::exception &) {}
+    }
+    if (identity.empty())
+        identity = username; // fall back to the bare name if the master has no federation profile
+
+    Registry *reg = GetRegistry();
+    reg->SetKeyValue<std::string>("online.master_url", base);
+    reg->SetKeyValue<std::string>("online.session_token", token);
+    reg->SetKeyValue<std::string>("online.identity", identity);
+    reg->SetKeyValue<int64_t>("online.user_id", userId);
+    reg->SetKeyValue<std::string>("online.display_name", displayName.empty() ? username : displayName);
+    Out("LoginToMaster", "Signed in as {} on {}", identity, base);
+    return true;
+}
+
+void Core::LogoutFromMaster() {
+    Registry *reg = GetRegistry();
+    reg->SetKeyValue<std::string>("online.master_url", "");
+    reg->SetKeyValue<std::string>("online.session_token", "");
+    reg->SetKeyValue<std::string>("online.identity", "");
+    reg->SetKeyValue<int64_t>("online.user_id", 0);
+    reg->SetKeyValue<std::string>("online.display_name", "");
+}
+
+std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, const std::string &sessionToken,
+                                                 const std::string &targetMasterUrl) {
+    std::string base = StripTrailingSlash(masterUrl);
+    if (base.empty() || sessionToken.empty() || targetMasterUrl.empty())
+        return std::nullopt;
+
+    cpr::Response res = cpr::Post(
+        cpr::Url{base + "/v1/join/mint-voucher"},
+        cpr::Header{{"Cookie", ".LOGINSESSION=" + sessionToken}},
+        cpr::Payload{{"target_url", targetMasterUrl}},
+        cpr::Timeout{std::chrono::seconds(10)},
+        cpr::VerifySsl{false});
+    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400) {
+        Out("MintJoinVoucher", "Mint at {} failed (HTTP {})", base, static_cast<long>(res.status_code));
+        return std::nullopt;
+    }
+
+    std::string actionId, identity, body;
+    try {
+        nlohmann::json j = nlohmann::json::parse(res.text);
+        actionId = j.value("actionId", "");
+        identity = j.value("identity", "");
+        body = j.value("body", "");
+    } catch (nlohmann::json::exception &) {
+        return std::nullopt;
+    }
+    if (actionId.empty() || identity.empty() || body.empty())
+        return std::nullopt;
+
+    return "fedvoucher." + AuthUtil::Base64UrlEncode(identity) + "." + actionId + "." + AuthUtil::Base64UrlEncode(body);
+}
+
 std::string Core::GetWinePath(const std::filesystem::path &path) {
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
     std::filesystem::path absPath = std::filesystem::absolute(path);

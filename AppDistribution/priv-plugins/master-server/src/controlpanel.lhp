@@ -35,11 +35,18 @@ local function BuildFederationSection()
     if peers == nil or #peers == 0 then
         h[#h + 1] = [[<p class="server-list-empty">No peers yet &mdash; add another master server above to federate with it.</p>]]
     else
-        h[#h + 1] = [[<table class="server-list"><thead><tr><th>Domain</th><th>Name</th><th>Base URL</th><th>Status</th></tr></thead><tbody>]]
+        h[#h + 1] = [[<table class="server-list"><thead><tr><th>Domain</th><th>Name</th><th>Base URL</th><th>Status</th><th>Action</th></tr></thead><tbody>]]
         for _, p in ipairs(peers) do
-            h[#h + 1] = string.format("<tr><td>%s</td><td>%s</td><td><code>%s</code></td><td>%s</td></tr>",
+            local banned = _G.MASTERSERVER_FEDERATION.IsBanned(p.Domain)
+            local action = string.format([[<form action="/v1/federation/%s-peer" method="post" style="margin:0">
+                    <input type="hidden" name="domain" value="%s">
+                    <button type="submit" class="ws-button">%s</button>
+                </form>]], banned and "unban" or "ban",
+                _G.MASTERSERVER_HTML_ESCAPE(p.Domain), banned and "Re-federate" or "Defederate")
+            h[#h + 1] = string.format("<tr><td>%s</td><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>",
                 _G.MASTERSERVER_HTML_ESCAPE(p.Domain), _G.MASTERSERVER_HTML_ESCAPE(p.Name or ""),
-                _G.MASTERSERVER_HTML_ESCAPE(p.BaseUrl), _G.MASTERSERVER_HTML_ESCAPE(p.Status or ""))
+                _G.MASTERSERVER_HTML_ESCAPE(p.BaseUrl),
+                banned and "banned" or _G.MASTERSERVER_HTML_ESCAPE(p.Status or ""), action)
         end
         h[#h + 1] = "</tbody></table>"
     end

@@ -87,6 +87,13 @@ void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
     // Auth mode: serve the requested user's DB-stored avatar. The local registry appearance and any
     // client-pushed override are ignored, so a joiner can't spoof or leak an appearance.
     if (core->GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        // A federated joiner's avatar lives on their home master and overrides the local default.
+        if (userId) {
+            if (std::optional<std::string> federated = mEmu->GetFederatedAvatar(*userId)) {
+                SendJson(req, *federated);
+                return;
+            }
+        }
         int64_t id = userId.value_or(core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000));
         SendJson(req, AvatarAppearance::BuildAvatarFetchJsonForUser(core, id).dump());
         return;

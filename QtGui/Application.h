@@ -52,7 +52,11 @@ private:
     // Connect helpers: ConnectToServer fetches the host's auth-info, PromptAndConnect shows the login
     // dialog when needed, DoConnect runs the actual connect with an optional session token.
     void PromptAndConnect(const std::string &ip, uint16_t port, bool authEnabled, bool passwordBased,
-                          bool allowGuests, const QString &title, const QString &tagline);
+                          bool allowGuests, const QString &authType, const QString &authMasterUrl,
+                          const QString &title, const QString &tagline);
+    // Slave-mode join: mints a federated join voucher on our home master, then connects.
+    void ConnectWithMaster(const std::string &ip, uint16_t port, const QString &masterUrl,
+                           const QString &sessionToken, const QString &targetMasterUrl);
     void DoConnect(const std::string &ip, uint16_t port, const std::string &sessionToken);
 
     Init mInit {};

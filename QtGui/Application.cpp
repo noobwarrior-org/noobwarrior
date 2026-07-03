@@ -28,6 +28,7 @@
 #include "Application.h"
 #include "LoadingDialog.h"
 #include "OnlineWindow/ServerLoginDialog.h"
+#include "OnlineWindow/MasterLoginDialog.h"
 #include "Style/DefaultStyle.h"
 
 #include <NoobWarrior/NoobWarrior.h>
@@ -89,16 +90,18 @@ int Application::Run() {
     #endif
 #endif
 
-    QSharedMemory sharedMemory("noobWarrior");
-
-    if (!sharedMemory.create(1)) {
-        QMessageBox::critical(nullptr, "Error", "Another instance is already running!");
-        return 0; 
-    }
-
     int ret = 1;
 
     mCore = new Core(mInit);
+
+    // Only one instance may run at a time, unless allow_multiple_instances is set
+    QSharedMemory sharedMemory("noobWarrior");
+    bool allowMultiple = mCore->GetRegistry() != nullptr &&
+        mCore->GetRegistry()->GetKeyValue<bool>("allow_multiple_instances").value_or(false);
+    if (!allowMultiple && !sharedMemory.create(1)) {
+        QMessageBox::critical(nullptr, "Error", "Another instance is already running!");
+        return 0;
+    }
 
     QTimer* evTimer = new QTimer(this);
     evTimer->setTimerType(Qt::CoarseTimer);
@@ -339,7 +342,7 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
     QPointer<Application> self(this);
     std::thread([self, ip, port, url]() {
         bool authEnabled = false, passwordBased = true, allowGuests = false;
-        std::string title, tagline;
+        std::string title, tagline, authType = "master", authMasterUrl;
         cpr::Response res = cpr::Get(cpr::Url{url}, cpr::VerifySsl{false},
                                      cpr::Timeout{std::chrono::milliseconds(5000)});
         if (res.error.code == cpr::ErrorCode::OK && res.status_code == 200) {
@@ -348,27 +351,73 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
                 authEnabled   = j.value("authEnabled", false);
                 passwordBased = j.value("passwordBased", true);
                 allowGuests   = j.value("allowGuests", false);
+                authType      = j.value("authType", std::string{"master"});
+                authMasterUrl = j.value("authMasterUrl", std::string{});
                 nlohmann::json b = j.value("branding", nlohmann::json::object());
                 title   = b.value("title", std::string{});
                 tagline = b.value("tagline", std::string{});
             }
         }
-        QTimer::singleShot(0, qApp, [self, ip, port, authEnabled, passwordBased, allowGuests, title, tagline]() {
+        QTimer::singleShot(0, qApp, [self, ip, port, authEnabled, passwordBased, allowGuests, authType, authMasterUrl, title, tagline]() {
             if (!self) return;
             self->PromptAndConnect(ip, port, authEnabled, passwordBased, allowGuests,
+                                   QString::fromStdString(authType), QString::fromStdString(authMasterUrl),
                                    QString::fromStdString(title), QString::fromStdString(tagline));
         });
     }).detach();
 }
 
 void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool authEnabled,
-                                   bool passwordBased, bool allowGuests, const QString &title,
+                                   bool passwordBased, bool allowGuests, const QString &authType,
+                                   const QString &authMasterUrl, const QString &title,
                                    const QString &tagline) {
     if (!authEnabled) {
         DoConnect(ip, port, "");
         return;
     }
 
+    // Slave mode: identity comes from a master server. Reuse the persistent online login if we have
+    // one, otherwise prompt the player to sign in to their master (or play as guest).
+    if (authType == "slave") {
+        Registry* reg = mCore->GetRegistry();
+        QString savedToken = QString::fromStdString(reg->GetKeyValue<std::string>("online.session_token").value_or(""));
+        QString savedMaster = QString::fromStdString(reg->GetKeyValue<std::string>("online.master_url").value_or(""));
+        if (!savedToken.isEmpty() && !savedMaster.isEmpty()) {
+            ConnectWithMaster(ip, port, savedMaster, savedToken, authMasterUrl);
+            return;
+        }
+
+        MasterLoginDialog dlg(nullptr, title, tagline, authMasterUrl, allowGuests);
+        if (dlg.exec() != QDialog::Accepted)
+            return; // cancelled
+        if (dlg.SelectedMode() == MasterLoginDialog::Mode::Guest) {
+            DoConnect(ip, port, "");
+            return;
+        }
+
+        Core* core = mCore;
+        QPointer<Application> self(this);
+        std::string masterUrl = dlg.MasterUrl().toStdString();
+        std::string username = dlg.Username().toStdString();
+        std::string password = dlg.Password().toStdString();
+        std::string target = authMasterUrl.toStdString();
+        std::thread([self, core, ip, port, masterUrl, username, password, target]() {
+            bool ok = core->LoginToMaster(masterUrl, username, password);
+            std::string token = ok ? core->GetRegistry()->GetKeyValue<std::string>("online.session_token").value_or("") : "";
+            QTimer::singleShot(0, qApp, [self, ip, port, masterUrl, token, target]() {
+                if (!self) return;
+                if (token.empty()) {
+                    QMessageBox::critical(nullptr, "Sign in failed", "Your master server rejected those credentials.");
+                    return;
+                }
+                self->ConnectWithMaster(ip, port, QString::fromStdString(masterUrl), QString::fromStdString(token),
+                                        QString::fromStdString(target));
+            });
+        }).detach();
+        return;
+    }
+
+    // Master mode: log in directly against the host.
     ServerLoginDialog dlg(nullptr, title, tagline, passwordBased, allowGuests);
     if (dlg.exec() != QDialog::Accepted)
         return; // cancelled
@@ -390,6 +439,27 @@ void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool au
                 return;
             }
             self->DoConnect(ip, port, *token);
+        });
+    }).detach();
+}
+
+void Application::ConnectWithMaster(const std::string &ip, uint16_t port, const QString &masterUrl,
+                                    const QString &sessionToken, const QString &targetMasterUrl) {
+    Core* core = mCore;
+    QPointer<Application> self(this);
+    std::string master = masterUrl.toStdString();
+    std::string token = sessionToken.toStdString();
+    std::string target = targetMasterUrl.toStdString();
+    std::thread([self, core, ip, port, master, token, target]() {
+        std::optional<std::string> voucher = core->MintJoinVoucher(master, token, target);
+        QTimer::singleShot(0, qApp, [self, ip, port, voucher]() {
+            if (!self) return;
+            if (!voucher) {
+                QMessageBox::critical(nullptr, "Join failed",
+                    "Could not obtain a join voucher from your master server. It may be offline, or not federated with this server.");
+                return;
+            }
+            self->DoConnect(ip, port, *voucher);
         });
     }).detach();
 }

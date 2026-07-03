@@ -31,6 +31,7 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
@@ -975,6 +976,11 @@ int LuaState::Open() {
     });
     coreLib.set_function("GetMasterDatabase", [this]() -> EmuDb* {
         return mCore->GetEmuDbManager()->GetMasterDatabase();
+    });
+    // Builds a /v1.1/avatar-fetch body for a local user id from the master DB. Lets the master-server
+    // plugin serve a user's avatar over federation without reimplementing the appearance logic.
+    coreLib.set_function("BuildAvatarFetchJson", [this](int64_t userId) -> std::string {
+        return AvatarAppearance::BuildAvatarFetchJsonForUser(mCore, userId).dump();
     });
     set("core", coreLib);
 

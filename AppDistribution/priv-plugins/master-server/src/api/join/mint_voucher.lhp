@@ -1,0 +1,23 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+header("Content-Type: application/json")
+
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die(json.stringify({ Error = "You must be signed in to your master server" }))
+end
+
+local voucher, err = _G.MASTERSERVER_FEDERATION.MintJoinVoucher(user, _POST["target_url"])
+if not voucher then
+    http_response_code(400)
+    die(json.stringify({ Error = tostring(err or "could not mint voucher") }))
+end
+
+http_response_code(200)
+die(json.stringify({ actionId = voucher.actionId, identity = voucher.identity, body = voucher.body }))
+?>

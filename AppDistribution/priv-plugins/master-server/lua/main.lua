@@ -29,6 +29,9 @@ reg.SetKeyComment("master.public_url", "This server's public base URL that other
 reg.SetKeyValueIfNotSet("master.federation.auto", true)
 reg.SetKeyComment("master.federation.auto", "When true, federation is automatic: any server that contacts you is accepted as a peer, and peers-of-peers are discovered as your feed refreshes. Turn off (in the control panel's Federation tab) to only federate with peers you add by hand.")
 
+reg.SetKeyValueIfNotSet("master.federation.banned", {})
+reg.SetKeyComment("master.federation.banned", "List of defederated (banned) master server domains. Banned masters cannot federate, message, post, or have their users join servers that trust you. Managed from the control panel's Federation tab.")
+
 reg.SetKeyValueIfNotSet("master.workshop.max_upload_mb", 4096)
 reg.SetKeyComment("master.workshop.max_upload_mb", "Maximum size in megabytes of a single .nwdb file uploaded to the workshop.")
 
@@ -73,7 +76,10 @@ function _G.MASTERSERVER_PROFILE_URL(identity)
 end
 
 function _G.MASTERSERVER_ONLINE_USER_ID(identifier)
-    local n = tonumber(hash.Sha256(tostring(identifier)):sub(1, 13), 16) or 0  -- 52 bits: exact in a double
+    -- Master servers have no public-facing user id; the id is a hash of the full handle "@user@domain".
+    local handle = tostring(identifier)
+    if handle:sub(1, 1) ~= "@" then handle = "@" .. handle end
+    local n = tonumber(hash.Sha256(handle):sub(1, 13), 16) or 0  -- 52 bits: exact in a double
     local floor = 1000000000
     return floor + (n % (2 ^ 53 - floor))
 end
@@ -251,6 +257,10 @@ local sitemap = {
     ["/v1/feed/post"] = "/src/api/feed/post.lhp",
     ["/v1/federation/add-peer"] = "/src/api/federation/add_peer.lhp",
     ["/v1/federation/set-auto"] = "/src/api/federation/set_auto.lhp",
+    ["/v1/federation/ban-peer"] = "/src/api/federation/ban_peer.lhp",
+    ["/v1/federation/unban-peer"] = "/src/api/federation/unban_peer.lhp",
+    ["/v1/join/mint-voucher"] = "/src/api/join/mint_voucher.lhp",
+    ["/v1/join/verify-federated"] = "/src/api/join/verify_federated.lhp",
     ["/v1/workshop/start-upload"] = "/src/api/workshop/start_upload.lhp",
     ["/v1/workshop/stream-upload"] = "/src/api/workshop/stream_upload.lhp",
     ["/v1/workshop/end-upload"] = "/src/api/workshop/end_upload.lhp",
@@ -266,6 +276,7 @@ local sitemap = {
     ["/fed/v1/info"] = "/src/api/fed/info.lhp",
     ["/fed/v1/users/:username"] = "/src/api/fed/user.lhp",
     ["/fed/v1/verify"] = "/src/api/fed/verify.lhp",
+    ["/fed/v1/avatar"] = "/src/api/fed/avatar.lhp",
     ["/fed/v1/inbox"] = "/src/api/fed/inbox.lhp",
     ["/fed/v1/servers"] = "/src/api/servers.lhp",
     ["/fed/v1/forums"] = "/src/api/fed/forums.lhp",

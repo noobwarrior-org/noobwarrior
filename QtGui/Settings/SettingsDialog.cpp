@@ -35,7 +35,7 @@
 #include "GeneralPage.h"
 #include "ServerEmulatorPage.h"
 #include "InstallationPage.h"
-#include "AccountPage.h"
+#include "AccountsPage.h"
 #include "SettingsPage.h"
 
 // #define PAGE(name, icon) { auto *page = new QFrame(tab); auto *layout = new QVBoxLayout(page); page->setLayout(layout); tab->addTab(page, QIcon(icon), name); }
@@ -97,7 +97,7 @@ void SettingsDialog::InitPages() {
     AddPage(new GeneralPage());
     AddPage(new ServerEmulatorPage());
     AddPage(new InstallationPage());
-    AddPage(new AccountPage());
+    AddPage(new AccountsPage());
 }
 
 void SettingsDialog::AddPage(SettingsPage *page) {

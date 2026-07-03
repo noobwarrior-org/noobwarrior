@@ -44,6 +44,9 @@ void AuthInfoHandler::OnRequest(evhttp_request *req, void *userdata) {
     j["allowGuests"]       = reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false);
     j["allowRegistration"] = reg->GetKeyValue<bool>("emu.auth.allow_registration").value_or(false);
     j["ticketTtl"]         = reg->GetKeyValue<int64_t>("emu.auth.ticket_ttl").value_or(120);
+    j["authType"]          = reg->GetKeyValue<std::string>("emu.auth.type").value_or("master");
+    j["federatedLogin"]    = reg->GetKeyValue<bool>("emu.auth.federated_login").value_or(true);
+    j["authMasterUrl"]     = reg->GetKeyValue<std::string>("emu.auth.master").value_or("");
     j["branding"]["title"]   = reg->GetKeyValue<std::string>("emu.branding.title").value_or("noobWarrior Server");
     j["branding"]["tagline"] = reg->GetKeyValue<std::string>("emu.branding.tagline").value_or("");
     j["branding"]["icon"]    = reg->GetKeyValue<std::string>("emu.branding.icon").value_or("");

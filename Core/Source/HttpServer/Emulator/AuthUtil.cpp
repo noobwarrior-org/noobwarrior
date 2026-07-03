@@ -59,6 +59,62 @@ bool FromHex(const std::string &hex, std::vector<unsigned char> &out) {
     return true;
 }
 
+static constexpr char kB64Url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+std::string Base64UrlEncode(std::string_view data) {
+    std::string out;
+    out.reserve((data.size() + 2) / 3 * 4);
+    size_t i = 0;
+    for (; i + 3 <= data.size(); i += 3) {
+        uint32_t n = (static_cast<unsigned char>(data[i]) << 16) |
+                     (static_cast<unsigned char>(data[i + 1]) << 8) |
+                     static_cast<unsigned char>(data[i + 2]);
+        out += kB64Url[(n >> 18) & 63];
+        out += kB64Url[(n >> 12) & 63];
+        out += kB64Url[(n >> 6) & 63];
+        out += kB64Url[n & 63];
+    }
+    if (size_t rem = data.size() - i; rem == 1) {
+        uint32_t n = static_cast<unsigned char>(data[i]) << 16;
+        out += kB64Url[(n >> 18) & 63];
+        out += kB64Url[(n >> 12) & 63];
+    } else if (rem == 2) {
+        uint32_t n = (static_cast<unsigned char>(data[i]) << 16) |
+                     (static_cast<unsigned char>(data[i + 1]) << 8);
+        out += kB64Url[(n >> 18) & 63];
+        out += kB64Url[(n >> 12) & 63];
+        out += kB64Url[(n >> 6) & 63];
+    }
+    return out;
+}
+
+std::optional<std::string> Base64UrlDecode(std::string_view encoded) {
+    auto value = [](char c) -> int {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        if (c == '-') return 62;
+        if (c == '_') return 63;
+        return -1;
+    };
+    std::string out;
+    out.reserve(encoded.size() / 4 * 3 + 2);
+    uint32_t buf = 0;
+    int bits = 0;
+    for (char c : encoded) {
+        int v = value(c);
+        if (v < 0)
+            return std::nullopt;
+        buf = (buf << 6) | static_cast<uint32_t>(v);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out += static_cast<char>((buf >> bits) & 0xFF);
+        }
+    }
+    return out;
+}
+
 bool RandomBytes(unsigned char *out, size_t len) {
     return RAND_bytes(out, static_cast<int>(len)) == 1;
 }
@@ -231,6 +287,80 @@ std::string CreateLoginSession(EmuDb *master, int64_t userId, const std::string 
     return token;
 }
 
+std::vector<LocalAccount> ListLocalAccounts(EmuDb *master) {
+    std::vector<LocalAccount> out;
+    if (master == nullptr || master->Fail())
+        return out;
+    Statement stmt = master->PrepareStatement(
+        "SELECT Id, Name, DisplayName, COALESCE(JoinDate, 0) FROM User "
+        "WHERE PasswordHash IS NOT NULL AND PasswordHash != '' ORDER BY Id ASC;"
+    );
+    while (stmt.Step() == SQLITE_ROW) {
+        LocalAccount a;
+        a.id = stmt.GetInt64FromColumnIndex(0);
+        a.name = stmt.GetStringFromColumnIndex(1);
+        a.displayName = stmt.GetStringFromColumnIndex(2);
+        if (a.displayName.empty())
+            a.displayName = a.name;
+        a.joinDate = stmt.GetInt64FromColumnIndex(3);
+        out.push_back(std::move(a));
+    }
+    return out;
+}
+
+bool LocalAccountExists(EmuDb *master, const std::string &name) {
+    if (master == nullptr || master->Fail())
+        return false;
+    Statement stmt = master->PrepareStatement("SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE;");
+    stmt.Bind(1, name);
+    return stmt.Step() == SQLITE_ROW;
+}
+
+std::optional<int64_t> CreateLocalAccount(EmuDb *master, const std::string &name,
+                                          const std::string &password, const std::string &displayName) {
+    if (master == nullptr || master->Fail() || name.empty() || password.empty())
+        return std::nullopt;
+    if (LocalAccountExists(master, name))
+        return std::nullopt;
+
+    std::vector<unsigned char> salt(kSaltLength);
+    if (!RandomBytes(salt.data(), salt.size()))
+        return std::nullopt;
+    std::string saltHex = ToHex(salt.data(), salt.size());
+    std::string hashHex = HashPassword(password, salt);
+    if (hashHex.empty())
+        return std::nullopt;
+
+    Statement stmt = master->PrepareStatement(
+        "INSERT INTO User (Name, DisplayName, PasswordHash, PasswordSalt, JoinDate) VALUES (?, ?, ?, ?, unixepoch());"
+    );
+    stmt.Bind(1, name);
+    stmt.Bind(2, displayName.empty() ? name : displayName);
+    stmt.Bind(3, hashHex);
+    stmt.Bind(4, saltHex);
+    if (stmt.Step() != SQLITE_DONE) {
+        Out("AuthUtil", "Failed to create local account \"{}\": {}", name, master->GetLastErrorMsg());
+        return std::nullopt;
+    }
+    int64_t id = sqlite3_last_insert_rowid(master->Get());
+    master->MarkDirty();
+    return id;
+}
+
+bool DeleteLocalAccount(EmuDb *master, int64_t id) {
+    if (master == nullptr || master->Fail())
+        return false;
+    for (const char *sql : {"DELETE FROM User WHERE Id = ?;",
+                            "DELETE FROM LoginSession WHERE UserId = ?;",
+                            "DELETE FROM AuthTicket WHERE UserId = ?;"}) {
+        Statement stmt = master->PrepareStatement(sql);
+        stmt.Bind(1, id);
+        stmt.Step();
+    }
+    master->MarkDirty();
+    return true;
+}
+
 // UserId = -1 - n, so the (negative) id alone reconstructs the whole guest and never hits a real account.
 static SessionUser GuestFromNumber(int guestNumber) {
     SessionUser guest;
@@ -269,6 +399,43 @@ std::optional<SessionUser> DecodeGuestTicket(const std::string &ticket) {
     if (guestNumber < 0)
         return std::nullopt;
     return GuestFromNumber(guestNumber);
+}
+
+// "fed:<id>:<b64url name>:<b64url displayName>" — self-contained so a federated user (no local
+// User row) can be redeemed without a DB lookup, mirroring the guest ticket.
+std::string EncodeFederatedTicket(const SessionUser &user) {
+    return std::format("fed:{}:{}:{}", user.id, Base64UrlEncode(user.name), Base64UrlEncode(user.displayName));
+}
+
+std::optional<SessionUser> DecodeFederatedTicket(const std::string &ticket) {
+    static constexpr std::string_view kPrefix = "fed:";
+    if (ticket.compare(0, kPrefix.size(), kPrefix) != 0)
+        return std::nullopt;
+
+    std::string_view rest = std::string_view(ticket).substr(kPrefix.size());
+    size_t idEnd = rest.find(':');
+    if (idEnd == std::string_view::npos)
+        return std::nullopt;
+    size_t nameEnd = rest.find(':', idEnd + 1);
+    if (nameEnd == std::string_view::npos)
+        return std::nullopt;
+
+    int64_t id = 0;
+    auto [ptr, ec] = std::from_chars(rest.data(), rest.data() + idEnd, id);
+    if (ec != std::errc() || ptr != rest.data() + idEnd || id <= 0)
+        return std::nullopt;
+
+    std::optional<std::string> name = Base64UrlDecode(rest.substr(idEnd + 1, nameEnd - idEnd - 1));
+    std::optional<std::string> displayName = Base64UrlDecode(rest.substr(nameEnd + 1));
+    if (!name || !displayName)
+        return std::nullopt;
+
+    SessionUser user;
+    user.id = id;
+    user.name = *name;
+    user.displayName = displayName->empty() ? *name : *displayName;
+    user.isFederated = true;
+    return user;
 }
 
 }

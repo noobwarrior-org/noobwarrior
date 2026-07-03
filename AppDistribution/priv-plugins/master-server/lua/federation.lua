@@ -74,6 +74,51 @@ function fed.AutoEnabled()
     return v ~= false and v ~= "false" and v ~= 0
 end
 
+-- Defederation: a block-list of banned domains kept as a list in master.federation.banned.
+
+local function bannedSet()
+    local list = reg.GetKeyValue("master.federation.banned")
+    local set = {}
+    if type(list) == "table" then
+        for _, d in ipairs(list) do
+            d = tostring(d):gsub("^%s*(.-)%s*$", "%1"):lower()
+            if d ~= "" then set[d] = true end
+        end
+    end
+    return set
+end
+
+local function writeBanned(set)
+    local list = {}
+    for d in pairs(set) do list[#list + 1] = d end
+    reg.SetKeyValue("master.federation.banned", list)
+end
+
+function fed.IsBanned(domain)
+    if blank(domain) then return false end
+    return bannedSet()[tostring(domain):lower()] == true
+end
+
+function fed.BanPeer(domain)
+    domain = tostring(domain or ""):gsub("^%s*(.-)%s*$", "%1"):lower()
+    if domain == "" or fed.IsLocalDomain(domain) then return false end
+    local set = bannedSet()
+    set[domain] = true
+    writeBanned(set)
+    db():QueryTyped("UPDATE Peer SET Status = 'banned' WHERE Domain = ? COLLATE NOCASE;", domain)
+    return true
+end
+
+function fed.UnbanPeer(domain)
+    domain = tostring(domain or ""):gsub("^%s*(.-)%s*$", "%1"):lower()
+    if domain == "" then return false end
+    local set = bannedSet()
+    set[domain] = nil
+    writeBanned(set)
+    db():QueryTyped("UPDATE Peer SET Status = 'active' WHERE Domain = ? COLLATE NOCASE;", domain)
+    return true
+end
+
 -- Peers
 
 function fed.GetPeers()
@@ -124,7 +169,7 @@ function fed.AddPeer(baseUrl)
 end
 
 function fed.AutoAddPeer(domain, baseUrl)
-    if domain == nil or fed.IsLocalDomain(domain) or peerKnown(domain) then
+    if domain == nil or fed.IsLocalDomain(domain) or fed.IsBanned(domain) or peerKnown(domain) then
         return
     end
     baseUrl = blank(baseUrl) and ("https://" .. domain) or rstrip(baseUrl)
@@ -178,9 +223,12 @@ function fed.LookupOutbound(actionId)
         "SELECT FromUsername, ToIdentity, BodyHash, CreatedTimestamp FROM OutboundMessage WHERE ActionId = ?;", actionId))
 end
 
-function fed.VerifyRemoteAction(fromIdentity, actionId, body)
+-- Origin-callback verify. When expectedTarget is given, the origin's recorded Target must match it,
+-- which binds a voucher to one recipient (stops a slave replaying it against another master).
+function fed.VerifyRemoteActionFor(fromIdentity, actionId, body, expectedTarget)
     local _, domain = fed.ParseIdentity(fromIdentity)
     if not domain then return false, "malformed sender identity" end
+    if fed.IsBanned(domain) then return false, "origin is defederated" end
 
     local res, err = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/verify?action=" .. _G.MASTERSERVER_URL_ENCODE(actionId))
     if not res then return false, "origin unreachable: " .. tostring(err) end
@@ -194,7 +242,92 @@ function fed.VerifyRemoteAction(fromIdentity, actionId, body)
     end
     if tostring(vouch.Actor):lower() ~= fromIdentity:lower() then return false, "actor mismatch" end
     if tostring(vouch.BodyHash or "") ~= hash.Sha256(tostring(body)) then return false, "body hash mismatch" end
+    if expectedTarget ~= nil and tostring(vouch.Target or ""):lower() ~= tostring(expectedTarget):lower() then
+        return false, "action was not issued for this server"
+    end
     return true
+end
+
+function fed.VerifyRemoteAction(fromIdentity, actionId, body)
+    return fed.VerifyRemoteActionFor(fromIdentity, actionId, body, nil)
+end
+
+-- Federated join vouchers. A player's home master mints a one-time voucher bound to the slave's
+-- master (target), which then verifies it via origin-callback before admitting the player.
+
+function fed.JoinCanonical(identity, targetDomain, nonce)
+    return table.concat({ "join", tostring(identity), tostring(targetDomain):lower(), tostring(nonce) }, "\n")
+end
+
+-- Runs on the player's HOME master. user is the authenticated local user row {Id, Name}; targetUrl is
+-- the slave's master URL. Returns { actionId, identity, body } or nil, err.
+function fed.MintJoinVoucher(user, targetUrl)
+    if not user or blank(user.Name) then return nil, "not signed in" end
+    if blank(targetUrl) then return nil, "missing target master url" end
+
+    local res, err = httpGet(rstrip(targetUrl) .. "/fed/v1/info")
+    if not res then return nil, "could not reach target master: " .. tostring(err) end
+    local info = parseJson(res.Body)
+    if not info or blank(info.Domain) then return nil, "target is not a master server" end
+    local targetDomain = tostring(info.Domain):lower()
+    if fed.IsBanned(targetDomain) then return nil, "you have defederated that server" end
+
+    local identity = _G.MASTERSERVER_FULL_IDENTITY(user.Name)
+    local nonce = hash.GenerateToken()
+    local body = fed.JoinCanonical(identity, targetDomain, nonce)
+    local actionId = hash.GenerateToken()
+    if not recordOutbound(actionId, user.Id, user.Name, targetDomain, body) then
+        return nil, "failed to record voucher"
+    end
+    return { actionId = actionId, identity = identity, body = body }
+end
+
+-- Runs on the slave's master. Confirms a voucher and returns the join identity, or nil, err.
+-- allowForeign gates identities from OTHER masters; our own users are always allowed.
+function fed.VerifyFederatedJoin(identity, actionId, body, allowForeign)
+    local username, domain = fed.ParseIdentity(identity)
+    if not username then return nil, "malformed identity" end
+    if blank(actionId) then return nil, "missing action id" end
+    if fed.IsBanned(domain) then return nil, "that master server is defederated" end
+    if not fed.IsLocalDomain(domain) and allowForeign == false then
+        return nil, "this server only accepts logins from its own master server"
+    end
+    if fed.ActionSeen(actionId) then return nil, "voucher already used" end
+    body = tostring(body or "")
+
+    if fed.IsLocalDomain(domain) then
+        -- Our own user: verify the voucher we recorded without an HTTP round-trip to ourselves.
+        local out = fed.LookupOutbound(actionId)
+        if not out then return nil, "unknown voucher" end
+        if tostring(out.ToIdentity):lower() ~= _G.MASTERSERVER_DOMAIN():lower() then return nil, "voucher not for this server" end
+        if _G.MASTERSERVER_FULL_IDENTITY(out.FromUsername):lower() ~= identity:lower() then return nil, "actor mismatch" end
+        if tostring(out.BodyHash or "") ~= hash.Sha256(body) then return nil, "body hash mismatch" end
+    else
+        if not peerKnown(domain) and not fed.AutoEnabled() then return nil, "that master server is not federated" end
+        local ok, err = fed.VerifyRemoteActionFor(identity, actionId, body, _G.MASTERSERVER_DOMAIN())
+        if not ok then return nil, err end
+    end
+
+    fed.MarkActionSeen(actionId, "join")
+    -- Where the slave can fetch this user's avatar (their home master serves it over /fed/v1/avatar).
+    local homeBaseUrl = fed.IsLocalDomain(domain) and fed.SelfBaseUrl() or fed.ResolveBaseUrl(domain)
+    return {
+        id = _G.MASTERSERVER_ONLINE_USER_ID(identity),
+        name = identity,
+        displayName = username,
+        homeBaseUrl = homeBaseUrl,
+    }
+end
+
+-- Serves a local user's avatar-fetch JSON by handle (for a federated slave). nil if not our user.
+function fed.LocalAvatarJson(handle)
+    local username, domain = fed.ParseIdentity(handle)
+    if not username then username = tostring(handle or "") end
+    if domain and not fed.IsLocalDomain(domain) then return nil end
+    local m = core.GetMasterDatabase()
+    local row = m and firstRow(m:QueryTyped("SELECT Id FROM User WHERE Name = ? COLLATE NOCASE;", username))
+    if not row then return nil end
+    return core.BuildAvatarFetchJson(row.Id)
 end
 
 function fed.ActionSeen(actionId)

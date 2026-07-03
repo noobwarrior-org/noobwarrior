@@ -217,6 +217,20 @@ public:
     std::optional<std::string> LoginToRemoteHost(const std::string &ip, uint16_t port,
                                                  const std::string &username, const std::string &password);
 
+    /* Signs in to a home master server (POST <masterUrl>/v1/login), resolves its domain via
+     * <masterUrl>/fed/v1/info, and persists the resulting online identity to the online.* registry
+     * keys. Returns true on success. This login is reused to join federated slave servers. */
+    bool LoginToMaster(const std::string &masterUrl, const std::string &username, const std::string &password);
+
+    /* Clears the persisted online identity (online.* registry keys). */
+    void LogoutFromMaster();
+
+    /* Mints a one-time join voucher on the home master (POST <masterUrl>/v1/join/mint-voucher, authed
+     * by sessionToken) bound to the target slave's master (targetMasterUrl). Returns a compact
+     * "fedvoucher." credential string to forward on join, or std::nullopt on failure. */
+    std::optional<std::string> MintJoinVoucher(const std::string &masterUrl, const std::string &sessionToken,
+                                               const std::string &targetMasterUrl);
+
     Backup::Process* CreateBackupProcess(const Backup::ProcessOptions options);
 
     LuaSignal* GetConsoleAddedSignal();

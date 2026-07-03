@@ -156,6 +156,12 @@ public:
     std::optional<std::string> GetAvatarOverride(int64_t userId) const;
     void ClearAvatarOverrides();
 
+    /* A federated joiner's avatar lives on their home master, not in our DB. On join we record where to
+     * fetch it (keyed by their OnlineUserId); GetFederatedAvatar pulls it once and caches it, so
+     * AvatarFetchHandler serves the home-master look instead of the local default. */
+    void SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl);
+    std::optional<std::string> GetFederatedAvatar(int64_t userId);
+
     // File name of the database holding the place currently open for editing (set by
     // StudioOpenPlaceHandler). Lets descendant-asset publishing land in the same .nwdb as the game.
     void SetActiveEditDbFile(const std::string &dbFileName);
@@ -175,6 +181,10 @@ public:
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
 private:
+    // Slave mode: verifies a "fedvoucher." credential with our configured master (emu.auth.master),
+    // which vouches for the federated identity over federation. nullopt if invalid/refused.
+    std::optional<AuthUtil::SessionUser> ResolveFederatedVoucher(const std::string &cookieValue);
+
     Mode mMode;
     std::optional<Engine> mCurrentEngine;
 
@@ -247,6 +257,12 @@ private:
     // Set/Get/ClearAvatarOverride methods). Each value is a /v1.1/avatar-fetch response body.
     mutable std::mutex mAvatarOverridesMutex;
     std::map<int64_t, std::string> mAvatarOverrides;
+
+    // Federated joiners' avatars, keyed by OnlineUserId: where to fetch (SourceUrl) and, once pulled,
+    // the cached /v1.1/avatar-fetch body (see Set/GetFederatedAvatar).
+    struct FederatedAvatar { std::string SourceUrl; std::string CachedJson; };
+    mutable std::mutex mFederatedAvatarsMutex;
+    std::map<int64_t, FederatedAvatar> mFederatedAvatars;
 
     // Database file name of the place currently open for editing (see Set/GetActiveEditDbFile).
     mutable std::mutex mActiveEditDbMutex;

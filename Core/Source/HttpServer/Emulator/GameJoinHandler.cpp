@@ -241,9 +241,11 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         }
 
         StampIdentity(joinScript, user->id, user->name, user->displayName);
-        // A guest carries its identity inside the ticket; an account gets a real single-use ticket.
-        ticket = user->isGuest ? AuthUtil::EncodeGuestTicket(*user)
-                               : AuthUtil::MintAuthTicket(master, user->id, placeId);
+        // Guests and federated users have no local DB row, so they carry their identity inside the
+        // ticket; a local account gets a real single-use ticket from the master DB.
+        ticket = user->isGuest     ? AuthUtil::EncodeGuestTicket(*user)
+               : user->isFederated ? AuthUtil::EncodeFederatedTicket(*user)
+                                    : AuthUtil::MintAuthTicket(master, user->id, placeId);
         if (ticket.empty()) {
             evhttp_send_error(req, HTTP_INTERNAL, "Failed to mint authentication ticket");
             return;

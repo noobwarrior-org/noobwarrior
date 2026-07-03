@@ -88,42 +88,17 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    Statement checkUserStmt = masterDb->PrepareStatement("SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE;");
-    checkUserStmt.Bind(1, username);
-    if (checkUserStmt.Step() == SQLITE_ROW) {
+    if (AuthUtil::LocalAccountExists(masterDb, username)) {
         evhttp_send_error(req, 409, "Username already exists!");
         return;
     }
 
-    std::vector<unsigned char> salt(AuthUtil::kSaltLength);
-    if (!AuthUtil::RandomBytes(salt.data(), salt.size())) {
-        evhttp_send_error(req, HTTP_INTERNAL, "Failed to generate password salt");
-        return;
-    }
-    std::string saltStr = AuthUtil::ToHex(salt.data(), salt.size());
-
-    std::string hashStr = AuthUtil::HashPassword(password, salt);
-    if (hashStr.empty()) {
-        evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
-        return;
-    }
-
-    Statement createUserStmt = masterDb->PrepareStatement(
-        "INSERT INTO User (Name, DisplayName, PasswordHash, PasswordSalt, JoinDate) VALUES (?, ?, ?, ?, unixepoch());"
-    );
-    createUserStmt.Bind(1, username);
-    createUserStmt.Bind(2, username);
-    createUserStmt.Bind(3, hashStr);
-    createUserStmt.Bind(4, saltStr);
-    if (createUserStmt.Step() != SQLITE_DONE) {
-        Out("CreateAccountHandler", "Failed to insert new user \"{}\": {}", username, masterDb->GetLastErrorMsg());
+    std::optional<int64_t> newUserId = AuthUtil::CreateLocalAccount(masterDb, username, password);
+    if (!newUserId) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create account");
         return;
     }
-
-    int64_t newUserId = sqlite3_last_insert_rowid(masterDb->Get());
-    masterDb->MarkDirty();
-    Out("CreateAccountHandler", "Created account \"{}\" with ID {}", username, newUserId);
+    Out("CreateAccountHandler", "Created account \"{}\" with ID {}", username, *newUserId);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Location", "/login");
     evbuffer *reply = evbuffer_new();

@@ -18,47 +18,45 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ServerEmulatorPage.h
+// File: AccountsPage.h
 // Started by: Hattozo
-// Started on: 7/24/2025
+// Started on: 7/2/2026
 // Description:
 #pragma once
 #include "SettingsPage.h"
-#include "Sdk/EmuDbComboBox.h"
 
-#include <QFormLayout>
-#include <QLineEdit>
-#include <QIntValidator>
-#include <QCheckBox>
-#include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
+#include <QStandardItemModel>
+#include <QTreeView>
 
 namespace NoobWarrior {
-class ServerEmulatorPage : public SettingsPage {
+class AccountsPage : public SettingsPage {
+    Q_OBJECT
 public:
-    ServerEmulatorPage(QWidget *parent = nullptr);
+    AccountsPage(QWidget *parent = nullptr);
     const QString GetTitle() override;
     const QString GetDescription() override;
     const QIcon GetIcon() override;
-    void Deserialize(Registry* reg) override;
-    void Serialize(Registry* reg) override;
+    
+    void RefreshRobloxAccounts();
 protected:
     void InitWidgets();
-    void UpdateAuthSlaveFieldState();
-private:
-    QFormLayout* mForm;
-    QLineEdit* mHttpsPortInput;
-    QLineEdit* mHttpPortInput;
-    QCheckBox* mAssetGrabInput;
-    EmuDbComboBox* mSaveDbDropdown;
+    QWidget* BuildRobloxSection();
+    QWidget* BuildMasterSection();
+    QWidget* BuildServerAccountsSection();
 
-    // Server authentication (hosting).
-    QCheckBox* mAuthEnabledInput;
-    QComboBox* mAuthTypeInput;
-    QLineEdit* mAuthMasterUrlInput;
-    QCheckBox* mAuthFederatedLoginInput;
-    QCheckBox* mAuthAllowGuestsInput;
-    QCheckBox* mAuthPasswordBasedInput;
-    QCheckBox* mAuthAllowRegistrationInput;
-    QLineEdit* mAuthTicketTtlInput;
+    void RefreshMasterIdentity();
+    void RefreshServerAccounts();
+    void PromptCreateServerAccount();
+private:
+    QTreeView* mRbxView;
+    QStandardItemModel* mRbxModel;
+
+    QLabel* mMasterIdentityLabel;
+    QPushButton* mMasterSignOutButton;
+
+    QTreeView* mServerView;
+    QStandardItemModel* mServerModel;
 };
 }

@@ -1,0 +1,12 @@
+<?lua
+header("Content-Type: application/json")
+
+local avatarJson = _G.MASTERSERVER_FEDERATION.LocalAvatarJson(_GET["handle"])
+if not avatarJson then
+    http_response_code(404)
+    die("{}")
+end
+
+http_response_code(200)
+die(avatarJson)
+?>

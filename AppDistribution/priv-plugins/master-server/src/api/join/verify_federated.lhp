@@ -1,0 +1,32 @@
+<?lua
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+header("Content-Type: application/json")
+
+local ok, body = pcall(json.parse, _RAW_POST)
+if not ok or type(body) ~= "table" then
+    http_response_code(400)
+    die(json.stringify({ ok = false, Error = "Malformed JSON" }))
+end
+
+local allowForeign = body.allowForeign
+if allowForeign == nil then allowForeign = true end
+local user, err = _G.MASTERSERVER_FEDERATION.VerifyFederatedJoin(body.identity, body.actionId, body.body, allowForeign)
+if not user then
+    http_response_code(401)
+    die(json.stringify({ ok = false, Error = tostring(err or "verification failed") }))
+end
+
+-- id is emitted as a string: json.stringify uses tostring() (%.14g), which would mangle a >14-digit
+-- OnlineUserId into lossy scientific notation. %.0f keeps the full integer.
+http_response_code(200)
+die(json.stringify({ ok = true, user = {
+    id = string.format("%.0f", tonumber(user.id) or 0),
+    name = user.name,
+    displayName = user.displayName,
+    homeBaseUrl = user.homeBaseUrl or "",
+} }))
+?>

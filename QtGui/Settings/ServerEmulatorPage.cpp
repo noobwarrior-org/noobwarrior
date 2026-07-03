@@ -28,6 +28,10 @@
 
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <QLabel>
+#include <QScrollArea>
+#include <QWidget>
+
 using namespace NoobWarrior;
 
 ServerEmulatorPage::ServerEmulatorPage(QWidget *parent) : SettingsPage(parent) {
@@ -61,7 +65,59 @@ void ServerEmulatorPage::InitWidgets() {
     backupModeInfo->setWordWrap(true);
     mForm->addRow(backupModeInfo);
 
-    Layout->addLayout(mForm);
+    // --- Authentication (hosting) ---
+    QFrame* authLine = new QFrame();
+    authLine->setFrameShape(QFrame::HLine);
+    authLine->setFrameShadow(QFrame::Sunken);
+    mForm->addRow(authLine);
+    mForm->addRow(new QLabel("<b>Authentication</b>"));
+
+    mAuthEnabledInput = new QCheckBox();
+    mForm->addRow("Require authentication to join", mAuthEnabledInput);
+
+    mAuthTypeInput = new QComboBox();
+    mAuthTypeInput->addItem("Master (I authenticate players)", "master");
+    mAuthTypeInput->addItem("Slave (a master server authenticates players)", "slave");
+    mForm->addRow("Authentication mode", mAuthTypeInput);
+
+    mAuthMasterUrlInput = new QLineEdit();
+    mAuthMasterUrlInput->setPlaceholderText("https://master.example.com");
+    mForm->addRow("Master server URL", mAuthMasterUrlInput);
+
+    mAuthFederatedLoginInput = new QCheckBox();
+    mForm->addRow("Allow logins from other federated masters", mAuthFederatedLoginInput);
+
+    mAuthAllowGuestsInput = new QCheckBox();
+    mForm->addRow("Allow guests", mAuthAllowGuestsInput);
+
+    mAuthPasswordBasedInput = new QCheckBox();
+    mForm->addRow("Password-based login", mAuthPasswordBasedInput);
+
+    mAuthAllowRegistrationInput = new QCheckBox();
+    mForm->addRow("Allow account registration", mAuthAllowRegistrationInput);
+
+    mAuthTicketTtlInput = new QLineEdit();
+    mAuthTicketTtlInput->setValidator(new QIntValidator(1, 86400, this));
+    mForm->addRow("Join ticket lifetime (seconds)", mAuthTicketTtlInput);
+
+    connect(mAuthTypeInput, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
+        UpdateAuthSlaveFieldState();
+    });
+
+    // The page is long, so keep it scrollable below the fixed title/description.
+    auto* content = new QWidget();
+    content->setLayout(mForm);
+    auto* scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidget(content);
+    Layout->addWidget(scroll);
+}
+
+void ServerEmulatorPage::UpdateAuthSlaveFieldState() {
+    bool slave = mAuthTypeInput->currentData().toString() == "slave";
+    mAuthMasterUrlInput->setEnabled(slave);
+    mAuthFederatedLoginInput->setEnabled(slave);
 }
 
 const QString ServerEmulatorPage::GetTitle() {
@@ -86,6 +142,17 @@ void ServerEmulatorPage::Deserialize(Registry* reg) {
         if (db != nullptr)
             mSaveDbDropdown->SetDatabase(db);
     }
+
+    mAuthEnabledInput->setChecked(reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false));
+    std::string authType = reg->GetKeyValue<std::string>("emu.auth.type").value_or("master");
+    mAuthTypeInput->setCurrentIndex(authType == "slave" ? 1 : 0);
+    mAuthMasterUrlInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("emu.auth.master").value_or("")));
+    mAuthFederatedLoginInput->setChecked(reg->GetKeyValue<bool>("emu.auth.federated_login").value_or(true));
+    mAuthAllowGuestsInput->setChecked(reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false));
+    mAuthPasswordBasedInput->setChecked(reg->GetKeyValue<bool>("emu.auth.password_based").value_or(true));
+    mAuthAllowRegistrationInput->setChecked(reg->GetKeyValue<bool>("emu.auth.allow_registration").value_or(false));
+    mAuthTicketTtlInput->setText(QString::number(reg->GetKeyValue<int64_t>("emu.auth.ticket_ttl").value_or(120)));
+    UpdateAuthSlaveFieldState();
 }
 
 void ServerEmulatorPage::Serialize(Registry* reg) {
@@ -104,4 +171,14 @@ void ServerEmulatorPage::Serialize(Registry* reg) {
     if (db != nullptr) {
         reg->SetKeyValue<std::string>("emu.asset_grab_db", db->GetFilePath().string());
     }
+
+    reg->SetKeyValue<bool>("emu.auth.enabled", mAuthEnabledInput->isChecked());
+    reg->SetKeyValue<std::string>("emu.auth.type", mAuthTypeInput->currentData().toString().toStdString());
+    reg->SetKeyValue<std::string>("emu.auth.master", mAuthMasterUrlInput->text().trimmed().toStdString());
+    reg->SetKeyValue<bool>("emu.auth.federated_login", mAuthFederatedLoginInput->isChecked());
+    reg->SetKeyValue<bool>("emu.auth.allow_guests", mAuthAllowGuestsInput->isChecked());
+    reg->SetKeyValue<bool>("emu.auth.password_based", mAuthPasswordBasedInput->isChecked());
+    reg->SetKeyValue<bool>("emu.auth.allow_registration", mAuthAllowRegistrationInput->isChecked());
+    if (!mAuthTicketTtlInput->text().isEmpty())
+        reg->SetKeyValue<int64_t>("emu.auth.ticket_ttl", mAuthTicketTtlInput->text().toLongLong());
 }

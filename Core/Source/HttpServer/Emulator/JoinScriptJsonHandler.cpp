@@ -91,8 +91,9 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
         identId = user->id;
         identName = user->name;
         identDisplay = user->displayName;
-        clientTicket = user->isGuest ? AuthUtil::EncodeGuestTicket(*user)
-                                     : AuthUtil::MintAuthTicket(master, user->id, placeId);
+        clientTicket = user->isGuest     ? AuthUtil::EncodeGuestTicket(*user)
+                     : user->isFederated ? AuthUtil::EncodeFederatedTicket(*user)
+                                         : AuthUtil::MintAuthTicket(master, user->id, placeId);
         if (clientTicket.empty()) {
             evhttp_send_error(req, HTTP_INTERNAL, "Failed to mint authentication ticket");
             return;

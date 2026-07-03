@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <ctime>
 #include <mutex>
@@ -310,6 +311,38 @@ void ServerEmulator::ClearAvatarOverrides() {
     mAvatarOverrides.clear();
 }
 
+void ServerEmulator::SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl) {
+    if (sourceUrl.empty())
+        return;
+    static constexpr size_t kMaxEntries = 4096;
+    std::lock_guard lock(mFederatedAvatarsMutex);
+    if (mFederatedAvatars.size() >= kMaxEntries && !mFederatedAvatars.count(userId))
+        return;
+    mFederatedAvatars[userId] = { sourceUrl, "" }; // fresh source: drop any stale cached body
+}
+
+std::optional<std::string> ServerEmulator::GetFederatedAvatar(int64_t userId) {
+    std::string sourceUrl;
+    {
+        std::lock_guard lock(mFederatedAvatarsMutex);
+        auto it = mFederatedAvatars.find(userId);
+        if (it == mFederatedAvatars.end())
+            return std::nullopt; // not a federated joiner
+        if (!it->second.CachedJson.empty())
+            return it->second.CachedJson;
+        sourceUrl = it->second.SourceUrl;
+    }
+    // Pull the avatar from the home master once, then cache it. Fetched outside the lock.
+    cpr::Response res = cpr::Get(cpr::Url{sourceUrl}, cpr::Timeout{std::chrono::milliseconds(5000)},
+                                 cpr::VerifySsl{false});
+    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400 || res.text.empty())
+        return std::nullopt; // fall through to the local default avatar
+    std::lock_guard lock(mFederatedAvatarsMutex);
+    if (auto it = mFederatedAvatars.find(userId); it != mFederatedAvatars.end())
+        it->second.CachedJson = res.text;
+    return res.text;
+}
+
 void ServerEmulator::SetCurrentLaunchUser(const AuthUtil::SessionUser &user) {
     std::lock_guard lock(mCurrentLaunchUserMutex);
     mCurrentLaunchUser = user;
@@ -330,9 +363,97 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveJoiningUser(evhttp_r
         if (auto launchUser = GetCurrentLaunchUser())
             return launchUser;
     }
-    EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
+
     const char *cookie = evhttp_find_header(evhttp_request_get_input_headers(req), "Cookie");
-    return AuthUtil::ResolveSessionUser(master, AuthUtil::ExtractCookieValue(cookie, ".LOGINSESSION"));
+    std::string session = AuthUtil::ExtractCookieValue(cookie, ".LOGINSESSION");
+
+    // A remote joiner from a federated master forwards a voucher instead of a local session token.
+    if (session.rfind("fedvoucher.", 0) == 0)
+        return ResolveFederatedVoucher(session);
+
+    EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
+    return AuthUtil::ResolveSessionUser(master, session);
+}
+
+std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(const std::string &cookieValue) {
+    Registry *reg = mCore->GetRegistry();
+    if (reg == nullptr)
+        return std::nullopt;
+    if (reg->GetKeyValue<std::string>("emu.auth.type").value_or("master") != "slave")
+        return std::nullopt;
+    std::string masterUrl = reg->GetKeyValue<std::string>("emu.auth.master").value_or("");
+    if (masterUrl.empty())
+        return std::nullopt;
+    while (masterUrl.back() == '/')
+        masterUrl.pop_back();
+    // Our master accepts our own users always; only foreign federated masters are gated by this flag.
+    bool allowForeign = reg->GetKeyValue<bool>("emu.auth.federated_login").value_or(true);
+
+    // cookieValue = "fedvoucher.<b64url identity>.<actionId>.<b64url body>"
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t dot = cookieValue.find('.'); dot != std::string::npos; dot = cookieValue.find('.', start)) {
+        parts.push_back(cookieValue.substr(start, dot - start));
+        start = dot + 1;
+    }
+    parts.push_back(cookieValue.substr(start));
+    if (parts.size() != 4)
+        return std::nullopt;
+
+    std::optional<std::string> identity = AuthUtil::Base64UrlDecode(parts[1]);
+    std::optional<std::string> body = AuthUtil::Base64UrlDecode(parts[3]);
+    if (!identity || !body)
+        return std::nullopt;
+
+    json payload;
+    payload["identity"] = *identity;
+    payload["actionId"] = parts[2];
+    payload["body"] = *body;
+    payload["allowForeign"] = allowForeign;
+
+    cpr::Response res = cpr::Post(
+        cpr::Url{masterUrl + "/v1/join/verify-federated"},
+        cpr::Header{{"Content-Type", "application/json"}},
+        cpr::Body{payload.dump()},
+        cpr::Timeout{std::chrono::milliseconds(5000)},
+        cpr::VerifySsl{false});
+    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400)
+        return std::nullopt;
+
+    try {
+        json j = json::parse(res.text);
+        if (!j.value("ok", false) || !j.contains("user"))
+            return std::nullopt;
+        const json &u = j["user"];
+        AuthUtil::SessionUser user;
+        // id arrives as a string (full-precision OnlineUserId) but tolerate a JSON number too.
+        if (const json &idVal = u.value("id", json()); idVal.is_string()) {
+            const std::string &s = idVal.get_ref<const std::string &>();
+            std::from_chars(s.data(), s.data() + s.size(), user.id);
+        } else if (idVal.is_number_integer()) {
+            user.id = idVal.get<int64_t>();
+        } else if (idVal.is_number_float()) {
+            user.id = static_cast<int64_t>(idVal.get<double>());
+        }
+        user.name = u.value("name", "");
+        user.displayName = u.value("displayName", "");
+        if (user.displayName.empty())
+            user.displayName = user.name;
+        user.isFederated = true;
+        if (user.id <= 0 || user.name.empty())
+            return std::nullopt;
+
+        // Remember where to pull this user's avatar from their home master, so AvatarFetchHandler can
+        // serve it instead of the local default.
+        std::string homeBaseUrl = u.value("homeBaseUrl", "");
+        while (!homeBaseUrl.empty() && homeBaseUrl.back() == '/')
+            homeBaseUrl.pop_back();
+        if (!homeBaseUrl.empty())
+            SetFederatedAvatarSource(user.id, homeBaseUrl + "/fed/v1/avatar?handle=" + cpr::util::urlEncode(user.name));
+        return user;
+    } catch (json::exception &) {
+        return std::nullopt;
+    }
 }
 
 void ServerEmulator::SetActiveEditDbFile(const std::string &dbFileName) {

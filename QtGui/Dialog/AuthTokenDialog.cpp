@@ -23,7 +23,7 @@
 // Started on: 8/30/2025
 // Description:
 #include "AuthTokenDialog.h"
-#include "../Settings/AccountPage.h"
+#include "../Settings/AccountsPage.h"
 #include "../Application.h"
 
 using namespace NoobWarrior;
@@ -55,9 +55,9 @@ void AuthTokenDialog::InitWidgets() {
         if (acc != nullptr)
             gApp->GetCore()->GetRbxKeychain()->SetActiveAccount(acc);
 
-        auto accPage = dynamic_cast<AccountPage*>(parent());
+        auto accPage = dynamic_cast<AccountsPage*>(parent());
         if (accPage != nullptr) {
-            accPage->Refresh();
+            accPage->RefreshRobloxAccounts();
         }
 
         close();

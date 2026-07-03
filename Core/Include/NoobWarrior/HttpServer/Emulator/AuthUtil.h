@@ -39,17 +39,22 @@ namespace AuthUtil {
 inline constexpr int kHashLength = 32;
 inline constexpr int kSaltLength = 16;
 
-// A resolved user identity (from a login session, an auth ticket, or a guest)
+// A resolved user identity (from a login session, an auth ticket, a guest, or a federated master)
 struct SessionUser {
     int64_t id {0};
     std::string name;
     std::string displayName;
     bool isGuest {false};
+    bool isFederated {false};
 };
 
 // Hex helpers
 std::string ToHex(const unsigned char *bytes, size_t len);
 bool FromHex(const std::string &hex, std::vector<unsigned char> &out);
+
+// URL-safe base64 (no padding). Used to pack arbitrary strings into ticket/cookie fields.
+std::string Base64UrlEncode(std::string_view data);
+std::optional<std::string> Base64UrlDecode(std::string_view encoded);
 
 // Cryptographically-random helpers
 bool RandomBytes(unsigned char *out, size_t len);
@@ -79,6 +84,28 @@ std::optional<SessionUser> RedeemAuthTicket(EmuDb *master, const std::string &ti
 SessionUser MakeGuestUser();
 std::string EncodeGuestTicket(const SessionUser &guest);
 std::optional<SessionUser> DecodeGuestTicket(const std::string &ticket);
+
+// Federated user from another master (OnlineUserId, no local DB row). Like guests, the identity is
+// carried inside the ticket string rather than an AuthTicket, so the game server can redeem it here.
+std::string EncodeFederatedTicket(const SessionUser &user);
+std::optional<SessionUser> DecodeFederatedTicket(const std::string &ticket);
+
+// Local accounts on the server emulator's master DB — the accounts players log in with in master
+// mode (also what the master-server plugin authenticates against).
+struct LocalAccount {
+    int64_t id {0};
+    std::string name;
+    std::string displayName;
+    int64_t joinDate {0};
+};
+std::vector<LocalAccount> ListLocalAccounts(EmuDb *master);
+bool LocalAccountExists(EmuDb *master, const std::string &name);
+// Hashes the password (Argon2id) and inserts a User row; returns the new id, or nullopt on failure
+// (name taken, empty inputs, hash/insert error).
+std::optional<int64_t> CreateLocalAccount(EmuDb *master, const std::string &name,
+                                          const std::string &password, const std::string &displayName = "");
+// Removes the account and its sessions/tickets. Returns false only if the DB is unusable.
+bool DeleteLocalAccount(EmuDb *master, int64_t id);
 
 }
 }

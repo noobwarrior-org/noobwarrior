@@ -53,6 +53,9 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("debug.log_http_server_requests", false);
 
+    SetKeyValueIfNotSet("allow_multiple_instances", false);
+    SetKeyComment("allow_multiple_instances", "If true, lets more than one copy of noobWarrior run at once instead of blocking the second one. Only enable this if you know what you're doing!");
+
     SetKeyValueIfNotSet("internet.roblox.asset_delivery", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
     SetKeyValueIfNotSet("internet.roblox.badge_details", "https://badges.roblox.com/v1/badges/{}");
@@ -82,6 +85,14 @@ RegistryResponse Registry::Open() {
     }
     SetKeyValueIfNotSet("user.name", "Player");
     SetKeyValueIfNotSet("user.display_name", "Player");
+
+    // Persistent "online" identity: the account you sign in to on your home master server. This is
+    // separate from the local user.* identity above and is reused to join federated slave servers.
+    SetKeyValueIfNotSet("online.master_url", "");
+    SetKeyValueIfNotSet("online.session_token", "");
+    SetKeyValueIfNotSet("online.identity", "");
+    SetKeyValueIfNotSet<int64_t>("online.user_id", 0);
+    SetKeyValueIfNotSet("online.display_name", "");
 
     SetKeyValueIfNotSet("user.appearance.avatar_type", "R6"); // "R6" or "R15"
 
@@ -135,6 +146,9 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.auth.master", "");
     SetKeyComment("emu.auth.master", "The URL of the master server that your server's authentication system accepts. Does nothing if the auth type is set to \"master\"");
+
+    SetKeyValueIfNotSet("emu.auth.federated_login", true);
+    SetKeyComment("emu.auth.federated_login", "Slave mode only. If enabled, players logged in to any master server that is federated (and not defederated) with your master server may join. If disabled, only accounts on your own master server may join.");
 
     SetKeyValueIfNotSet("emu.master.announce", false);
     SetKeyComment("emu.master.announce", "If enabled, this server emulator will announce itself to the master server at emu.auth.master whenever it has running game servers, so it appears in that master server's public server list. It stops announcing (and is removed from the list) once it has no running game servers.");

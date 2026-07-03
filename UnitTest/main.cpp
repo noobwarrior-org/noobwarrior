@@ -525,6 +525,42 @@ TEST(Auth, GuestTicketRoundTrip) {
     EXPECT_FALSE(AuthUtil::DecodeGuestTicket("deadbeef").has_value());
 }
 
+TEST(Auth, Base64UrlRoundTrip) {
+    for (const std::string &s : {std::string(""), std::string("a"), std::string("ab"), std::string("abc"),
+                                 std::string("alice@masterA.example"), std::string("join\nalice@a\nb\nnonce"),
+                                 std::string("\x00\x01\x02\xff", 4)}) {
+        std::string encoded = AuthUtil::Base64UrlEncode(s);
+        EXPECT_EQ(encoded.find('='), std::string::npos) << "base64url must not emit padding.";
+        auto decoded = AuthUtil::Base64UrlDecode(encoded);
+        ASSERT_TRUE(decoded.has_value());
+        EXPECT_EQ(*decoded, s);
+    }
+    EXPECT_FALSE(AuthUtil::Base64UrlDecode("has spaces").has_value()) << "invalid chars must fail to decode";
+}
+
+TEST(Auth, FederatedTicketRoundTrip) {
+    AuthUtil::SessionUser user;
+    user.id = 1000012345;                 // OnlineUserId range is [1e9, 2^53)
+    user.name = "alice@masterA.example";
+    user.displayName = "alice";
+    user.isFederated = true;
+
+    std::string ticket = AuthUtil::EncodeFederatedTicket(user);
+    auto decoded = AuthUtil::DecodeFederatedTicket(ticket);
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded->id, user.id);
+    EXPECT_EQ(decoded->name, user.name);
+    EXPECT_EQ(decoded->displayName, user.displayName);
+    EXPECT_TRUE(decoded->isFederated);
+    EXPECT_FALSE(decoded->isGuest);
+
+    // A federated ticket carries a positive id, so it must never decode as a guest, and vice-versa.
+    EXPECT_FALSE(AuthUtil::DecodeGuestTicket(ticket).has_value());
+    EXPECT_FALSE(AuthUtil::DecodeFederatedTicket(AuthUtil::EncodeGuestTicket(AuthUtil::MakeGuestUser())).has_value());
+    EXPECT_FALSE(AuthUtil::DecodeFederatedTicket("deadbeef").has_value());
+    EXPECT_FALSE(AuthUtil::DecodeFederatedTicket("fed:notanumber:aa:bb").has_value());
+}
+
 TEST(Auth, ResolveSessionUser) {
     EmuDb db(":memory:");
     ASSERT_FALSE(db.Fail());
@@ -597,6 +633,38 @@ TEST(Auth, CreateLoginSession) {
     ASSERT_TRUE(user.has_value()) << "The created session must resolve back to its user.";
     EXPECT_EQ(4000, user->id);
     EXPECT_EQ("dave", user->name);
+}
+
+TEST(Auth, CreateAndDeleteLocalAccount) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+
+    EXPECT_FALSE(AuthUtil::LocalAccountExists(&db, "erin"));
+    auto id = AuthUtil::CreateLocalAccount(&db, "erin", "hunter2", "Erin");
+    ASSERT_TRUE(id.has_value()) << "CreateLocalAccount should return the new user's id.";
+    EXPECT_GT(*id, 0);
+    EXPECT_TRUE(AuthUtil::LocalAccountExists(&db, "erin"));
+
+    // The account shows up in the listing with its display name.
+    auto accounts = AuthUtil::ListLocalAccounts(&db);
+    ASSERT_EQ(1u, accounts.size());
+    EXPECT_EQ(*id, accounts[0].id);
+    EXPECT_EQ("erin", accounts[0].name);
+    EXPECT_EQ("Erin", accounts[0].displayName);
+
+    // The password was hashed (Argon2id) and verifies.
+    Statement stmt = db.PrepareStatement("SELECT PasswordHash, PasswordSalt FROM User WHERE Id = ?;");
+    stmt.Bind(1, *id);
+    ASSERT_EQ(SQLITE_ROW, stmt.Step());
+    EXPECT_TRUE(AuthUtil::VerifyPassword("hunter2", stmt.GetStringFromColumnIndex(1), stmt.GetStringFromColumnIndex(0)));
+
+    // A duplicate username (case-insensitive) is refused.
+    EXPECT_FALSE(AuthUtil::CreateLocalAccount(&db, "ERIN", "x", "").has_value());
+
+    // Deleting removes it from the listing.
+    EXPECT_TRUE(AuthUtil::DeleteLocalAccount(&db, *id));
+    EXPECT_FALSE(AuthUtil::LocalAccountExists(&db, "erin"));
+    EXPECT_TRUE(AuthUtil::ListLocalAccounts(&db).empty());
 }
 
 int main(int argc, char** argv) {

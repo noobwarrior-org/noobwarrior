@@ -98,9 +98,12 @@ void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     std::optional<AuthUtil::SessionUser> resolved;
 
-    // Guests carry their identity inside the ticket itself (no DB row exists for them).
+    // Guests and federated users carry their identity inside the ticket itself (no DB row exists for
+    // them); a local account gets a real single-use ticket redeemed against the master DB.
     if (auto guest = AuthUtil::DecodeGuestTicket(ticket)) {
         resolved = guest;
+    } else if (auto federated = AuthUtil::DecodeFederatedTicket(ticket)) {
+        resolved = federated;
     } else if (master) {
         resolved = AuthUtil::RedeemAuthTicket(master, ticket, ttl);
     }
