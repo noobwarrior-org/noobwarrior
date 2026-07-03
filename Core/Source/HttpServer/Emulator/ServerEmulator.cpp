@@ -389,7 +389,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     // Our master accepts our own users always; only foreign federated masters are gated by this flag.
     bool allowForeign = reg->GetKeyValue<bool>("emu.auth.federated_login").value_or(true);
 
-    // cookieValue = "fedvoucher.<b64url identity>.<actionId>.<b64url body>"
+    // cookieValue = "fedvoucher.<b64url identity>.<actionId>.<b64url body>.<signature hex>"
     std::vector<std::string> parts;
     size_t start = 0;
     for (size_t dot = cookieValue.find('.'); dot != std::string::npos; dot = cookieValue.find('.', start)) {
@@ -397,7 +397,8 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
         start = dot + 1;
     }
     parts.push_back(cookieValue.substr(start));
-    if (parts.size() != 4)
+    // 5 = signed (current); 4 = legacy unsigned, forwarded so the master returns a clear rejection.
+    if (parts.size() != 5 && parts.size() != 4)
         return std::nullopt;
 
     std::optional<std::string> identity = AuthUtil::Base64UrlDecode(parts[1]);
@@ -409,6 +410,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     payload["identity"] = *identity;
     payload["actionId"] = parts[2];
     payload["body"] = *body;
+    payload["signature"] = parts.size() == 5 ? parts[4] : "";
     payload["allowForeign"] = allowForeign;
 
     cpr::Response res = cpr::Post(

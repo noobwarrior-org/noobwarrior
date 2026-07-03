@@ -20,7 +20,7 @@ local action = {
 }
 
 _G.MASTERSERVER_FEDERATION.AutoAccept(body.From, body.OriginBaseUrl)
-local okp, err = _G.MASTERSERVER_FEDERATION.ReceiveForumPost(body.From, action, body.ActionId)
+local okp, err = _G.MASTERSERVER_FEDERATION.ReceiveForumPost(body.From, action, body.ActionId, body.Signature)
 
 header("Content-Type: application/json")
 if not okp then

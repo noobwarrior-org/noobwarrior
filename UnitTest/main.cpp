@@ -667,6 +667,34 @@ TEST(Auth, CreateAndDeleteLocalAccount) {
     EXPECT_TRUE(AuthUtil::ListLocalAccounts(&db).empty());
 }
 
+TEST(Auth, Ed25519SignVerify) {
+    std::string priv, pub;
+    ASSERT_TRUE(AuthUtil::GenerateEd25519(priv, pub));
+    EXPECT_EQ(priv.size(), 64u);   // 32 bytes hex
+    EXPECT_EQ(pub.size(), 64u);
+
+    std::string msg = "join\nalice@a\nb\nnonce123";
+    std::string sig = AuthUtil::Ed25519Sign(priv, msg);
+    ASSERT_FALSE(sig.empty());
+    EXPECT_EQ(sig.size(), 128u);   // 64 bytes hex
+
+    EXPECT_TRUE(AuthUtil::Ed25519Verify(pub, msg, sig)) << "a valid signature must verify.";
+
+    // Tampered message, tampered signature, and a different key all fail.
+    EXPECT_FALSE(AuthUtil::Ed25519Verify(pub, msg + "x", sig)) << "tampered message must not verify.";
+    std::string badSig = sig;
+    badSig[0] = (badSig[0] == 'a') ? 'b' : 'a';
+    EXPECT_FALSE(AuthUtil::Ed25519Verify(pub, msg, badSig)) << "tampered signature must not verify.";
+
+    std::string priv2, pub2;
+    ASSERT_TRUE(AuthUtil::GenerateEd25519(priv2, pub2));
+    EXPECT_FALSE(AuthUtil::Ed25519Verify(pub2, msg, sig)) << "another key's signature must not verify.";
+
+    // Malformed inputs are rejected, not crashed on.
+    EXPECT_FALSE(AuthUtil::Ed25519Verify("notahexkey", msg, sig));
+    EXPECT_TRUE(AuthUtil::Ed25519Sign("short", msg).empty());
+}
+
 int main(int argc, char** argv) {
     #if defined(_WIN32)
         _putenv("GTEST_COLOR=yes");

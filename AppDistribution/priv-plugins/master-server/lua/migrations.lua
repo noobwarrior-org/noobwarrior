@@ -113,6 +113,28 @@ CREATE TABLE IF NOT EXISTS WorkshopComment (
 CREATE INDEX IF NOT EXISTS idx_workshopcomment_submission ON WorkshopComment(SubmissionId);
 ]]
     },
+    {
+        -- A peer's pinned Ed25519 public key (hex), captured on first contact (TOFU). Federated actions
+        -- are verified against this instead of an HTTP callback.
+        version = "v7",
+        sql = [[
+ALTER TABLE Peer ADD COLUMN PublicKey TEXT;
+]]
+    },
+    {
+        -- Replace nonce table with action. Because nonce is a weird ass word
+        -- I ctrl f'd every iteration of nonce and replaced it with action
+        -- so this just fixes that for tables that were using the old name
+        version = "v8",
+        sql = [[
+CREATE TABLE IF NOT EXISTS ReceivedAction (
+    ActionId   TEXT PRIMARY KEY,
+    Kind       TEXT,
+    ReceivedAt INTEGER NOT NULL DEFAULT (unixepoch())
+);
+DROP TABLE IF EXISTS ReceivedNonce;
+]]
+    },
 }
 
 local SCHEMA_MIGRATION = [[

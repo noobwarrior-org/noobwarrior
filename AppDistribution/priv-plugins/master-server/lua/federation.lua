@@ -2,7 +2,7 @@
 -- noobWarrior
 -- Plugin: Master Server
 -- File: federation.lua
--- Description:
+-- Description: A bunch of functions that handle federation between master servers
 -- Started by: Hattozo
 -- Started on: 6/25/2026
 -- ////////////////////////////////////////////////////////////////////////////////
@@ -157,13 +157,17 @@ function fed.AddPeer(baseUrl)
         return nil, "that peer is this server"
     end
     local name = tostring(info.Name or domain)
+    -- Pin the peer's Ed25519 key. A manual (re-)add trusts whatever key it currently presents, so this
+    -- is also how an operator rotates a peer's key after it regenerates one.
+    local pubKey = tostring(info.PublicKey or "")
 
     if peerKnown(domain) then
         db():QueryTyped(
-            "UPDATE Peer SET BaseUrl = ?, Name = ?, LastSeen = unixepoch(), Status = 'active' WHERE Domain = ? COLLATE NOCASE;",
-            baseUrl, name, domain)
+            "UPDATE Peer SET BaseUrl = ?, Name = ?, PublicKey = ?, LastSeen = unixepoch(), Status = 'active' WHERE Domain = ? COLLATE NOCASE;",
+            baseUrl, name, pubKey, domain)
     else
-        db():QueryTyped("INSERT INTO Peer (Domain, BaseUrl, Name) VALUES (?, ?, ?);", domain, baseUrl, name)
+        db():QueryTyped("INSERT INTO Peer (Domain, BaseUrl, Name, PublicKey) VALUES (?, ?, ?, ?);",
+            domain, baseUrl, name, pubKey)
     end
     return { Domain = domain, BaseUrl = baseUrl, Name = name }
 end
@@ -223,33 +227,62 @@ function fed.LookupOutbound(actionId)
         "SELECT FromUsername, ToIdentity, BodyHash, CreatedTimestamp FROM OutboundMessage WHERE ActionId = ?;", actionId))
 end
 
--- Origin-callback verify. When expectedTarget is given, the origin's recorded Target must match it,
--- which binds a voucher to one recipient (stops a slave replaying it against another master).
-function fed.VerifyRemoteActionFor(fromIdentity, actionId, body, expectedTarget)
+-- A peer's pinned Ed25519 public key (hex), or nil. On first contact we fetch it from the peer's
+-- /fed/v1/info and pin it (trust-on-first-use); an already-pinned key is never silently replaced
+-- (re-add the peer to rotate it), so a later MITM can't swap a peer's key out from under us.
+function fed.PeerPublicKey(domain)
+    local row = firstRow(db():QueryTyped("SELECT PublicKey FROM Peer WHERE Domain = ? COLLATE NOCASE;", domain))
+    if row and not blank(row.PublicKey) then return row.PublicKey end
+
+    local res = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/info")
+    local info = res and parseJson(res.Body)
+    if not info or blank(info.PublicKey) then return nil end
+    if peerKnown(domain) then
+        db():QueryTyped(
+            "UPDATE Peer SET PublicKey = ? WHERE Domain = ? COLLATE NOCASE AND (PublicKey IS NULL OR PublicKey = '');",
+            info.PublicKey, domain)
+    else
+        db():QueryTyped("INSERT INTO Peer (Domain, BaseUrl, Name, PublicKey) VALUES (?, ?, ?, ?);",
+            domain, fed.ResolveBaseUrl(domain), domain, info.PublicKey)
+    end
+    return info.PublicKey
+end
+
+-- Every federated action is signed over these fixed, newline-joined fields. Binding the actionId, the
+-- signer's identity and the recipient domain into the signature stops replay against a different target.
+function fed.SigningEnvelope(actionId, fromIdentity, targetDomain, body)
+    return table.concat({ "nwfed1", tostring(actionId), tostring(fromIdentity):lower(),
+                          tostring(targetDomain):lower(), tostring(body) }, "\n")
+end
+
+-- Sign an outbound action with this master's private key. targetDomain is the RECIPIENT's domain.
+function fed.SignAction(actionId, fromIdentity, targetDomain, body)
+    if blank(_G.MASTERSERVER_PRIVKEY) then return "" end
+    return crypto.Sign(_G.MASTERSERVER_PRIVKEY, fed.SigningEnvelope(actionId, fromIdentity, targetDomain, body))
+end
+
+-- Verify a signed federated action against the signer domain's pinned key. No callback to the origin:
+-- the signature is self-contained, so the issuer needn't be reachable. expectedTarget defaults to this
+-- server (the action must have been signed FOR us). A master can only vouch for its own users, because
+-- a foreign identity resolves to a different domain's key that this signature won't verify against.
+function fed.VerifyRemoteActionFor(fromIdentity, actionId, body, expectedTarget, signature)
     local _, domain = fed.ParseIdentity(fromIdentity)
     if not domain then return false, "malformed sender identity" end
     if fed.IsBanned(domain) then return false, "origin is defederated" end
+    if blank(signature) then return false, "missing signature" end
 
-    local res, err = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/verify?action=" .. _G.MASTERSERVER_URL_ENCODE(actionId))
-    if not res then return false, "origin unreachable: " .. tostring(err) end
-    local vouch = parseJson(res.Body)
-    if not vouch or not vouch.Ok then return false, "origin did not vouch for this action" end
+    local pub = fed.PeerPublicKey(domain)
+    if blank(pub) then return false, "no public key for " .. domain end
 
-    -- A domain may only vouch for its own users, and only for who the action claimed.
-    local _, actorDomain = fed.ParseIdentity(vouch.Actor or "")
-    if not actorDomain or actorDomain:lower() ~= domain:lower() then
-        return false, "origin vouched for a foreign identity"
-    end
-    if tostring(vouch.Actor):lower() ~= fromIdentity:lower() then return false, "actor mismatch" end
-    if tostring(vouch.BodyHash or "") ~= hash.Sha256(tostring(body)) then return false, "body hash mismatch" end
-    if expectedTarget ~= nil and tostring(vouch.Target or ""):lower() ~= tostring(expectedTarget):lower() then
-        return false, "action was not issued for this server"
+    local target = tostring(expectedTarget or _G.MASTERSERVER_DOMAIN()):lower()
+    if not crypto.Verify(pub, fed.SigningEnvelope(actionId, fromIdentity, target, body), tostring(signature)) then
+        return false, "bad signature"
     end
     return true
 end
 
-function fed.VerifyRemoteAction(fromIdentity, actionId, body)
-    return fed.VerifyRemoteActionFor(fromIdentity, actionId, body, nil)
+function fed.VerifyRemoteAction(fromIdentity, actionId, body, signature)
+    return fed.VerifyRemoteActionFor(fromIdentity, actionId, body, _G.MASTERSERVER_DOMAIN(), signature)
 end
 
 -- Federated join vouchers. A player's home master mints a one-time voucher bound to the slave's
@@ -296,12 +329,14 @@ function fed.MintJoinVoucher(user, targetUrl)
     if not recordOutbound(actionId, user.Id, user.Name, targetDomain, body) then
         return nil, "failed to record voucher"
     end
-    return { actionId = actionId, identity = identity, body = body }
+    local signature = fed.SignAction(actionId, identity, targetDomain, body)
+    if blank(signature) then return nil, "failed to sign voucher" end
+    return { actionId = actionId, identity = identity, body = body, signature = signature }
 end
 
 -- Runs on the slave's master. Confirms a voucher and returns the join identity, or nil, err.
 -- allowForeign gates identities from OTHER masters; our own users are always allowed.
-function fed.VerifyFederatedJoin(identity, actionId, body, allowForeign)
+function fed.VerifyFederatedJoin(identity, actionId, body, allowForeign, signature)
     local username, domain = fed.ParseIdentity(identity)
     if not username then return nil, "malformed identity" end
     if blank(actionId) then return nil, "missing action id" end
@@ -321,7 +356,7 @@ function fed.VerifyFederatedJoin(identity, actionId, body, allowForeign)
         if tostring(out.BodyHash or "") ~= hash.Sha256(body) then return nil, "body hash mismatch" end
     else
         if not peerKnown(domain) and not fed.AutoEnabled() then return nil, "that master server is not federated" end
-        local ok, err = fed.VerifyRemoteActionFor(identity, actionId, body, _G.MASTERSERVER_DOMAIN())
+        local ok, err = fed.VerifyRemoteActionFor(identity, actionId, body, _G.MASTERSERVER_DOMAIN(), signature)
         if not ok then return nil, err end
     end
 
@@ -412,10 +447,12 @@ function fed.SendMessage(fromUserId, fromUsername, toIdentity, body)
     if not recordOutbound(actionId, fromUserId, fromUsername, _G.MASTERSERVER_FULL_IDENTITY(toUser, toDomain), body) then
         return false, "failed to record outbound message"
     end
-    return deliver(toDomain, "/fed/v1/inbox", { From = fromIdentity, To = toUser, Body = body, ActionId = actionId })
+    local signature = fed.SignAction(actionId, fromIdentity, toDomain, body)
+    return deliver(toDomain, "/fed/v1/inbox",
+        { From = fromIdentity, To = toUser, Body = body, ActionId = actionId, Signature = signature })
 end
 
-function fed.ReceiveMessage(from, toUsername, body, actionId)
+function fed.ReceiveMessage(from, toUsername, body, actionId, signature)
     if not fed.ParseIdentity(from) then return false, "malformed sender identity" end
     if blank(actionId) then return false, "missing action id" end
     if blank(toUsername) then return false, "missing recipient" end
@@ -427,7 +464,7 @@ function fed.ReceiveMessage(from, toUsername, body, actionId)
         return false, "duplicate message"
     end
 
-    local ok, err = fed.VerifyRemoteAction(from, actionId, body)
+    local ok, err = fed.VerifyRemoteAction(from, actionId, body, signature)
     if not ok then return false, err end
 
     db():QueryTyped(
@@ -556,11 +593,14 @@ function fed.SendForumPost(fromUserId, fromUsername, peerDomain, action)
     end
 
     local actionId = hash.GenerateToken()
-    if not recordOutbound(actionId, fromUserId, fromUsername, "forum:" .. peerDomain, fed.ForumCanonical(action)) then
+    local canonical = fed.ForumCanonical(action)
+    if not recordOutbound(actionId, fromUserId, fromUsername, "forum:" .. peerDomain, canonical) then
         return false, "failed to record outbound post"
     end
 
-    local payload = { From = _G.MASTERSERVER_FULL_IDENTITY(fromUsername), Type = action.Type, Content = action.Content, ActionId = actionId }
+    local fromIdentity = _G.MASTERSERVER_FULL_IDENTITY(fromUsername)
+    local payload = { From = fromIdentity, Type = action.Type, Content = action.Content, ActionId = actionId,
+                      Signature = fed.SignAction(actionId, fromIdentity, peerDomain, canonical) }
     if action.Type == "thread" then
         payload.ForumId, payload.Subject = action.ForumId, action.Subject
     else
@@ -569,7 +609,7 @@ function fed.SendForumPost(fromUserId, fromUsername, peerDomain, action)
     return deliver(peerDomain, "/fed/v1/forum-post", payload)
 end
 
-function fed.ReceiveForumPost(from, action, actionId)
+function fed.ReceiveForumPost(from, action, actionId, signature)
     if not fed.ParseIdentity(from) then
         return false, "malformed sender identity"
     end
@@ -589,7 +629,7 @@ function fed.ReceiveForumPost(from, action, actionId)
     if not ok then
         return false, err
     end
-    ok, err = fed.VerifyRemoteAction(from, actionId, fed.ForumCanonical(action))
+    ok, err = fed.VerifyRemoteAction(from, actionId, fed.ForumCanonical(action), signature)
     if not ok then
         return false, err
     end
@@ -721,16 +761,18 @@ function fed.ReplyToStatus(fromUserId, fromUsername, parentOrigin, parentStatusI
     end
 
     local actionId = hash.GenerateToken()
-    if not recordOutbound(actionId, fromUserId, fromUsername, "status:" .. parentOrigin,
-        statusReplyCanonical(parentStatusId, body)) then
+    local canonical = statusReplyCanonical(parentStatusId, body)
+    if not recordOutbound(actionId, fromUserId, fromUsername, "status:" .. parentOrigin, canonical) then
         return false, "failed to record outbound reply"
     end
     fed.AutoAddPeer(parentOrigin, nil)
+    local fromIdentity = _G.MASTERSERVER_FULL_IDENTITY(fromUsername)
     return deliver(parentOrigin, "/fed/v1/status-reply",
-        { From = _G.MASTERSERVER_FULL_IDENTITY(fromUsername), ParentStatusId = parentStatusId, Body = body, ActionId = actionId })
+        { From = fromIdentity, ParentStatusId = parentStatusId, Body = body, ActionId = actionId,
+          Signature = fed.SignAction(actionId, fromIdentity, parentOrigin, canonical) })
 end
 
-function fed.ReceiveStatusReply(from, parentStatusId, body, actionId)
+function fed.ReceiveStatusReply(from, parentStatusId, body, actionId, signature)
     if not fed.ParseIdentity(from) then return false, "malformed sender identity" end
     if blank(actionId) then return false, "missing action id" end
     if fed.ActionSeen(actionId) then return false, "duplicate reply" end
@@ -743,7 +785,7 @@ function fed.ReceiveStatusReply(from, parentStatusId, body, actionId)
         return false, "no such status"
     end
 
-    local ok, err = fed.VerifyRemoteAction(from, actionId, statusReplyCanonical(parentStatusId, body))
+    local ok, err = fed.VerifyRemoteAction(from, actionId, statusReplyCanonical(parentStatusId, body), signature)
     if not ok then return false, err end
 
     db():QueryTyped("INSERT INTO Status (AuthorIdentity, Body, ParentId, ActionId) VALUES (?, ?, ?, ?);",

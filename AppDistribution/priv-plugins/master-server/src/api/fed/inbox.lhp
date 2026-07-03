@@ -12,7 +12,7 @@ if not ok or type(body) ~= "table" then
 end
 
 _G.MASTERSERVER_FEDERATION.AutoAccept(body.From, body.OriginBaseUrl)
-local okMsg, err = _G.MASTERSERVER_FEDERATION.ReceiveMessage(body.From, body.To, body.Body, body.ActionId)
+local okMsg, err = _G.MASTERSERVER_FEDERATION.ReceiveMessage(body.From, body.To, body.Body, body.ActionId, body.Signature)
 
 header("Content-Type: application/json")
 if not okMsg then

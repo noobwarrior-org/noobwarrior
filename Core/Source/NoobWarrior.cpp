@@ -585,19 +585,24 @@ std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, c
                     targetMasterUrl + ")" + (serverMsg.empty() ? "" : " — " + serverMsg));
     }
 
-    std::string actionId, identity, body;
+    std::string actionId, identity, body, signature;
     try {
         nlohmann::json j = nlohmann::json::parse(res.text);
         actionId = j.value("actionId", "");
         identity = j.value("identity", "");
         body = j.value("body", "");
+        signature = j.value("signature", "");
     } catch (nlohmann::json::exception &) {
         return fail("Master returned an unreadable voucher response.");
     }
     if (actionId.empty() || identity.empty() || body.empty())
         return fail("Master returned an incomplete voucher.");
+    if (signature.empty())
+        return fail("Master returned an unsigned voucher (update your master server)");
 
-    return "fedvoucher." + AuthUtil::Base64UrlEncode(identity) + "." + actionId + "." + AuthUtil::Base64UrlEncode(body);
+    // fedvoucher.<b64url identity>.<actionId>.<b64url body>.<signature hex>
+    return "fedvoucher." + AuthUtil::Base64UrlEncode(identity) + "." + actionId + "." +
+           AuthUtil::Base64UrlEncode(body) + "." + signature;
 }
 
 std::string Core::GetWinePath(const std::filesystem::path &path) {

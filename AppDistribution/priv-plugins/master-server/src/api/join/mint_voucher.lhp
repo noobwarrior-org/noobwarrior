@@ -19,5 +19,6 @@ if not voucher then
 end
 
 http_response_code(200)
-die(json.stringify({ actionId = voucher.actionId, identity = voucher.identity, body = voucher.body }))
+die(json.stringify({ actionId = voucher.actionId, identity = voucher.identity, body = voucher.body,
+                     signature = voucher.signature }))
 ?>

@@ -189,6 +189,39 @@ if not migrateOk then
     print("Failed to migrate master server database: " .. tostring(migrateErr))
 end
 
+-- This master's Ed25519 federation keypair (hex). Peers pin our public key and verify our signed
+-- actions against it. Generated once and persisted in the plugin's data dir.
+local function loadOrGenerateFederationKeypair()
+    local vfs = core.GetPluginDataDir()
+    if not vfs then
+        print("[master] no plugin data dir; cannot persist a federation keypair")
+        return nil, nil
+    end
+    local privPath, pubPath = "master/federation.priv", "master/federation.pub"
+    local function readAll(path)
+        if not vfs:EntryExists(path) then return nil end
+        local h = vfs:OpenHandle(path)
+        local _, data = vfs:ReadHandleChunk(h, 256)
+        vfs:CloseHandle(h)
+        return (tostring(data or ""):gsub("%s+$", ""))
+    end
+    local priv, pub = readAll(privPath), readAll(pubPath)
+    if priv and pub and #priv == 64 and #pub == 64 then
+        return priv, pub
+    end
+    local kp = crypto.GenerateEd25519()
+    if not kp then
+        print("[master] FAILED to generate a federation keypair")
+        return nil, nil
+    end
+    vfs:CreateDirectories("master")
+    vfs:WriteFile(privPath, kp.priv)
+    vfs:WriteFile(pubPath, kp.pub)
+    print("[master] generated a new federation keypair (public key " .. kp.pub:sub(1, 16) .. "...)")
+    return kp.priv, kp.pub
+end
+_G.MASTERSERVER_PRIVKEY, _G.MASTERSERVER_PUBKEY = loadOrGenerateFederationKeypair()
+
 _G.MASTERSERVER_FEDERATION = require("plugin://master-server@noobwarrior.org/lua/federation.lua")
 
 function _G.MASTERSERVER_DELETE_WORKSHOP_SUBMISSION(id)
@@ -275,7 +308,7 @@ local sitemap = {
     -- Federation protocol
     ["/fed/v1/info"] = "/src/api/fed/info.lhp",
     ["/fed/v1/users/:username"] = "/src/api/fed/user.lhp",
-    ["/fed/v1/verify"] = "/src/api/fed/verify.lhp",
+    -- (/fed/v1/verify removed: actions are now verified by Ed25519 signature, not an origin callback.)
     ["/fed/v1/avatar"] = "/src/api/fed/avatar.lhp",
     ["/fed/v1/inbox"] = "/src/api/fed/inbox.lhp",
     ["/fed/v1/servers"] = "/src/api/servers.lhp",

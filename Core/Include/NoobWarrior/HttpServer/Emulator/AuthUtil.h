@@ -68,6 +68,13 @@ bool VerifyPassword(const std::string &password, const std::string &saltHex, con
 // Parses a single cookie value out of a Cookie header. Returns "" if absent.
 std::string ExtractCookieValue(const char *cookieHeader, std::string_view name);
 
+// Ed25519 for federation signing. Keys and signatures are hex (privHex/pubHex are 64 chars = 32 bytes;
+// a signature is 128 chars = 64 bytes). GenerateEd25519 fills priv/pub and returns true on success;
+// Ed25519Sign returns the signature hex ("" on failure); Ed25519Verify checks it.
+bool GenerateEd25519(std::string &privHex, std::string &pubHex);
+std::string Ed25519Sign(const std::string &privHex, std::string_view message);
+bool Ed25519Verify(const std::string &pubHex, std::string_view message, const std::string &sigHex);
+
 // token -> account, via the LoginSession-User join. nullopt for empty/unknown tokens.
 std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token);
 

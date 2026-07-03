@@ -32,6 +32,7 @@
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
@@ -956,6 +957,25 @@ int LuaState::Open() {
         return HexEncode(digest, sizeof(digest));
     });
     set("hash", hashLib);
+
+    // Ed25519 for federation signing. Keys/signatures are hex (see AuthUtil).
+    sol::table cryptoLib = create_table();
+    cryptoLib.set_function("GenerateEd25519", [this]() -> sol::object {
+        std::string priv, pub;
+        if (!AuthUtil::GenerateEd25519(priv, pub))
+            return sol::lua_nil;
+        sol::table t = this->create_table();
+        t["priv"] = priv;
+        t["pub"] = pub;
+        return t;
+    });
+    cryptoLib.set_function("Sign", [](const std::string &privHex, const std::string &msg) -> std::string {
+        return AuthUtil::Ed25519Sign(privHex, msg);
+    });
+    cryptoLib.set_function("Verify", [](const std::string &pubHex, const std::string &msg, const std::string &sigHex) -> bool {
+        return AuthUtil::Ed25519Verify(pubHex, msg, sigHex);
+    });
+    set("crypto", cryptoLib);
 
     sol::table coreLib = create_table();
     coreLib.set_function("GetVersion", []() -> const char* {

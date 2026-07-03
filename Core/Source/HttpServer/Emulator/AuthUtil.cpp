@@ -31,6 +31,7 @@
 #include <openssl/kdf.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
+#include <openssl/evp.h>
 
 #include <charconv>
 #include <format>
@@ -177,6 +178,60 @@ std::string ExtractCookieValue(const char *cookieHeader, std::string_view name) 
         pos = end;
     }
     return "";
+}
+
+bool GenerateEd25519(std::string &privHex, std::string &pubHex) {
+    EVP_PKEY *pkey = EVP_PKEY_Q_keygen(nullptr, nullptr, "ED25519");
+    if (pkey == nullptr)
+        return false;
+    unsigned char priv[32], pub[32];
+    size_t privLen = sizeof(priv), pubLen = sizeof(pub);
+    bool ok = EVP_PKEY_get_raw_private_key(pkey, priv, &privLen) == 1 && privLen == 32 &&
+              EVP_PKEY_get_raw_public_key(pkey, pub, &pubLen) == 1 && pubLen == 32;
+    EVP_PKEY_free(pkey);
+    if (!ok)
+        return false;
+    privHex = ToHex(priv, sizeof(priv));
+    pubHex = ToHex(pub, sizeof(pub));
+    return true;
+}
+
+std::string Ed25519Sign(const std::string &privHex, std::string_view message) {
+    std::vector<unsigned char> priv;
+    if (!FromHex(privHex, priv) || priv.size() != 32)
+        return "";
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, priv.data(), priv.size());
+    if (pkey == nullptr)
+        return "";
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    unsigned char sig[64];
+    size_t sigLen = sizeof(sig);
+    std::string out;
+    if (ctx != nullptr && EVP_DigestSignInit(ctx, nullptr, nullptr, nullptr, pkey) == 1 &&
+        EVP_DigestSign(ctx, sig, &sigLen, reinterpret_cast<const unsigned char *>(message.data()), message.size()) == 1 &&
+        sigLen == 64)
+        out = ToHex(sig, sigLen);
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return out;
+}
+
+bool Ed25519Verify(const std::string &pubHex, std::string_view message, const std::string &sigHex) {
+    std::vector<unsigned char> pub, sig;
+    if (!FromHex(pubHex, pub) || pub.size() != 32)
+        return false;
+    if (!FromHex(sigHex, sig) || sig.size() != 64)
+        return false;
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, pub.data(), pub.size());
+    if (pkey == nullptr)
+        return false;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    bool ok = ctx != nullptr && EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr, pkey) == 1 &&
+              EVP_DigestVerify(ctx, sig.data(), sig.size(),
+                               reinterpret_cast<const unsigned char *>(message.data()), message.size()) == 1;
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return ok;
 }
 
 std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token) {
