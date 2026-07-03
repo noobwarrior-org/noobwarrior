@@ -102,6 +102,14 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
     Out("LoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
 
+    // Opportunistically sweep sessions idle past the TTL so the table doesn't grow without bound.
+    if (Registry *reg = mEmu->GetCore()->GetRegistry()) {
+        int64_t ttlSeconds = reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
+        int reaped = AuthUtil::ReapExpiredSessions(masterDb, ttlSeconds);
+        if (reaped > 0)
+            Out("LoginHandler", "Reaped {} expired login session(s)", reaped);
+    }
+
     std::string cookie = std::format(".LOGINSESSION={}; Path=/; HttpOnly; SameSite=Lax", token);
     if (rememberIt != params.end())
         cookie += "; Max-Age=2592000";

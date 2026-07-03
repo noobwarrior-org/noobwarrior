@@ -33,17 +33,23 @@ nlohmann::json Keychain::AccStructToJson(Account &acc) {
     nlohmann::json accJson {};
     accJson["id"] = acc.Id;
     accJson["name"] = acc.Name;
+    accJson["display_name"] = acc.DisplayName;
     accJson["token"] = acc.Token;
+    accJson["url"] = acc.Url;
     accJson["expire_timestamp"] = acc.ExpireTimestamp;
     return accJson;
 }
 
 Account Keychain::AccJsonToStruct(nlohmann::json &json) {
+    // .value() everywhere so one malformed entry (or an older record missing the newer url/display_name
+    // fields) doesn't throw and lose every account.
     Account acc {};
-    acc.Id = json["id"].get<int64_t>();
-    acc.Name = json["name"].get<std::string>();
-    acc.Token = json["token"].get<std::string>();
-    acc.ExpireTimestamp = json["expire_timestamp"].get<long>();
+    acc.Id = json.value("id", (int64_t)0);
+    acc.Name = json.value("name", std::string());
+    acc.DisplayName = json.value("display_name", std::string());
+    acc.Token = json.value("token", std::string());
+    acc.Url = json.value("url", std::string());
+    acc.ExpireTimestamp = json.value("expire_timestamp", (long)-1);
     return acc;
 }
 
@@ -93,8 +99,10 @@ AuthResponse Keychain::ReadFromKeychain() {
 }
 
 AuthResponse Keychain::WriteToKeychain() {
-    if (ActiveAccount != nullptr)
-        mRegistry->SetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()), ActiveAccount->Name);
+    // Persist which account is active (empty when signed out, so a removed/cleared active doesn't get
+    // silently re-resolved on the next load).
+    mRegistry->SetKeyValue<std::string>(std::format("internet.{}.active_account", GetName()),
+                                        ActiveAccount != nullptr ? ActiveAccount->Name : std::string());
 
     nlohmann::json accountsJson {};
     for (auto &acc : Accounts) {
@@ -134,6 +142,30 @@ AuthResponse Keychain::AddAccountFromToken(const std::string &token, Account **a
 
 void Keychain::AddAccount(Account &acc) {
     Accounts.push_back(acc);
+}
+
+Account* Keychain::AddOrUpdateAccount(const Account &acc) {
+    // Overwrite in place if we already have this account (re-login refreshing the token) — the pointer,
+    // and any ActiveAccount pointing at it, stay valid.
+    for (Account &existing : Accounts) {
+        if (existing.Name == acc.Name) {
+            existing = acc;
+            return &existing;
+        }
+    }
+    // New account: push_back may reallocate, so re-resolve ActiveAccount by name afterwards.
+    std::string activeName = ActiveAccount != nullptr ? ActiveAccount->Name : std::string();
+    Accounts.push_back(acc);
+    if (!activeName.empty()) {
+        ActiveAccount = nullptr;
+        for (Account &a : Accounts) {
+            if (a.Name == activeName) {
+                ActiveAccount = &a;
+                break;
+            }
+        }
+    }
+    return &Accounts.back();
 }
 
 void Keychain::RemoveAccount(int index) {

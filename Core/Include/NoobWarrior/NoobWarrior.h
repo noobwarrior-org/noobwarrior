@@ -213,16 +213,26 @@ public:
 
     /* Logs into a remote host emulator's website (POST /v1/login) and returns the .LOGINSESSION token
      * from the Set-Cookie response, or std::nullopt on failure. Used before ConnectToServerEmulator
-     * when the host has authentication enabled, so the resulting token can be forwarded on join. */
+     * when the host has master authentication enabled, so the resulting token can be forwarded on join.
+     * On success the session is cached in the Emu keychain (see CacheRemoteHostLogin). */
     std::optional<std::string> LoginToRemoteHost(const std::string &ip, uint16_t port,
                                                  const std::string &username, const std::string &password);
 
-    /* Signs in to a home master server (POST <masterUrl>/v1/login), resolves its domain via
-     * <masterUrl>/fed/v1/info, and persists the resulting online identity to the online.* registry
-     * keys. Returns true on success. This login is reused to join federated slave servers. */
+    /* Cached master-auth logins for server emulators, so a repeat connect can skip the login prompt.
+     * Cached per host (ip:port) in the Emu keychain. GetCachedRemoteHostToken returns "" when none;
+     * ValidateRemoteHostSession confirms a cached token is still live (drop it and re-prompt if not). */
+    void CacheRemoteHostLogin(const std::string &ip, uint16_t port, const std::string &username,
+                              const std::string &token);
+    std::string GetCachedRemoteHostToken(const std::string &ip, uint16_t port);
+    void ForgetRemoteHostLogin(const std::string &ip, uint16_t port);
+    bool ValidateRemoteHostSession(const std::string &ip, uint16_t port, const std::string &token);
+
+    /* Signs in to a home master server (POST <masterUrl>/v1/login), resolves the online identity via
+     * <masterUrl>/fed/v1/users/<name>, and stores it as the active account in the Master keychain.
+     * Returns true on success. This active identity is reused to join federated slave servers. */
     bool LoginToMaster(const std::string &masterUrl, const std::string &username, const std::string &password);
 
-    /* Clears the persisted online identity (online.* registry keys). */
+    /* Signs out of the active master identity (Master keychain), keeping it cached for re-activation. */
     void LogoutFromMaster();
 
     /* Mints a one-time join voucher on the home master (POST <masterUrl>/v1/join/mint-voucher, authed

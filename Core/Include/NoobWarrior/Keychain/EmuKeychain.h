@@ -25,12 +25,17 @@
 // This is based off the Roblox keychain since the API endpoints are the same
 #pragma once
 #include <NoobWarrior/Registry.h>
-#include <NoobWarrior/Keychain/RbxKeychain.h>
+#include <NoobWarrior/Keychain/Keychain.h>
 
 namespace NoobWarrior {
-class EmuKeychain : public RbxKeychain {
+class EmuKeychain : public Keychain {
 public:
     EmuKeychain(Registry *registry);
     std::string GetName() override;
+    bool HasAccountExpired(Account &acc) override;
+protected:
+    // Unused: emulator logins are cached with a known host+token (see Core::LoginToRemoteHost), not
+    // added from a bare token.
+    nlohmann::json GetJsonFromToken(const std::string &token) override;
 };
 }

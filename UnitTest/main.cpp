@@ -27,6 +27,8 @@
 #include <gtest/gtest.h>
 #include <NoobWarrior.hpp>
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/Keychain/Keychain.h>
+#include <nlohmann/json.hpp>
 
 #include <zlib.h>
 
@@ -633,6 +635,62 @@ TEST(Auth, CreateLoginSession) {
     ASSERT_TRUE(user.has_value()) << "The created session must resolve back to its user.";
     EXPECT_EQ(4000, user->id);
     EXPECT_EQ("dave", user->name);
+}
+
+TEST(Auth, SessionTtlAndReap) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 5000}, {"Name", "frank"}, {"DisplayName", "Frank"}
+    }));
+
+    std::string token = AuthUtil::CreateLoginSession(&db, 5000, "127.0.0.1", "UnitTest");
+    ASSERT_FALSE(token.empty());
+
+    // Backdate the session so it looks idle for 100s.
+    Statement age = db.PrepareStatement("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() - 100 WHERE Token = ?;");
+    age.Bind(1, token);
+    ASSERT_EQ(SQLITE_DONE, age.Step());
+
+    // A 50s TTL treats a 100s-idle session as expired; TTL 0 (disabled) still resolves it.
+    EXPECT_FALSE(AuthUtil::ResolveSessionUser(&db, token, 50).has_value()) << "idle > TTL must not resolve.";
+    EXPECT_EQ(0, AuthUtil::ReapExpiredSessions(&db, 0)) << "ttl 0 reaps nothing.";
+    EXPECT_EQ(1, AuthUtil::ReapExpiredSessions(&db, 50)) << "the expired session should be reaped.";
+    EXPECT_FALSE(AuthUtil::ResolveSessionUser(&db, token, 0).has_value()) << "reaped session is gone.";
+
+    // A fresh session resolves within the TTL and isn't reaped.
+    std::string fresh = AuthUtil::CreateLoginSession(&db, 5000, "127.0.0.1", "UnitTest");
+    ASSERT_FALSE(fresh.empty());
+    EXPECT_TRUE(AuthUtil::ResolveSessionUser(&db, fresh, 50).has_value());
+    EXPECT_EQ(0, AuthUtil::ReapExpiredSessions(&db, 50));
+}
+
+TEST(Keychain, AccountJsonRoundTrip) {
+    // url + display_name must survive a serialize/deserialize round-trip (needed for master/emu accounts).
+    Account acc {};
+    acc.Id = 12345;
+    acc.Name = "alice@a";
+    acc.DisplayName = "Alice";
+    acc.Token = "sess-token";
+    acc.Url = "http://a:8090";
+    acc.ExpireTimestamp = -1;
+
+    nlohmann::json j = Keychain::AccStructToJson(acc);
+    Account back = Keychain::AccJsonToStruct(j);
+    EXPECT_EQ(12345, back.Id);
+    EXPECT_EQ("alice@a", back.Name);
+    EXPECT_EQ("Alice", back.DisplayName);
+    EXPECT_EQ("sess-token", back.Token);
+    EXPECT_EQ("http://a:8090", back.Url);
+    EXPECT_EQ(-1, back.ExpireTimestamp);
+
+    // A legacy record predating url/display_name decodes with empty defaults instead of throwing.
+    nlohmann::json legacy = {{"id", 7}, {"name", "bob"}, {"token", "t"}, {"expire_timestamp", -1}};
+    Account l = Keychain::AccJsonToStruct(legacy);
+    EXPECT_EQ(7, l.Id);
+    EXPECT_EQ("bob", l.Name);
+    EXPECT_TRUE(l.Url.empty());
+    EXPECT_TRUE(l.DisplayName.empty());
 }
 
 TEST(Auth, CreateAndDeleteLocalAccount) {

@@ -49,6 +49,7 @@ enum class AuthResponse {
 struct Account {
     int64_t Id;
     std::string Name;
+    std::string DisplayName;
     std::string Token;
     std::string Url;
     long ExpireTimestamp { -1 }; // Defaults to -1 if the expiration date is unknown.
@@ -61,7 +62,10 @@ public:
 
     Keychain(Registry* registry);
 
-    bool HasAccountExpired(Account &acc);
+    // checks if an account is no longer usable
+    // The base implementation (GetJsonFromToken) validates the token against the service, while
+    // keychains whose tokens can't be checked from the token alone override this with a cheaper local check
+    virtual bool HasAccountExpired(Account &acc);
 
     virtual std::string GetName() = 0;
 
@@ -73,6 +77,11 @@ public:
     AuthResponse AddAccountFromToken(const std::string &token, Account **acc = nullptr);
 
     void AddAccount(Account&);
+
+    // Adds acc, or overwrites the existing account with the same Name (a re-login refreshing its token).
+    // Returns a pointer to the stored account (stable until the next add/remove) so callers can make it
+    // active. Keeps ActiveAccount valid across a possible vector reallocation.
+    Account* AddOrUpdateAccount(const Account &acc);
 
     void RemoveAccount(int index);
 

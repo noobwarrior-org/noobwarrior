@@ -18,44 +18,21 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AccountsPage.h
+// File: SessionCheckHandler.h
 // Started by: Hattozo
-// Started on: 7/2/2026
-// Description:
+// Started on: 7/3/2026
+// Description: checks if a .LOGINSESSION token is valid or not
 #pragma once
-#include "SettingsPage.h"
-
-#include <QLabel>
-#include <QPushButton>
-#include <QStandardItemModel>
-#include <QTreeView>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class AccountsPage : public SettingsPage {
-    Q_OBJECT
+class ServerEmulator;
+
+class SessionCheckHandler : public Handler {
 public:
-    AccountsPage(QWidget *parent = nullptr);
-    const QString GetTitle() override;
-    const QString GetDescription() override;
-    const QIcon GetIcon() override;
-    
-    void RefreshRobloxAccounts();
-protected:
-    void InitWidgets();
-    QWidget* BuildRobloxSection();
-    QWidget* BuildMasterSection();
-    QWidget* BuildEmuSection();
-
-    void RefreshMasterAccounts();
-    void RefreshEmuAccounts();
+    SessionCheckHandler(ServerEmulator* emu);
+    void OnRequest(evhttp_request *req, void *userdata) override;
 private:
-    QTreeView* mRbxView;
-    QStandardItemModel* mRbxModel;
-
-    QTreeView* mMasterView;
-    QStandardItemModel* mMasterModel;
-    
-    QTreeView* mEmuView;
-    QStandardItemModel* mEmuModel;
+    ServerEmulator* mEmu;
 };
 }

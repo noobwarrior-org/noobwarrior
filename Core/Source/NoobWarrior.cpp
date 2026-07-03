@@ -117,6 +117,8 @@ Core::Core(Init init) :
 
     mRegistry = new Registry(GetUserDataDir() / "registry.lua", mLuaState);
     mRbxKeychain = new RbxKeychain(mRegistry);
+    mMasterKeychain = new MasterKeychain(mRegistry);
+    mEmuKeychain = new EmuKeychain(mRegistry);
     RegistryReturnCode = mRegistry->Open();
     curl_global_init(CURL_GLOBAL_ALL);
     sqlite3_initialize();
@@ -140,8 +142,11 @@ Core::Core(Init init) :
     mLuaState->set("emu", mServerEmulator);
     mLuaState->set("emu_db_mgr", mEmuDbManager);
 
-    if (mInit.EnableKeychain)
+    if (mInit.EnableKeychain) {
         GetRbxKeychain()->ReadFromKeychain();
+        GetMasterKeychain()->ReadFromKeychain();
+        GetEmuKeychain()->ReadFromKeychain();
+    }
 
     if (mInit.AutocreateCert)
         AutocreateCert();
@@ -167,6 +172,10 @@ Core::~Core() {
         if (res != AuthResponse::Success) {
             Out("Core", "GetRbxKeychain()->WriteToKeychain() failed", (int)res);
         }
+        if (GetMasterKeychain()->WriteToKeychain() != AuthResponse::Success)
+            Out("Core", "GetMasterKeychain()->WriteToKeychain() failed");
+        if (GetEmuKeychain()->WriteToKeychain() != AuthResponse::Success)
+            Out("Core", "GetEmuKeychain()->WriteToKeychain() failed");
     }
 
     GetEmuDbManager()->UnmountDatabases();
@@ -174,6 +183,8 @@ Core::~Core() {
     curl_global_cleanup();
 
     NOOBWARRIOR_FREE_PTR(mRbxKeychain)
+    NOOBWARRIOR_FREE_PTR(mMasterKeychain)
+    NOOBWARRIOR_FREE_PTR(mEmuKeychain)
 
     RegistryReturnCode = mRegistry->Close();
     NOOBWARRIOR_FREE_PTR(mRegistry)
@@ -477,11 +488,68 @@ std::optional<std::string> Core::LoginToRemoteHost(const std::string &ip, uint16
     auto range = response.header.equal_range("Set-Cookie");
     for (auto it = range.first; it != range.second; ++it) {
         std::string token = AuthUtil::ExtractCookieValue(it->second.c_str(), ".LOGINSESSION");
-        if (!token.empty() && token != "deleted")
+        if (!token.empty() && token != "deleted") {
+            // Cache this master-auth login so a repeat connect to this host can skip the prompt.
+            CacheRemoteHostLogin(ip, port, username, token);
             return token;
+        }
     }
     Out("LoginToRemoteHost", "Login to {}:{} returned no .LOGINSESSION cookie", ip, port);
     return std::nullopt;
+}
+
+static std::string HostKey(const std::string &ip, uint16_t port) {
+    return ip + ":" + std::to_string(port);
+}
+
+void Core::CacheRemoteHostLogin(const std::string &ip, uint16_t port, const std::string &username,
+                                const std::string &token) {
+    if (token.empty())
+        return;
+    // Keyed by host (ip:port) so one cached login is kept per emulator; the username is display-only.
+    EmuKeychain *kc = GetEmuKeychain();
+    Account acc {};
+    acc.Id = -1;
+    acc.Name = HostKey(ip, port);
+    acc.DisplayName = username;
+    acc.Token = token;
+    acc.Url = HostKey(ip, port);
+    kc->AddOrUpdateAccount(acc);
+    if (mInit.EnableKeychain)
+        kc->WriteToKeychain();
+}
+
+std::string Core::GetCachedRemoteHostToken(const std::string &ip, uint16_t port) {
+    std::string key = HostKey(ip, port);
+    for (Account &a : GetEmuKeychain()->GetAccounts())
+        if (a.Name == key)
+            return a.Token;
+    return "";
+}
+
+void Core::ForgetRemoteHostLogin(const std::string &ip, uint16_t port) {
+    std::string key = HostKey(ip, port);
+    EmuKeychain *kc = GetEmuKeychain();
+    std::vector<Account> &accounts = kc->GetAccounts();
+    for (int i = 0; i < static_cast<int>(accounts.size()); i++) {
+        if (accounts[i].Name == key) {
+            kc->RemoveAccount(i);
+            if (mInit.EnableKeychain)
+                kc->WriteToKeychain();
+            return;
+        }
+    }
+}
+
+bool Core::ValidateRemoteHostSession(const std::string &ip, uint16_t port, const std::string &token) {
+    if (token.empty())
+        return false;
+    cpr::Response res = cpr::Get(
+        cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/emu/v1/session-check"},
+        cpr::Header{{"Cookie", ".LOGINSESSION=" + token}},
+        cpr::Timeout{std::chrono::milliseconds(5000)},
+        cpr::VerifySsl{false});
+    return res.error.code == cpr::ErrorCode::OK && res.status_code == 200;
 }
 
 static std::string StripTrailingSlash(std::string url) {
@@ -538,23 +606,27 @@ bool Core::LoginToMaster(const std::string &masterUrl, const std::string &userna
     if (identity.empty())
         identity = username; // fall back to the bare name if the master has no federation profile
 
-    Registry *reg = GetRegistry();
-    reg->SetKeyValue<std::string>("online.master_url", base);
-    reg->SetKeyValue<std::string>("online.session_token", token);
-    reg->SetKeyValue<std::string>("online.identity", identity);
-    reg->SetKeyValue<int64_t>("online.user_id", userId);
-    reg->SetKeyValue<std::string>("online.display_name", displayName.empty() ? username : displayName);
+    // store this in the master keychain and make it the active one
+    MasterKeychain *kc = GetMasterKeychain();
+    Account acc {};
+    acc.Id = userId;
+    acc.Name = identity;
+    acc.DisplayName = displayName.empty() ? username : displayName;
+    acc.Token = token;
+    acc.Url = base;
+    Account *stored = kc->AddOrUpdateAccount(acc);
+    kc->SetActiveAccount(stored);
+    if (mInit.EnableKeychain)
+        kc->WriteToKeychain();
     Out("LoginToMaster", "Signed in as {} on {}", identity, base);
     return true;
 }
 
 void Core::LogoutFromMaster() {
-    Registry *reg = GetRegistry();
-    reg->SetKeyValue<std::string>("online.master_url", "");
-    reg->SetKeyValue<std::string>("online.session_token", "");
-    reg->SetKeyValue<std::string>("online.identity", "");
-    reg->SetKeyValue<int64_t>("online.user_id", 0);
-    reg->SetKeyValue<std::string>("online.display_name", "");
+    MasterKeychain *kc = GetMasterKeychain();
+    kc->SetActiveAccount(nullptr);
+    if (mInit.EnableKeychain)
+        kc->WriteToKeychain();
 }
 
 std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, const std::string &sessionToken,

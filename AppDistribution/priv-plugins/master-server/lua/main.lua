@@ -174,10 +174,13 @@ function _G.MASTERSERVER_RESOLVE_SESSION_USER(token)
     if not token or token:match("^%s*$") then return nil end
     local db = core.GetMasterDatabase()
     if db == nil then return nil end
+    -- Reject sessions idle past the TTL (0 = never expire), matching the native resolver.
+    local ttl = (tonumber(reg.GetKeyValue("emu.auth.session_ttl_days")) or 30) * 86400
     local rows = db:QueryTyped(
         "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
-        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
-        token
+        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId " ..
+        "WHERE s.Token = ? AND (? <= 0 OR (unixepoch() - s.LastUsedTimestamp) < ?);",
+        token, ttl, ttl
     )
     if rows == nil or rows[1] == nil then return nil end
     return rows[1]

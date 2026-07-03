@@ -32,5 +32,10 @@ class MasterKeychain : public Keychain {
 public:
     MasterKeychain(Registry *registry);
     std::string GetName() override;
+    bool HasAccountExpired(Account &acc) override;
+protected:
+    // Unused: master accounts are added with an already-resolved identity (see Core::LoginToMaster),
+    // not from a bare token, so there is nothing to fetch here.
+    nlohmann::json GetJsonFromToken(const std::string &token) override;
 };
 }

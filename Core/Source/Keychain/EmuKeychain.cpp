@@ -24,12 +24,20 @@
 // Description:
 #include <NoobWarrior/Keychain/EmuKeychain.h>
 
-#include <curl/curl.h>
+#include <ctime>
 
 using namespace NoobWarrior;
 
-EmuKeychain::EmuKeychain(Registry *registry) : RbxKeychain(registry) {}
+EmuKeychain::EmuKeychain(Registry *registry) : Keychain(registry) {}
 
 std::string EmuKeychain::GetName() {
     return "emu";
+}
+
+bool EmuKeychain::HasAccountExpired(Account &acc) {
+    return acc.ExpireTimestamp > -1 && time(nullptr) > acc.ExpireTimestamp;
+}
+
+nlohmann::json EmuKeychain::GetJsonFromToken(const std::string &token) {
+    return nlohmann::json {};
 }

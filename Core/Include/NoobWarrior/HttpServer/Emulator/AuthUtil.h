@@ -75,8 +75,13 @@ bool GenerateEd25519(std::string &privHex, std::string &pubHex);
 std::string Ed25519Sign(const std::string &privHex, std::string_view message);
 bool Ed25519Verify(const std::string &pubHex, std::string_view message, const std::string &sigHex);
 
-// token -> account, via the LoginSession-User join. nullopt for empty/unknown tokens.
-std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token);
+// token -> account, via the LoginSession-User join. nullopt for empty/unknown tokens. When ttlSeconds
+// > 0, a session idle (unused) for longer than that is treated as expired (nullopt); the lookup also
+// refreshes LastUsedTimestamp so an active session never expires. ttlSeconds <= 0 disables expiry.
+std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token, int64_t ttlSeconds = 0);
+
+// Deletes login sessions idle for >= ttlSeconds. Returns how many were reaped (0 when ttlSeconds <= 0).
+int ReapExpiredSessions(EmuDb *master, int64_t ttlSeconds);
 
 // Creates a LoginSession for an already-authenticated user; returns the token ("" on failure).
 std::string CreateLoginSession(EmuDb *master, int64_t userId, const std::string &ip = "", const std::string &device = "");

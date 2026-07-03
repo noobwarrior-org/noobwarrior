@@ -57,6 +57,9 @@ private:
     // Slave-mode join: mints a federated join voucher on our home master, then connects.
     void ConnectWithMaster(const std::string &ip, uint16_t port, const QString &masterUrl,
                            const QString &sessionToken, const QString &targetMasterUrl);
+    // Master-mode join: prompts for a login on the host itself (or guest), then connects.
+    void PromptMasterLogin(const std::string &ip, uint16_t port, bool passwordBased, bool allowGuests,
+                           const QString &title, const QString &tagline);
     void DoConnect(const std::string &ip, uint16_t port, const std::string &sessionToken);
 
     Init mInit {};

@@ -17,11 +17,12 @@ if token then
     local db = core.GetMasterDatabase()
     if db == nil then return end
 
+    local ttl = (tonumber(reg.GetKeyValue("emu.auth.session_ttl_days")) or 30) * 86400
     local rows = db:QueryTyped(
         "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
         "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId " ..
-        "WHERE s.Token = ?;",
-        token
+        "WHERE s.Token = ? AND (? <= 0 OR (unixepoch() - s.LastUsedTimestamp) < ?);",
+        token, ttl, ttl
     )
     if rows == nil or rows[1] == nil then return end
 

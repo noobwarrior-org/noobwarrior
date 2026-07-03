@@ -24,10 +24,20 @@
 // Description:
 #include <NoobWarrior/Keychain/MasterKeychain.h>
 
+#include <ctime>
+
 using namespace NoobWarrior;
 
 MasterKeychain::MasterKeychain(Registry *registry) : Keychain(registry) {}
 
 std::string MasterKeychain::GetName() {
     return "master";
+}
+
+bool MasterKeychain::HasAccountExpired(Account &acc) {
+    return acc.ExpireTimestamp > -1 && time(nullptr) > acc.ExpireTimestamp;
+}
+
+nlohmann::json MasterKeychain::GetJsonFromToken(const std::string &token) {
+    return nlohmann::json {};
 }

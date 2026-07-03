@@ -41,6 +41,7 @@
 #include "GameJoinHandler.h"
 #include "MySettingsJsonHandler.h"
 #include "AuthenticatedUserHandler.h"
+#include "SessionCheckHandler.h"
 #include "CurrentUserHandler.h"
 #include "RequestAuthHandler.h"
 #include "StudioEditHandler.h"
@@ -162,6 +163,10 @@ public:
     void SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl);
     std::optional<std::string> GetFederatedAvatar(int64_t userId);
 
+    /* Records that OnlineUserId is held by handle this run. Returns false if that id is already bound to
+     * a different handle (an identity collision/spoof), so the join can be refused. */
+    bool BindFederatedHandle(int64_t userId, const std::string &handle);
+
     // File name of the database holding the place currently open for editing (set by
     // StudioOpenPlaceHandler). Lets descendant-asset publishing land in the same .nwdb as the game.
     void SetActiveEditDbFile(const std::string &dbFileName);
@@ -230,6 +235,7 @@ private:
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
     AuthenticatedUserHandler mAuthenticatedUserHandler;
+    SessionCheckHandler mSessionCheckHandler;
     CurrentUserHandler mCurrentUserHandler;
     RequestAuthHandler mRequestAuthHandler;
     StudioEditHandler mStudioEditHandler;
@@ -263,6 +269,11 @@ private:
     struct FederatedAvatar { std::string SourceUrl; std::string CachedJson; };
     mutable std::mutex mFederatedAvatarsMutex;
     std::map<int64_t, FederatedAvatar> mFederatedAvatars;
+
+    // Which handle first claimed each federated OnlineUserId this run. An OnlineUserId is a hash of the
+    // handle, so the same id under a different handle means a collision/spoof attempt (see BindFederatedHandle).
+    mutable std::mutex mFederatedHandlesMutex;
+    std::map<int64_t, std::string> mFederatedHandles;
 
     // Database file name of the place currently open for editing (see Set/GetActiveEditDbFile).
     mutable std::mutex mActiveEditDbMutex;

@@ -376,14 +376,13 @@ void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool au
         return;
     }
 
-    // Slave mode: identity comes from a master server. Reuse the persistent online login if we have
-    // one, otherwise prompt the player to sign in to their master (or play as guest).
+    // Slave mode: identity comes from a master server. Reuse the active master account if we have one,
+    // otherwise prompt the player to sign in to their master (or play as guest).
     if (authType == "slave") {
-        Registry* reg = mCore->GetRegistry();
-        QString savedToken = QString::fromStdString(reg->GetKeyValue<std::string>("online.session_token").value_or(""));
-        QString savedMaster = QString::fromStdString(reg->GetKeyValue<std::string>("online.master_url").value_or(""));
-        if (!savedToken.isEmpty() && !savedMaster.isEmpty()) {
-            ConnectWithMaster(ip, port, savedMaster, savedToken, authMasterUrl);
+        if (Account *active = mCore->GetMasterKeychain()->GetActiveAccount();
+            active != nullptr && !active->Token.empty() && !active->Url.empty()) {
+            ConnectWithMaster(ip, port, QString::fromStdString(active->Url),
+                              QString::fromStdString(active->Token), authMasterUrl);
             return;
         }
 
@@ -403,7 +402,9 @@ void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool au
         std::string target = authMasterUrl.toStdString();
         std::thread([self, core, ip, port, masterUrl, username, password, target]() {
             bool ok = core->LoginToMaster(masterUrl, username, password);
-            std::string token = ok ? core->GetRegistry()->GetKeyValue<std::string>("online.session_token").value_or("") : "";
+            // LoginToMaster stores the fresh session on the now-active master account.
+            Account *acc = ok ? core->GetMasterKeychain()->GetActiveAccount() : nullptr;
+            std::string token = acc != nullptr ? acc->Token : "";
             QTimer::singleShot(0, qApp, [self, ip, port, masterUrl, token, target]() {
                 if (!self) return;
                 if (token.empty()) {
@@ -417,7 +418,31 @@ void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool au
         return;
     }
 
-    // Master mode: log in directly against the host.
+    // Master mode: reuse a cached login for this host if it's still valid, else prompt.
+    std::string cachedToken = mCore->GetCachedRemoteHostToken(ip, port);
+    if (!cachedToken.empty()) {
+        Core* core = mCore;
+        QPointer<Application> self(this);
+        std::thread([self, core, ip, port, cachedToken, passwordBased, allowGuests, title, tagline]() {
+            bool valid = core->ValidateRemoteHostSession(ip, port, cachedToken);
+            if (!valid)
+                core->ForgetRemoteHostLogin(ip, port); // stale: drop it so we don't loop on a dead token
+            QTimer::singleShot(0, qApp, [self, ip, port, valid, cachedToken, passwordBased, allowGuests, title, tagline]() {
+                if (!self) return;
+                if (valid)
+                    self->DoConnect(ip, port, cachedToken);
+                else
+                    self->PromptMasterLogin(ip, port, passwordBased, allowGuests, title, tagline);
+            });
+        }).detach();
+        return;
+    }
+    PromptMasterLogin(ip, port, passwordBased, allowGuests, title, tagline);
+}
+
+void Application::PromptMasterLogin(const std::string &ip, uint16_t port, bool passwordBased,
+                                    bool allowGuests, const QString &title, const QString &tagline) {
+    // Log in directly against the host (master mode). On success LoginToRemoteHost caches the session.
     ServerLoginDialog dlg(nullptr, title, tagline, passwordBased, allowGuests);
     if (dlg.exec() != QDialog::Accepted)
         return; // cancelled

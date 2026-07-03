@@ -59,7 +59,7 @@ void AccountsPage::InitWidgets() {
     auto* contentLayout = new QVBoxLayout(content);
     contentLayout->addWidget(BuildRobloxSection());
     contentLayout->addWidget(BuildMasterSection());
-    contentLayout->addWidget(BuildServerAccountsSection());
+    contentLayout->addWidget(BuildEmuSection());
     contentLayout->addStretch();
 
     // Three sections plus two lists get tall, so keep the page scrollable below the title. Never scroll
@@ -144,25 +144,14 @@ QWidget* AccountsPage::BuildRobloxSection() {
 }
 
 QWidget* AccountsPage::BuildMasterSection() {
-    auto* box = new QGroupBox("Your master-server account");
+    auto* box = new QGroupBox("Master-server accounts");
     auto* layout = new QVBoxLayout(box);
+    layout->addWidget(WrapLabel("Accounts you've signed in to on master servers. The active one (right-click "
+                                "→ Set as active) is the identity you join federated servers as."));
 
-    mMasterIdentityLabel = new QLabel(box);
-    mMasterIdentityLabel->setWordWrap(true);
-    layout->addWidget(mMasterIdentityLabel);
-
-    auto* buttons = new QHBoxLayout();
-    auto* signIn = new QPushButton("Sign in...", box);
-    mMasterSignOutButton = new QPushButton("Sign out", box);
-    buttons->addWidget(signIn);
-    buttons->addWidget(mMasterSignOutButton);
-    buttons->addStretch();
-    layout->addLayout(buttons);
-
-    connect(signIn, &QPushButton::clicked, this, [this]() {
-        Registry* reg = gApp->GetCore()->GetRegistry();
-        QString current = QString::fromStdString(reg->GetKeyValue<std::string>("online.master_url").value_or(""));
-        MasterLoginDialog dlg(this, "Sign in to your master server", QString(), current, false);
+    auto* addButton = new QPushButton("Add account (sign in)...", box);
+    connect(addButton, &QPushButton::clicked, this, [this]() {
+        MasterLoginDialog dlg(this, "Sign in to a master server", QString(), QString(), false);
         if (dlg.exec() != QDialog::Accepted)
             return;
         Core* core = gApp->GetCore();
@@ -175,64 +164,114 @@ QWidget* AccountsPage::BuildMasterSection() {
             QTimer::singleShot(0, qApp, [self, ok]() {
                 if (!self) return;
                 if (!ok)
-                    QMessageBox::critical(self, "Sign in failed", "Your master server rejected those credentials.");
-                self->RefreshMasterIdentity();
+                    QMessageBox::critical(self, "Sign in failed", "That master server rejected those credentials.");
+                self->RefreshMasterAccounts();
             });
         }).detach();
     });
-    connect(mMasterSignOutButton, &QPushButton::clicked, this, [this]() {
-        gApp->GetCore()->LogoutFromMaster();
-        RefreshMasterIdentity();
+    layout->addWidget(addButton);
+
+    mMasterView = new QTreeView(box);
+    mMasterView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    mMasterView->setMinimumHeight(120);
+    mMasterView->setMaximumHeight(240);
+    layout->addWidget(mMasterView);
+
+    mMasterModel = new QStandardItemModel(mMasterView);
+    mMasterModel->setColumnCount(4);
+    mMasterModel->setHorizontalHeaderLabels({"", "Active", "Identity", "Master server"});
+    mMasterView->setModel(mMasterModel);
+    mMasterView->setColumnHidden(0, true); // hidden column stores the account index
+
+    mMasterView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mMasterView, &QTreeView::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QModelIndex at = mMasterView->indexAt(pos);
+        if (!at.isValid())
+            return;
+        QStandardItem* primary = mMasterModel->item(at.row(), 0);
+        if (primary == nullptr || primary->data().isNull())
+            return;
+        int idx = primary->data().toInt();
+
+        QMenu menu(this);
+        QAction* setActive = menu.addAction(QIcon(":/images/silk/user_go.png"), "Set as active account");
+        QAction* signOut = menu.addAction("Use no account (sign out)");
+        menu.addSeparator();
+        QAction* remove = menu.addAction(QIcon(":/images/silk/user_delete.png"), "Remove account");
+
+        connect(setActive, &QAction::triggered, this, [this, idx]() {
+            MasterKeychain* kc = gApp->GetCore()->GetMasterKeychain();
+            if (idx < static_cast<int>(kc->GetAccounts().size())) {
+                kc->SetActiveAccount(&kc->GetAccounts().at(idx));
+                kc->WriteToKeychain();
+                RefreshMasterAccounts();
+            }
+        });
+        connect(signOut, &QAction::triggered, this, [this]() {
+            gApp->GetCore()->LogoutFromMaster(); // clears the active account, keeps the list
+            RefreshMasterAccounts();
+        });
+        connect(remove, &QAction::triggered, this, [this, idx]() {
+            MasterKeychain* kc = gApp->GetCore()->GetMasterKeychain();
+            if (idx >= static_cast<int>(kc->GetAccounts().size()))
+                return;
+            QString name = QString::fromStdString(kc->GetAccounts().at(idx).Name);
+            if (name.isEmpty()) name = "this account";
+            if (QMessageBox::question(this, "Remove account", QString("Remove %1?").arg(name)) == QMessageBox::Yes) {
+                kc->RemoveAccount(idx);
+                kc->WriteToKeychain();
+                RefreshMasterAccounts();
+            }
+        });
+        menu.exec(mMasterView->mapToGlobal(pos));
     });
 
-    RefreshMasterIdentity();
+    RefreshMasterAccounts();
     return box;
 }
 
-QWidget* AccountsPage::BuildServerAccountsSection() {
-    auto* box = new QGroupBox("Server accounts (hosted here)");
+QWidget* AccountsPage::BuildEmuSection() {
+    auto* box = new QGroupBox("Saved server logins");
     auto* layout = new QVBoxLayout(box);
-    layout->addWidget(WrapLabel("Accounts players log in with when they join this server (master mode). Stored in this server's master database."));
+    layout->addWidget(WrapLabel("Server emulators you've signed in to that use their own accounts (master "
+                                "authentication). The login is saved so you can reconnect without signing in again."));
 
-    auto* buttons = new QHBoxLayout();
-    auto* createButton = new QPushButton("Create account...", box);
-    auto* deleteButton = new QPushButton("Delete account", box);
-    buttons->addWidget(createButton);
-    buttons->addWidget(deleteButton);
-    buttons->addStretch();
-    layout->addLayout(buttons);
+    mEmuView = new QTreeView(box);
+    mEmuView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    mEmuView->setMinimumHeight(120);
+    mEmuView->setMaximumHeight(240);
+    layout->addWidget(mEmuView);
 
-    mServerView = new QTreeView(box);
-    mServerView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    mServerView->setMinimumHeight(140);
-    mServerView->setMaximumHeight(240);
-    layout->addWidget(mServerView);
+    mEmuModel = new QStandardItemModel(mEmuView);
+    mEmuModel->setColumnCount(3);
+    mEmuModel->setHorizontalHeaderLabels({"", "Server", "Signed in as"});
+    mEmuView->setModel(mEmuModel);
+    mEmuView->setColumnHidden(0, true); // hidden column stores the account index
 
-    mServerModel = new QStandardItemModel(mServerView);
-    mServerModel->setColumnCount(3);
-    mServerModel->setHorizontalHeaderLabels({"Id", "Name", "Display Name"});
-    mServerView->setModel(mServerModel);
-
-    connect(createButton, &QPushButton::clicked, this, [this]() { PromptCreateServerAccount(); });
-    connect(deleteButton, &QPushButton::clicked, this, [this]() {
-        QModelIndexList sel = mServerView->selectionModel() ? mServerView->selectionModel()->selectedRows() : QModelIndexList();
-        if (sel.isEmpty()) {
-            QMessageBox::information(this, "Delete account", "Select an account to delete.");
+    mEmuView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mEmuView, &QTreeView::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QModelIndex at = mEmuView->indexAt(pos);
+        if (!at.isValid())
             return;
-        }
-        QStandardItem* idItem = mServerModel->item(sel.first().row(), 0);
-        if (idItem == nullptr)
+        QStandardItem* primary = mEmuModel->item(at.row(), 0);
+        if (primary == nullptr || primary->data().isNull())
             return;
-        int64_t id = idItem->data().toLongLong();
-        QString name = mServerModel->item(sel.first().row(), 1)->text();
-        if (QMessageBox::question(this, "Delete account", QString("Delete account \"%1\"?").arg(name)) != QMessageBox::Yes)
-            return;
-        EmuDb* master = gApp->GetCore()->GetEmuDbManager()->GetMasterDatabase();
-        AuthUtil::DeleteLocalAccount(master, id);
-        RefreshServerAccounts();
+        int idx = primary->data().toInt();
+
+        QMenu menu(this);
+        QAction* remove = menu.addAction(QIcon(":/images/silk/user_delete.png"), "Forget this login");
+        connect(remove, &QAction::triggered, this, [this, idx]() {
+            EmuKeychain* kc = gApp->GetCore()->GetEmuKeychain();
+            if (idx >= static_cast<int>(kc->GetAccounts().size()))
+                return;
+            kc->RemoveAccount(idx);
+            kc->WriteToKeychain();
+            RefreshEmuAccounts();
+        });
+        menu.exec(mEmuView->mapToGlobal(pos));
     });
 
-    RefreshServerAccounts();
+    RefreshEmuAccounts();
     return box;
 }
 
@@ -254,71 +293,37 @@ void AccountsPage::RefreshRobloxAccounts() {
     }
 }
 
-void AccountsPage::RefreshMasterIdentity() {
-    Registry* reg = gApp->GetCore()->GetRegistry();
-    QString identity = QString::fromStdString(reg->GetKeyValue<std::string>("online.identity").value_or(""));
-    bool signedIn = !identity.isEmpty();
-    mMasterIdentityLabel->setText(signedIn
-        ? QString("Signed in as <b>%1</b>. This identity is reused to join federated servers.").arg(identity.toHtmlEscaped())
-        : QString("Not signed in. Sign in to any master server to join federated servers with one login."));
-    mMasterSignOutButton->setEnabled(signedIn);
-}
-
-void AccountsPage::RefreshServerAccounts() {
-    mServerModel->removeRows(0, mServerModel->rowCount());
-    EmuDb* master = gApp->GetCore()->GetEmuDbManager()->GetMasterDatabase();
-    for (const AuthUtil::LocalAccount& acc : AuthUtil::ListLocalAccounts(master)) {
-        auto* idItem = new QStandardItem(QString::number(acc.id));
-        idItem->setData(static_cast<qlonglong>(acc.id));
+void AccountsPage::RefreshMasterAccounts() {
+    mMasterModel->removeRows(0, mMasterModel->rowCount());
+    MasterKeychain* kc = gApp->GetCore()->GetMasterKeychain();
+    std::vector<Account>& accounts = kc->GetAccounts();
+    for (int i = 0; i < static_cast<int>(accounts.size()); ++i) {
+        Account& acc = accounts[i];
+        auto* hidden = new QStandardItem();
+        hidden->setData(i);
         QList<QStandardItem*> row;
-        row << idItem
-            << new QStandardItem(QString::fromStdString(acc.name))
-            << new QStandardItem(QString::fromStdString(acc.displayName));
-        mServerModel->appendRow(row);
+        row << hidden
+            << new QStandardItem(QIcon(kc->GetActiveAccount() == &acc ? ":/images/silk/tick.png" : ""), "")
+            << new QStandardItem(!acc.Name.empty() ? QString::fromStdString(acc.Name) : "N/A")
+            << new QStandardItem(QString::fromStdString(acc.Url));
+        mMasterModel->appendRow(row);
     }
 }
 
-void AccountsPage::PromptCreateServerAccount() {
-    EmuDb* master = gApp->GetCore()->GetEmuDbManager()->GetMasterDatabase();
-    if (master == nullptr) {
-        QMessageBox::critical(this, "Create account", "No master database is mounted.");
-        return;
+void AccountsPage::RefreshEmuAccounts() {
+    mEmuModel->removeRows(0, mEmuModel->rowCount());
+    EmuKeychain* kc = gApp->GetCore()->GetEmuKeychain();
+    std::vector<Account>& accounts = kc->GetAccounts();
+    for (int i = 0; i < static_cast<int>(accounts.size()); ++i) {
+        Account& acc = accounts[i];
+        auto* hidden = new QStandardItem();
+        hidden->setData(i);
+        QList<QStandardItem*> row;
+        row << hidden
+            << new QStandardItem(QString::fromStdString(acc.Name)) // host (ip:port)
+            << new QStandardItem(QString::fromStdString(acc.DisplayName)); // username
+        mEmuModel->appendRow(row);
     }
-
-    QDialog dlg(this);
-    dlg.setWindowTitle("Create server account");
-    auto* form = new QFormLayout(&dlg);
-    auto* nameInput = new QLineEdit(&dlg);
-    auto* passInput = new QLineEdit(&dlg);
-    passInput->setEchoMode(QLineEdit::Password);
-    auto* displayInput = new QLineEdit(&dlg);
-    displayInput->setPlaceholderText("(optional, defaults to username)");
-    form->addRow("Username", nameInput);
-    form->addRow("Password", passInput);
-    form->addRow("Display name", displayInput);
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form->addRow(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-
-    std::string name = nameInput->text().trimmed().toStdString();
-    std::string password = passInput->text().toStdString();
-    std::string display = displayInput->text().trimmed().toStdString();
-    if (name.empty() || password.empty()) {
-        QMessageBox::warning(this, "Create account", "Enter a username and password.");
-        return;
-    }
-    if (AuthUtil::LocalAccountExists(master, name)) {
-        QMessageBox::warning(this, "Create account", "That username is already taken.");
-        return;
-    }
-    if (!AuthUtil::CreateLocalAccount(master, name, password, display)) {
-        QMessageBox::critical(this, "Create account", "Failed to create the account.");
-        return;
-    }
-    RefreshServerAccounts();
 }
 
 const QString AccountsPage::GetTitle() {
@@ -326,7 +331,7 @@ const QString AccountsPage::GetTitle() {
 }
 
 const QString AccountsPage::GetDescription() {
-    return "Your Roblox accounts, your master-server sign-in, and the accounts hosted on this server.";
+    return "Your Roblox accounts, your master-server accounts, and saved logins for servers you connect to.";
 }
 
 const QIcon AccountsPage::GetIcon() {

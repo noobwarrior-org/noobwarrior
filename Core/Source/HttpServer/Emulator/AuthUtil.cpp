@@ -234,15 +234,19 @@ bool Ed25519Verify(const std::string &pubHex, std::string_view message, const st
     return ok;
 }
 
-std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token) {
+std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token, int64_t ttlSeconds) {
     if (master == nullptr || master->Fail() || token.empty())
         return std::nullopt;
 
+    // ttlSeconds <= 0 disables expiry; otherwise a session idle longer than the TTL no longer resolves.
     Statement stmt = master->PrepareStatement(
         "SELECT u.Id, u.Name, u.DisplayName FROM LoginSession s "
-        "JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;"
+        "JOIN User u ON u.Id = s.UserId "
+        "WHERE s.Token = ? AND (? <= 0 OR (unixepoch() - s.LastUsedTimestamp) < ?);"
     );
     stmt.Bind(1, token);
+    stmt.Bind(2, ttlSeconds);
+    stmt.Bind(3, ttlSeconds);
     if (stmt.Step() != SQLITE_ROW)
         return std::nullopt;
 
@@ -253,7 +257,7 @@ std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &
     if (user.displayName.empty())
         user.displayName = user.name;
 
-    // Keep the session fresh so idle-session sweeps (if any) don't reap active players.
+    // Keep the session fresh so the idle-TTL check above (and ReapExpiredSessions) doesn't reap active players.
     Statement touch = master->PrepareStatement(
         "UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;"
     );
@@ -262,6 +266,21 @@ std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &
         master->MarkDirty();
 
     return user;
+}
+
+int ReapExpiredSessions(EmuDb *master, int64_t ttlSeconds) {
+    if (master == nullptr || master->Fail() || ttlSeconds <= 0)
+        return 0;
+    Statement stmt = master->PrepareStatement(
+        "DELETE FROM LoginSession WHERE (unixepoch() - LastUsedTimestamp) >= ?;"
+    );
+    stmt.Bind(1, ttlSeconds);
+    if (stmt.Step() != SQLITE_DONE)
+        return 0;
+    int reaped = sqlite3_changes(master->Get());
+    if (reaped > 0)
+        master->MarkDirty();
+    return reaped;
 }
 
 std::string MintAuthTicket(EmuDb *master, int64_t userId, int64_t placeId) {

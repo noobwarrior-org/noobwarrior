@@ -86,14 +86,6 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("user.name", "Player");
     SetKeyValueIfNotSet("user.display_name", "Player");
 
-    // Persistent "online" identity: the account you sign in to on your home master server. This is
-    // separate from the local user.* identity above and is reused to join federated slave servers.
-    SetKeyValueIfNotSet("online.master_url", "");
-    SetKeyValueIfNotSet("online.session_token", "");
-    SetKeyValueIfNotSet("online.identity", "");
-    SetKeyValueIfNotSet<int64_t>("online.user_id", 0);
-    SetKeyValueIfNotSet("online.display_name", "");
-
     SetKeyValueIfNotSet("user.appearance.avatar_type", "R6"); // "R6" or "R15"
 
     SetKeyValueIfNotSet("user.appearance.tshirt", 0);
@@ -173,6 +165,9 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet<int64_t>("emu.auth.ticket_ttl", 120);
     SetKeyComment("emu.auth.ticket_ttl", "How long, in seconds, a one-time game-join authentication ticket remains valid before it expires. The game server must redeem it within this window.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.auth.session_ttl_days", 30);
+    SetKeyComment("emu.auth.session_ttl_days", "How long, in days, a login session stays valid while idle before the user must sign in again. Each use of a session refreshes this window. Set to 0 to never expire sessions.");
 
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 

@@ -84,6 +84,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mUniversalAppConfigStudioHandler(),
     mMySettingsJsonHandler(this),
     mAuthenticatedUserHandler(this),
+    mSessionCheckHandler(this),
     mCurrentUserHandler(this),
     mRequestAuthHandler(),
     mStudioEditHandler(),
@@ -197,6 +198,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/emu/v1/avatar-override", &mAvatarOverrideHandler);
 
     SetRequestHandler("/emu/v1/auth-info", &mAuthInfoHandler);
+    SetRequestHandler("/emu/v1/session-check", &mSessionCheckHandler);
 
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 
@@ -343,6 +345,17 @@ std::optional<std::string> ServerEmulator::GetFederatedAvatar(int64_t userId) {
     return res.text;
 }
 
+bool ServerEmulator::BindFederatedHandle(int64_t userId, const std::string &handle) {
+    static constexpr size_t kMaxEntries = 4096;
+    std::lock_guard lock(mFederatedHandlesMutex);
+    if (auto it = mFederatedHandles.find(userId); it != mFederatedHandles.end())
+        return it->second == handle; // an id must always resolve to the same handle
+    if (mFederatedHandles.size() >= kMaxEntries)
+        return true; // never refuse a join just because the guard table filled up
+    mFederatedHandles[userId] = handle;
+    return true;
+}
+
 void ServerEmulator::SetCurrentLaunchUser(const AuthUtil::SessionUser &user) {
     std::lock_guard lock(mCurrentLaunchUserMutex);
     mCurrentLaunchUser = user;
@@ -372,7 +385,11 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveJoiningUser(evhttp_r
         return ResolveFederatedVoucher(session);
 
     EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
-    return AuthUtil::ResolveSessionUser(master, session);
+    Registry *reg = mCore->GetRegistry();
+    int64_t ttlSeconds = reg != nullptr
+        ? reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400
+        : 0;
+    return AuthUtil::ResolveSessionUser(master, session, ttlSeconds);
 }
 
 std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(const std::string &cookieValue) {
@@ -444,6 +461,13 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
         user.isFederated = true;
         if (user.id <= 0 || user.name.empty())
             return std::nullopt;
+
+        // Reject if this OnlineUserId is already held by a different handle this run (identity collision).
+        if (!BindFederatedHandle(user.id, user.name)) {
+            Out("ServerEmulator", "Refused federated join: OnlineUserId {} already bound to a different handle (got \"{}\")",
+                user.id, user.name);
+            return std::nullopt;
+        }
 
         // Remember where to pull this user's avatar from their home master, so AvatarFetchHandler can
         // serve it instead of the local default.
