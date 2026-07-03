@@ -148,8 +148,9 @@ Core::Core(Init init) :
 
     if (mInit.LoadPlugins)
         GetPluginManager()->MountPlugins();
-
-    if (mInit.AutoStartServerEmulator)
+    
+    if (mInit.AutoStartServerEmulator &&
+        (GetRegistry() == nullptr || GetRegistry()->GetKeyValue<bool>("emu.autostart").value_or(true)))
         StartServerEmulator();
 
     mInitResponse = Response::Success;
@@ -557,10 +558,17 @@ void Core::LogoutFromMaster() {
 }
 
 std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, const std::string &sessionToken,
-                                                 const std::string &targetMasterUrl) {
-    std::string base = StripTrailingSlash(masterUrl);
-    if (base.empty() || sessionToken.empty() || targetMasterUrl.empty())
+                                                 const std::string &targetMasterUrl, std::string *outError) {
+    auto fail = [&](const std::string &msg) -> std::optional<std::string> {
+        if (outError) *outError = msg;
+        Out("MintJoinVoucher", "{}", msg);
         return std::nullopt;
+    };
+
+    std::string base = StripTrailingSlash(masterUrl);
+    if (base.empty())        return fail("You aren't signed in to a master server.");
+    if (sessionToken.empty()) return fail("Your master session is empty; sign in again.");
+    if (targetMasterUrl.empty()) return fail("This server didn't advertise a master URL (authMasterUrl).");
 
     cpr::Response res = cpr::Post(
         cpr::Url{base + "/v1/join/mint-voucher"},
@@ -568,9 +576,13 @@ std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, c
         cpr::Payload{{"target_url", targetMasterUrl}},
         cpr::Timeout{std::chrono::seconds(10)},
         cpr::VerifySsl{false});
-    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400) {
-        Out("MintJoinVoucher", "Mint at {} failed (HTTP {})", base, static_cast<long>(res.status_code));
-        return std::nullopt;
+    if (res.error.code != cpr::ErrorCode::OK)
+        return fail("Couldn't reach your master server " + base + " — " + res.error.message);
+    if (res.status_code >= 400) {
+        std::string serverMsg;
+        try { serverMsg = nlohmann::json::parse(res.text).value("Error", ""); } catch (...) {}
+        return fail("Master " + base + " refused (HTTP " + std::to_string(res.status_code) + ", target=" +
+                    targetMasterUrl + ")" + (serverMsg.empty() ? "" : " — " + serverMsg));
     }
 
     std::string actionId, identity, body;
@@ -580,10 +592,10 @@ std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, c
         identity = j.value("identity", "");
         body = j.value("body", "");
     } catch (nlohmann::json::exception &) {
-        return std::nullopt;
+        return fail("Master returned an unreadable voucher response.");
     }
     if (actionId.empty() || identity.empty() || body.empty())
-        return std::nullopt;
+        return fail("Master returned an incomplete voucher.");
 
     return "fedvoucher." + AuthUtil::Base64UrlEncode(identity) + "." + actionId + "." + AuthUtil::Base64UrlEncode(body);
 }

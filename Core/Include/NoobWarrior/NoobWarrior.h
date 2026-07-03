@@ -229,7 +229,7 @@ public:
      * by sessionToken) bound to the target slave's master (targetMasterUrl). Returns a compact
      * "fedvoucher." credential string to forward on join, or std::nullopt on failure. */
     std::optional<std::string> MintJoinVoucher(const std::string &masterUrl, const std::string &sessionToken,
-                                               const std::string &targetMasterUrl);
+                                               const std::string &targetMasterUrl, std::string *outError = nullptr);
 
     Backup::Process* CreateBackupProcess(const Backup::ProcessOptions options);
 

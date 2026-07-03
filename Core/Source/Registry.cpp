@@ -176,6 +176,9 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
+    SetKeyValueIfNotSet("emu.autostart", true);
+    SetKeyComment("emu.autostart", "If false, the server emulator does not start on launch.");
+
     SetKeyValueIfNotSet<uint16_t>("emu.http_port", 8080);
     SetKeyComment("emu.http_port", "The port that the HTTP server emulator should listen on.");
 

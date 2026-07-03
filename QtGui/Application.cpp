@@ -451,12 +451,13 @@ void Application::ConnectWithMaster(const std::string &ip, uint16_t port, const 
     std::string token = sessionToken.toStdString();
     std::string target = targetMasterUrl.toStdString();
     std::thread([self, core, ip, port, master, token, target]() {
-        std::optional<std::string> voucher = core->MintJoinVoucher(master, token, target);
-        QTimer::singleShot(0, qApp, [self, ip, port, voucher]() {
+        std::string error;
+        std::optional<std::string> voucher = core->MintJoinVoucher(master, token, target, &error);
+        QTimer::singleShot(0, qApp, [self, ip, port, voucher, error]() {
             if (!self) return;
             if (!voucher) {
                 QMessageBox::critical(nullptr, "Join failed",
-                    "Could not obtain a join voucher from your master server. It may be offline, or not federated with this server.");
+                    QString("Could not obtain a join voucher:\n\n%1").arg(QString::fromStdString(error)));
                 return;
             }
             self->DoConnect(ip, port, *voucher);
