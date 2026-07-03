@@ -60,6 +60,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QImage>
+#include <QCloseEvent>
 #include <QDialog>
 
 #include <algorithm>
@@ -521,6 +522,20 @@ QWidget* PlayerDialog::BuildItemEditor() {
     }
 
     tabs->addTab(BuildOutfitsTab(), "Outfits");
+
+    mItemTabs = tabs;
+    // Thumbnails for a remote account are only fetched for the visible tab; when a tab is first shown,
+    // (re)collect it so its remote-only items pull their thumbnails then. Local targets need nothing here.
+    connect(tabs, &QTabWidget::currentChanged, this, [this](int i) {
+        if (mLocal || i < 0 || i >= mTabs.size())
+            return;
+        AvatarTab& tab = mTabs[i];
+        if (ActiveSubgroup(tab).kind == Kind::Scale)
+            return;
+        CollectIds(tab);
+        RenderPage(tab);
+        RenderWorn(tab);
+    });
     return tabs;
 }
 
@@ -624,6 +639,13 @@ const AvatarSubgroup& PlayerDialog::ActiveSubgroup(const AvatarTab& tab) const {
     return tab.subgroups[i];
 }
 
+bool PlayerDialog::IsActiveTab(const AvatarTab& tab) const {
+    if (mItemTabs == nullptr)
+        return true; // before the tab widget exists, treat every tab as active (initial build)
+    int i = mItemTabs->currentIndex();
+    return i >= 0 && i < mTabs.size() && &mTabs[i] == &tab;
+}
+
 void PlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Scale) {
@@ -667,9 +689,15 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
         pi.id = id;
         pi.name = QString::fromStdString(item.Name);
         pi.db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
+        if (pi.db == nullptr && !mLocal) {
+            // Remote-only item. Reuse a thumbnail we've already fetched; else queue it — but only for the
+            // VISIBLE tab, so switching to a remote account doesn't block fetching all four tabs' thumbnails.
+            if (auto c = mRemoteItemCache.find(id); c != mRemoteItemCache.end())
+                pi.thumb = c->thumb;
+            else if (IsActiveTab(tab))
+                remoteOnly.push_back(id);
+        }
         tab.pageItems.push_back(std::move(pi));
-        if (tab.pageItems.back().db == nullptr && !mLocal)
-            remoteOnly.push_back(item.Id);
     }
 
     if (remoteOnly.empty())
@@ -677,7 +705,7 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
 
     std::map<int64_t, std::vector<unsigned char>> thumbs = BackendThumbnails(remoteOnly);
     for (AvatarPageItem& pi : tab.pageItems) {
-        if (pi.db != nullptr)
+        if (pi.db != nullptr || !pi.thumb.isNull())
             continue;
         if (auto it = thumbs.find(pi.id); it != thumbs.end() && !it->second.empty()) {
             QImage img;
@@ -685,7 +713,7 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
             if (!img.isNull())
                 pi.thumb = QPixmap::fromImage(img);
         }
-        mRemoteItemCache.insert(pi.id, pi); // so the worn strip can render this item too
+        mRemoteItemCache.insert(pi.id, pi); // so revisits + the worn strip can reuse it
     }
 }
 
@@ -1165,13 +1193,40 @@ static R RunPumped(F fn) {
     return result;
 }
 
+// A blocking server call runs on a nested event loop (RunPumped). That loop delivers the window-close
+// event, and QDialog's WA_DeleteOnClose would delete the dialog while these member functions are still on
+// the stack -> use-after-free on unwind. BeginPump/EndPump track that a pump is active; closeEvent defers
+// the close until the pump unwinds and control is back in the main event loop.
+void PlayerDialog::BeginPump() { mPumpDepth++; }
+void PlayerDialog::EndPump() {
+    if (--mPumpDepth == 0 && mCloseRequested)
+        QTimer::singleShot(0, this, [this]() { HonorDeferredClose(); });
+}
+void PlayerDialog::HonorDeferredClose() {
+    if (mPumpDepth == 0 && mCloseRequested) {
+        mCloseRequested = false;
+        close();
+    }
+}
+
+void PlayerDialog::closeEvent(QCloseEvent* event) {
+    if (mPumpDepth > 0) {
+        mCloseRequested = true;
+        event->ignore();
+        return;
+    }
+    QDialog::closeEvent(event);
+}
+
 bool PlayerDialog::BackendLoad(AvatarData& out) {
     if (mLocal)
         return mBackend->Load(out);
     BusyDialog busy("Contacting the server...", this);
     busy.show();
     bool ok = false;
+    BeginPump();
     out = RunPumped<AvatarData>([this, &ok]() { AvatarData d; ok = mBackend->Load(d); return d; });
+    EndPump();
     busy.close();
     return ok;
 }
@@ -1181,7 +1236,9 @@ bool PlayerDialog::BackendSave(const AvatarData& data) {
         return mBackend->Save(data);
     BusyDialog busy("Saving to the server...", this);
     busy.show();
+    BeginPump();
     bool ok = RunPumped<bool>([this, &data]() { return mBackend->Save(data); });
+    EndPump();
     busy.close();
     return ok;
 }
@@ -1191,8 +1248,10 @@ AvatarCatalogPage PlayerDialog::BackendCatalog(int assetType, const std::string&
         return mBackend->Catalog(assetType, search, page);
     // Called often (page/search), so no busy dialog; disable the dialog to stop re-entrant fetches.
     setEnabled(false);
+    BeginPump();
     AvatarCatalogPage cat = RunPumped<AvatarCatalogPage>(
         [this, assetType, search, page]() { return mBackend->Catalog(assetType, search, page); });
+    EndPump();
     setEnabled(true);
     return cat;
 }
@@ -1202,15 +1261,19 @@ std::map<int64_t, std::vector<unsigned char>> PlayerDialog::BackendThumbnails(co
     if (mLocal || ids.empty())
         return {};
     setEnabled(false);
+    BeginPump();
     auto thumbs = RunPumped<std::map<int64_t, std::vector<unsigned char>>>([this, ids]() {
         std::map<int64_t, std::vector<unsigned char>> out;
         for (int64_t id : ids) {
+            if (mCloseRequested.load()) // user asked to close mid-fetch; stop pulling the rest
+                break;
             std::vector<unsigned char> bytes = mBackend->Thumbnail(id);
             if (!bytes.empty())
                 out.emplace(id, std::move(bytes));
         }
         return out;
     });
+    EndPump();
     setEnabled(true);
     return thumbs;
 }
@@ -1270,8 +1333,12 @@ bool PlayerDialog::LoadFromBackend() {
     }
 
     // Initialise each tab on its first subgroup (the combo is already at index 0, so trigger manually).
-    for (AvatarTab& tab : mTabs)
+    // Bail if the user asked to close mid-load (a slow remote target) so the close feels responsive.
+    for (AvatarTab& tab : mTabs) {
+        if (mCloseRequested)
+            break;
         OnSubgroupChanged(tab);
+    }
 
     RefreshOutfits();
     mDirty = false; // loading a target's stored avatar isn't an edit (neutralises signals fired above)

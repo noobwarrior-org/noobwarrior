@@ -45,6 +45,7 @@
 #include <QMap>
 #include <QSet>
 
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <utility>
@@ -117,6 +118,10 @@ public:
     PlayerDialog(QWidget *parent = nullptr);
     ~PlayerDialog();
 protected:
+    // Defers closing the dialog while a blocking server call is running on a nested event loop (deleting
+    // it mid-pump would unwind through a freed `this`); the close is honored once the pump finishes.
+    void closeEvent(QCloseEvent* event) override;
+
     void InitWidgets();
 
     // Target switching: the current backend is the local registry player or a signed-in remote account.
@@ -142,6 +147,9 @@ protected:
 
     // Subgroup / pagination plumbing.
     const AvatarSubgroup& ActiveSubgroup(const AvatarTab& tab) const;
+    // True if tab is the one currently shown in the item-editor tab widget. Remote thumbnails are only
+    // fetched for the visible tab, so switching to a remote account doesn't block on all four tabs at once.
+    bool IsActiveTab(const AvatarTab& tab) const;
     void OnSubgroupChanged(AvatarTab& tab);
     void CollectIds(AvatarTab& tab);
     void RenderPage(AvatarTab& tab);
@@ -176,10 +184,20 @@ protected:
     // Fetches thumbnails for the given asset ids from the (remote) backend in one pumped worker call,
     // returning raw image bytes per id. Only used for a remote target's items the client lacks locally.
     std::map<int64_t, std::vector<unsigned char>> BackendThumbnails(const std::vector<int64_t>& ids);
+
+    // Pump depth guard: a RunPumped call brackets itself with BeginPump/EndPump so closeEvent knows a
+    // nested event loop is on the stack and defers deletion until it unwinds.
+    void BeginPump();
+    void EndPump();
+    void HonorDeferredClose();
 private:
     AvatarBackend* mBackend { nullptr };
     bool mLocal { true }; // true = local registry player; false = a remote DB-backed account
     bool mDirty { false }; // unsaved edits to the current target (prompts a save before switching)
+    int mPumpDepth { 0 };        // >0 while a blocking server call runs on a nested event loop
+    std::atomic<bool> mCloseRequested { false }; // close requested during a pump; honored once idle (also
+                                                 // read by the fetch worker so it can stop early)
+    QTabWidget* mItemTabs { nullptr }; // the item-editor tab widget (for the visible-tab check)
     QPushButton* mTargetButton { nullptr };
     QMenu* mTargetMenu { nullptr };
     QVBoxLayout* mLayout;
