@@ -415,13 +415,17 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     }
     parts.push_back(cookieValue.substr(start));
     // 5 = signed (current); 4 = legacy unsigned, forwarded so the master returns a clear rejection.
-    if (parts.size() != 5 && parts.size() != 4)
+    if (parts.size() != 5 && parts.size() != 4) {
+        Out("ResolveFederatedVoucher", "Malformed voucher ({} segments, expected 5)", parts.size());
         return std::nullopt;
+    }
 
     std::optional<std::string> identity = AuthUtil::Base64UrlDecode(parts[1]);
     std::optional<std::string> body = AuthUtil::Base64UrlDecode(parts[3]);
-    if (!identity || !body)
+    if (!identity || !body) {
+        Out("ResolveFederatedVoucher", "Voucher identity/body failed to base64url-decode");
         return std::nullopt;
+    }
 
     json payload;
     payload["identity"] = *identity;
@@ -436,13 +440,23 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
         cpr::Body{payload.dump()},
         cpr::Timeout{std::chrono::milliseconds(5000)},
         cpr::VerifySsl{false});
-    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400)
+    if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400) {
+        std::string reason;
+        try { reason = json::parse(res.text).value("Error", ""); } catch (...) {}
+        Out("ResolveFederatedVoucher", "Master {} refused {} (HTTP {}{}): {}", masterUrl,
+            identity.value_or("?"), static_cast<long>(res.status_code),
+            res.error.code != cpr::ErrorCode::OK ? " / network error" : "",
+            reason.empty() ? res.error.message : reason);
         return std::nullopt;
+    }
 
     try {
         json j = json::parse(res.text);
-        if (!j.value("ok", false) || !j.contains("user"))
+        if (!j.value("ok", false) || !j.contains("user")) {
+            Out("ResolveFederatedVoucher", "Master {} did not confirm {}: {}", masterUrl,
+                identity.value_or("?"), j.value("Error", "no user in response"));
             return std::nullopt;
+        }
         const json &u = j["user"];
         AuthUtil::SessionUser user;
         // id arrives as a string (full-precision OnlineUserId) but tolerate a JSON number too.

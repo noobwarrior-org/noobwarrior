@@ -16,6 +16,7 @@ local allowForeign = body.allowForeign
 if allowForeign == nil then allowForeign = true end
 local user, err = _G.MASTERSERVER_FEDERATION.VerifyFederatedJoin(body.identity, body.actionId, body.body, allowForeign, body.signature)
 if not user then
+    print("[master] verify-federated REFUSED " .. tostring(body.identity) .. ": " .. tostring(err))
     http_response_code(401)
     die(json.stringify({ ok = false, Error = tostring(err or "verification failed") }))
 end
