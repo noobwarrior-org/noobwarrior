@@ -82,7 +82,7 @@ static QLabel* WrapLabel(const QString& text) {
 QWidget* AccountsPage::BuildRobloxSection() {
     auto* box = new QGroupBox("Roblox accounts");
     auto* layout = new QVBoxLayout(box);
-    layout->addWidget(WrapLabel("Real Roblox.com accounts (via .ROBLOSECURITY) that noobWarrior can act as when talking to Roblox services."));
+    layout->addWidget(WrapLabel("You can log in to your Roblox account using noobWarrior. Please make sure you're using a copy of noobWarrior that has not been tampered with when doing that. This is necessary for fetching assets or backing up items from Roblox services."));
 
     auto* addButton = new QPushButton("Add account using token", box);
     connect(addButton, &QPushButton::clicked, this, [this]() {
@@ -115,6 +115,7 @@ QWidget* AccountsPage::BuildRobloxSection() {
 
         QMenu menu(this);
         QAction* setActive = menu.addAction(QIcon(":/images/silk/user_go.png"), "Set as active account");
+        QAction* signOut = menu.addAction(QIcon(":/images/silk/cross.png"), "Use no account (sign out)");
         menu.addSeparator();
         QAction* del = menu.addAction(QIcon(":/images/silk/user_delete.png"), "Delete account");
 
@@ -122,8 +123,15 @@ QWidget* AccountsPage::BuildRobloxSection() {
             RbxKeychain* auth = gApp->GetCore()->GetRbxKeychain();
             if (idx < static_cast<int>(auth->GetAccounts().size())) {
                 auth->SetActiveAccount(&auth->GetAccounts().at(idx));
+                auth->WriteToKeychain();
                 RefreshRobloxAccounts();
             }
+        });
+        connect(signOut, &QAction::triggered, this, [this]() {
+            RbxKeychain* auth = gApp->GetCore()->GetRbxKeychain();
+            auth->SetActiveAccount(nullptr); // no active Roblox account, but keep the list
+            auth->WriteToKeychain();
+            RefreshRobloxAccounts();
         });
         connect(del, &QAction::triggered, this, [this, idx]() {
             RbxKeychain* auth = gApp->GetCore()->GetRbxKeychain();
@@ -133,6 +141,7 @@ QWidget* AccountsPage::BuildRobloxSection() {
             if (name.isEmpty()) name = "this account";
             if (QMessageBox::question(this, "Delete account", QString("Delete %1?").arg(name)) == QMessageBox::Yes) {
                 auth->RemoveAccount(idx);
+                auth->WriteToKeychain();
                 RefreshRobloxAccounts();
             }
         });
@@ -146,8 +155,7 @@ QWidget* AccountsPage::BuildRobloxSection() {
 QWidget* AccountsPage::BuildMasterSection() {
     auto* box = new QGroupBox("Master-server accounts");
     auto* layout = new QVBoxLayout(box);
-    layout->addWidget(WrapLabel("Accounts you've signed in to on master servers. The active one (right-click "
-                                "→ Set as active) is the identity you join federated servers as."));
+    layout->addWidget(WrapLabel("Accounts you've signed in to on master servers. The active one is the identity you join federated servers as."));
 
     auto* addButton = new QPushButton("Add account (sign in)...", box);
     connect(addButton, &QPushButton::clicked, this, [this]() {
@@ -195,7 +203,7 @@ QWidget* AccountsPage::BuildMasterSection() {
 
         QMenu menu(this);
         QAction* setActive = menu.addAction(QIcon(":/images/silk/user_go.png"), "Set as active account");
-        QAction* signOut = menu.addAction("Use no account (sign out)");
+        QAction* signOut = menu.addAction(QIcon(":/images/silk/cross.png"), "Use no account (sign out)");
         menu.addSeparator();
         QAction* remove = menu.addAction(QIcon(":/images/silk/user_delete.png"), "Remove account");
 
@@ -233,8 +241,7 @@ QWidget* AccountsPage::BuildMasterSection() {
 QWidget* AccountsPage::BuildEmuSection() {
     auto* box = new QGroupBox("Saved server logins");
     auto* layout = new QVBoxLayout(box);
-    layout->addWidget(WrapLabel("Server emulators you've signed in to that use their own accounts (master "
-                                "authentication). The login is saved so you can reconnect without signing in again."));
+    layout->addWidget(WrapLabel("Server emulators you've signed in to that use their own accounts. The login is saved so you can reconnect without signing in again."));
 
     mEmuView = new QTreeView(box);
     mEmuView->setEditTriggers(QAbstractItemView::NoEditTriggers);
