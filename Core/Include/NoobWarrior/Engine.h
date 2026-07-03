@@ -97,6 +97,16 @@ struct EngineStartParameters {
     std::optional<EngineSide> LaunchSide {};
     std::optional<std::string> RemoteEmulatorHost { std::nullopt };
     std::optional<uint16_t> RemoteEmulatorPort { std::nullopt };
+    // The joiner's .LOGINSESSION on the remote host (obtained at connect time when the host requires
+    // auth). Forwarded as a Cookie on proxied requests so the host can identify the joining player.
+    std::optional<std::string> RemoteEmulatorSessionToken { std::nullopt };
+    // The .LOGINSESSION for the account the user logged in as at connect time. For a local launch it
+    // decides which account the launch ticket is minted for (else the registry user.id is used).
+    std::optional<std::string> SessionToken { std::nullopt };
+    // A one-time launch authentication ticket minted for the LOCAL user when launching a client in
+    // auth mode. Passed to the injector as -t; the client presents it (rbx-authentication-ticket
+    // header) to PlaceLauncher, which redeems it into a session. Empty on a non-auth launch.
+    std::optional<std::string> LaunchTicket { std::nullopt };
 };
 
 enum class EngineInstallState {

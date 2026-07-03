@@ -30,6 +30,8 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/Paths.h>
 
 #include <curl/curl.h>
@@ -336,6 +338,13 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back(std::to_string(params.PlaceId.value()));
     }
 
+    // Auth-mode launch ticket the client replays to PlaceLauncher (see LaunchEngine). Substituted for
+    // the injector's default -t "1".
+    if (params.LaunchTicket.has_value() && !params.LaunchTicket->empty()) {
+        args.push_back("--authticket");
+        args.push_back("\"" + *params.LaunchTicket + "\"");
+    }
+
     EngineSide launchSide = params.LaunchSide.value_or(params.Engine.Side);
     const char* sideStr = launchSide == EngineSide::Client ? "client"
                         : launchSide == EngineSide::Server ? "server"
@@ -539,7 +548,8 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     if (mServerEmulator != nullptr) {
         mServerEmulator->ClearProxyLayers();
         if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value()) {
-            mServerEmulator->PushProxyLayer(*params.RemoteEmulatorHost, *params.RemoteEmulatorPort);
+            mServerEmulator->PushProxyLayer(*params.RemoteEmulatorHost, *params.RemoteEmulatorPort,
+                                            params.RemoteEmulatorSessionToken.value_or(""));
 
             // Federate this client's avatar to the host so its game server builds our character with
             // our own look (the host otherwise only knows its own local appearance). Build the JSON
@@ -587,6 +597,33 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     std::filesystem::path exe = FindEngineExecutable(engineDir);
     if (exe.empty())
         return EngineLaunchResponse::NoValidExecutable;
-    
+
+    // A launched client has no cookie, so in auth mode mint a launch ticket for the local user and
+    // pass it to the injector (-t) for PlaceLauncher to redeem. Remote joins are the host's job.
+    {
+        EngineSide side = params.LaunchSide.value_or(params.Engine.Side);
+        bool authEnabled = GetRegistry() != nullptr &&
+                           GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+        if (authEnabled && side == EngineSide::Client && !params.RemoteEmulatorHost.has_value()) {
+            EmuDb *master = GetEmuDbManager() ? GetEmuDbManager()->GetMasterDatabase() : nullptr;
+            // Identity is the account the user logged in as; with no login the client launches as a
+            // guest (the local registry identity is not used in auth mode).
+            std::optional<AuthUtil::SessionUser> account;
+            if (params.SessionToken.has_value() && !params.SessionToken->empty())
+                account = AuthUtil::ResolveSessionUser(master, *params.SessionToken);
+
+            if (account) {
+                std::string ticket = AuthUtil::MintAuthTicket(master, account->id, params.PlaceId.value_or(0));
+                if (!ticket.empty()) {
+                    params.LaunchTicket = ticket;
+                    Out("LaunchEngine", "Minted launch ticket for {} (id {})", account->name, account->id);
+                }
+            } else {
+                params.LaunchTicket = AuthUtil::EncodeGuestTicket(AuthUtil::MakeGuestUser());
+                Out("LaunchEngine", "No login; launching as guest");
+            }
+        }
+    }
+
     return LaunchProcessThroughInjector(params.Engine.Architecture, exe, params);
 }

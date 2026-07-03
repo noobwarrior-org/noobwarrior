@@ -49,6 +49,12 @@ public:
     void ConnectToServer(const std::string &ip, uint16_t port);
     void ShowSystemNotification(const QString &title, const QString &message);
 private:
+    // Connect helpers: ConnectToServer fetches the host's auth-info, PromptAndConnect shows the login
+    // dialog when needed, DoConnect runs the actual connect with an optional session token.
+    void PromptAndConnect(const std::string &ip, uint16_t port, bool authEnabled, bool passwordBased,
+                          bool allowGuests, const QString &title, const QString &tagline);
+    void DoConnect(const std::string &ip, uint16_t port, const std::string &sessionToken);
+
     Init mInit {};
     Core *mCore;
     Launcher *mLauncher;

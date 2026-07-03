@@ -24,27 +24,11 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/LogoutHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
-
-static std::string ExtractCookieValue(const char *cookieHeader, std::string_view name) {
-    if (cookieHeader == nullptr) return "";
-    std::string_view hdr(cookieHeader);
-    size_t pos = 0;
-    while (pos < hdr.size()) {
-        while (pos < hdr.size() && (hdr[pos] == ' ' || hdr[pos] == ';')) pos++;
-        size_t eq = hdr.find('=', pos);
-        if (eq == std::string_view::npos) break;
-        size_t end = hdr.find(';', eq);
-        if (end == std::string_view::npos) end = hdr.size();
-        if (hdr.substr(pos, eq - pos) == name)
-            return std::string(hdr.substr(eq + 1, end - eq - 1));
-        pos = end;
-    }
-    return "";
-}
 
 LogoutHandler::LogoutHandler(ServerEmulator* emu) : mEmu(emu) {
 
@@ -52,7 +36,7 @@ LogoutHandler::LogoutHandler(ServerEmulator* emu) : mEmu(emu) {
 
 void LogoutHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* cookieHeader = evhttp_find_header(evhttp_request_get_input_headers(req), "Cookie");
-    std::string token = ExtractCookieValue(cookieHeader, ".LOGINSESSION");
+    std::string token = AuthUtil::ExtractCookieValue(cookieHeader, ".LOGINSESSION");
 
     if (!token.empty()) {
         EmuDb* masterDb = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();

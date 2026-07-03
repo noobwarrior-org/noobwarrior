@@ -29,6 +29,7 @@ set(SOURCES
     OnlineWindow/ServerInformationSidebar.cpp
     OnlineWindow/ServerListWidget.cpp
     OnlineWindow/DirectConnectDialog.cpp
+    OnlineWindow/ServerLoginDialog.cpp
     Sdk/Sdk.cpp
     Sdk/WelcomeWidget.cpp
     Sdk/FileManagerWidget.cpp

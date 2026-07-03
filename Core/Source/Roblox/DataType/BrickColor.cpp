@@ -88,6 +88,31 @@ BrickColor::BrickColor(const std::string &name) : _color(Color3::fromRGB(255, 25
     _b = _color.B;
 }
 
+// Nearest palette entry to an arbitrary color, by squared RGB distance.
+BrickColor::BrickColor(Color3 color) : _color(color)
+{
+    Color3 rgb = color.toRGB(); // 0-255
+    double bestDist = -1;
+    const Entry* best = &Palette[0];
+    for (const auto& entry : Palette) {
+        const char* h = entry.hex;
+        if (*h == '#') ++h;
+        long packed = std::strtol(h, nullptr, 16);
+        double dr = ((packed >> 16) & 0xFF) - rgb.R;
+        double dg = ((packed >> 8) & 0xFF) - rgb.G;
+        double db = (packed & 0xFF) - rgb.B;
+        double dist = dr * dr + dg * dg + db * db;
+        if (bestDist < 0 || dist < bestDist) {
+            bestDist = dist;
+            best = &entry;
+        }
+    }
+    _name = best->name;
+    _r = _color.R;
+    _g = _color.G;
+    _b = _color.B;
+}
+
 BrickColor::~BrickColor()
 {
 

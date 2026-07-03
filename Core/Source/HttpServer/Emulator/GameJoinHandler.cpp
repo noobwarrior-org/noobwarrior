@@ -24,6 +24,7 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/GameJoinHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
@@ -52,7 +53,11 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
     auto mergeIdentity = [this](std::vector<unsigned char> body) -> std::vector<unsigned char> {
         try {
             nlohmann::json j = nlohmann::json::parse(body);
-            if (j.contains("joinScript") && j["joinScript"].is_object()) {
+            // Never overwrite an identity the host already authenticated (a real ticket, not the "1"
+            // placeholder) — the host is authoritative there, whatever our local auth setting is.
+            std::string ticket = j.value("authenticationTicket", "");
+            bool hostAuthenticated = !ticket.empty() && ticket != "1";
+            if (!hostAuthenticated && j.contains("joinScript") && j["joinScript"].is_object()) {
                 ApplyLocalIdentity(j["joinScript"]);
                 std::string merged = j.dump();
                 return std::vector<unsigned char>(merged.begin(), merged.end());
@@ -60,10 +65,20 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
         } catch (const nlohmann::json::exception &e) {
             Out("GameJoinHandler", "Couldn't merge local identity into proxied join script: {}", e.what());
         }
-        return body; // not JSON / no joinScript -> forward the host's response untouched
+        return body; // not JSON / no joinScript / host-authenticated -> forward untouched
     };
 
-    if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }, mergeIdentity)) {
+    // Under auth the remote host authors the authoritative identity and mints the ticket, so we must
+    // forward its join script untouched. Only overlay our local identity when auth is off.
+    Registry *reg = mEmu->GetCore()->GetRegistry();
+    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+
+    if (authEnabled) {
+        if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); })) {
+            Out("GameJoinHandler", "Proxying join-game to joined remote emulator (host-authenticated)");
+            return;
+        }
+    } else if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }, mergeIdentity)) {
         Out("GameJoinHandler", "Proxying join-game to joined remote emulator (with local identity)");
         return;
     }
@@ -190,15 +205,60 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         {"PrivateServerID", ""},
     };
 
-    // Stamp this client's local player identity over the defaults above.
-    ApplyLocalIdentity(joinScript);
+    Registry *reg = mEmu->GetCore()->GetRegistry();
+    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+
+    // ClientTicket the game server redeems to confirm identity; "1" is the legacy auth-off value.
+    std::string ticket = "1";
+
+    if (!authEnabled) {
+        ApplyLocalIdentity(joinScript);
+    } else {
+        EmuDb *master = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
+
+        std::optional<AuthUtil::SessionUser> user = mEmu->ResolveJoiningUser(req);
+        if (!user && reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false))
+            user = AuthUtil::MakeGuestUser();
+
+        if (!user) {
+            Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
+            nlohmann::json denied = {
+                {"jobId", gameJoinAttemptId},
+                {"status", 22}, // non-2: the client treats this as a failed join
+                {"joinScriptUrl", nullptr},
+                {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
+                {"authenticationTicket", nullptr},
+                {"message", "Authentication required to join this server"},
+                {"joinScript", nullptr},
+            };
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+            evbuffer *deny = evbuffer_new();
+            std::string denyBody = denied.dump();
+            evbuffer_add(deny, denyBody.data(), denyBody.size());
+            evhttp_send_reply(req, 200, nullptr, deny);
+            evbuffer_free(deny);
+            return;
+        }
+
+        StampIdentity(joinScript, user->id, user->name, user->displayName);
+        // A guest carries its identity inside the ticket; an account gets a real single-use ticket.
+        ticket = user->isGuest ? AuthUtil::EncodeGuestTicket(*user)
+                               : AuthUtil::MintAuthTicket(master, user->id, placeId);
+        if (ticket.empty()) {
+            evhttp_send_error(req, HTTP_INTERNAL, "Failed to mint authentication ticket");
+            return;
+        }
+        Out("GameJoinHandler", "Join for \"{}\" (id {})", user->name, user->id);
+    }
+
+    joinScript["ClientTicket"] = ticket;
 
     nlohmann::json response = {
         {"jobId", gameJoinAttemptId},
         {"status", 2}, // 2 == Done/ready to join
         {"joinScriptUrl", nullptr},
         {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
-        {"authenticationTicket", "1"},
+        {"authenticationTicket", ticket},
         {"message", nullptr},
         {"joinScript", joinScript},
     };
@@ -220,10 +280,15 @@ void GameJoinHandler::ApplyLocalIdentity(nlohmann::json &joinScript) {
     std::string name    = reg->GetKeyValue<std::string>("user.name").value_or("Player");
     std::string display = reg->GetKeyValue<std::string>("user.display_name").value_or(name);
 
+    StampIdentity(joinScript, userId, name, display);
+}
+
+void GameJoinHandler::StampIdentity(nlohmann::json &joinScript, int64_t userId, const std::string &name,
+                                    const std::string &displayName) {
     joinScript["UserId"] = userId;
     joinScript["UserName"] = name;
-    joinScript["DisplayName"] = display;
+    joinScript["DisplayName"] = displayName;
     // characterAppearanceId is the user id the engine fetches the avatar for; keep it consistent with
-    // UserId so /v1/avatar-fetch?userId=<UserId> resolves to this same local player.
+    // UserId so /v1/avatar-fetch?userId=<UserId> resolves to this same player.
     joinScript["characterAppearanceId"] = userId;
 }

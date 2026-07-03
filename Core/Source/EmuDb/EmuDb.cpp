@@ -62,6 +62,7 @@
 #include "migrations/v18.sql.inc.cpp"
 #include "migrations/v19.sql.inc.cpp"
 #include "migrations/v20.sql.inc.cpp"
+#include "migrations/v21.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -300,6 +301,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v19)
 	/* V20: added timestamps and shortcut target columns to FsNode for the file manager */
 	MIGRATE(v20)
+	/* V21: added AuthTicket table for the one-time game-join authentication ticket flow */
+	MIGRATE(v21)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.

@@ -24,7 +24,9 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/AuthenticatedUserHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 #include <nlohmann/json.hpp>
 
@@ -41,6 +43,15 @@ void AuthenticatedUserHandler::OnRequest(evhttp_request *req, void *userdata) {
     auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
     auto name = registry->GetKeyValue<std::string>("user.name").value_or("Player");
     auto displayName = registry->GetKeyValue<std::string>("user.display_name").value_or("Player");
+
+    // Under auth, report the authenticated joining player instead of the local registry identity.
+    if (registry->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        if (auto user = mEmu->ResolveJoiningUser(req)) {
+            id = user->id;
+            name = user->name;
+            displayName = user->displayName;
+        }
+    }
 
     nlohmann::json j;
     j["id"] = id;

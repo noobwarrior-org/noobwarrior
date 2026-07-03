@@ -22,8 +22,12 @@
 // Started by: Hattozo
 // Started on: 5/18/2025
 // Description: Main entrypoint for Qt application
+// cpr must precede anything that pulls in evhttp.h, whose HTTP_* macros break cpr's status_codes.h.
+#include <cpr/cpr.h>
+
 #include "Application.h"
 #include "LoadingDialog.h"
+#include "OnlineWindow/ServerLoginDialog.h"
 #include "Style/DefaultStyle.h"
 
 #include <NoobWarrior/NoobWarrior.h>
@@ -47,6 +51,11 @@
 
 #include <curl/curl.h>
 #include <event.h>
+#include <nlohmann/json.hpp>
+
+#include <chrono>
+#include <optional>
+#include <thread>
 
 #define USE_CUSTOM_STYLE 1
 #define SHOW_DISCLAIMER 0
@@ -325,6 +334,67 @@ void Application::LaunchEngine(EngineStartParameters params) {
 }
 
 void Application::ConnectToServer(const std::string &ip, uint16_t port) {
+    // Ask the host whether it requires auth before doing anything else.
+    std::string url = "https://" + ip + ":" + std::to_string(port) + "/emu/v1/auth-info";
+    QPointer<Application> self(this);
+    std::thread([self, ip, port, url]() {
+        bool authEnabled = false, passwordBased = true, allowGuests = false;
+        std::string title, tagline;
+        cpr::Response res = cpr::Get(cpr::Url{url}, cpr::VerifySsl{false},
+                                     cpr::Timeout{std::chrono::milliseconds(5000)});
+        if (res.error.code == cpr::ErrorCode::OK && res.status_code == 200) {
+            nlohmann::json j = nlohmann::json::parse(res.text, nullptr, false);
+            if (!j.is_discarded()) {
+                authEnabled   = j.value("authEnabled", false);
+                passwordBased = j.value("passwordBased", true);
+                allowGuests   = j.value("allowGuests", false);
+                nlohmann::json b = j.value("branding", nlohmann::json::object());
+                title   = b.value("title", std::string{});
+                tagline = b.value("tagline", std::string{});
+            }
+        }
+        QTimer::singleShot(0, qApp, [self, ip, port, authEnabled, passwordBased, allowGuests, title, tagline]() {
+            if (!self) return;
+            self->PromptAndConnect(ip, port, authEnabled, passwordBased, allowGuests,
+                                   QString::fromStdString(title), QString::fromStdString(tagline));
+        });
+    }).detach();
+}
+
+void Application::PromptAndConnect(const std::string &ip, uint16_t port, bool authEnabled,
+                                   bool passwordBased, bool allowGuests, const QString &title,
+                                   const QString &tagline) {
+    if (!authEnabled) {
+        DoConnect(ip, port, "");
+        return;
+    }
+
+    ServerLoginDialog dlg(nullptr, title, tagline, passwordBased, allowGuests);
+    if (dlg.exec() != QDialog::Accepted)
+        return; // cancelled
+    if (dlg.SelectedMode() == ServerLoginDialog::Mode::Guest) {
+        DoConnect(ip, port, "");
+        return;
+    }
+
+    Core* core = mCore;
+    QPointer<Application> self(this);
+    std::string username = dlg.Username().toStdString();
+    std::string password = dlg.Password().toStdString();
+    std::thread([self, core, ip, port, username, password]() {
+        std::optional<std::string> token = core->LoginToRemoteHost(ip, port, username, password);
+        QTimer::singleShot(0, qApp, [self, ip, port, token]() {
+            if (!self) return;
+            if (!token) {
+                QMessageBox::critical(nullptr, "Login Failed", "The server rejected those credentials.");
+                return;
+            }
+            self->DoConnect(ip, port, *token);
+        });
+    }).detach();
+}
+
+void Application::DoConnect(const std::string &ip, uint16_t port, const std::string &sessionToken) {
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(false);
@@ -371,7 +441,7 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
             dialogPtr->close();
             LaunchEngine(availableServers.at(0));
         });
-    });
+    }, sessionToken);
 }
 
 void Application::ShowSystemNotification(const QString &title, const QString &message) {

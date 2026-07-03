@@ -24,42 +24,12 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/LoginHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
-
-#include <openssl/crypto.h>
-#include <openssl/rand.h>
-#include <openssl/kdf.h>
-#include <openssl/params.h>
-#include <openssl/core_names.h>
-
-#include <charconv>
-
-#define HASH_LENGTH 32
-#define SALT_LENGTH 16
+#include <NoobWarrior/Registry.h>
 
 using namespace NoobWarrior;
-
-static std::string ToHex(const unsigned char *bytes, size_t len) {
-    std::string out;
-    out.reserve(len * 2);
-    for (size_t i = 0; i < len; i++)
-        out += std::format("{:02x}", bytes[i]);
-    return out;
-}
-
-static bool FromHex(const std::string &hex, std::vector<unsigned char> &out) {
-    if (hex.size() % 2 != 0) return false;
-    out.clear();
-    out.reserve(hex.size() / 2);
-    for (size_t i = 0; i < hex.size(); i += 2) {
-        unsigned int byte = 0;
-        auto [ptr, ec] = std::from_chars(hex.data() + i, hex.data() + i + 2, byte, 16);
-        if (ec != std::errc() || ptr != hex.data() + i + 2) return false;
-        out.push_back(static_cast<unsigned char>(byte));
-    }
-    return true;
-}
 
 LoginHandler::LoginHandler(ServerEmulator* emu) : mEmu(emu) {
 
@@ -85,6 +55,13 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
+    // Password login can be turned off in favor of OAuth2-only auth.
+    if (Registry* reg = mEmu->GetCore()->GetRegistry();
+        reg != nullptr && !reg->GetKeyValue<bool>("emu.auth.password_based").value_or(true)) {
+        evhttp_send_error(req, HTTP_FORBIDDEN, "Password-based login is disabled on this server");
+        return;
+    }
+
     EmuDb* masterDb = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
     if (masterDb == nullptr || masterDb->Fail()) {
         evhttp_send_error(req, HTTP_INTERNAL, "No usable master database is mounted");
@@ -104,49 +81,10 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::string storedHash = lookupStmt.GetStringFromColumnIndex(1);
     std::string storedSalt = lookupStmt.GetStringFromColumnIndex(2);
 
-    std::vector<unsigned char> salt;
-    if (!FromHex(storedSalt, salt) || salt.size() != SALT_LENGTH) {
-        Out("LoginHandler", "Stored salt for user \"{}\" is malformed", username);
+    if (!AuthUtil::VerifyPassword(password, storedSalt, storedHash)) {
         evhttp_send_error(req, HTTP_FORBIDDEN, "Invalid username or password");
         return;
     }
-
-    unsigned char hash[HASH_LENGTH];
-    {
-        uint32_t t_cost = 2, m_cost = 1u << 16, lanes = 1, threads = 1;
-        EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "ARGON2ID", nullptr);
-        EVP_KDF_CTX *kctx = kdf ? EVP_KDF_CTX_new(kdf) : nullptr;
-        EVP_KDF_free(kdf);
-        OSSL_PARAM params[] = {
-            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(password.data()), password.size()),
-            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, salt.data(), SALT_LENGTH),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &t_cost),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m_cost),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, &threads),
-            OSSL_PARAM_END
-        };
-        bool ok = kctx && EVP_KDF_derive(kctx, hash, HASH_LENGTH, params) > 0;
-        EVP_KDF_CTX_free(kctx);
-        if (!ok) {
-            evhttp_send_error(req, HTTP_INTERNAL, "Failed to verify password");
-            return;
-        }
-    }
-
-    std::string computedHash = ToHex(hash, HASH_LENGTH);
-    if (computedHash.size() != storedHash.size() ||
-        CRYPTO_memcmp(computedHash.data(), storedHash.data(), computedHash.size()) != 0) {
-        evhttp_send_error(req, HTTP_FORBIDDEN, "Invalid username or password");
-        return;
-    }
-
-    unsigned char tokenBytes[32];
-    if (RAND_bytes(tokenBytes, sizeof(tokenBytes)) != 1) {
-        evhttp_send_error(req, HTTP_INTERNAL, "Failed to generate session token");
-        return;
-    }
-    std::string token = ToHex(tokenBytes, sizeof(tokenBytes));
 
     const char* peerAddress = "";
     uint16_t peerPort {};
@@ -156,19 +94,12 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const char* userAgent = evhttp_find_header(evhttp_request_get_input_headers(req), "User-Agent");
 
-    Statement sessionStmt = masterDb->PrepareStatement(
-        "INSERT INTO LoginSession (Token, UserId, Ip, Device) VALUES (?, ?, ?, ?);"
-    );
-    sessionStmt.Bind(1, token);
-    sessionStmt.Bind(2, userId);
-    sessionStmt.Bind(3, std::string(peerAddress ? peerAddress : ""));
-    sessionStmt.Bind(4, std::string(userAgent ? userAgent : ""));
-    if (sessionStmt.Step() != SQLITE_DONE) {
-        Out("LoginHandler", "Failed to create login session for user {}: {}", userId, masterDb->GetLastErrorMsg());
+    std::string token = AuthUtil::CreateLoginSession(masterDb, userId,
+        peerAddress ? peerAddress : "", userAgent ? userAgent : "");
+    if (token.empty()) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create session");
         return;
     }
-    masterDb->MarkDirty();
     Out("LoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
 
     std::string cookie = std::format(".LOGINSESSION={}; Path=/; HttpOnly; SameSite=Lax", token);

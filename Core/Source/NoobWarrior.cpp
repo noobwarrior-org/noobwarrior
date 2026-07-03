@@ -28,6 +28,7 @@
 #include <cpr/cpr.h>
 
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
@@ -367,7 +368,7 @@ bool Core::IsServerEmulatorRunning() {
     return mServerEmulator->IsRunning();
 }
 
-void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback) {
+void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback, const std::string &sessionToken) {
     std::thread([=]() {
         cpr::Response response = cpr::Get(
             cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers"},
@@ -436,15 +437,50 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             }
 
             params.Engine.Side = EngineSide::Client;
+            if (!sessionToken.empty())
+                params.SessionToken = sessionToken; // the account we logged in as (local launch ticket)
             if (!IsLoopbackOrEmpty(ip)) {
                 params.RemoteEmulatorHost = ip;
                 params.RemoteEmulatorPort = port;
+                if (!sessionToken.empty())
+                    params.RemoteEmulatorSessionToken = sessionToken; // forwarded to the host (remote auth)
             }
             paramsList.push_back(params);
         }
 
         callback(ServerEmulatorConnectFailReason::None, paramsList);
     }).detach();
+}
+
+std::optional<std::string> Core::LoginToRemoteHost(const std::string &ip, uint16_t port,
+                                                   const std::string &username, const std::string &password) {
+    // The host's /v1/login sets a .LOGINSESSION cookie and 302-redirects on success. Don't follow the
+    // redirect; we only want the Set-Cookie token to forward on join.
+    cpr::Response response = cpr::Post(
+        cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/v1/login"},
+        cpr::Payload{{"username", username}, {"password", password}},
+        cpr::Redirect{false},
+        cpr::Timeout{std::chrono::seconds(10)},
+        cpr::VerifySsl{false}); // hosts typically present self-signed certs
+
+    if (response.error.code != cpr::ErrorCode::OK) {
+        Out("LoginToRemoteHost", "Login to {}:{} failed: {}", ip, port, response.error.message);
+        return std::nullopt;
+    }
+    if (response.status_code >= 400) {
+        Out("LoginToRemoteHost", "Login to {}:{} rejected (HTTP {})", ip, port, static_cast<long>(response.status_code));
+        return std::nullopt;
+    }
+
+    // cpr lower-cases header names in its case-insensitive map; Set-Cookie may appear once per cookie.
+    auto range = response.header.equal_range("Set-Cookie");
+    for (auto it = range.first; it != range.second; ++it) {
+        std::string token = AuthUtil::ExtractCookieValue(it->second.c_str(), ".LOGINSESSION");
+        if (!token.empty() && token != "deleted")
+            return token;
+    }
+    Out("LoginToRemoteHost", "Login to {}:{} returned no .LOGINSESSION cookie", ip, port);
+    return std::nullopt;
 }
 
 std::string Core::GetWinePath(const std::filesystem::path &path) {

@@ -154,6 +154,12 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.auth.enable_custom_pfp", false);
     SetKeyComment("emu.auth.enable_custom_pfp", "Allows users to upload their own profile pictures instead of using their avatar headshot.");
 
+    SetKeyValueIfNotSet("emu.auth.allow_guests", false);
+    SetKeyComment("emu.auth.allow_guests", "Only applies when emu.auth.enabled is true. If enabled, players who are not logged in may still join as a Guest instead of being turned away. If disabled, joining requires a logged-in account.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.auth.ticket_ttl", 120);
+    SetKeyComment("emu.auth.ticket_ttl", "How long, in seconds, a one-time game-join authentication ticket remains valid before it expires. The game server must redeem it within this window.");
+
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
     SetKeyValueIfNotSet<uint16_t>("emu.http_port", 8080);

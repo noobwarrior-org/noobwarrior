@@ -64,13 +64,20 @@ public:
     // to the client. Lets a handler merge client-only data into a proxied response — e.g. overlay the
     // local player's identity onto a join script fetched from the host. Returns the body to send.
     using ResponseTransform = std::function<std::vector<unsigned char>(std::vector<unsigned char>)>;
-    using Layer = std::pair<std::string, uint16_t>; // host, port
+
+    // A remote emulator in the stack. SessionToken is the joiner's .LOGINSESSION on that host (empty
+    // when the host requires no auth); it is forwarded as a Cookie so the host can identify the joiner.
+    struct Layer {
+        std::string Host;
+        uint16_t Port {0};
+        std::string SessionToken;
+    };
 
     explicit EmulatorProxy(ServerEmulator *emu);
     ~EmulatorProxy();
 
     // Layer management (the stack). Safe to call from any thread.
-    void PushLayer(const std::string &host, uint16_t port); // overlay a new layer on top
+    void PushLayer(const std::string &host, uint16_t port, const std::string &sessionToken = ""); // overlay a new layer on top
     bool PopLayer();                                         // remove the top layer; false if empty
     void RemoveLayer(const std::string &host, uint16_t port);
     void ClearLayers();
@@ -97,6 +104,7 @@ private:
 
         std::string              Method;       // "GET" / "POST" / "PUT"
         std::vector<std::string> Urls;         // one full https URL per layer, top-first
+        std::vector<std::string> Cookies;      // per-layer .LOGINSESSION token (parallel to Urls), "" if none
         std::string              Body;          // request body (non-GET)
         std::string              ContentType;   // forwarded request Content-Type
         std::string              Accept;        // forwarded request Accept (asset content negotiation)

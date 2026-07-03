@@ -23,18 +23,11 @@
 // Started on: 5/1/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/CreateAccountHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
-
-#include <openssl/ssl.h>
-#include <openssl/rand.h>
-#include <openssl/kdf.h>
-#include <openssl/params.h>
-#include <openssl/core_names.h>
-
-#define HASH_LENGTH 32
-#define SALT_LENGTH 16
+#include <NoobWarrior/Registry.h>
 
 using namespace NoobWarrior;
 
@@ -82,6 +75,13 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
+    // Guests registering their own accounts can be disabled so an operator seeds accounts manually.
+    if (Registry* reg = mEmu->GetCore()->GetRegistry();
+        reg != nullptr && !reg->GetKeyValue<bool>("emu.auth.allow_registration").value_or(false)) {
+        evhttp_send_error(req, HTTP_FORBIDDEN, "Registration is disabled on this server");
+        return;
+    }
+
     EmuDb* masterDb = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
     if (masterDb == nullptr || masterDb->Fail()) {
         evhttp_send_error(req, HTTP_INTERNAL, "No usable master database is mounted");
@@ -95,42 +95,18 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    unsigned char salt[SALT_LENGTH];
-    if (RAND_bytes(salt, sizeof(salt)) != 1) {
+    std::vector<unsigned char> salt(AuthUtil::kSaltLength);
+    if (!AuthUtil::RandomBytes(salt.data(), salt.size())) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to generate password salt");
         return;
     }
-    std::string saltStr;
-	for (int i = 0; i < SALT_LENGTH; i++) {
-		saltStr += std::format("{:02x}", salt[i]);
-	}
+    std::string saltStr = AuthUtil::ToHex(salt.data(), salt.size());
 
-    unsigned char hash[HASH_LENGTH];
-    {
-        uint32_t t_cost = 2, m_cost = 1u << 16, lanes = 1, threads = 1;
-        EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "ARGON2ID", nullptr);
-        EVP_KDF_CTX *kctx = kdf ? EVP_KDF_CTX_new(kdf) : nullptr;
-        EVP_KDF_free(kdf);
-        OSSL_PARAM params[] = {
-            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(password.data()), password.size()),
-            OSSL_PARAM_octet_string(OSSL_KDF_PARAM_SALT, salt, SALT_LENGTH),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, &t_cost),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m_cost),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
-            OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, &threads),
-            OSSL_PARAM_END
-        };
-        bool ok = kctx && EVP_KDF_derive(kctx, hash, HASH_LENGTH, params) > 0;
-        EVP_KDF_CTX_free(kctx);
-        if (!ok) {
-            evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
-            return;
-        }
+    std::string hashStr = AuthUtil::HashPassword(password, salt);
+    if (hashStr.empty()) {
+        evhttp_send_error(req, HTTP_INTERNAL, "Failed to hash password");
+        return;
     }
-    std::string hashStr;
-	for (int i = 0; i < HASH_LENGTH; i++) {
-		hashStr += std::format("{:02x}", hash[i]);
-	}
 
     Statement createUserStmt = masterDb->PrepareStatement(
         "INSERT INTO User (Name, DisplayName, PasswordHash, PasswordSalt, JoinDate) VALUES (?, ?, ?, ?, unixepoch());"

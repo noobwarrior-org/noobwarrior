@@ -265,7 +265,8 @@ Args:
 --emuhttps: The HTTPS port of the Server Emulator that noobHook should make requests to.
 --emucert: A path to a certificate file that the Roblox engine will point towards.
 --side: If set to \"server\", it will tell Roblox Studio to start a local server instance. Otherwise, Studio will run as usual.
---scheme: Roblox has changed their launch parameters over the years. Setting this to "new" will use the recommended parameters for a 2023 version, while setting it to any other value will use the legacy parameters for older clients.)",
+--scheme: Roblox has changed their launch parameters over the years. Setting this to "new" will use the recommended parameters for a 2023 version, while setting it to any other value will use the legacy parameters for older clients.
+--authticket: The one-time authentication ticket substituted into the client's -t flag (the client replays it to PlaceLauncher). Defaults to "1" when omitted.)",
             "noobHook Injector",
             MB_ICONINFORMATION | MB_OK);
         return 0;
@@ -280,6 +281,7 @@ Args:
     std::wstring sideStr;
     std::wstring schemeStr;
     std::wstring emuCertStr;
+    std::wstring authTicketStr;
     for (int i = 0; i < argc; i++) {
         if (i + 1 >= argc)
             break;
@@ -319,6 +321,10 @@ Args:
         if (wcscmp(argv[i], L"--emucert") == 0) {
             emuCertStr = argv[i + 1];
         }
+
+        if (wcscmp(argv[i], L"--authticket") == 0) {
+            authTicketStr = argv[i + 1];
+        }
     }
 
     printf("File arg: %ls\nIp arg: %ls\nPort arg: %ls\nPlaceId arg: %ls\nEmuHttp arg: %ls\nEmuHttps arg: %ls\nSide arg: %ls\n",
@@ -343,6 +349,8 @@ Args:
         std::wstring rccPlaceId = placeIdStr.empty() ? L"1818" : placeIdStr;
         wargs += std::format(L" -console -verbose -placeid:{} -port 53641 -localtest \"gameserver.json\" -settingsfile \"DevSettingsFile.json\"", rccPlaceId);
     } else if (fileName.compare("RobloxPlayerBeta.exe") == 0) {
+        // -t is replayed to PlaceLauncher as the rbx-authentication-ticket header; "1" when no --authticket
+        std::wstring ticket = authTicketStr.empty() ? L"1" : authTicketStr;
         if (schemeStr == L"new") {
             std::wstring placeId = placeIdStr.empty() ? L"1818" : placeIdStr;
             std::wstring ip = ipStr.empty() ? L"127.0.0.1" : ipStr;
@@ -352,12 +360,12 @@ Args:
                 ip, port, placeId);
             std::wstring deeplink = std::format(L"roblox://experiences/start?placeId={}", placeId);
             wargs += std::format(
-                L" --play -b \"12345678\" -t \"1\" --launchtime 1716000000000 --rloc en_us --gloc en_us"
+                L" --play -b \"12345678\" -t \"{}\" --launchtime 1716000000000 --rloc en_us --gloc en_us"
                 L" --deeplink \"{}\" -j \"{}\"",
-                deeplink, placeLauncher);
+                ticket, deeplink, placeLauncher);
         } else {
             // Pre-2023: the -a/-j/-t launch (the --play flag did not exist yet)
-            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&placeId={}\" -t \"1\"", ipStr, portStr, placeIdStr);
+            wargs += std::format(L" -a \"http://www.roblox.com/Login/Negotiate.ashx\" -j \"http://www.roblox.com/Game/PlaceLauncher.ashx?ip={}&port={}&placeId={}\" -t \"{}\"", ipStr, portStr, placeIdStr, ticket);
         }
     } else if (fileName.compare("RobloxStudioBeta.exe") == 0 && sideStr == L"server") {
         std::wstring port = portStr.empty() ? L"53640" : portStr;

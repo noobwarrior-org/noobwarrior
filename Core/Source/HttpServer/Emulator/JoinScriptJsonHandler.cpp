@@ -23,13 +23,19 @@
 // Started on: 3/22/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/JoinScriptJsonHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
 
+#include <optional>
+
 using namespace NoobWarrior;
 
-JoinScriptJsonHandler::JoinScriptJsonHandler() {
+JoinScriptJsonHandler::JoinScriptJsonHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
@@ -59,6 +65,40 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     int port = portStr == nullptr ? 53640 : strtol(portStr, nullptr, 10);
     int64_t placeId = placeIdStr == nullptr || *placeIdStr == '\0' ? 1818 : strtoll(placeIdStr, nullptr, 10);
 
+    // Resolve the joining player's identity and the ticket the game server will redeem. The legacy
+    // captured sample values below are overwritten with these before the script is sent.
+    Registry *reg = mEmu->GetCore()->GetRegistry();
+    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+
+    int64_t identId = reg != nullptr ? reg->GetKeyValue<int64_t>("user.id").value_or(1000) : 1000;
+    std::string identName = reg != nullptr ? reg->GetKeyValue<std::string>("user.name").value_or("Player") : "Player";
+    std::string identDisplay = reg != nullptr ? reg->GetKeyValue<std::string>("user.display_name").value_or(identName) : identName;
+    std::string clientTicket = "1";
+
+    if (authEnabled) {
+        EmuDb *master = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
+
+        std::optional<AuthUtil::SessionUser> user = mEmu->ResolveJoiningUser(req);
+        if (!user && reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false))
+            user = AuthUtil::MakeGuestUser();
+
+        if (!user) {
+            Out("JoinScriptJsonHandler", "Refused join: authentication required and guests disabled");
+            evhttp_send_error(req, HTTP_FORBIDDEN, "Authentication required to join this server");
+            return;
+        }
+
+        identId = user->id;
+        identName = user->name;
+        identDisplay = user->displayName;
+        clientTicket = user->isGuest ? AuthUtil::EncodeGuestTicket(*user)
+                                     : AuthUtil::MintAuthTicket(master, user->id, placeId);
+        if (clientTicket.empty()) {
+            evhttp_send_error(req, HTTP_INTERNAL, "Failed to mint authentication ticket");
+            return;
+        }
+    }
+
     nlohmann::json joinScript = nlohmann::json::object();
     joinScript["ClientPort"] = 0;
     joinScript["MachineAddress"] = ipCppStr;
@@ -73,15 +113,15 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     joinScript["DirectServerReturn"] = true;
     joinScript["PingUrl"] = "https://assetgame.roblox.com/Game/ClientPresence.ashx?version=old&PlaceID=1818&GameID=29fd9df4-4c59-4d8c-8cee-8f187b09709b&UserID=7601610";
     joinScript["PingInterval"] = 120;
-    joinScript["UserName"] = "heat tozo";
-    joinScript["DisplayName"] = "heat tozo display name";
+    joinScript["UserName"] = identName;
+    joinScript["DisplayName"] = identDisplay;
     joinScript["SeleniumTestMode"] = false;
-    joinScript["UserId"] = 7601610;
+    joinScript["UserId"] = identId;
     joinScript["RobloxLocale"] = "en_us";
     joinScript["GameLocale"] = "en_us#RobloxTranslateAbTest2";
     joinScript["SuperSafeChat"] = false;
     joinScript["CharacterAppearance"] = "";
-    joinScript["ClientTicket"] = "2022-03-26T05:13:05.7649319Z;dj09X5iTmYtOPwh0hbEC8yvSO1t99oB3Yh5qD/sinDFszq3hPPaL6hH16TvtCen6cABIycyDv3tghW7k8W+xuqW0/xWvs0XJeiIWstmChYnORzM1yCAVnAh3puyxgaiIbg41WJSMALRSh1hoRiVFOXw4BKjSKk7DrTTcL9nOG1V5YwVnmAJKY7/m0yZ81xE99QL8UVdKz2ycK8l8JFvfkMvgpqLNBv0APRNykGDauEhAx283vARJFF0D9UuSV69q6htLJ1CN2kXL0Saxtt/kRdoP3p3Nhj2VgycZnGEo2NaG25vwc/KzOYEFUV0QdQPC8Vs2iFuq8oK+fXRc3v6dnQ==;BO8oP7rzmnIky5ethym6yRECd6H14ojfHP3nHxSzfTs=;XsuKZL4TBjh8STukr1AgkmDSo5LGgQKQbvymZYi/80TYPM5/MXNr5HKoF3MOT3Nfm0MrubracyAtg5O3slIKBg==;6";
+    joinScript["ClientTicket"] = clientTicket;
     joinScript["GameId"] = "29fd9df4-4c59-4d8c-8cee-8f187b09709b";
     joinScript["PlaceId"] = placeId;
     joinScript["BaseUrl"] = "http://assetgame.roblox.com/";
@@ -100,7 +140,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     joinScript["DataCenterId"] = 302;
     joinScript["UniverseId"] = 994732206;
     joinScript["FollowUserId"] = 0;
-    joinScript["characterAppearanceId"] = 244775698;
+    joinScript["characterAppearanceId"] = identId;
     joinScript["CountryCode"] = "US";
     joinScript["RandomSeed1"] = "7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==";
     joinScript["ClientPublicKeyData"] = "{\"creationTime\":\"19:56 11/23/2021\",\"applications\":{\"RakNetEarlyPublicKey\":{\"versions\":[{\"id\":2,\"value\":\"HwatfCnkndvyKCMPSa0VAl2M2c0GQv9+0z0kENhcj2w=\",\"allowed\":true}],\"send\":2,\"revert\":2}}}";

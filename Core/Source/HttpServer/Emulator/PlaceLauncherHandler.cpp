@@ -23,6 +23,10 @@
 // Started on: 3/22/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/PlaceLauncherHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 
 #include <nlohmann/json.hpp>
@@ -31,7 +35,7 @@ static constexpr const char* JSON = R"({"jobId":"Test","status":2,"joinScriptUrl
 
 using namespace NoobWarrior;
 
-PlaceLauncherHandler::PlaceLauncherHandler() {
+PlaceLauncherHandler::PlaceLauncherHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
@@ -56,6 +60,29 @@ void PlaceLauncherHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* ipStr = evhttp_find_header(&headers, "ip");
     const char* portStr = evhttp_find_header(&headers, "port");
     const char* placeIdStr = evhttp_find_header(&headers, "placeId");
+
+    // Auth gate: refuse to hand out a join script when auth is required and there's no joining
+    // identity and no guest access. The identity itself is resolved (and the ticket minted) by the
+    // join-script handler; the client authenticates separately via /v1/authentication-ticket/redeem.
+    if (Registry *reg = mEmu->GetCore()->GetRegistry();
+        reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        bool allowGuests = reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false);
+        if (!mEmu->ResolveJoiningUser(req) && !allowGuests) {
+            nlohmann::json denied = nlohmann::json::object();
+            denied["jobId"] = "Test";
+            denied["status"] = 22; // non-2: the client treats this as a failed launch
+            denied["joinScriptUrl"] = nullptr;
+            denied["authenticationUrl"] = "http://www.roblox.com/Login/Negotiate.ashx";
+            denied["authenticationTicket"] = nullptr;
+            denied["message"] = "Authentication required to join this server";
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+            evbuffer *deny = evbuffer_new();
+            evbuffer_add_printf(deny, "%s", denied.dump().c_str());
+            evhttp_send_reply(req, 200, nullptr, deny);
+            evbuffer_free(deny);
+            return;
+        }
+    }
 
     nlohmann::json json = nlohmann::json::object();
     json["jobId"] = "Test";

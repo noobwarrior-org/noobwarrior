@@ -42,28 +42,32 @@ EmulatorProxy::~EmulatorProxy() {
     StopPool();
 }
 
-void EmulatorProxy::PushLayer(const std::string &host, uint16_t port) {
+void EmulatorProxy::PushLayer(const std::string &host, uint16_t port, const std::string &sessionToken) {
     std::lock_guard lock(mLayersMutex);
-    // If this layer is already present, lift it to the top instead of duplicating it.
-    auto it = std::find(mLayers.begin(), mLayers.end(), Layer{host, port});
+    // a layer is identified by host + port; the session token is per-connection metadata. If it's
+    // already present, lift it to the top instead of duplicating it.
+    auto matches = [&](const Layer &l) { return l.Host == host && l.Port == port; };
+    auto it = std::find_if(mLayers.begin(), mLayers.end(), matches);
     if (it != mLayers.end())
         mLayers.erase(it);
-    mLayers.insert(mLayers.begin(), Layer{host, port}); // newest layer is tried first
-    Out("EmulatorProxy", "Pushed proxy layer {}:{} (depth now {})", host, port, mLayers.size());
+    mLayers.insert(mLayers.begin(), Layer{host, port, sessionToken}); // newest layer is tried first
+    Out("EmulatorProxy", "Pushed proxy layer {}:{} (depth now {}{})", host, port, mLayers.size(),
+        sessionToken.empty() ? "" : ", authenticated");
 }
 
 bool EmulatorProxy::PopLayer() {
     std::lock_guard lock(mLayersMutex);
     if (mLayers.empty())
         return false;
-    Out("EmulatorProxy", "Popped proxy layer {}:{}", mLayers.front().first, mLayers.front().second);
+    Out("EmulatorProxy", "Popped proxy layer {}:{}", mLayers.front().Host, mLayers.front().Port);
     mLayers.erase(mLayers.begin());
     return true;
 }
 
 void EmulatorProxy::RemoveLayer(const std::string &host, uint16_t port) {
     std::lock_guard lock(mLayersMutex);
-    auto it = std::find(mLayers.begin(), mLayers.end(), Layer{host, port});
+    auto it = std::find_if(mLayers.begin(), mLayers.end(),
+                           [&](const Layer &l) { return l.Host == host && l.Port == port; });
     if (it != mLayers.end()) {
         mLayers.erase(it);
         Out("EmulatorProxy", "Removed proxy layer {}:{} (depth now {})", host, port, mLayers.size());
@@ -145,8 +149,11 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, R
     r->Fallback   = std::move(localFallback);
     r->Transform  = std::move(transform);
     r->Urls.reserve(layers.size());
-    for (const auto &[host, port] : layers)
-        r->Urls.push_back("https://" + host + ":" + std::to_string(port) + path);
+    r->Cookies.reserve(layers.size());
+    for (const Layer &layer : layers) {
+        r->Urls.push_back("https://" + layer.Host + ":" + std::to_string(layer.Port) + path);
+        r->Cookies.push_back(layer.SessionToken); // forwarded so the host can identify the joiner
+    }
 
     switch (evhttp_request_get_command(req)) {
     case EVHTTP_REQ_POST: r->Method = "POST"; break;
@@ -207,21 +214,26 @@ void EmulatorProxy::RunWorker() {
             mQueue.pop_front();
         }
 
-        // The method, body and headers are identical for every layer; only the host changes. Set
-        // them once (SetHeader/SetBody replace, so nothing leaks from the previous forward).
-        cpr::Header headers;
-        if (!r->Accept.empty())      headers["Accept"]       = r->Accept;
-        if (!r->ContentType.empty()) headers["Content-Type"] = r->ContentType;
-        session.SetHeader(headers);
+        // The method and body are identical for every layer; only the host (and its session cookie)
+        // change. SetHeader/SetBody replace, so nothing leaks from the previous forward.
+        cpr::Header baseHeaders;
+        if (!r->Accept.empty())      baseHeaders["Accept"]       = r->Accept;
+        if (!r->ContentType.empty()) baseHeaders["Content-Type"] = r->ContentType;
         session.SetBody(cpr::Body{r->Body});
 
         ProxyResult result;
         // Walk the stack top -> bottom. First 2xx wins; a non-2xx answer or an unreachable layer
         // falls through to the next one down.
-        for (const std::string &url : r->Urls) {
+        for (size_t i = 0; i < r->Urls.size(); ++i) {
             if (!mPoolRunning)
                 break;
-            session.SetUrl(cpr::Url{url});
+
+            // Attach this layer's session cookie so the host can authenticate the joiner.
+            cpr::Header headers = baseHeaders;
+            if (i < r->Cookies.size() && !r->Cookies[i].empty())
+                headers["Cookie"] = ".LOGINSESSION=" + r->Cookies[i];
+            session.SetHeader(headers);
+            session.SetUrl(cpr::Url{r->Urls[i]});
 
             cpr::Response resp = (r->Method == "GET") ? session.Get()
                                : (r->Method == "PUT") ? session.Put()

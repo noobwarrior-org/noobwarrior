@@ -54,8 +54,8 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mClientSettingsV2StudioHandler(this),
     mClientSettingsV2DesktopHandler(),
     mNegotiateHandler(),
-    mPlaceLauncherHandler(),
-    mJoinScriptJsonHandler(),
+    mPlaceLauncherHandler(this),
+    mJoinScriptJsonHandler(this),
     mGameJoinHandler(this),
     mAuthTicketRedeemHandler(this),
     mAppBehaviorsHandler(),
@@ -79,6 +79,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mGamesListHandler(),
     mAvatarFetchHandler(this),
     mAvatarOverrideHandler(this),
+    mAuthInfoHandler(this),
     mUniversalAppConfigStudioHandler(),
     mMySettingsJsonHandler(this),
     mAuthenticatedUserHandler(this),
@@ -194,6 +195,8 @@ void ServerEmulator::SetupHandlers() {
     // Internal: a joining client federates its avatar appearance to the host here (see AvatarOverrideHandler).
     SetRequestHandler("/emu/v1/avatar-override", &mAvatarOverrideHandler);
 
+    SetRequestHandler("/emu/v1/auth-info", &mAuthInfoHandler);
+
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 
     SetRequestHandler("/my/settings/json", &mMySettingsJsonHandler);
@@ -258,8 +261,8 @@ int ServerEmulator::Stop() {
     return HttpServer::Stop();
 }
 
-void ServerEmulator::PushProxyLayer(const std::string &host, uint16_t port) {
-    mEmulatorProxy.PushLayer(host, port);
+void ServerEmulator::PushProxyLayer(const std::string &host, uint16_t port, const std::string &sessionToken) {
+    mEmulatorProxy.PushLayer(host, port, sessionToken);
 }
 
 bool ServerEmulator::PopProxyLayer() {
@@ -275,7 +278,10 @@ void ServerEmulator::ClearProxyLayers() {
 }
 
 std::vector<std::pair<std::string, uint16_t>> ServerEmulator::GetProxyLayers() const {
-    return mEmulatorProxy.GetLayers();
+    std::vector<std::pair<std::string, uint16_t>> out;
+    for (const auto &layer : mEmulatorProxy.GetLayers())
+        out.emplace_back(layer.Host, layer.Port);
+    return out;
 }
 
 bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback,
@@ -284,7 +290,10 @@ bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evh
 }
 
 void ServerEmulator::SetAvatarOverride(int64_t userId, const std::string &avatarFetchJson) {
+    static constexpr size_t kMaxOverrideEntries = 4096;
     std::lock_guard lock(mAvatarOverridesMutex);
+    if (mAvatarOverrides.size() >= kMaxOverrideEntries && !mAvatarOverrides.count(userId))
+        return; // bound memory against a flood of new-user overrides
     mAvatarOverrides[userId] = avatarFetchJson;
     Out(mLogName, "Stored federated avatar override for userId={} ({} bytes)", userId, avatarFetchJson.size());
 }
@@ -299,6 +308,24 @@ std::optional<std::string> ServerEmulator::GetAvatarOverride(int64_t userId) con
 void ServerEmulator::ClearAvatarOverrides() {
     std::lock_guard lock(mAvatarOverridesMutex);
     mAvatarOverrides.clear();
+}
+
+void ServerEmulator::SetCurrentLaunchUser(const AuthUtil::SessionUser &user) {
+    std::lock_guard lock(mCurrentLaunchUserMutex);
+    mCurrentLaunchUser = user;
+}
+
+std::optional<AuthUtil::SessionUser> ServerEmulator::GetCurrentLaunchUser() const {
+    std::lock_guard lock(mCurrentLaunchUserMutex);
+    return mCurrentLaunchUser;
+}
+
+std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveJoiningUser(evhttp_request *req) {
+    if (auto launchUser = GetCurrentLaunchUser())
+        return launchUser;
+    EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
+    const char *cookie = evhttp_find_header(evhttp_request_get_input_headers(req), "Cookie");
+    return AuthUtil::ResolveSessionUser(master, AuthUtil::ExtractCookieValue(cookie, ".LOGINSESSION"));
 }
 
 void ServerEmulator::SetActiveEditDbFile(const std::string &dbFileName) {

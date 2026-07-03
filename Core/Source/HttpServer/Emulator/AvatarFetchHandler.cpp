@@ -46,10 +46,16 @@ std::optional<int64_t> ParseUserId(evhttp_request *req) {
         return std::nullopt;
     std::optional<int64_t> result;
     if (const char* v = evhttp_find_header(&params, "userId")) {
+        // Some clients double-encode the userId, so a negative id arrives as "%2D9970" after one
+        // decode. Decode again (a no-op for a plain id) before parsing.
+        char* decoded = evhttp_uridecode(v, 0, nullptr);
+        const char* s = decoded ? decoded : v;
         char* end = nullptr;
-        long long id = std::strtoll(v, &end, 10);
-        if (end != v)
+        long long id = std::strtoll(s, &end, 10);
+        if (end != s)
             result = static_cast<int64_t>(id);
+        if (decoded)
+            free(decoded);
     }
     evhttp_clear_headers(&params);
     return result;
@@ -70,18 +76,32 @@ AvatarFetchHandler::AvatarFetchHandler(ServerEmulator* emu) : mEmu(emu) {
 
 void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
     Core* core = mEmu->GetCore();
+    std::optional<int64_t> userId = ParseUserId(req);
+
+    // Guests (negative id) always get a plain black/white placeholder.
+    if (userId && *userId < 0) {
+        SendJson(req, AvatarAppearance::BuildGuestAvatarFetchJson().dump());
+        return;
+    }
+
+    // Auth mode: serve the requested user's DB-stored avatar. The local registry appearance and any
+    // client-pushed override are ignored, so a joiner can't spoof or leak an appearance.
+    if (core->GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        int64_t id = userId.value_or(core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000));
+        SendJson(req, AvatarAppearance::BuildAvatarFetchJsonForUser(core, id).dump());
+        return;
+    }
+
+    // Auth off (legacy): a federated override for a remote player, else the local registry appearance.
     int64_t localUserId = core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000);
-    
-    if (std::optional<int64_t> userId = ParseUserId(req); userId && *userId != localUserId) {
+    if (userId && *userId != localUserId) {
         if (std::optional<std::string> federated = mEmu->GetAvatarOverride(*userId)) {
             Out("AvatarFetchHandler", "Serving federated avatar for userId={}", *userId);
             SendJson(req, *federated);
             return;
         }
     }
-
-    nlohmann::json j = AvatarAppearance::BuildAvatarFetchJson(core);
-    SendJson(req, j.dump());
+    SendJson(req, AvatarAppearance::BuildAvatarFetchJson(core).dump());
 }
 
 void AvatarFetchHandler::OnRequest(evhttp_request *req, void *userdata) {

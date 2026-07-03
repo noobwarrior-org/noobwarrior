@@ -23,7 +23,10 @@
 // Started on: 4/21/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/CurrentUserHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 
 using namespace NoobWarrior;
@@ -37,6 +40,12 @@ void CurrentUserHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     auto* registry = mEmu->GetCore()->GetRegistry();
     auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);
+
+    // Under auth, the current user is the authenticated joining player, not the local registry id.
+    if (registry->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        if (auto user = mEmu->ResolveJoiningUser(req))
+            id = user->id;
+    }
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();

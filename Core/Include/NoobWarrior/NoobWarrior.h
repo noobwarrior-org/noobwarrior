@@ -209,8 +209,14 @@ public:
      * The vector part contains start parameters for each server containing their respective IP addresses, ports, and what version of Roblox they use.
      * This response should be passed to LaunchEngine, which will promptly start the game.
      */
-    void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback);
-    
+    void ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback, const std::string &sessionToken = "");
+
+    /* Logs into a remote host emulator's website (POST /v1/login) and returns the .LOGINSESSION token
+     * from the Set-Cookie response, or std::nullopt on failure. Used before ConnectToServerEmulator
+     * when the host has authentication enabled, so the resulting token can be forwarded on join. */
+    std::optional<std::string> LoginToRemoteHost(const std::string &ip, uint16_t port,
+                                                 const std::string &username, const std::string &password);
+
     Backup::Process* CreateBackupProcess(const Backup::ProcessOptions options);
 
     LuaSignal* GetConsoleAddedSignal();

@@ -26,9 +26,11 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 #include <NoobWarrior/Roblox/DataType/BrickColor.h>
+#include <NoobWarrior/Roblox/DataType/Color3.h>
 
 #include <nlohmann/json.hpp>
 
@@ -241,6 +243,96 @@ nlohmann::json DefaultEmotesJson() {
     return emotes;
 }
 
+nlohmann::json BuildFetchJson(const Appearance& a) {
+    nlohmann::json j;
+    j["resolvedAvatarType"] = a.AvatarType;
+    j["equippedGearVersionIds"] = nlohmann::json::array();
+    j["backpackGearVersionIds"] = nlohmann::json::array();
+
+    nlohmann::json assetIds = nlohmann::json::array();
+    for (const WornAsset& w : a.Worn) {
+        nlohmann::json entry;
+        entry["assetId"] = w.Id;
+        entry["assetTypeId"] = w.TypeId;
+        assetIds.push_back(entry);
+    }
+    j["assetAndAssetTypeIds"] = assetIds;
+
+    nlohmann::json anims = nlohmann::json::object();
+    for (const auto& [name, id] : a.Animations)
+        anims[name] = id;
+    j["animationAssetIds"] = anims;
+
+    j["bodyColors"] = BodyColorIdsJson(a);
+    j["bodyColor3s"] = BodyColor3sJson(a);
+    j["scales"] = ScalesJson(a);
+    j["emotes"] = nlohmann::json::array();
+    return j;
+}
+
+// Classic default character (yellow head/arms, blue torso, green legs), nothing worn.
+Appearance MakeDefaultAppearance() {
+    Appearance a{};
+    a.HeadColor = a.RightArmColor = a.LeftArmColor = "Bright yellow";
+    a.TorsoColor = "Bright blue";
+    a.RightLegColor = a.LeftLegColor = "Br. yellowish green";
+    a.Height = a.Width = a.Head = a.Depth = 1.0;
+    return a;
+}
+
+Appearance MakeGuestAppearance() {
+    Appearance a = MakeDefaultAppearance();
+    a.HeadColor = a.RightArmColor = a.LeftArmColor = "Institutional white";
+    a.TorsoColor = a.RightLegColor = a.LeftLegColor = "Really black";
+    return a;
+}
+
+// An authenticated user's stored character, read from the master database. Falls through to the
+// classic default when the user has no stored appearance (never the local registry).
+Appearance ReadAppearanceFromDb(Core* core, int64_t userId) {
+    Appearance a = MakeDefaultAppearance();
+    EmuDb* db = core->GetEmuDbManager()->GetMasterDatabase();
+    if (db == nullptr || db->Fail())
+        return a;
+
+    Statement items = db->PrepareStatement("SELECT AssetId FROM UserCharacterItem WHERE Id = ?;");
+    items.Bind(1, userId);
+    while (items.Step() == SQLITE_ROW) {
+        int64_t assetId = items.GetInt64FromColumnIndex(0);
+        if (assetId > 0)
+            a.Worn.push_back({ assetId, ResolveType(core, assetId, AssetType::Hat) });
+    }
+
+    Statement colors = db->PrepareStatement("SELECT BodyPart, Color3 FROM UserCharacterBodyColor WHERE Id = ?;");
+    colors.Bind(1, userId);
+    while (colors.Step() == SQLITE_ROW) {
+        int packed = static_cast<int>(colors.GetInt64FromColumnIndex(1));
+        Roblox::Color3 c = Roblox::Color3::fromRGB((packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF);
+        std::string name = Roblox::BrickColor(c).Name();
+        switch (static_cast<UserCharacterBodyPart>(colors.GetIntFromColumnIndex(0))) {
+        case UserCharacterBodyPart::Head:     a.HeadColor = name; break;
+        case UserCharacterBodyPart::Torso:    a.TorsoColor = name; break;
+        case UserCharacterBodyPart::RightArm: a.RightArmColor = name; break;
+        case UserCharacterBodyPart::LeftArm:  a.LeftArmColor = name; break;
+        case UserCharacterBodyPart::RightLeg: a.RightLegColor = name; break;
+        case UserCharacterBodyPart::LeftLeg:  a.LeftLegColor = name; break;
+        }
+    }
+
+    Statement scale = db->PrepareStatement(
+        "SELECT CharacterBodyType, CharacterWidth, CharacterHeight, CharacterHead, CharacterProportions FROM User WHERE Id = ?;");
+    scale.Bind(1, userId);
+    if (scale.Step() == SQLITE_ROW) {
+        auto mult = [&](int col) { double v = scale.GetDoubleFromColumnIndex(col); return v > 0.0 ? v : 1.0; };
+        if (!scale.IsColumnIndexNull(0)) a.BodyType   = scale.GetDoubleFromColumnIndex(0);
+        if (!scale.IsColumnIndexNull(1)) a.Width      = mult(1);
+        if (!scale.IsColumnIndexNull(2)) a.Height     = mult(2);
+        if (!scale.IsColumnIndexNull(3)) a.Head       = mult(3);
+        if (!scale.IsColumnIndexNull(4)) a.Proportion = scale.GetDoubleFromColumnIndex(4);
+    }
+    return a;
+}
+
 }
 
 nlohmann::json AvatarAppearance::BuildAvatarJson(Core* core) {
@@ -272,30 +364,13 @@ nlohmann::json AvatarAppearance::BuildAvatarJson(Core* core) {
 }
 
 nlohmann::json AvatarAppearance::BuildAvatarFetchJson(Core* core) {
-    Appearance a = ReadAppearance(core);
+    return BuildFetchJson(ReadAppearance(core));
+}
 
-    nlohmann::json j;
-    j["resolvedAvatarType"] = a.AvatarType;
-    j["equippedGearVersionIds"] = nlohmann::json::array();
-    j["backpackGearVersionIds"] = nlohmann::json::array();
+nlohmann::json AvatarAppearance::BuildAvatarFetchJsonForUser(Core* core, int64_t userId) {
+    return BuildFetchJson(ReadAppearanceFromDb(core, userId));
+}
 
-    nlohmann::json assetIds = nlohmann::json::array();
-    for (const WornAsset& w : a.Worn) {
-        nlohmann::json entry;
-        entry["assetId"] = w.Id;
-        entry["assetTypeId"] = w.TypeId;
-        assetIds.push_back(entry);
-    }
-    j["assetAndAssetTypeIds"] = assetIds;
-
-    nlohmann::json anims = nlohmann::json::object();
-    for (const auto& [name, id] : a.Animations)
-        anims[name] = id;
-    j["animationAssetIds"] = anims;
-
-    j["bodyColors"] = BodyColorIdsJson(a);
-    j["bodyColor3s"] = BodyColor3sJson(a);
-    j["scales"] = ScalesJson(a);
-    j["emotes"] = nlohmann::json::array();
-    return j;
+nlohmann::json AvatarAppearance::BuildGuestAvatarFetchJson() {
+    return BuildFetchJson(MakeGuestAppearance());
 }

@@ -176,6 +176,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Base/TestHandler.cpp
     Source/HttpServer/Emulator/ServerEmulator.cpp
     Source/HttpServer/Emulator/EmulatorProxy.cpp
+    Source/HttpServer/Emulator/AuthUtil.cpp
+    Source/HttpServer/Emulator/AuthInfoHandler.cpp
     Source/HttpServer/Emulator/ProcessPingHandler.cpp
     Source/HttpServer/Emulator/StaticJsonHandler.cpp
     Source/HttpServer/Emulator/CreateAccountHandler.cpp

@@ -35,7 +35,15 @@ namespace AvatarAppearance {
     nlohmann::json BuildAvatarJson(Core* core);
 
     // The body of /v1.1/avatar-fetch (a.k.a. /v2/avatar/avatar-fetch): the appearance the engine
-    // applies when spawning a player's character.
+    // applies when spawning a player's character. Built from the local registry appearance.
     nlohmann::json BuildAvatarFetchJson(Core* core);
+
+    // avatar-fetch for an authenticated user, built from their DB-stored character (auth mode); the
+    // local registry appearance is never consulted. Falls back to a default avatar if the user has no
+    // stored character.
+    nlohmann::json BuildAvatarFetchJsonForUser(Core* core, int64_t userId);
+
+    // avatar-fetch for a guest: a plain black/white placeholder character.
+    nlohmann::json BuildGuestAvatarFetchJson();
 }
 }

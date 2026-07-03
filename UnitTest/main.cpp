@@ -26,6 +26,7 @@
 
 #include <gtest/gtest.h>
 #include <NoobWarrior.hpp>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 
 #include <zlib.h>
 
@@ -494,6 +495,108 @@ TEST(Database, DeleteAsset) {
 
 TEST(Database, Close) {
     delete sEmuDb;
+}
+
+TEST(Auth, PasswordHashRoundTrip) {
+    std::vector<unsigned char> salt(AuthUtil::kSaltLength, 0xAB);
+    std::string hash = AuthUtil::HashPassword("correcthorse", salt);
+    ASSERT_FALSE(hash.empty()) << "HashPassword returned empty; Argon2id derivation failed.";
+
+    std::string saltHex = AuthUtil::ToHex(salt.data(), salt.size());
+    EXPECT_TRUE(AuthUtil::VerifyPassword("correcthorse", saltHex, hash))
+        << "VerifyPassword rejected the correct password.";
+    EXPECT_FALSE(AuthUtil::VerifyPassword("wrongpassword", saltHex, hash))
+        << "VerifyPassword accepted an incorrect password.";
+}
+
+TEST(Auth, GuestTicketRoundTrip) {
+    AuthUtil::SessionUser guest = AuthUtil::MakeGuestUser();
+    EXPECT_TRUE(guest.isGuest);
+    EXPECT_LT(guest.id, 0) << "Guests must have a negative id so they never collide with real accounts.";
+
+    std::string ticket = AuthUtil::EncodeGuestTicket(guest);
+    auto decoded = AuthUtil::DecodeGuestTicket(ticket);
+    ASSERT_TRUE(decoded.has_value()) << "A guest ticket should decode back to a guest.";
+    EXPECT_EQ(guest.id, decoded->id);
+    EXPECT_EQ(guest.displayName, decoded->displayName);
+    EXPECT_TRUE(decoded->isGuest);
+
+    // A real (non-guest) ticket must not be mistaken for a guest.
+    EXPECT_FALSE(AuthUtil::DecodeGuestTicket("deadbeef").has_value());
+}
+
+TEST(Auth, ResolveSessionUser) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 1000}, {"Name", "alice"}, {"DisplayName", "Alice"}
+    }));
+    ASSERT_TRUE(db.ExecStatement("INSERT INTO LoginSession (Token, UserId) VALUES ('tok-alice', 1000);"));
+
+    auto user = AuthUtil::ResolveSessionUser(&db, "tok-alice");
+    ASSERT_TRUE(user.has_value()) << "A valid session token should resolve to its user.";
+    EXPECT_EQ(1000, user->id);
+    EXPECT_EQ("alice", user->name);
+    EXPECT_EQ("Alice", user->displayName);
+
+    EXPECT_FALSE(AuthUtil::ResolveSessionUser(&db, "nope").has_value())
+        << "An unknown token must not resolve to a user.";
+    EXPECT_FALSE(AuthUtil::ResolveSessionUser(&db, "").has_value())
+        << "An empty token must not resolve to a user.";
+}
+
+TEST(Auth, AuthTicketMintRedeemSingleUse) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 2000}, {"Name", "bob"}, {"DisplayName", "Bob"}
+    }));
+
+    std::string ticket = AuthUtil::MintAuthTicket(&db, 2000, 1818);
+    ASSERT_FALSE(ticket.empty()) << "MintAuthTicket should return a ticket string.";
+
+    auto first = AuthUtil::RedeemAuthTicket(&db, ticket, 120);
+    ASSERT_TRUE(first.has_value()) << "A fresh ticket should redeem successfully.";
+    EXPECT_EQ(2000, first->id);
+    EXPECT_EQ("bob", first->name);
+
+    // Single-use: a second redeem of the same ticket must fail.
+    EXPECT_FALSE(AuthUtil::RedeemAuthTicket(&db, ticket, 120).has_value())
+        << "A ticket must not be redeemable twice.";
+}
+
+TEST(Auth, AuthTicketExpiry) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 3000}, {"Name", "carol"}, {"DisplayName", "Carol"}
+    }));
+
+    std::string ticket = AuthUtil::MintAuthTicket(&db, 3000, 0);
+    ASSERT_FALSE(ticket.empty());
+
+    // A TTL of 0 means the ticket is already expired (age is never < 0), so redeem must fail.
+    EXPECT_FALSE(AuthUtil::RedeemAuthTicket(&db, ticket, 0).has_value())
+        << "An expired ticket (ttl=0) must not redeem.";
+    // ...and having failed the age check, it is still unredeemed, so a valid TTL still works.
+    EXPECT_TRUE(AuthUtil::RedeemAuthTicket(&db, ticket, 120).has_value())
+        << "A ticket that only failed the age check should still be redeemable within TTL.";
+}
+
+TEST(Auth, CreateLoginSession) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {
+        {"Id", 4000}, {"Name", "dave"}, {"DisplayName", "Dave"}
+    }));
+
+    std::string token = AuthUtil::CreateLoginSession(&db, 4000, "127.0.0.1", "UnitTest");
+    ASSERT_FALSE(token.empty()) << "CreateLoginSession should return a session token.";
+
+    auto user = AuthUtil::ResolveSessionUser(&db, token);
+    ASSERT_TRUE(user.has_value()) << "The created session must resolve back to its user.";
+    EXPECT_EQ(4000, user->id);
+    EXPECT_EQ("dave", user->name);
 }
 
 int main(int argc, char** argv) {

@@ -79,6 +79,8 @@
 #include "AuthTicketRedeemHandler.h"
 #include "AvatarFetchHandler.h"
 #include "AvatarOverrideHandler.h"
+#include "AuthInfoHandler.h"
+#include "AuthUtil.h"
 #include "EmulatorProxy.h"
 
 #include <atomic>
@@ -135,7 +137,7 @@ public:
     
     std::string ResolveAdvertisedAddress(const std::string &localAddr);
 
-    void PushProxyLayer(const std::string &host, uint16_t port);
+    void PushProxyLayer(const std::string &host, uint16_t port, const std::string &sessionToken = "");
     bool PopProxyLayer();
     void RemoveProxyLayer(const std::string &host, uint16_t port);
     void ClearProxyLayers();
@@ -158,6 +160,17 @@ public:
     // StudioOpenPlaceHandler). Lets descendant-asset publishing land in the same .nwdb as the game.
     void SetActiveEditDbFile(const std::string &dbFileName);
     std::string GetActiveEditDbFile() const;
+
+    // Identity from the most recent launch-ticket redemption. A launched client redeems its -t ticket
+    // to authenticate, then joins; the local join reads this instead of the client's persistence-prone
+    // .LOGINSESSION cookie. Assumes one local launch at a time.
+    void SetCurrentLaunchUser(const AuthUtil::SessionUser &user);
+    std::optional<AuthUtil::SessionUser> GetCurrentLaunchUser() const;
+
+    // The identity joining this server: the just-launched local client's identity (from its redeemed
+    // launch ticket), else the joiner's forwarded .LOGINSESSION cookie (a remote proxied join). The
+    // single source of truth for who is joining; nullopt when nobody is identified.
+    std::optional<AuthUtil::SessionUser> ResolveJoiningUser(evhttp_request *req);
 
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
@@ -202,6 +215,7 @@ private:
     GamesSortsHandler mGamesSortsHandler;
     AvatarFetchHandler mAvatarFetchHandler;
     AvatarOverrideHandler mAvatarOverrideHandler;
+    AuthInfoHandler mAuthInfoHandler;
     GamesListHandler mGamesListHandler;
     UniversalAppConfigStudioHandler mUniversalAppConfigStudioHandler;
     MySettingsJsonHandler mMySettingsJsonHandler;
@@ -237,6 +251,9 @@ private:
     // Database file name of the place currently open for editing (see Set/GetActiveEditDbFile).
     mutable std::mutex mActiveEditDbMutex;
     std::string mActiveEditDbFile;
+
+    mutable std::mutex mCurrentLaunchUserMutex;
+    std::optional<AuthUtil::SessionUser> mCurrentLaunchUser;
 
     AssetEnricher mAssetEnricher;
 
