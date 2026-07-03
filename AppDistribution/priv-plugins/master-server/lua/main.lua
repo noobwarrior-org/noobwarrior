@@ -308,6 +308,9 @@ local sitemap = {
     ["/v1/federation/unban-peer"] = "/src/api/federation/unban_peer.lhp",
     ["/v1/join/mint-voucher"] = "/src/api/join/mint_voucher.lhp",
     ["/v1/join/verify-federated"] = "/src/api/join/verify_federated.lhp",
+    ["/emu/v1/avatar/mine"] = "/src/api/avatar/mine.lhp",
+    ["/emu/v1/avatar/catalog"] = "/src/api/avatar/catalog.lhp",
+    ["/emu/v1/avatar/thumbnail"] = "/src/api/avatar/thumbnail.lhp",
     ["/v1/workshop/start-upload"] = "/src/api/workshop/start_upload.lhp",
     ["/v1/workshop/stream-upload"] = "/src/api/workshop/stream_upload.lhp",
     ["/v1/workshop/end-upload"] = "/src/api/workshop/end_upload.lhp",
@@ -322,7 +325,6 @@ local sitemap = {
     -- Federation protocol
     ["/fed/v1/info"] = "/src/api/fed/info.lhp",
     ["/fed/v1/users/:username"] = "/src/api/fed/user.lhp",
-    -- (/fed/v1/verify removed: actions are now verified by Ed25519 signature, not an origin callback.)
     ["/fed/v1/avatar"] = "/src/api/fed/avatar.lhp",
     ["/fed/v1/inbox"] = "/src/api/fed/inbox.lhp",
     ["/fed/v1/servers"] = "/src/api/servers.lhp",

@@ -30,11 +30,13 @@
 
 #include <QListWidgetItem>
 #include <QPixmap>
+#include <QString>
 
 namespace NoobWarrior {
 class ItemWidget : public QListWidgetItem {
 public:
     ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListWidget *listview = nullptr);
+    ItemWidget(int64_t id, const QString& name, const QPixmap& icon, QListWidget *listview = nullptr);
 
     void Configure();
     NoobWarrior::ItemType GetType();

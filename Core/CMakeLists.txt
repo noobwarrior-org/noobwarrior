@@ -228,6 +228,9 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
     Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp
     Source/HttpServer/Emulator/SessionCheckHandler.cpp
+    Source/HttpServer/Emulator/AvatarSetHandler.cpp
+    Source/HttpServer/Emulator/AvatarCatalogHandler.cpp
+    Source/HttpServer/Emulator/AvatarThumbnailHandler.cpp
     Source/HttpServer/Emulator/CurrentUserHandler.cpp
     Source/HttpServer/Emulator/RequestAuthHandler.cpp
     Source/HttpServer/Emulator/GameIconHandler.cpp

@@ -29,7 +29,7 @@
 #include "Dialog/AboutDialog.h"
 #include "Dialog/DatabaseDialog.h"
 #include "Dialog/PluginDialog.h"
-#include "Dialog/LocalPlayerDialog.h"
+#include "Dialog/PlayerDialog.h"
 #include "ServerHost/HostServerDialog.h"
 #include "OnlineWindow/OnlineWindow.h"
 
@@ -51,7 +51,7 @@ public:
     OnlineWindow *mOnlineWindow;
     DatabaseDialog *mDatabaseDialog;
     PluginDialog *mPluginDialog;
-    LocalPlayerDialog *mLocalPlayerDialog;
+    PlayerDialog *mPlayerDialog;
 protected:
     void paintEvent(QPaintEvent *event) override;
 private:

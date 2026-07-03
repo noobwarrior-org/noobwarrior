@@ -19,7 +19,8 @@ set(SOURCES
     Dialog/AuthBaseDialog.cpp
     Dialog/AuthTokenDialog.cpp
     Dialog/DatabaseDialog.cpp
-    Dialog/LocalPlayerDialog.cpp
+    Dialog/PlayerDialog.cpp
+    Dialog/AvatarBackend.cpp
     Dialog/PluginDialog.cpp
     Dialog/SelectStudioVersionDialog.cpp
     ServerHost/HostServerDialog.cpp

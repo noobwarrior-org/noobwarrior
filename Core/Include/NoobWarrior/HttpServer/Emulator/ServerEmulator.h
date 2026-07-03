@@ -42,6 +42,9 @@
 #include "MySettingsJsonHandler.h"
 #include "AuthenticatedUserHandler.h"
 #include "SessionCheckHandler.h"
+#include "AvatarSetHandler.h"
+#include "AvatarCatalogHandler.h"
+#include "AvatarThumbnailHandler.h"
 #include "CurrentUserHandler.h"
 #include "RequestAuthHandler.h"
 #include "StudioEditHandler.h"
@@ -237,6 +240,9 @@ private:
     MySettingsJsonHandler mMySettingsJsonHandler;
     AuthenticatedUserHandler mAuthenticatedUserHandler;
     SessionCheckHandler mSessionCheckHandler;
+    AvatarSetHandler mAvatarSetHandler;
+    AvatarCatalogHandler mAvatarCatalogHandler;
+    AvatarThumbnailHandler mAvatarThumbnailHandler;
     CurrentUserHandler mCurrentUserHandler;
     RequestAuthHandler mRequestAuthHandler;
     StudioEditHandler mStudioEditHandler;

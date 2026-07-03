@@ -18,11 +18,12 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LocalPlayerDialog.cpp
+// File: PlayerDialog.cpp
 // Started by: Hattozo
 // Started on: 4/23/2026
 // Description:
-#include "LocalPlayerDialog.h"
+#include "PlayerDialog.h"
+#include "AvatarBackend.h"
 #include "../Application.h"
 
 #include "Sdk/Item/ItemListWidget.h"
@@ -34,12 +35,22 @@
 #include <NoobWarrior/Roblox/DataType/BrickColor.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/Keychain/Keychain.h>
+#include <NoobWarrior/Keychain/EmuKeychain.h>
+#include <NoobWarrior/Keychain/MasterKeychain.h>
 
 #include <QRegularExpressionValidator>
 #include <QRegularExpression>
 #include <QStyledItemDelegate>
+#include <QEventLoop>
+#include <QTimer>
+
+#include <BusyDialog.h>
+
+#include <thread>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QMenu>
 #include <QComboBox>
 #include <QStackedWidget>
 #include <QRadioButton>
@@ -48,6 +59,7 @@
 #include <QPalette>
 #include <QGroupBox>
 #include <QLabel>
+#include <QImage>
 #include <QDialog>
 
 #include <algorithm>
@@ -133,17 +145,45 @@ static std::string EscapeLike(const std::string& input) {
     return result;
 }
 
-LocalPlayerDialog::LocalPlayerDialog(QWidget *parent) : QDialog(parent) {
-    setWindowTitle("Local Player Settings");
+PlayerDialog::PlayerDialog(QWidget *parent) : QDialog(parent) {
+    // Opens on the local player; the target switcher swaps to a signed-in account's avatar.
+    mBackend = new LocalRegistryBackend(gApp->GetCore());
+    mLocal = true;
     InitWidgets();
-    LoadFromRegistry();
+    ApplyTargetToIdentity();
+    LoadFromBackend();
+    mDirty = false;
 }
 
-LocalPlayerDialog::~LocalPlayerDialog() {}
+PlayerDialog::~PlayerDialog() { delete mBackend; }
 
-void LocalPlayerDialog::InitWidgets() {
+QString PlayerDialog::CurrentTargetName() const {
+    return mLocal ? QStringLiteral("Local Player") : QString::fromStdString(mBackend->Describe());
+}
+
+// Reflects the current target in the window title, the switcher button, and the identity fields (which
+// are editable for the local player but fixed/disabled for a remote account — only its avatar changes).
+void PlayerDialog::ApplyTargetToIdentity() {
     Registry* reg = gApp->GetCore()->GetRegistry();
+    setWindowTitle(mLocal ? "Player Settings"
+                          : QString("Player - %1").arg(CurrentTargetName()));
+    if (mTargetButton)
+        mTargetButton->setText(CurrentTargetName());
+    if (mLocal) {
+        mIdInput->setText(QString::number(reg->GetKeyValue<int64_t>("user.id").value_or(1000)));
+        mNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.name").value_or("Player")));
+        mDisplayNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.display_name").value_or("Player")));
+    } else {
+        mIdInput->clear();
+        mDisplayNameInput->clear();
+        mNameInput->setText(QString::fromStdString(mBackend->Describe()));
+    }
+    mIdInput->setEnabled(mLocal);
+    mNameInput->setEnabled(mLocal);
+    mDisplayNameInput->setEnabled(mLocal);
+}
 
+void PlayerDialog::InitWidgets() {
     mLayout = new QVBoxLayout(this);
     mMainLayout = new QHBoxLayout;
     mFormLayout = new QFormLayout;
@@ -152,9 +192,9 @@ void LocalPlayerDialog::InitWidgets() {
     mNameInput = new QLineEdit;
     mDisplayNameInput = new QLineEdit;
 
-    mIdInput->setText(QString::number(reg->GetKeyValue<int64_t>("user.id").value_or(1000)));
-    mNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.name").value_or("Player")));
-    mDisplayNameInput->setText(QString::fromStdString(reg->GetKeyValue<std::string>("user.display_name").value_or("Player")));
+    // Editing the local player's identity marks it dirty (a remote account's fields are disabled).
+    for (QLineEdit* f : { mIdInput, mNameInput, mDisplayNameInput })
+        connect(f, &QLineEdit::textEdited, this, [this](const QString&) { mDirty = true; });
 
     mIdInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mIdInput));
     mFormLayout->addRow("User Id", mIdInput);
@@ -162,7 +202,7 @@ void LocalPlayerDialog::InitWidgets() {
     mFormLayout->addRow("Display Name", mDisplayNameInput);
 
     QPushButton* importButton = new QPushButton(QIcon(":/images/roblox_backup.png"), "Import Avatar from Database…");
-    connect(importButton, &QPushButton::clicked, this, &LocalPlayerDialog::ImportAvatarFromDatabase);
+    connect(importButton, &QPushButton::clicked, this, &PlayerDialog::ImportAvatarFromDatabase);
 
     QVBoxLayout* leftColumn = new QVBoxLayout;
     leftColumn->addLayout(mFormLayout);
@@ -175,18 +215,117 @@ void LocalPlayerDialog::InitWidgets() {
 
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
     connect(mButtonBox, &QDialogButtonBox::accepted, [this]() {
-        SaveToRegistry();
-        close();
+        if (SaveToBackend())
+            close();
     });
     connect(mButtonBox, &QDialogButtonBox::rejected, [this]() {
         close();
     });
 
+    mLayout->addWidget(BuildTargetRow());
     mLayout->addLayout(mMainLayout);
     mLayout->addWidget(mButtonBox);
 }
 
-QWidget* LocalPlayerDialog::BuildAvatarBody() {
+// The target switcher: a button whose menu lists the local player plus every signed-in server-emulator
+// and master-server account, rebuilt each time it opens so it tracks the keychains.
+QWidget* PlayerDialog::BuildTargetRow() {
+    QWidget* row = new QWidget;
+    QHBoxLayout* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->addWidget(new QLabel("Editing:"));
+
+    mTargetButton = new QPushButton(QIcon(":/images/silk/user.png"), CurrentTargetName());
+    mTargetMenu = new QMenu(mTargetButton);
+    connect(mTargetMenu, &QMenu::aboutToShow, this, &PlayerDialog::PopulateTargetMenu);
+    mTargetButton->setMenu(mTargetMenu);
+    lay->addWidget(mTargetButton);
+    lay->addStretch();
+    return row;
+}
+
+void PlayerDialog::PopulateTargetMenu() {
+    mTargetMenu->clear();
+    Core* core = gApp->GetCore();
+
+    QAction* local = mTargetMenu->addAction(QIcon(":/images/silk/user.png"), "Local Player");
+    local->setCheckable(true);
+    local->setChecked(mLocal);
+    connect(local, &QAction::triggered, this, [this]() { SwitchTarget(nullptr); });
+
+    // Signed-in server-emulator accounts (their own accounts; master-auth, not slaves).
+    std::vector<Account>& emu = core->GetEmuKeychain()->GetAccounts();
+    if (!emu.empty()) {
+        mTargetMenu->addSeparator();
+        mTargetMenu->addAction("Server emulator accounts")->setEnabled(false);
+        for (Account& acc : emu) {
+            std::string label = (acc.DisplayName.empty() ? acc.Name : acc.DisplayName) + " on " + acc.Name;
+            std::string base = "https://" + acc.Name, token = acc.Token;
+            QAction* a = mTargetMenu->addAction(QIcon(":/images/silk/user.png"), QString::fromStdString(label));
+            a->setCheckable(true);
+            a->setChecked(!mLocal && CurrentTargetName() == QString::fromStdString(label));
+            connect(a, &QAction::triggered, this, [this, base, token, label]() {
+                SwitchTarget(new RemoteAccountBackend(base, token, label));
+            });
+        }
+    }
+
+    // Master-server accounts (federated identities).
+    std::vector<Account>& master = core->GetMasterKeychain()->GetAccounts();
+    if (!master.empty()) {
+        mTargetMenu->addSeparator();
+        mTargetMenu->addAction("Master server accounts")->setEnabled(false);
+        for (Account& acc : master) {
+            std::string url = acc.Url, token = acc.Token, name = acc.Name;
+            QAction* a = mTargetMenu->addAction(QIcon(":/images/silk/user.png"), QString::fromStdString(name));
+            a->setCheckable(true);
+            a->setChecked(!mLocal && CurrentTargetName() == QString::fromStdString(name));
+            connect(a, &QAction::triggered, this, [this, url, token, name]() {
+                SwitchTarget(new RemoteAccountBackend(url, token, name));
+            });
+        }
+    }
+}
+
+// Swaps the active backend (nullptr = local player, else a remote account the dialog takes ownership of),
+// prompting to save first if the current target has unsaved edits, then reloads the editor for the new one.
+void PlayerDialog::SwitchTarget(AvatarBackend* newBackend) {
+    const bool toLocal = (newBackend == nullptr);
+    // Picking the target we're already on is a no-op.
+    if (toLocal == mLocal &&
+        (toLocal || CurrentTargetName() == QString::fromStdString(newBackend->Describe()))) {
+        delete newBackend;
+        return;
+    }
+
+    if (mDirty) {
+        QMessageBox::StandardButton r = QMessageBox::question(this, "Unsaved changes",
+            QString("Save changes to %1 before switching?").arg(CurrentTargetName()),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+        if (r == QMessageBox::Cancel) { delete newBackend; return; }
+        if (r == QMessageBox::Save && !SaveToBackend()) { delete newBackend; return; } // save failed, stay put
+    }
+
+    // Swap in the new target but KEEP the old backend, so an unreachable server can be undone: on failure
+    // LoadFromBackend leaves the displayed avatar untouched, so we just restore the previous backend.
+    AvatarBackend* prevBackend = mBackend;
+    const bool prevLocal = mLocal;
+
+    mBackend = toLocal ? static_cast<AvatarBackend*>(new LocalRegistryBackend(gApp->GetCore())) : newBackend;
+    mLocal = toLocal;
+    ApplyTargetToIdentity();
+    if (!LoadFromBackend()) {
+        delete mBackend;          // couldn't load the new target
+        mBackend = prevBackend;   // fall back to the previous one (its avatar is still on screen)
+        mLocal = prevLocal;
+        ApplyTargetToIdentity();
+        return;
+    }
+    delete prevBackend;
+    mDirty = false;
+}
+
+QWidget* PlayerDialog::BuildAvatarBody() {
     QGroupBox* box = new QGroupBox("Body Colors");
     QGridLayout* grid = new QGridLayout(box);
     grid->setHorizontalSpacing(4);
@@ -210,7 +349,7 @@ QWidget* LocalPlayerDialog::BuildAvatarBody() {
     return box;
 }
 
-void LocalPlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
+void PlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const QString& label,
                                     int row, int col, int w, int h, const QString& defaultColorName) {
     AvatarBodyPart part;
     part.key = key;
@@ -232,7 +371,7 @@ void LocalPlayerDialog::AddBodyPart(QGridLayout* grid, const QString& key, const
         grid->addWidget(stored.button, row, col, Qt::AlignHCenter | Qt::AlignTop);
 }
 
-void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
+void PlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
     part.button->setToolTip(QString("%1: %2").arg(part.label, part.colorName));
     part.button->setStyleSheet(QString(
         "QPushButton { background-color: %1; border: 1px solid #1b1b1b; border-radius: 3px; }"
@@ -240,7 +379,7 @@ void LocalPlayerDialog::ApplyBodyColor(const AvatarBodyPart& part) {
         .arg(part.color.name()));
 }
 
-void LocalPlayerDialog::PickBodyColor(AvatarBodyPart& part) {
+void PlayerDialog::PickBodyColor(AvatarBodyPart& part) {
     QDialog dlg(this);
     dlg.setWindowTitle(QString("Pick %1 Color").arg(part.label));
     QGridLayout* grid = new QGridLayout(&dlg);
@@ -272,19 +411,21 @@ void LocalPlayerDialog::PickBodyColor(AvatarBodyPart& part) {
         return;
     part.colorName = result;
     part.color = HexForBrickName(result);
+    mDirty = true;
     ApplyBodyColor(part);
 }
 
-QDoubleSpinBox* LocalPlayerDialog::MakeScaleField(const QString& regKey) {
+QDoubleSpinBox* PlayerDialog::MakeScaleField(const QString& regKey) {
     QDoubleSpinBox* field = new QDoubleSpinBox;
     field->setRange(0.0, 2.0);
     field->setSingleStep(0.05);
     field->setDecimals(2);
+    connect(field, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) { mDirty = true; });
     mScaleFields.insert(regKey, field);
     return field;
 }
 
-QWidget* LocalPlayerDialog::BuildScaleWidget() {
+QWidget* PlayerDialog::BuildScaleWidget() {
     QWidget* page = new QWidget;
     QFormLayout* form = new QFormLayout(page);
 
@@ -292,6 +433,7 @@ QWidget* LocalPlayerDialog::BuildScaleWidget() {
     mAvatarTypeR6 = new QRadioButton("R6");
     mAvatarTypeR15 = new QRadioButton("R15");
     mAvatarTypeR6->setChecked(true);
+    connect(mAvatarTypeR15, &QRadioButton::toggled, this, [this](bool) { mDirty = true; });
     QButtonGroup* rigGroup = new QButtonGroup(page);
     rigGroup->addButton(mAvatarTypeR6);
     rigGroup->addButton(mAvatarTypeR15);
@@ -310,7 +452,7 @@ QWidget* LocalPlayerDialog::BuildScaleWidget() {
     return page;
 }
 
-QWidget* LocalPlayerDialog::BuildItemEditor() {
+QWidget* PlayerDialog::BuildItemEditor() {
     QTabWidget* tabs = new QTabWidget;
     tabs->setMinimumWidth(400);
 
@@ -382,7 +524,7 @@ QWidget* LocalPlayerDialog::BuildItemEditor() {
     return tabs;
 }
 
-void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
+void PlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     mTabs.append(def);
     const int idx = mTabs.size() - 1;
     AvatarTab& tab = mTabs[idx];
@@ -475,14 +617,14 @@ void LocalPlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     tabs->addTab(page, tab.name);
 }
 
-const AvatarSubgroup& LocalPlayerDialog::ActiveSubgroup(const AvatarTab& tab) const {
+const AvatarSubgroup& PlayerDialog::ActiveSubgroup(const AvatarTab& tab) const {
     int i = tab.subgroupCombo ? tab.subgroupCombo->currentIndex() : 0;
     if (i < 0 || i >= (int)tab.subgroups.size())
         i = 0;
     return tab.subgroups[i];
 }
 
-void LocalPlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
+void PlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Scale) {
         tab.search->setEnabled(false);
@@ -497,80 +639,86 @@ void LocalPlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
     RenderWorn(tab);
 }
 
-void LocalPlayerDialog::CollectIds(AvatarTab& tab) {
-    tab.pageIds.clear();
+void PlayerDialog::CollectIds(AvatarTab& tab) {
+    // Fetches the CURRENT page from the backend's catalog (the local DBs for the local player, or the
+    // remote server's catalog for an account). Each id is bound to whichever local database has it for
+    // rendering; a remote server may list assets the client has no local copy of — for those we fetch a
+    // thumbnail from the server so they can still be shown, rather than dropped.
+    tab.pageItems.clear();
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
-    if (sg.kind == Kind::Scale)
+    if (sg.kind == Kind::Scale) {
+        tab.pageCount = 1;
         return;
+    }
+
+    AvatarCatalogPage cat = BackendCatalog(static_cast<int>(sg.type), tab.search->text().trimmed().toStdString(), tab.page);
+    tab.pageCount = std::max(1, cat.PageCount);
+    tab.page = std::clamp(cat.Page, 0, tab.pageCount - 1);
 
     EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
-    const QString query = tab.search->text().trimmed();
     QSet<qint64> seen;
-
-    for (EmuDb* db : mgr->GetMountedDatabases()) {
-        std::string s = "SELECT Id FROM Asset WHERE Type = ?";
-        if (!query.isEmpty())
-            s += " AND Name LIKE ? ESCAPE '\\'";
-        s += " ORDER BY Name;";
-        Statement stmt = db->PrepareStatement(s);
-        stmt.Bind(1, (int)sg.type);
-        if (!query.isEmpty())
-            stmt.Bind(2, "%" + EscapeLike(query.toStdString()) + "%");
-        while (stmt.Step() == SQLITE_ROW) {
-            qint64 id = stmt.GetInt64FromColumnIndex(0);
-            if (!seen.contains(id)) {
-                seen.insert(id);
-                tab.pageIds.push_back({ id, db });
-            }
-        }
+    std::vector<int64_t> remoteOnly;
+    for (const AvatarCatalogItem& item : cat.Items) {
+        qint64 id = static_cast<qint64>(item.Id);
+        if (id <= 0 || seen.contains(id))
+            continue;
+        seen.insert(id);
+        AvatarPageItem pi;
+        pi.id = id;
+        pi.name = QString::fromStdString(item.Name);
+        pi.db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
+        tab.pageItems.push_back(std::move(pi));
+        if (tab.pageItems.back().db == nullptr && !mLocal)
+            remoteOnly.push_back(item.Id);
     }
 
-    // Keep a worn slot's item visible even if no mounted database lists it anymore.
-    if (query.isEmpty() && sg.kind == Kind::Slot) {
-        qint64 worn = mWornSlots.value(sg.regKey, 0);
-        if (worn > 0 && !seen.contains(worn)) {
-            EmuDb* owner = mgr->GetFirstDbWhereItemExists(ItemType::Asset, worn);
-            if (owner == nullptr) {
-                std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
-                owner = dbs.empty() ? nullptr : dbs.front();
-            }
-            if (owner != nullptr) {
-                seen.insert(worn);
-                tab.pageIds.push_back({ worn, owner });
-            }
-        }
-    }
+    if (remoteOnly.empty())
+        return;
 
-    tab.pageCount = std::max<int>(1, ((int)tab.pageIds.size() + kPageSize - 1) / kPageSize);
+    std::map<int64_t, std::vector<unsigned char>> thumbs = BackendThumbnails(remoteOnly);
+    for (AvatarPageItem& pi : tab.pageItems) {
+        if (pi.db != nullptr)
+            continue;
+        if (auto it = thumbs.find(pi.id); it != thumbs.end() && !it->second.empty()) {
+            QImage img;
+            img.loadFromData(it->second.data(), static_cast<int>(it->second.size()));
+            if (!img.isNull())
+                pi.thumb = QPixmap::fromImage(img);
+        }
+        mRemoteItemCache.insert(pi.id, pi); // so the worn strip can render this item too
+    }
 }
 
-void LocalPlayerDialog::RenderPage(AvatarTab& tab) {
+void PlayerDialog::RenderPage(AvatarTab& tab) {
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Scale)
         return;
-    if (tab.page < 0) tab.page = 0;
-    if (tab.page >= tab.pageCount) tab.page = tab.pageCount - 1;
 
+    // pageItems already holds just the current page (CollectIds fetched it), so render all of it. Items
+    // the client has locally render from their database; a remote-only item renders from its fetched thumb.
     tab.list->Clear();
-    const int start = tab.page * kPageSize;
-    const int end = std::min<int>((int)tab.pageIds.size(), start + kPageSize);
-    for (int i = start; i < end; ++i)
-        tab.list->AddFromDatabase(tab.pageIds[i].second, ItemType::Asset, tab.pageIds[i].first);
+    for (const AvatarPageItem& pi : tab.pageItems) {
+        if (pi.db != nullptr)
+            tab.list->AddFromDatabase(pi.db, ItemType::Asset, pi.id);
+        else
+            tab.list->AddRemote(pi.id, pi.name, pi.thumb);
+    }
 
     tab.pageLabel->setText(QString("Page %1 / %2").arg(tab.page + 1).arg(tab.pageCount));
     tab.prevBtn->setEnabled(tab.page > 0);
     tab.nextBtn->setEnabled(tab.page < tab.pageCount - 1);
 }
 
-void LocalPlayerDialog::StepPage(AvatarTab& tab, int delta) {
+void PlayerDialog::StepPage(AvatarTab& tab, int delta) {
     const int np = tab.page + delta;
     if (np < 0 || np >= tab.pageCount)
         return;
     tab.page = np;
+    CollectIds(tab); // re-fetch the new page from the backend
     RenderPage(tab);
 }
 
-void LocalPlayerDialog::RenderWorn(AvatarTab& tab) {
+void PlayerDialog::RenderWorn(AvatarTab& tab) {
     if (tab.wornList == nullptr)
         return;
     tab.wornList->Clear();
@@ -582,12 +730,17 @@ void LocalPlayerDialog::RenderWorn(AvatarTab& tab) {
     auto add = [&](qint64 id) {
         if (id <= 0)
             return;
-        EmuDb* db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
-        if (db == nullptr) {
-            std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
-            db = dbs.empty() ? nullptr : dbs.front();
+        if (EmuDb* db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id)) {
+            tab.wornList->AddFromDatabase(db, ItemType::Asset, id);
+            return;
         }
-        tab.wornList->AddFromDatabase(db, ItemType::Asset, id);
+        // Remote-only worn item: render from the browsing cache if we've seen it, else a bare id fallback.
+        if (auto it = mRemoteItemCache.find(id); it != mRemoteItemCache.end()) {
+            tab.wornList->AddRemote(id, it->name, it->thumb);
+            return;
+        }
+        std::vector<EmuDb*> dbs = mgr->GetMountedDatabases();
+        tab.wornList->AddFromDatabase(dbs.empty() ? nullptr : dbs.front(), ItemType::Asset, id);
     };
 
     if (sg.kind == Kind::Slot) {
@@ -599,7 +752,7 @@ void LocalPlayerDialog::RenderWorn(AvatarTab& tab) {
     }
 }
 
-void LocalPlayerDialog::WearItem(AvatarTab& tab, qint64 id) {
+void PlayerDialog::WearItem(AvatarTab& tab, qint64 id) {
     if (id <= 0)
         return;
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
@@ -621,10 +774,11 @@ void LocalPlayerDialog::WearItem(AvatarTab& tab, qint64 id) {
     } else {
         return;
     }
+    mDirty = true;
     RenderWorn(tab);
 }
 
-void LocalPlayerDialog::UnwearItem(AvatarTab& tab, qint64 id) {
+void PlayerDialog::UnwearItem(AvatarTab& tab, qint64 id) {
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Slot) {
         if (mWornSlots.value(sg.regKey, 0) == id)
@@ -633,10 +787,11 @@ void LocalPlayerDialog::UnwearItem(AvatarTab& tab, qint64 id) {
         mWornAccessories.remove(id);
         mWornAccType.remove(id);
     }
+    mDirty = true;
     RenderWorn(tab);
 }
 
-void LocalPlayerDialog::RefreshAllTabs() {
+void PlayerDialog::RefreshAllTabs() {
     for (AvatarTab& tab : mTabs) {
         if (ActiveSubgroup(tab).kind == Kind::Scale)
             continue;
@@ -646,7 +801,7 @@ void LocalPlayerDialog::RefreshAllTabs() {
     }
 }
 
-void LocalPlayerDialog::RouteWornAsset(qint64 id) {
+void PlayerDialog::RouteWornAsset(qint64 id) {
     if (id <= 0)
         return;
     int type = 0;
@@ -660,7 +815,7 @@ void LocalPlayerDialog::RouteWornAsset(qint64 id) {
     }
 }
 
-void LocalPlayerDialog::ImportAvatarFromDatabase() {
+void PlayerDialog::ImportAvatarFromDatabase() {
     EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
     if (mgr->GetMountedDatabases().empty()) {
         QMessageBox::information(this, "Import Avatar", "No databases are mounted to import from.");
@@ -729,7 +884,7 @@ void LocalPlayerDialog::ImportAvatarFromDatabase() {
         ApplyImportedAvatar(db, userId);
 }
 
-void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
+void PlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
     // Identity.
     {
         Statement stmt = db->PrepareStatement("SELECT Name, DisplayName FROM User WHERE Id = ?;");
@@ -798,10 +953,11 @@ void LocalPlayerDialog::ApplyImportedAvatar(EmuDb* db, int64_t userId) {
             (stmt.GetIntFromColumnIndex(0) == 1 ? mAvatarTypeR15 : mAvatarTypeR6)->setChecked(true);
     }
 
+    mDirty = true;
     RefreshAllTabs();
 }
 
-QWidget* LocalPlayerDialog::BuildOutfitsTab() {
+QWidget* PlayerDialog::BuildOutfitsTab() {
     QWidget* page = new QWidget;
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->addWidget(new QLabel("Saved outfits. Wear one to load it onto your avatar, or save the\ncurrent avatar as a new outfit."));
@@ -822,15 +978,15 @@ QWidget* LocalPlayerDialog::BuildOutfitsTab() {
     btns->addWidget(delBtn);
     layout->addLayout(btns);
 
-    connect(saveBtn, &QPushButton::clicked, this, &LocalPlayerDialog::SaveCurrentOutfit);
-    connect(wearBtn, &QPushButton::clicked, this, &LocalPlayerDialog::WearSelectedOutfit);
-    connect(delBtn,  &QPushButton::clicked, this, &LocalPlayerDialog::DeleteSelectedOutfit);
+    connect(saveBtn, &QPushButton::clicked, this, &PlayerDialog::SaveCurrentOutfit);
+    connect(wearBtn, &QPushButton::clicked, this, &PlayerDialog::WearSelectedOutfit);
+    connect(delBtn,  &QPushButton::clicked, this, &PlayerDialog::DeleteSelectedOutfit);
     connect(mOutfitList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) { WearSelectedOutfit(); });
 
     return page;
 }
 
-void LocalPlayerDialog::RefreshOutfits() {
+void PlayerDialog::RefreshOutfits() {
     if (mOutfitList == nullptr)
         return;
     mOutfitList->Clear();
@@ -861,7 +1017,7 @@ static std::pair<EmuDb*, qint64> SelectedOutfit(ItemListWidget* list, const QMap
     return { dbs.value(id, nullptr), id };
 }
 
-void LocalPlayerDialog::SaveCurrentOutfit() {
+void PlayerDialog::SaveCurrentOutfit() {
     EmuDb* db = gApp->GetCore()->GetEmuDbManager()->GetMasterDatabase();
     if (db == nullptr) {
         QMessageBox::warning(this, "Save Outfit", "There's no master database to save the outfit to.");
@@ -928,7 +1084,7 @@ void LocalPlayerDialog::SaveCurrentOutfit() {
     QMessageBox::information(this, "Save Outfit", QString("Saved outfit \"%1\".").arg(name));
 }
 
-void LocalPlayerDialog::WearSelectedOutfit() {
+void PlayerDialog::WearSelectedOutfit() {
     auto [db, outfitId] = SelectedOutfit(mOutfitList, mOutfitDbs);
     if (db == nullptr) {
         QMessageBox::information(this, "Wear Outfit", "Select an outfit to wear first.");
@@ -978,10 +1134,11 @@ void LocalPlayerDialog::WearSelectedOutfit() {
         }
     }
 
+    mDirty = true;
     RefreshAllTabs();
 }
 
-void LocalPlayerDialog::DeleteSelectedOutfit() {
+void PlayerDialog::DeleteSelectedOutfit() {
     auto [db, outfitId] = SelectedOutfit(mOutfitList, mOutfitDbs);
     if (db == nullptr)
         return;
@@ -995,23 +1152,94 @@ void LocalPlayerDialog::DeleteSelectedOutfit() {
     RefreshOutfits();
 }
 
-void LocalPlayerDialog::LoadFromRegistry() {
-    Registry* reg = gApp->GetCore()->GetRegistry();
+template <typename R, typename F>
+static R RunPumped(F fn) {
+    QEventLoop loop;
+    R result {};
+    std::thread worker([&]() {
+        result = fn();
+        QMetaObject::invokeMethod(&loop, [&loop]() { loop.quit(); }, Qt::QueuedConnection);
+    });
+    loop.exec();
+    worker.join();
+    return result;
+}
+
+bool PlayerDialog::BackendLoad(AvatarData& out) {
+    if (mLocal)
+        return mBackend->Load(out);
+    BusyDialog busy("Contacting the server...", this);
+    busy.show();
+    bool ok = false;
+    out = RunPumped<AvatarData>([this, &ok]() { AvatarData d; ok = mBackend->Load(d); return d; });
+    busy.close();
+    return ok;
+}
+
+bool PlayerDialog::BackendSave(const AvatarData& data) {
+    if (mLocal)
+        return mBackend->Save(data);
+    BusyDialog busy("Saving to the server...", this);
+    busy.show();
+    bool ok = RunPumped<bool>([this, &data]() { return mBackend->Save(data); });
+    busy.close();
+    return ok;
+}
+
+AvatarCatalogPage PlayerDialog::BackendCatalog(int assetType, const std::string& search, int page) {
+    if (mLocal)
+        return mBackend->Catalog(assetType, search, page);
+    // Called often (page/search), so no busy dialog; disable the dialog to stop re-entrant fetches.
+    setEnabled(false);
+    AvatarCatalogPage cat = RunPumped<AvatarCatalogPage>(
+        [this, assetType, search, page]() { return mBackend->Catalog(assetType, search, page); });
+    setEnabled(true);
+    return cat;
+}
+
+std::map<int64_t, std::vector<unsigned char>> PlayerDialog::BackendThumbnails(const std::vector<int64_t>& ids) {
+    // Only remote targets have items the client lacks locally; a local target renders straight from its DBs.
+    if (mLocal || ids.empty())
+        return {};
+    setEnabled(false);
+    auto thumbs = RunPumped<std::map<int64_t, std::vector<unsigned char>>>([this, ids]() {
+        std::map<int64_t, std::vector<unsigned char>> out;
+        for (int64_t id : ids) {
+            std::vector<unsigned char> bytes = mBackend->Thumbnail(id);
+            if (!bytes.empty())
+                out.emplace(id, std::move(bytes));
+        }
+        return out;
+    });
+    setEnabled(true);
+    return thumbs;
+}
+
+bool PlayerDialog::LoadFromBackend() {
+    AvatarData data;
+    if (!BackendLoad(data) && !mLocal) {
+        // Remote target unreachable. Leave the currently-displayed avatar untouched and report failure so
+        // the caller (SwitchTarget) can fall back to the previous target instead of showing a blank noob.
+        QMessageBox::warning(this, "Avatar", "Couldn't load your avatar from the server. It may be unreachable.");
+        return false;
+    }
 
     for (auto it = mBodyParts.begin(); it != mBodyParts.end(); ++it) {
-        auto name = reg->GetKeyValue<std::string>("user.appearance.color." + it.key().toStdString());
-        if (!name.has_value())
+        auto found = data.Colors.find(it.key().toStdString());
+        if (found == data.Colors.end())
             continue;
-        it->colorName = QString::fromStdString(*name);
+        it->colorName = QString::fromStdString(found->second);
         it->color = HexForBrickName(it->colorName);
         ApplyBodyColor(*it);
     }
 
-    for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
-        it.value()->setValue(reg->GetKeyValue<double>(it.key().toStdString()).value_or(0.0));
+    for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it) {
+        auto found = data.Scales.find(it.key().toStdString());
+        it.value()->setValue(found != data.Scales.end() ? found->second : 0.0);
+    }
 
     if (mAvatarTypeR6 && mAvatarTypeR15) {
-        if (reg->GetKeyValue<std::string>("user.appearance.avatar_type").value_or("R6") == "R15")
+        if (data.AvatarType == "R15")
             mAvatarTypeR15->setChecked(true);
         else
             mAvatarTypeR6->setChecked(true);
@@ -1019,21 +1247,15 @@ void LocalPlayerDialog::LoadFromRegistry() {
 
     // Worn state.
     mWornSlots.clear();
-    for (auto it = mTypeToSlotKey.begin(); it != mTypeToSlotKey.end(); ++it)
-        mWornSlots[it.value()] = (qint64)reg->GetKeyValue<int64_t>(it.value().toStdString()).value_or(0);
+    for (auto it = mTypeToSlotKey.begin(); it != mTypeToSlotKey.end(); ++it) {
+        auto found = data.Slots.find(it.value().toStdString());
+        mWornSlots[it.value()] = found != data.Slots.end() ? (qint64)found->second : 0;
+    }
 
     mWornAccessories.clear();
-    if (auto table = reg->GetKeyValue<sol::table>("user.appearance.accessories"); table.has_value()) {
-        const std::size_t count = table->size();
-        for (std::size_t i = 1; i <= count; ++i) {
-            sol::object obj = (*table)[i];
-            if (obj.get_type() != sol::type::number)
-                continue;
-            qint64 id = (qint64)obj.as<int64_t>();
-            if (id > 0)
-                mWornAccessories.insert(id);
-        }
-    }
+    for (int64_t id : data.Accessories)
+        if (id > 0)
+            mWornAccessories.insert((qint64)id);
 
     // Resolve each worn accessory's type so the per-subgroup worn lists can filter on it.
     mWornAccType.clear();
@@ -1052,33 +1274,37 @@ void LocalPlayerDialog::LoadFromRegistry() {
         OnSubgroupChanged(tab);
 
     RefreshOutfits();
+    mDirty = false; // loading a target's stored avatar isn't an edit (neutralises signals fired above)
+    return true;
 }
 
-void LocalPlayerDialog::SaveToRegistry() {
-    Core* core = gApp->GetCore();
-    Registry* reg = core->GetRegistry();
+bool PlayerDialog::SaveToBackend() {
+    // Identity (user.id/name/display_name) is only editable for the local player; a remote account's
+    // identity is fixed, so only its avatar is written.
+    if (mLocal) {
+        Registry* reg = gApp->GetCore()->GetRegistry();
+        reg->SetKeyValue("user.id", mIdInput->text().toLongLong());
+        reg->SetKeyValue("user.name", mNameInput->text().toStdString());
+        reg->SetKeyValue("user.display_name", mDisplayNameInput->text().toStdString());
+    }
 
-    reg->SetKeyValue("user.id", mIdInput->text().toLongLong());
-    reg->SetKeyValue("user.name", mNameInput->text().toStdString());
-    reg->SetKeyValue("user.display_name", mDisplayNameInput->text().toStdString());
-
+    AvatarData data;
     for (auto it = mBodyParts.begin(); it != mBodyParts.end(); ++it)
-        reg->SetKeyValue("user.appearance.color." + it.key().toStdString(), it->colorName.toStdString());
-
+        data.Colors[it.key().toStdString()] = it->colorName.toStdString();
     for (auto it = mScaleFields.begin(); it != mScaleFields.end(); ++it)
-        reg->SetKeyValue<double>(it.key().toStdString(), it.value()->value());
-
-    if (mAvatarTypeR15)
-        reg->SetKeyValue("user.appearance.avatar_type", std::string(mAvatarTypeR15->isChecked() ? "R15" : "R6"));
-
-    // Worn single-slot items.
+        data.Scales[it.key().toStdString()] = it.value()->value();
+    data.AvatarType = (mAvatarTypeR15 && mAvatarTypeR15->isChecked()) ? "R15" : "R6";
     for (auto it = mTypeToSlotKey.begin(); it != mTypeToSlotKey.end(); ++it)
-        reg->SetKeyValue<int64_t>(it.value().toStdString(), (int64_t)mWornSlots.value(it.value(), 0));
-
-    // Accessories list.
-    sol::table table = core->GetLuaState()->create_table();
-    int n = 0;
+        data.Slots[it.value().toStdString()] = (int64_t)mWornSlots.value(it.value(), 0);
     for (qint64 id : mWornAccessories)
-        table[++n] = (int64_t)id;
-    reg->SetKeyValue("user.appearance.accessories", table);
+        data.Accessories.push_back((int64_t)id);
+
+    if (!BackendSave(data)) {
+        if (!mLocal)
+            QMessageBox::critical(this, "Avatar",
+                "Couldn't save your avatar to the server. It may be unreachable. Your changes were not saved.");
+        return false;
+    }
+    mDirty = false;
+    return true;
 }

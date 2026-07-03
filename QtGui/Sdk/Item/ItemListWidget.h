@@ -77,6 +77,9 @@ public:
     // a caller can merge items drawn from several databases into one list. Skips ids already present
     // (the same shared asset shows once). Returns false when db is null or the id is already shown.
     bool AddFromDatabase(EmuDb* db, ItemType type, int64_t id);
+    // Adds an Asset item that has no local database, rendering the supplied name + icon directly (used to
+    // show a remote server's catalog item the client lacks locally). Skips ids already present.
+    bool AddRemote(int64_t id, const QString& name, const QPixmap& icon);
     bool Remove(ItemType type, int64_t id);
     bool IsItemInList(ItemType type, int64_t id);
     ItemWidget* GetItemWidget(ItemType type, int64_t id);

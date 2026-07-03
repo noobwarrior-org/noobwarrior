@@ -85,6 +85,9 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mMySettingsJsonHandler(this),
     mAuthenticatedUserHandler(this),
     mSessionCheckHandler(this),
+    mAvatarSetHandler(this),
+    mAvatarCatalogHandler(this),
+    mAvatarThumbnailHandler(this),
     mCurrentUserHandler(this),
     mRequestAuthHandler(),
     mStudioEditHandler(),
@@ -199,6 +202,9 @@ void ServerEmulator::SetupHandlers() {
 
     SetRequestHandler("/emu/v1/auth-info", &mAuthInfoHandler);
     SetRequestHandler("/emu/v1/session-check", &mSessionCheckHandler);
+    SetRequestHandler("/emu/v1/avatar/mine", &mAvatarSetHandler);
+    SetRequestHandler("/emu/v1/avatar/catalog", &mAvatarCatalogHandler);
+    SetRequestHandler("/emu/v1/avatar/thumbnail", &mAvatarThumbnailHandler);
 
     SetRequestHandler("/universal-app-configuration/v1/behaviors/studio/content", &mUniversalAppConfigStudioHandler);
 

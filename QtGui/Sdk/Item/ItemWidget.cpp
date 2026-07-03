@@ -51,7 +51,22 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
     Reload();
 }
 
+ItemWidget::ItemWidget(int64_t id, const QString& name, const QPixmap& icon, QListWidget *listview) :
+    QListWidgetItem(listview),
+    mDb(nullptr),
+    mType(NoobWarrior::ItemType::Asset),
+    mId(id)
+{
+    setText(QString("%1\n(%2)").arg(name, QString::number(id)));
+    if (!icon.isNull()) {
+        mIconPixmap = icon;
+        ApplyAppearance();
+    }
+}
+
 void ItemWidget::Reload() {
+    if (mDb == nullptr)
+        return;
     std::string tableName = GetTableNameFromItemType(mType);
     std::string name;
 
@@ -135,6 +150,8 @@ void ItemWidget::SetCut(bool cut) {
 }
 
 void ItemWidget::RefreshName() {
+    if (mDb == nullptr)
+        return;
     std::string tableName = GetTableNameFromItemType(mType);
     Statement stmt = mDb->PrepareStatement(std::format("SELECT Name FROM \"{}\" WHERE Id = ?;", tableName));
     if (stmt.Fail())
@@ -184,6 +201,8 @@ void ItemWidget::Asset_DrawMediaBadge(QPixmap &pixmap, bool playing) {
 }
 
 void ItemWidget::Configure() {
+    if (mDb == nullptr) // no database to open an item dialog against
+        return;
     QWidget* sdk = this->listWidget();
     while (sdk && !dynamic_cast<Sdk*>(sdk)) {
         sdk = sdk->parentWidget();

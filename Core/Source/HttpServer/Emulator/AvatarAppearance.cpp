@@ -270,7 +270,6 @@ nlohmann::json BuildFetchJson(const Appearance& a) {
     return j;
 }
 
-// Classic default character (yellow head/arms, blue torso, green legs), nothing worn.
 Appearance MakeDefaultAppearance() {
     Appearance a{};
     a.HeadColor = a.RightArmColor = a.LeftArmColor = "Bright yellow";
@@ -287,8 +286,6 @@ Appearance MakeGuestAppearance() {
     return a;
 }
 
-// An authenticated user's stored character, read from the master database. Falls through to the
-// classic default when the user has no stored appearance (never the local registry).
 Appearance ReadAppearanceFromDb(Core* core, int64_t userId) {
     Appearance a = MakeDefaultAppearance();
     EmuDb* db = core->GetEmuDbManager()->GetMasterDatabase();
@@ -330,6 +327,7 @@ Appearance ReadAppearanceFromDb(Core* core, int64_t userId) {
         if (!scale.IsColumnIndexNull(3)) a.Head       = mult(3);
         if (!scale.IsColumnIndexNull(4)) a.Proportion = scale.GetDoubleFromColumnIndex(4);
     }
+    a.AvatarType = a.BodyType >= 1.0 ? "R15" : "R6";
     return a;
 }
 

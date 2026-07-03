@@ -1,0 +1,37 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: api/avatar/thumbnail.lhp
+-- Description: An asset's preview image, so the avatar editor can show a catalog item the client has no
+--              local copy of. Mirrors the native /emu/v1/avatar/thumbnail. GET ?id=<assetId>
+-- Started by: Hattozo
+-- Started on: 7/3/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local id = tonumber(_GET["id"])
+if id == nil then
+    http_response_code(400)
+    die("Missing id")
+end
+
+local bytes = core.GetEmuDbManager():RetrieveImageData(ItemType.Asset, id)
+if bytes == nil or #bytes == 0 then
+    http_response_code(404)
+    die("No thumbnail")
+end
+
+local mime = "image/png"
+if #bytes >= 3 then
+    local b1, b2, b3 = bytes:byte(1, 3)
+    if b1 == 0xFF and b2 == 0xD8 then
+        mime = "image/jpeg"
+    elseif b1 == 0x47 and b2 == 0x49 and b3 == 0x46 then
+        mime = "image/gif"
+    end
+end
+
+header("Content-Type: " .. mime)
+header("Cache-Control: max-age=300")
+http_response_code(200)
+die(bytes)
+?>

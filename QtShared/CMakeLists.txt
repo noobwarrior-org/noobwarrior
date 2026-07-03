@@ -5,6 +5,7 @@ set(CMAKE_AUTORCC ON)
 add_library(NoobWarrior.QtShared STATIC)
 target_sources(NoobWarrior.QtShared PRIVATE
     LoadingDialog.cpp
+    BusyDialog.cpp
     shared_resources.qrc
 )
 target_link_libraries(NoobWarrior.QtShared PUBLIC NoobWarrior.Core Qt6::Core Qt6::Widgets)

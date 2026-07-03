@@ -1,0 +1,70 @@
+<?lua
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    header("Content-Type: application/json")
+    die(json.stringify({ error = "You must be signed in to edit your avatar" }))
+end
+
+local db = core.GetMasterDatabase()
+if db == nil then
+    http_response_code(500)
+    die("No master database")
+end
+
+local uid = user.Id
+
+if _SERVER.REQUEST_METHOD == "GET" then
+    header("Content-Type: application/json")
+    die(core.BuildAvatarFetchJson(uid))
+end
+
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be GET or POST")
+end
+
+local ok, body = pcall(json.parse, _RAW_POST)
+if not ok or type(body) ~= "table" then
+    http_response_code(400)
+    header("Content-Type: application/json")
+    die(json.stringify({ error = "Malformed JSON" }))
+end
+
+db:QueryTyped("DELETE FROM UserCharacterItem WHERE Id = ?;", uid)
+if type(body.assetAndAssetTypeIds) == "table" then
+    for _, e in ipairs(body.assetAndAssetTypeIds) do
+        local assetId = tonumber(e.assetId)
+        if assetId and assetId > 0 then
+            db:QueryTyped("INSERT OR IGNORE INTO UserCharacterItem (Id, AssetId) VALUES (?, ?);", uid, assetId)
+        end
+    end
+end
+
+if type(body.bodyColor3s) == "table" then
+    local parts = { headColor3 = 0, torsoColor3 = 1, rightArmColor3 = 2, leftArmColor3 = 3, rightLegColor3 = 4, leftLegColor3 = 5 }
+    for key, part in pairs(parts) do
+        local hex = body.bodyColor3s[key]
+        if type(hex) == "string" then
+            local packed = tonumber((hex:gsub("^#", "")), 16)
+            if packed then
+                db:QueryTyped("INSERT OR REPLACE INTO UserCharacterBodyColor (Id, BodyPart, Color3) VALUES (?, ?, ?);",
+                    uid, part, packed % 0x1000000)
+            end
+        end
+    end
+end
+
+if type(body.scales) == "table" then
+    local s = body.scales
+    db:QueryTyped("UPDATE User SET CharacterBodyType = ?, CharacterWidth = ?, CharacterHeight = ?, " ..
+        "CharacterHead = ?, CharacterProportions = ? WHERE Id = ?;",
+        tonumber(s.bodyType) or 0, tonumber(s.width) or 1, tonumber(s.height) or 1,
+        tonumber(s.head) or 1, tonumber(s.proportion) or 0, uid)
+end
+
+db:MarkDirty()
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({ ok = true }))
+?>

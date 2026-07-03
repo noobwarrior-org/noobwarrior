@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LocalPlayerDialog.h
+// File: PlayerDialog.h
 // Started by: Hattozo
 // Started on: 4/23/2026
 // Description:
@@ -41,16 +41,23 @@
 #include <QDoubleSpinBox>
 #include <QRadioButton>
 #include <QColor>
+#include <QPixmap>
 #include <QMap>
 #include <QSet>
 
 #include <cstdint>
+#include <map>
 #include <utility>
 #include <vector>
+
+class QMenu;
 
 namespace NoobWarrior {
 class ItemListWidget;
 class EmuDb;
+class AvatarBackend;
+struct AvatarData;
+struct AvatarCatalogPage;
 
 struct AvatarBodyPart {
     QString key;
@@ -72,8 +79,18 @@ struct AvatarSubgroup {
     bool single { false }; // Accessory only: at most one of this type worn (e.g. dynamic heads)
 };
 
+// One catalog entry on the active page. `db` is the local database that holds the asset (rendered from
+// there); when null the asset is remote-only (the server has it but the client doesn't), so it's rendered
+// from `name` + a `thumb` fetched from the server instead of being dropped.
+struct AvatarPageItem {
+    qint64 id { 0 };
+    QString name;
+    EmuDb* db { nullptr };
+    QPixmap thumb;
+};
+
 // A top-level editor tab holding several subgroups. The catalog for the active subgroup is paginated
-// in-memory (ids cached in pageIds; only the current page's items become widgets).
+// in-memory (the page's items are cached in pageItems; only the current page becomes widgets).
 struct AvatarTab {
     QString name;
     std::vector<AvatarSubgroup> subgroups;
@@ -89,16 +106,27 @@ struct AvatarTab {
 
     int page { 0 };
     int pageCount { 1 };
-    std::vector<std::pair<qint64, EmuDb*>> pageIds; // cached ids for the active subgroup + search
+    std::vector<AvatarPageItem> pageItems; // the active subgroup + search's current page
 };
 
-class LocalPlayerDialog : public QDialog {
+class PlayerDialog : public QDialog {
     Q_OBJECT
 public:
-    LocalPlayerDialog(QWidget *parent = nullptr);
-    ~LocalPlayerDialog();
+    // Opens on the local player's registry appearance (auth-off play). The in-dialog target switcher
+    // then lets you edit any signed-in server-emulator or master-server account's avatar instead.
+    PlayerDialog(QWidget *parent = nullptr);
+    ~PlayerDialog();
 protected:
     void InitWidgets();
+
+    // Target switching: the current backend is the local registry player or a signed-in remote account.
+    // Rebuilds the target-picker menu from the keychains, and swaps the active backend (nullptr = local,
+    // else the dialog takes ownership), reloading the whole editor for the new target.
+    QWidget* BuildTargetRow();
+    void PopulateTargetMenu();
+    void SwitchTarget(AvatarBackend* newBackend);
+    void ApplyTargetToIdentity();
+    QString CurrentTargetName() const;
 
     QWidget* BuildAvatarBody();
     QWidget* BuildItemEditor();
@@ -136,9 +164,24 @@ protected:
     void WearSelectedOutfit();
     void DeleteSelectedOutfit();
 
-    void LoadFromRegistry();
-    void SaveToRegistry();
+    bool LoadFromBackend(); // false if a remote target couldn't be loaded (widgets left untouched)
+    bool SaveToBackend();
+
+    // Backend calls: a local backend runs on the UI thread (Lua isn't thread-safe); a remote backend
+    // runs on a worker thread while the UI keeps pumping its event loop — so contacting our OWN
+    // in-process emulator (whose loop this same thread services) can't deadlock — with a busy dialog.
+    bool BackendLoad(AvatarData& out);
+    bool BackendSave(const AvatarData& data);
+    AvatarCatalogPage BackendCatalog(int assetType, const std::string& search, int page);
+    // Fetches thumbnails for the given asset ids from the (remote) backend in one pumped worker call,
+    // returning raw image bytes per id. Only used for a remote target's items the client lacks locally.
+    std::map<int64_t, std::vector<unsigned char>> BackendThumbnails(const std::vector<int64_t>& ids);
 private:
+    AvatarBackend* mBackend { nullptr };
+    bool mLocal { true }; // true = local registry player; false = a remote DB-backed account
+    bool mDirty { false }; // unsaved edits to the current target (prompts a save before switching)
+    QPushButton* mTargetButton { nullptr };
+    QMenu* mTargetMenu { nullptr };
     QVBoxLayout* mLayout;
     QHBoxLayout* mMainLayout;
     QFormLayout* mFormLayout;
@@ -163,6 +206,10 @@ private:
 
     ItemListWidget* mOutfitList { nullptr };
     QMap<qint64, EmuDb*> mOutfitDbs; // outfit id: the database it lives in (ids are per-database)
+
+    // Remote-only catalog items seen while browsing (id -> name + thumbnail), so the worn strip can render
+    // an item the client has no local copy of once it's been shown in the picker.
+    QMap<qint64, AvatarPageItem> mRemoteItemCache;
 
     QDialogButtonBox* mButtonBox;
 };

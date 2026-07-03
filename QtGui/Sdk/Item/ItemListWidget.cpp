@@ -257,6 +257,13 @@ bool ItemListWidget::AddFromDatabase(EmuDb* db, ItemType type, int64_t id) {
     return true;
 }
 
+bool ItemListWidget::AddRemote(int64_t id, const QString& name, const QPixmap& icon) {
+    if (mItems.find({ ItemType::Asset, id }) != mItems.end())
+        return false;
+    mItems[{ ItemType::Asset, id }] = new ItemWidget(id, name, icon, this);
+    return true;
+}
+
 bool ItemListWidget::Remove(ItemType type, int64_t id) {
     // Don't let audio outlive the widget that's playing it.
     if (mPlayingKey == std::make_pair(type, id))
