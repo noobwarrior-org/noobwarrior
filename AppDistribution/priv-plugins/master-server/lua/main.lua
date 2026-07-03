@@ -79,7 +79,13 @@ function _G.MASTERSERVER_ONLINE_USER_ID(identifier)
     -- Master servers have no public-facing user id; the id is a hash of the full handle "@user@domain".
     local handle = tostring(identifier)
     if handle:sub(1, 1) ~= "@" then handle = "@" .. handle end
-    local n = tonumber(hash.Sha256(handle):sub(1, 13), 16) or 0  -- 52 bits: exact in a double
+    -- 52 bits of the SHA-256 (exact in a double). Build it from two <=32-bit halves: LuaJIT's
+    -- tonumber(hex, 16) SATURATES at 0xFFFFFFFF for >32-bit values, so tonumber(sub(1,13),16) would
+    -- collapse almost every handle to the same id.
+    local hex = hash.Sha256(handle)
+    local hi = tonumber(hex:sub(1, 5), 16) or 0    -- 20 bits
+    local lo = tonumber(hex:sub(6, 13), 16) or 0   -- 32 bits
+    local n = hi * 4294967296 + lo                 -- 52-bit value
     local floor = 1000000000
     return floor + (n % (2 ^ 53 - floor))
 end
