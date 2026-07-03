@@ -259,17 +259,34 @@ function fed.JoinCanonical(identity, targetDomain, nonce)
     return table.concat({ "join", tostring(identity), tostring(targetDomain):lower(), tostring(nonce) }, "\n")
 end
 
+-- True if targetUrl points back at THIS master (a slave may set emu.auth.master to its own master).
+-- We then resolve the domain locally instead of an HTTP call to ourselves, which stalls the loop.
+local function isSelfMaster(url)
+    local scheme, host, port = tostring(url):match("^(%w+)://([^:/]+):?(%d*)")
+    if not host then return false end
+    host = host:lower()
+    if host ~= "127.0.0.1" and host ~= "localhost" and host ~= "::1" then return false end
+    port = tonumber(port) or (scheme == "https" and 443 or 80)
+    return port == (tonumber(reg.GetKeyValue("master.http_port")) or 80)
+        or port == (tonumber(reg.GetKeyValue("master.https_port")) or 443)
+end
+
 -- Runs on the player's HOME master. user is the authenticated local user row {Id, Name}; targetUrl is
 -- the slave's master URL. Returns { actionId, identity, body } or nil, err.
 function fed.MintJoinVoucher(user, targetUrl)
     if not user or blank(user.Name) then return nil, "not signed in" end
     if blank(targetUrl) then return nil, "missing target master url" end
 
-    local res, err = httpGet(rstrip(targetUrl) .. "/fed/v1/info")
-    if not res then return nil, "could not reach target master: " .. tostring(err) end
-    local info = parseJson(res.Body)
-    if not info or blank(info.Domain) then return nil, "target is not a master server" end
-    local targetDomain = tostring(info.Domain):lower()
+    local targetDomain
+    if isSelfMaster(targetUrl) then
+        targetDomain = _G.MASTERSERVER_DOMAIN():lower()
+    else
+        local res, err = httpGet(rstrip(targetUrl) .. "/fed/v1/info")
+        if not res then return nil, "could not reach target master: " .. tostring(err) end
+        local info = parseJson(res.Body)
+        if not info or blank(info.Domain) then return nil, "target is not a master server" end
+        targetDomain = tostring(info.Domain):lower()
+    end
     if fed.IsBanned(targetDomain) then return nil, "you have defederated that server" end
 
     local identity = _G.MASTERSERVER_FULL_IDENTITY(user.Name)
