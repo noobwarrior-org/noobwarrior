@@ -606,21 +606,30 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
                            GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
         if (authEnabled && side == EngineSide::Client && !params.RemoteEmulatorHost.has_value()) {
             EmuDb *master = GetEmuDbManager() ? GetEmuDbManager()->GetMasterDatabase() : nullptr;
-            // Identity is the account the user logged in as; with no login the client launches as a
-            // guest (the local registry identity is not used in auth mode).
-            std::optional<AuthUtil::SessionUser> account;
-            if (params.SessionToken.has_value() && !params.SessionToken->empty())
-                account = AuthUtil::ResolveSessionUser(master, *params.SessionToken);
-
-            if (account) {
-                std::string ticket = AuthUtil::MintAuthTicket(master, account->id, params.PlaceId.value_or(0));
-                if (!ticket.empty()) {
-                    params.LaunchTicket = ticket;
-                    Out("LaunchEngine", "Minted launch ticket for {} (id {})", account->name, account->id);
-                }
+            bool haveToken = params.SessionToken.has_value() && !params.SessionToken->empty();
+            if (haveToken && params.SessionToken->rfind("fedvoucher.", 0) == 0) {
+                // Federated (slave) join to a server on this same machine (loopback): the voucher can't
+                // resolve as a local session, so forward it as the launch ticket - the server redeems it
+                // federated-side (AuthTicketRedeemHandler) and stamps the real identity.
+                params.LaunchTicket = *params.SessionToken;
+                Out("LaunchEngine", "Loopback federated join; forwarding voucher as the launch ticket");
             } else {
-                params.LaunchTicket = AuthUtil::EncodeGuestTicket(AuthUtil::MakeGuestUser());
-                Out("LaunchEngine", "No login; launching as guest");
+                // Identity is the account the user logged in as; with no login the client launches as a
+                // guest (the local registry identity is not used in auth mode).
+                std::optional<AuthUtil::SessionUser> account;
+                if (haveToken)
+                    account = AuthUtil::ResolveSessionUser(master, *params.SessionToken);
+
+                if (account) {
+                    std::string ticket = AuthUtil::MintAuthTicket(master, account->id, params.PlaceId.value_or(0));
+                    if (!ticket.empty()) {
+                        params.LaunchTicket = ticket;
+                        Out("LaunchEngine", "Minted launch ticket for {} (id {})", account->name, account->id);
+                    }
+                } else {
+                    params.LaunchTicket = AuthUtil::EncodeGuestTicket(AuthUtil::MakeGuestUser());
+                    Out("LaunchEngine", "No login; launching as guest");
+                }
             }
         }
     }

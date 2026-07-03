@@ -98,9 +98,19 @@ void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     std::optional<AuthUtil::SessionUser> resolved;
 
+    // A "fedvoucher." ticket is a federated join voucher riding the launch ticket (a loopback/same-machine
+    // slave join, where it can't travel as a proxied cookie). Verify it with our master. It's single-use,
+    // so if a redeem retry finds it already consumed, keep the federated identity we already established.
+    if (ticket.rfind("fedvoucher.", 0) == 0) {
+        resolved = mEmu->ResolveFederatedVoucher(ticket);
+        if (!resolved) {
+            if (auto existing = mEmu->GetCurrentLaunchUser(); existing && !existing->isGuest)
+                resolved = existing;
+        }
+    }
     // Guests and federated users carry their identity inside the ticket itself (no DB row exists for
     // them); a local account gets a real single-use ticket redeemed against the master DB.
-    if (auto guest = AuthUtil::DecodeGuestTicket(ticket)) {
+    else if (auto guest = AuthUtil::DecodeGuestTicket(ticket)) {
         resolved = guest;
     } else if (auto federated = AuthUtil::DecodeFederatedTicket(ticket)) {
         resolved = federated;

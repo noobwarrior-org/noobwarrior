@@ -183,13 +183,14 @@ public:
     // single source of truth for who is joining; nullopt when nobody is identified.
     std::optional<AuthUtil::SessionUser> ResolveJoiningUser(evhttp_request *req);
 
+    // Slave mode: verifies a "fedvoucher." credential with our configured master (emu.auth.master),
+    // which vouches for the federated identity over federation. nullopt if invalid/refused. Public so a
+    // loopback join (where the voucher rides the -t launch ticket, not a cookie) can redeem it too.
+    std::optional<AuthUtil::SessionUser> ResolveFederatedVoucher(const std::string &cookieValue);
+
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
 private:
-    // Slave mode: verifies a "fedvoucher." credential with our configured master (emu.auth.master),
-    // which vouches for the federated identity over federation. nullopt if invalid/refused.
-    std::optional<AuthUtil::SessionUser> ResolveFederatedVoucher(const std::string &cookieValue);
-
     Mode mMode;
     std::optional<Engine> mCurrentEngine;
 
