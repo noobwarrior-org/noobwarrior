@@ -321,8 +321,15 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::GetCurrentLaunchUser() cons
 }
 
 std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveJoiningUser(evhttp_request *req) {
-    if (auto launchUser = GetCurrentLaunchUser())
-        return launchUser;
+    const char *peer = "";
+    uint16_t peerPort = 0;
+    if (evhttp_connection *conn = evhttp_request_get_connection(req))
+        evhttp_connection_get_peer(conn, &peer, &peerPort);
+    
+    if (IsLoopbackOrEmpty(peer ? peer : "")) {
+        if (auto launchUser = GetCurrentLaunchUser())
+            return launchUser;
+    }
     EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
     const char *cookie = evhttp_find_header(evhttp_request_get_input_headers(req), "Cookie");
     return AuthUtil::ResolveSessionUser(master, AuthUtil::ExtractCookieValue(cookie, ".LOGINSESSION"));
