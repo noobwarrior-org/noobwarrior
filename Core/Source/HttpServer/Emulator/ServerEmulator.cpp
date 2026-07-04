@@ -490,12 +490,14 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
         }
 
         // Remember where to pull this user's avatar from their home master, so AvatarFetchHandler can
-        // serve it instead of the local default.
-        std::string homeBaseUrl = u.value("homeBaseUrl", "");
-        while (!homeBaseUrl.empty() && homeBaseUrl.back() == '/')
-            homeBaseUrl.pop_back();
-        if (!homeBaseUrl.empty())
-            SetFederatedAvatarSource(user.id, homeBaseUrl + "/fed/v1/avatar?handle=" + cpr::util::urlEncode(user.name));
+        // serve it instead of the local default. When the home master IS our own master, prefer the URL we
+        // already reached it at (masterUrl == emu.auth.master) over its self-reported homeBaseUrl, which may
+        // be unset/misconfigured (e.g. an identity-only domain like "a" that isn't a reachable host).
+        std::string avatarBase = u.value("isLocal", false) ? masterUrl : u.value("homeBaseUrl", "");
+        while (!avatarBase.empty() && avatarBase.back() == '/')
+            avatarBase.pop_back();
+        if (!avatarBase.empty())
+            SetFederatedAvatarSource(user.id, avatarBase + "/fed/v1/avatar?handle=" + cpr::util::urlEncode(user.name));
         return user;
     } catch (json::exception &) {
         return std::nullopt;

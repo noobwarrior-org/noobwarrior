@@ -365,12 +365,16 @@ function fed.VerifyFederatedJoin(identity, actionId, body, allowForeign, signatu
 
     fed.MarkActionSeen(actionId, "join")
     -- Where the slave can fetch this user's avatar (their home master serves it over /fed/v1/avatar).
-    local homeBaseUrl = fed.IsLocalDomain(domain) and fed.SelfBaseUrl() or fed.ResolveBaseUrl(domain)
+    -- isLocal tells the slave this user's home master is US, so it can prefer the URL it already reached
+    -- us at (emu.auth.master) over our self-reported SelfBaseUrl, which may be unset/misconfigured.
+    local isLocal = fed.IsLocalDomain(domain)
+    local homeBaseUrl = isLocal and fed.SelfBaseUrl() or fed.ResolveBaseUrl(domain)
     return {
         id = _G.MASTERSERVER_ONLINE_USER_ID(identity),
         name = identity,
         displayName = username,
         homeBaseUrl = homeBaseUrl,
+        isLocal = isLocal,
     }
 end
 

@@ -29,5 +29,6 @@ die(json.stringify({ ok = true, user = {
     name = user.name,
     displayName = user.displayName,
     homeBaseUrl = user.homeBaseUrl or "",
+    isLocal = user.isLocal or false,
 } }))
 ?>
