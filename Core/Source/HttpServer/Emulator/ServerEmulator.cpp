@@ -27,6 +27,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Macros.h>
 
@@ -167,7 +168,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/user/groups/canmanage", &mDevelopHandler);
     SetRequestHandler("/v1/user/:userId/canmanage/:placeId", &mDevelopHandler);
     SetRequestHandler("/v1/universes/multiget/teamcreate", &mDevelopHandler);
-    // Universe configuration — gates DataStore/HttpService access in Studio (isStudioAccessToApisAllowed).
+    // Universe configuration: gates DataStore/HttpService access in Studio (isStudioAccessToApisAllowed).
     SetRequestHandler("/v1/universes/:universeId/configuration", &mDevelopHandler);
     SetRequestHandler("/v2/universes/:universeId/configuration", &mDevelopHandler);
 
@@ -319,14 +320,43 @@ void ServerEmulator::ClearAvatarOverrides() {
     mAvatarOverrides.clear();
 }
 
-void ServerEmulator::SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl) {
+void ServerEmulator::SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl, const std::string &baseUrl) {
     if (sourceUrl.empty())
         return;
     static constexpr size_t kMaxEntries = 4096;
     std::lock_guard lock(mFederatedAvatarsMutex);
     if (mFederatedAvatars.size() >= kMaxEntries && !mFederatedAvatars.count(userId))
         return;
-    mFederatedAvatars[userId] = { sourceUrl, "" }; // fresh source: drop any stale cached body
+    mFederatedAvatars[userId] = { sourceUrl, baseUrl, "" }; // fresh source: drop any stale cached body
+}
+
+bool ServerEmulator::TryFetchFederatedAsset(int64_t id, std::vector<unsigned char> *dataOut, std::string *hashOut) {
+    // The home-master base URLs of joined federated players (deduped). A miss on a worn item (or a mesh/
+    // texture the engine fetches for it) is served from one of these.
+    std::vector<std::string> origins;
+    {
+        std::lock_guard lock(mFederatedAvatarsMutex);
+        for (const auto &[uid, fa] : mFederatedAvatars) {
+            if (!fa.BaseUrl.empty() && std::find(origins.begin(), origins.end(), fa.BaseUrl) == origins.end())
+                origins.push_back(fa.BaseUrl);
+        }
+    }
+    if (origins.empty())
+        return false;
+
+    for (const std::string &base : origins) {
+        cpr::Response res = cpr::Get(cpr::Url{base + "/fed/v1/asset?id=" + std::to_string(id)},
+                                     cpr::Timeout{std::chrono::milliseconds(3000)}, cpr::VerifySsl{false});
+        if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400 || res.text.empty())
+            continue;
+        std::vector<unsigned char> bytes(res.text.begin(), res.text.end());
+        GetCore()->GetEmuDbManager()->CacheAssetInTemporary(id, bytes); // so the next fetch is local
+        if (dataOut) *dataOut = std::move(bytes);
+        if (hashOut) hashOut->clear();
+        Out(mLogName, "Fetched federated asset {} from {}", id, base);
+        return true;
+    }
+    return false;
 }
 
 std::optional<std::string> ServerEmulator::GetFederatedAvatar(int64_t userId) {
@@ -497,7 +527,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
         while (!avatarBase.empty() && avatarBase.back() == '/')
             avatarBase.pop_back();
         if (!avatarBase.empty())
-            SetFederatedAvatarSource(user.id, avatarBase + "/fed/v1/avatar?handle=" + cpr::util::urlEncode(user.name));
+            SetFederatedAvatarSource(user.id, avatarBase + "/fed/v1/avatar?handle=" + cpr::util::urlEncode(user.name), avatarBase);
         return user;
     } catch (json::exception &) {
         return std::nullopt;
@@ -521,6 +551,7 @@ ServerEmulator::Mode ServerEmulator::GetMode() {
 }
 
 void ServerEmulator::SweepStaleInstancesLocked() {
+    const bool hadInstances = !mInstances.empty();
     time_t now = std::time(nullptr);
     auto it = std::remove_if(mInstances.begin(), mInstances.end(),
         [&](const RunningInstance &inst) {
@@ -531,6 +562,13 @@ void ServerEmulator::SweepStaleInstancesLocked() {
             return stale;
         });
     mInstances.erase(it, mInstances.end());
+
+    // Clear-when-empty eviction: once the last game instance is gone, the scratch db's materialized
+    // (federated player) assets exist only to serve a running game, so drop them instead of leaking RAM.
+    if (hadInstances && mInstances.empty())
+        if (Core *core = GetCore())
+            if (EmuDbManager *mgr = core->GetEmuDbManager())
+                mgr->ClearTemporaryDatabase();
 }
 
 void ServerEmulator::RegisterInstance(const RunningInstance &instance) {

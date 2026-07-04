@@ -63,7 +63,7 @@ void AccountsPage::InitWidgets() {
     contentLayout->addStretch();
 
     // Three sections plus two lists get tall, so keep the page scrollable below the title. Never scroll
-    // horizontally — the content wraps to the viewport width (tree views keep their own inner scroll).
+    // horizontally. The content wraps to the viewport width (tree views keep their own inner scroll).
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);

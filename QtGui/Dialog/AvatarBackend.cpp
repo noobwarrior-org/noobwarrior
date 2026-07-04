@@ -221,7 +221,7 @@ ThumbnailFetcher LocalRegistryBackend::MakeThumbnailFetcher() {
 }
 
 // ------------------------------------------------------------------------------------------------
-// RemoteAccountBackend — a DB-backed account on a server, over HTTP.
+// RemoteAccountBackend: a DB-backed account on a server, over HTTP.
 
 // AvatarData color part -> the avatar-fetch bodyColor3s key.
 static const std::vector<std::pair<std::string, std::string>>& ColorPartToFetchKey() {
@@ -389,20 +389,27 @@ AvatarCatalogPage RemoteAccountBackend::Catalog(int assetType, const std::string
         nlohmann::json j = nlohmann::json::parse(res.text);
         out.Page = j.value("page", 0);
         out.PageCount = j.value("pageCount", 1);
+        out.SelfDomain = j.value("selfDomain", std::string());
         if (j.contains("items") && j["items"].is_array())
             for (const auto& e : j["items"])
                 out.Items.push_back({ e.value("id", static_cast<int64_t>(0)),
                                       e.value("name", std::string()),
-                                      e.value("assetTypeId", assetType) });
+                                      e.value("assetTypeId", assetType),
+                                      e.value("originDomain", std::string()),
+                                      e.value("db", std::string()) });
     } catch (...) {
     }
     return out;
 }
 
-static std::vector<unsigned char> HttpFetchThumbnail(const std::string& baseUrl, const std::string& session, int64_t assetId) {
+static std::vector<unsigned char> HttpFetchThumbnail(const std::string& baseUrl, const std::string& session,
+                                                     int64_t assetId, const std::string& originDomain) {
+    cpr::Parameters params{ { "id", std::to_string(assetId) } };
+    if (!originDomain.empty())
+        params.Add({ "origin", originDomain }); // federated item: the server proxies from its home master
     cpr::Response res = cpr::Get(
         cpr::Url{ baseUrl + "/emu/v1/avatar/thumbnail" },
-        cpr::Parameters{ { "id", std::to_string(assetId) } },
+        params,
         cpr::Header{ { "Cookie", ".LOGINSESSION=" + session } },
         cpr::Timeout{ std::chrono::milliseconds(8000) },
         cpr::VerifySsl{ false });
@@ -414,7 +421,7 @@ static std::vector<unsigned char> HttpFetchThumbnail(const std::string& baseUrl,
 ThumbnailFetcher RemoteAccountBackend::MakeThumbnailFetcher() {
     // Capture the URL + session by value so the callable is independent of this backend's lifetime and can
     // be run on a background thread even after the backend/dialog is gone.
-    return [base = mBaseUrl, session = mSession](int64_t assetId) {
-        return HttpFetchThumbnail(base, session, assetId);
+    return [base = mBaseUrl, session = mSession](int64_t assetId, const std::string& originDomain) {
+        return HttpFetchThumbnail(base, session, assetId, originDomain);
     };
 }

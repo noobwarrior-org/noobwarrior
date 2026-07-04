@@ -162,9 +162,16 @@ public:
 
     /* A federated joiner's avatar lives on their home master, not in our DB. On join we record where to
      * fetch it (keyed by their OnlineUserId); GetFederatedAvatar pulls it once and caches it, so
-     * AvatarFetchHandler serves the home-master look instead of the local default. */
-    void SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl);
+     * AvatarFetchHandler serves the home-master look instead of the local default. baseUrl is the home
+     * master's base (for pulling the joiner's worn assets on demand, see TryFetchFederatedAsset). */
+    void SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl, const std::string &baseUrl);
     std::optional<std::string> GetFederatedAvatar(int64_t userId);
+
+    /* On-demand asset proxy: a federated player's worn items (and the mesh/texture deps the engine fetches
+     * for them) live on their home master. When an asset id misses locally, this tries every joined
+     * federated player's home master's /fed/v1/asset, caches a hit in the temporary db (so the engine's
+     * next fetch resolves locally), and returns the bytes. false if no federated origin has it. */
+    bool TryFetchFederatedAsset(int64_t id, std::vector<unsigned char> *dataOut, std::string *hashOut);
 
     /* Records that OnlineUserId is held by handle this run. Returns false if that id is already bound to
      * a different handle (an identity collision/spoof), so the join can be refused. */
@@ -273,7 +280,7 @@ private:
 
     // Federated joiners' avatars, keyed by OnlineUserId: where to fetch (SourceUrl) and, once pulled,
     // the cached /v1.1/avatar-fetch body (see Set/GetFederatedAvatar).
-    struct FederatedAvatar { std::string SourceUrl; std::string CachedJson; };
+    struct FederatedAvatar { std::string SourceUrl; std::string BaseUrl; std::string CachedJson; };
     mutable std::mutex mFederatedAvatarsMutex;
     std::map<int64_t, FederatedAvatar> mFederatedAvatars;
 

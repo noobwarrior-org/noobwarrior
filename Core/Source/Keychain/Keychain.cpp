@@ -145,7 +145,7 @@ void Keychain::AddAccount(Account &acc) {
 }
 
 Account* Keychain::AddOrUpdateAccount(const Account &acc) {
-    // Overwrite in place if we already have this account (re-login refreshing the token) — the pointer,
+    // Overwrite in place if we already have this account (re-login refreshing the token). The pointer,
     // and any ActiveAccount pointing at it, stay valid.
     for (Account &existing : Accounts) {
         if (existing.Name == acc.Name) {

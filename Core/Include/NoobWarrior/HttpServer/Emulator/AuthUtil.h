@@ -102,7 +102,7 @@ std::optional<SessionUser> DecodeGuestTicket(const std::string &ticket);
 std::string EncodeFederatedTicket(const SessionUser &user);
 std::optional<SessionUser> DecodeFederatedTicket(const std::string &ticket);
 
-// Local accounts on the server emulator's master DB — the accounts players log in with in master
+// Local accounts on the server emulator's master DB, the accounts players log in with in master
 // mode (also what the master-server plugin authenticates against).
 struct LocalAccount {
     int64_t id {0};

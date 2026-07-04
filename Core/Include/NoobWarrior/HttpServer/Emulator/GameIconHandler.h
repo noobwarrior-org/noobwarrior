@@ -34,7 +34,7 @@ public:
     GameIconHandler(HttpServer *srv, EmuDbManager *dbm);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
-    // GET /v1/games/icons?universeIds=... — the home grid's icon list. Each entry's imageUrl points
+    // GET /v1/games/icons?universeIds=...: the home grid's icon list. Each entry's imageUrl points
     // back at this handler's square-icon image route.
     void ServeIconsBatch(evhttp_request *req);
     // Streams a universe's square icon PNG straight from EmuDb (RetrieveImageData), or an asset's

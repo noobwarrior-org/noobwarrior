@@ -54,7 +54,7 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
         try {
             nlohmann::json j = nlohmann::json::parse(body);
             // Never overwrite an identity the host already authenticated (a real ticket, not the "1"
-            // placeholder) — the host is authoritative there, whatever our local auth setting is.
+            // placeholder). The host is authoritative there, whatever our local auth setting is.
             std::string ticket = j.value("authenticationTicket", "");
             bool hostAuthenticated = !ticket.empty() && ticket != "1";
             if (!hostAuthenticated && j.contains("joinScript") && j["joinScript"].is_object()) {

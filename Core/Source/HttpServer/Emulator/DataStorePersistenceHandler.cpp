@@ -123,7 +123,7 @@ static int64_t NowMs() {
 // ISO-8601 UTC with a numeric offset and no fractional seconds ("2026-06-23T20:45:38+00:00"). This is
 // exactly what PHP date('c') emits, which the engine's DataStoreKeyInfo time parser accepts; the
 // fractional ".sssZ" form is rejected by GetAsync (it builds KeyInfo and parses these), surfacing as
-// the 504 even though SetAsync — which only reads "version" — tolerated it.
+// the 504 even though SetAsync, which only reads "version", tolerated it.
 static std::string MsToIso8601(int64_t ms) {
     std::time_t secs = static_cast<std::time_t>(ms / 1000);
     std::tm tmv{};
@@ -138,7 +138,7 @@ static std::string MsToIso8601(int64_t ms) {
     return buf;
 }
 
-// base64(md5(data)) — the Content-MD5 value the engine validates.
+// base64(md5(data)), the Content-MD5 value the engine validates.
 static std::string Md5Base64(const std::string &data) {
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int len = 0;
@@ -577,7 +577,7 @@ void DataStorePersistenceHandler::HandleV2Object(evhttp_request *req, int64_t un
             return;
         }
         AddObjectHeaders(req, w.VersionId, w.ObjectCreatedTime, w.VersionCreatedTime, userIds, attributes, w.Md5);
-        // SetAsync expects the metadata envelope in the body (NOT the value echoed) — the engine reads
+        // SetAsync expects the metadata envelope in the body (NOT the value echoed), the engine reads
         // the new version from here and rejects anything else with "504: response not formatted correctly".
         json meta;
         meta["version"] = w.VersionId;

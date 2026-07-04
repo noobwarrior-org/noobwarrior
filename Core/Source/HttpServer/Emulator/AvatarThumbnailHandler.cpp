@@ -36,7 +36,7 @@ using namespace NoobWarrior;
 
 AvatarThumbnailHandler::AvatarThumbnailHandler(ServerEmulator* emu) : mEmu(emu) {}
 
-// Tolerant single-param lookup (doesn't fail the whole query on a valueless sibling — see AvatarCatalogHandler).
+// Tolerant single-param lookup (doesn't fail the whole query on a valueless sibling; see AvatarCatalogHandler).
 static std::string GetQueryParam(const char* uri, const char* key) {
     if (uri == nullptr)
         return {};

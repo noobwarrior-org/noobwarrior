@@ -6,30 +6,26 @@ local search = _GET["search"] or ""
 local page = tonumber(_GET["page"]) or 0
 local pageSize = 60
 
-local mgr = core.GetEmuDbManager()
-if mgr == nil then
-    die(json.stringify({ items = {}, page = 0, pageCount = 1, total = 0 }))
-end
+local fed = _G.MASTERSERVER_FEDERATION
+local selfDomain = _G.MASTERSERVER_DOMAIN()
 
+-- Merge this master's own items with every federated peer's, each tagged with the master + db it lives in.
+-- Dedup by origin#id: the same id from two different masters are DIFFERENT items (separate origins).
 local items = {}
 local seen = {}
-for _, db in ipairs(mgr:GetMountedDatabases()) do
-    local rows
-    if search ~= "" then
-        local esc = search:gsub("([%%_\\])", "\\%1") -- escape LIKE wildcards
-        rows = db:QueryTyped("SELECT Id, Name FROM Asset WHERE Type = ? AND Name LIKE ? ESCAPE '\\';",
-            assetType, "%" .. esc .. "%")
-    else
-        rows = db:QueryTyped("SELECT Id, Name FROM Asset WHERE Type = ?;", assetType)
-    end
-    if type(rows) == "table" then
-        for _, r in ipairs(rows) do
-            if not seen[r.Id] then
-                seen[r.Id] = true
-                items[#items + 1] = { id = r.Id, name = r.Name, assetTypeId = assetType }
-            end
-        end
-    end
+local function add(id, name, dbName, origin)
+    if id == nil then return end
+    local key = tostring(origin):lower() .. "#" .. tostring(id)
+    if seen[key] then return end
+    seen[key] = true
+    items[#items + 1] = { id = id, name = name, assetTypeId = assetType, db = dbName, originDomain = origin }
+end
+
+for _, it in ipairs(fed.LocalCatalog(assetType, search)) do
+    add(it.id, it.name, it.db, selfDomain)
+end
+for _, it in ipairs(fed.PeerCatalog(assetType, search)) do
+    add(it.id, it.name, it.db, it.originDomain)
 end
 
 table.sort(items, function(a, b) return tostring(a.name) < tostring(b.name) end)
@@ -44,5 +40,5 @@ for i = page * pageSize + 1, math.min(total, (page + 1) * pageSize) do
     pageItems[#pageItems + 1] = items[i]
 end
 
-die(json.stringify({ items = pageItems, page = page, pageCount = pageCount, total = total }))
+die(json.stringify({ items = pageItems, page = page, pageCount = pageCount, total = total, selfDomain = selfDomain }))
 ?>

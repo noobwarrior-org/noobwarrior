@@ -59,7 +59,7 @@ static std::string GetQueryParam(const char* uri, const char* key) {
 }
 
 // Collects every value for a query key, handling BOTH the repeated form (ids=1&ids=2) and the
-// comma-separated form (ids=1,2,3) — Studio uses both. Parses the raw query so repeated keys aren't
+// comma-separated form (ids=1,2,3). Studio uses both. Parses the raw query so repeated keys aren't
 // collapsed (evhttp_find_header only returns the first). Non-numeric tokens are skipped.
 static std::vector<int64_t> CollectIds(const char* uri, const char* key) {
     std::vector<int64_t> ids;
@@ -167,7 +167,7 @@ void DevelopHandler::HandleSearchUniverses(evhttp_request *req) {
     for (int64_t universeId : mEmuDbManager->ListUniverseIds(groupOwned, limit, 0)) {
         std::optional<EmuDb::UniverseSummary> s = mEmuDbManager->GetUniverseSummary(universeId);
 
-        // A stored 0 means "unset" in these databases, same as NULL — fall back rather than emit a 0
+        // A stored 0 means "unset" in these databases, same as NULL, so fall back rather than emit a 0
         // root place (unopenable) or a 0 creator (owner-less).
         int64_t rootPlaceId = s && s->StartPlaceId && *s->StartPlaceId != 0 ? *s->StartPlaceId : universeId;
         std::string name = s && !s->Name.empty() ? s->Name : std::string("noobWarrior Place");

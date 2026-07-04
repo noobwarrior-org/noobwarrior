@@ -257,10 +257,11 @@ bool ItemListWidget::AddFromDatabase(EmuDb* db, ItemType type, int64_t id) {
     return true;
 }
 
-bool ItemListWidget::AddRemote(int64_t id, const QString& name, const QPixmap& icon) {
+bool ItemListWidget::AddRemote(int64_t id, const QString& name, const QPixmap& icon,
+                               const QString& originDomain, const QString& originDb) {
     if (mItems.find({ ItemType::Asset, id }) != mItems.end())
         return false;
-    mItems[{ ItemType::Asset, id }] = new ItemWidget(id, name, icon, this);
+    mItems[{ ItemType::Asset, id }] = new ItemWidget(id, name, icon, originDomain, originDb, this);
     return true;
 }
 
@@ -677,7 +678,7 @@ void ItemListWidget::PasteItems() {
         }
 
         // Reflect the paste in this list. For an overwrite the widget already exists, so refresh it
-        // in place — deleting and re-adding glitches the list's batched layout (the row can vanish
+        // in place. Deleting and re-adding glitches the list's batched layout (the row can vanish
         // until the next repopulate). A brand-new / re-id'd item is simply added.
         if (auto *existing = GetItemWidget(toImport.Type, toImport.Id))
             existing->Reload();

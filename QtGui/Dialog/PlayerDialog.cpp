@@ -182,7 +182,7 @@ QString PlayerDialog::CurrentTargetName() const {
 }
 
 // Reflects the current target in the window title, the switcher button, and the identity fields (which
-// are editable for the local player but fixed/disabled for a remote account — only its avatar changes).
+// are editable for the local player but fixed/disabled for a remote account, since only its avatar changes).
 void PlayerDialog::ApplyTargetToIdentity() {
     Registry* reg = gApp->GetCore()->GetRegistry();
     setWindowTitle(mLocal ? "Player Settings"
@@ -607,7 +607,7 @@ void PlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     tab.list = new ItemListWidget(listPage);
     tab.list->setSelectionMode(QAbstractItemView::NoSelection);
     tab.list->setContextMenuPolicy(Qt::NoContextMenu);
-    tab.list->SetOnDoubleClick([](ItemWidget*) {});
+    tab.list->SetOnDoubleClick([this](ItemWidget* iw) { ShowItemPreview(iw); });
     lpl->addWidget(tab.list, 1);
 
     QHBoxLayout* pager = new QHBoxLayout;
@@ -699,7 +699,7 @@ void PlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
 void PlayerDialog::CollectIds(AvatarTab& tab) {
     // Fetches the CURRENT page from the backend's catalog (the local DBs for the local player, or the
     // remote server's catalog for an account). Each id is bound to whichever local database has it for
-    // rendering; a remote server may list assets the client has no local copy of — those render from a
+    // rendering; a remote server may list assets the client has no local copy of, and those render from a
     // thumbnail fetched asynchronously (see StartThumbnailFetch), so this never blocks on thumbnail I/O.
     tab.pageItems.clear();
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
@@ -722,7 +722,16 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
         AvatarPageItem pi;
         pi.id = id;
         pi.name = QString::fromStdString(item.Name);
-        pi.db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
+        // A FEDERATED item (a peer master's, per the catalog's originDomain vs its selfDomain) is rendered
+        // from its origin. It's never resolved against local DBs, since a peer's id can collide with a local one.
+        const bool peer = !item.OriginDomain.empty() && item.OriginDomain != cat.SelfDomain;
+        if (peer) {
+            pi.db = nullptr;
+            pi.originDomain = QString::fromStdString(item.OriginDomain);
+            pi.originDb = QString::fromStdString(item.Db);
+        } else {
+            pi.db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
+        }
         if (pi.db == nullptr && !mLocal) {
             // Remote-only item. Reuse an already-fetched thumbnail if we have one; otherwise leave it null
             // (RenderPage shows a placeholder) and remember the item so an async result can fill its icon.
@@ -748,7 +757,7 @@ void PlayerDialog::RenderPage(AvatarTab& tab) {
         if (pi.db != nullptr)
             tab.list->AddFromDatabase(pi.db, ItemType::Asset, pi.id);
         else
-            tab.list->AddRemote(pi.id, pi.name, pi.thumb);
+            tab.list->AddRemote(pi.id, pi.name, pi.thumb, pi.originDomain, pi.originDb);
     }
 
     tab.pageLabel->setText(QString("Page %1 / %2").arg(tab.page + 1).arg(tab.pageCount));
@@ -766,6 +775,50 @@ void PlayerDialog::StepPage(AvatarTab& tab, int delta) {
     tab.page = np;
     CollectIds(tab); // re-fetch the new page from the backend
     RenderPage(tab);
+}
+
+void PlayerDialog::ShowItemPreview(ItemWidget* item) {
+    if (item == nullptr)
+        return;
+
+    QDialog dlg(this);
+    dlg.setWindowTitle("Item Preview");
+    QVBoxLayout* layout = new QVBoxLayout(&dlg);
+
+    QLabel* image = new QLabel;
+    image->setAlignment(Qt::AlignCenter);
+    image->setMinimumSize(256, 256);
+    QPixmap px = item->icon().pixmap(QSize(256, 256));
+    if (px.isNull())
+        image->setText("(no preview available)");
+    else
+        image->setPixmap(px.scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    layout->addWidget(image);
+
+    QLabel* name = new QLabel("<b>" + item->text().section('\n', 0, 0).toHtmlEscaped() + "</b>");
+    name->setAlignment(Qt::AlignCenter);
+    layout->addWidget(name);
+
+    QLabel* id = new QLabel("Asset ID: " + QString::number(item->GetId()));
+    id->setAlignment(Qt::AlignCenter);
+    layout->addWidget(id);
+
+    // Federated items say which master server + database they came from; local items have no origin.
+    if (!item->GetOriginDomain().isEmpty()) {
+        QString origin = "Master server: <b>" + item->GetOriginDomain().toHtmlEscaped() + "</b>";
+        if (!item->GetOriginDb().isEmpty())
+            origin += "<br>Database: <b>" + item->GetOriginDb().toHtmlEscaped() + "</b>";
+        QLabel* originLabel = new QLabel(origin);
+        originLabel->setAlignment(Qt::AlignCenter);
+        layout->addWidget(originLabel);
+    }
+
+    QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Close);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    layout->addWidget(box);
+
+    dlg.exec();
 }
 
 void PlayerDialog::RenderWorn(AvatarTab& tab) {
@@ -1211,7 +1264,7 @@ static R RunPumped(F fn) {
         QMetaObject::invokeMethod(&loop, [&loop]() { loop.quit(); }, Qt::QueuedConnection);
     });
     // Exclude user input while pumping: timers (the Core event pump + thumbnail drain) still fire, but
-    // clicks/keystrokes are deferred until the call returns — so the caller needn't disable the dialog to
+    // clicks/keystrokes are deferred until the call returns, so the caller needn't disable the dialog to
     // block re-entrant fetches, and the search field keeps focus while a fetch runs.
     loop.exec(QEventLoop::ExcludeUserInputEvents);
     worker.join();
@@ -1283,11 +1336,13 @@ AvatarCatalogPage PlayerDialog::BackendCatalog(int assetType, const std::string&
 void PlayerDialog::StartThumbnailFetch(AvatarTab& tab) {
     if (mLocal)
         return;
-    std::vector<int64_t> ids;
+    // Each pending item carries its origin (empty = the browsed server's own item; a domain = a federated
+    // peer's, which the server proxies the preview from).
+    std::vector<std::pair<int64_t, std::string>> jobs;
     for (const AvatarPageItem& pi : tab.pageItems)
         if (pi.db == nullptr && pi.thumb.isNull())
-            ids.push_back(pi.id);
-    if (ids.empty())
+            jobs.push_back({ pi.id, pi.originDomain.toStdString() });
+    if (jobs.empty())
         return;
 
     ThumbnailFetcher fetch = mBackend->MakeThumbnailFetcher();
@@ -1302,13 +1357,13 @@ void PlayerDialog::StartThumbnailFetch(AvatarTab& tab) {
     auto inflight = mThumbInFlight;
     inflight->fetch_add(1);
 
-    // The worker holds only copies (fetch/queue/cancel/inflight) — never `this` or the backend — so it is
+    // The worker holds only copies (fetch/queue/cancel/inflight), never `this` or the backend, so it is
     // safe even if the dialog is closed while it runs. Results flow through the queue, drained by mThumbTimer.
-    std::thread([fetch = std::move(fetch), ids = std::move(ids), epoch, cancel, queue, inflight]() {
-        for (int64_t id : ids) {
+    std::thread([fetch = std::move(fetch), jobs = std::move(jobs), epoch, cancel, queue, inflight]() {
+        for (const auto& [id, origin] : jobs) {
             if (cancel->load())
                 break;
-            std::vector<unsigned char> bytes = fetch(id);
+            std::vector<unsigned char> bytes = fetch(id, origin);
             if (cancel->load())
                 break;
             if (!bytes.empty()) {

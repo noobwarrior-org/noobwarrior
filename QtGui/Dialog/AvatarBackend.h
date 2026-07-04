@@ -34,8 +34,9 @@ class Core;
 
 // A self-contained "fetch this asset's thumbnail bytes" callable. It captures everything it needs by value
 // (e.g. a remote URL + session) so a background thread can call it safely without touching the backend or
-// the dialog — decoupling it from their lifetimes.
-using ThumbnailFetcher = std::function<std::vector<unsigned char>(int64_t assetId)>;
+// the dialog, which decouples it from their lifetimes. originDomain routes a federated item's preview to the
+// master that owns it (empty = the browsed server's own item).
+using ThumbnailFetcher = std::function<std::vector<unsigned char>(int64_t assetId, const std::string& originDomain)>;
 
 struct AvatarData {
     std::map<std::string, std::string> Colors;
@@ -49,12 +50,15 @@ struct AvatarCatalogItem {
     int64_t Id { 0 };
     std::string Name;
     int AssetType { 0 };
+    std::string OriginDomain; // federated origin master (empty = the browsed server's own / non-federated item)
+    std::string Db;           // the database the item lives in (shown in the picker)
 };
 
 struct AvatarCatalogPage {
     std::vector<AvatarCatalogItem> Items;
     int Page { 0 };
     int PageCount { 1 };
+    std::string SelfDomain; // the browsed server's own master domain; items with a different OriginDomain are peers
 };
 
 class AvatarBackend {

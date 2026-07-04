@@ -1,0 +1,15 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: api/fed/catalog.lhp
+-- Description: Public federation endpoint: this master's OWN wearable catalog items of a type, so a peer
+--              can aggregate them into a federated browse. Own items only (no peer fan-out) to avoid loops.
+-- Started by: Hattozo
+-- Started on: 7/3/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+header("Content-Type: application/json")
+local assetType = tonumber(_GET["type"]) or 0
+local search = _GET["search"] or ""
+die(json.stringify({ items = _G.MASTERSERVER_FEDERATION.LocalCatalog(assetType, search) }))
+?>

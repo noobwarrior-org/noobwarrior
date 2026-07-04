@@ -250,7 +250,7 @@ void ItemBrowserWidget::GoToPage(int num) {
     mCurrentPage = num;
 
     mPage->SetPage(num);
-    // Note: don't call QListWidget::clear() here — Populate (via Refresh) clears the list and its
+    // Note: don't call QListWidget::clear() here. Populate (via Refresh) clears the list and its
     // internal item map together. A bare clear() would delete the widgets while leaving dangling
     // pointers in that map, which StopPlayback() could then dereference.
     mPage->Refresh();

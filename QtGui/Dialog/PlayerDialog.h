@@ -56,6 +56,7 @@ class QMenu;
 
 namespace NoobWarrior {
 class ItemListWidget;
+class ItemWidget;
 class EmuDb;
 class AvatarBackend;
 struct AvatarData;
@@ -71,7 +72,7 @@ struct AvatarBodyPart {
 };
 
 // One filter within a tab (e.g. Clothing's "Shirts", Body's "Scale"). A subgroup shows one asset
-// type and equips into either a single registry slot, the shared accessories list, or — for the
+// type and equips into either a single registry slot, the shared accessories list, or for the
 // special Scale subgroup; swaps the item list for the scale/rig controls.
 struct AvatarSubgroup {
     enum class Kind { Slot, Accessory, Scale };
@@ -90,6 +91,8 @@ struct AvatarPageItem {
     QString name;
     EmuDb* db { nullptr };
     QPixmap thumb;
+    QString originDomain; // set for a FEDERATED (peer-master) item: render from origin + show an origin badge
+    QString originDb;     // the database the item lives in on its origin master (shown in the badge/tooltip)
 };
 
 // A top-level editor tab holding several subgroups. The catalog for the active subgroup is paginated
@@ -162,6 +165,10 @@ protected:
     void UnwearItem(AvatarTab& tab, qint64 id);
     void RefreshAllTabs();
 
+    // A large preview popped up on double-clicking a catalog item: big thumbnail, name/id, and for a
+    // federated item, which master server + database it came from.
+    void ShowItemPreview(ItemWidget* item);
+
     // Routes a worn asset id into the right slot / the accessories set based on its asset type.
     void RouteWornAsset(qint64 id);
 
@@ -179,8 +186,8 @@ protected:
     bool SaveToBackend();
 
     // Backend calls: a local backend runs on the UI thread (Lua isn't thread-safe); a remote backend
-    // runs on a worker thread while the UI keeps pumping its event loop — so contacting our OWN
-    // in-process emulator (whose loop this same thread services) can't deadlock — with a busy dialog.
+    // runs on a worker thread while the UI keeps pumping its event loop, so contacting our OWN
+    // in-process emulator (whose loop this same thread services) can't deadlock, with a busy dialog.
     bool BackendLoad(AvatarData& out);
     bool BackendSave(const AvatarData& data);
     AvatarCatalogPage BackendCatalog(int assetType, const std::string& search, int page);

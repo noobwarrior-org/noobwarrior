@@ -48,7 +48,7 @@ void AvatarOverrideHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     // In auth mode the server serves avatars from its own database, so a client-pushed appearance is
-    // ignored — accepting it would let a joiner spoof any user's look.
+    // ignored, since accepting it would let a joiner spoof any user's look.
     if (mEmu->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
         evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);
         return;

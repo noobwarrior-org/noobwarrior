@@ -36,11 +36,20 @@ namespace NoobWarrior {
 class ItemWidget : public QListWidgetItem {
 public:
     ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListWidget *listview = nullptr);
-    ItemWidget(int64_t id, const QString& name, const QPixmap& icon, QListWidget *listview = nullptr);
+    // A DB-less item (mDb == nullptr): name + icon supplied directly rather than read from an EmuDb (used
+    // by the avatar picker for a remote catalog item). A non-empty originDomain tags the federated master
+    // (and db) it came from, shown as a small badge + tooltip.
+    ItemWidget(int64_t id, const QString& name, const QPixmap& icon,
+               const QString& originDomain = QString(), const QString& originDb = QString(),
+               QListWidget *listview = nullptr);
 
     void Configure();
     NoobWarrior::ItemType GetType();
     int64_t GetId();
+    // The federated master + database this item came from (empty for a local / same-server item). Kept for
+    // a preview dialog, not shown inline.
+    QString GetOriginDomain() const { return mOriginDomain; }
+    QString GetOriginDb() const { return mOriginDb; }
 
     // Re-reads the item's name, type, icon and play badge from the database and rebuilds its display
     // (used to refresh an item in place, e.g. after it's overwritten by a paste).
@@ -70,6 +79,10 @@ private:
     QPixmap mBasePixmap;
     // The composed icon (thumbnail + any badge), cached so it can be faded/restored for cut state.
     QPixmap mIconPixmap;
+
+    // Federated origin of a DB-less item (empty otherwise): the master domain + database it came from.
+    QString mOriginDomain;
+    QString mOriginDb;
 
     EmuDb* mDb;
     NoobWarrior::ItemType mType;

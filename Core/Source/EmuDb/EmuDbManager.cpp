@@ -68,6 +68,71 @@ void EmuDbManager::UnmountDatabases() {
         NOOBWARRIOR_FREE_PTR(db)
     }
     mMountedDatabases.clear();
+    ClearTemporaryDatabase(); // the scratch db's materialized items are meaningless without the mount set
+}
+
+EmuDb* EmuDbManager::GetTemporaryDatabase() {
+    if (mTemporaryDatabase == nullptr) {
+        // Ephemeral in-memory database (vanishes on close). Migrations run in the ctor, so it's schema-ready.
+        mTemporaryDatabase = new EmuDb(":memory:", true);
+        if (mTemporaryDatabase->Fail()) {
+            Out("EmuDbManager", "Failed to create the temporary in-memory database");
+            NOOBWARRIOR_FREE_PTR(mTemporaryDatabase)
+        }
+    }
+    return mTemporaryDatabase;
+}
+
+void EmuDbManager::ClearTemporaryDatabase() {
+    if (mTemporaryDatabase != nullptr)
+        NOOBWARRIOR_FREE_PTR(mTemporaryDatabase) // freeing the :memory: db reclaims its RAM; recreated on demand
+    mMaterializedIds.clear();
+    mNextSynthId = (1LL << 48);
+}
+
+int64_t EmuDbManager::MaterializeAsset(const std::string &originKey, int assetType, const std::string &name,
+                                       const std::vector<unsigned char> &assetData) {
+    // Idempotent: the same source item always maps to the same synthetic id.
+    if (auto it = mMaterializedIds.find(originKey); it != mMaterializedIds.end())
+        return it->second;
+
+    EmuDb *temp = GetTemporaryDatabase();
+    if (temp == nullptr)
+        return 0;
+
+    const int64_t synthId = mNextSynthId++;
+    SqlRow row;
+    row.push_back({ "Id", synthId });
+    row.push_back({ "Type", assetType });
+    row.push_back({ "Name", name });
+    if (temp->AddItem(ItemType::Asset, row) != SqlDb::Response::Success)
+        return 0;
+    temp->AttachDataToAsset(synthId, 1, assetData); // version 1; RetrieveAssetData(id, 0) returns it as latest
+
+    mMaterializedIds[originKey] = synthId;
+    return synthId;
+}
+
+std::optional<int64_t> EmuDbManager::GetMaterializedId(const std::string &originKey) const {
+    if (auto it = mMaterializedIds.find(originKey); it != mMaterializedIds.end())
+        return it->second;
+    return std::nullopt;
+}
+
+bool EmuDbManager::CacheAssetInTemporary(int64_t id, const std::vector<unsigned char> &data) {
+    EmuDb *temp = GetTemporaryDatabase();
+    if (temp == nullptr)
+        return false;
+    if (temp->DoesItemExist(ItemType::Asset, id))
+        return true; // already cached this id (only reached on a full miss, so this is just a guard)
+
+    SqlRow row;
+    row.push_back({ "Id", id });
+    row.push_back({ "Type", 0 });          // type is irrelevant for serving the blob back
+    row.push_back({ "Name", std::string() });
+    if (temp->AddItem(ItemType::Asset, row) != SqlDb::Response::Success)
+        return false;
+    return temp->AttachDataToAsset(id, 1, data) == SqlDb::Response::Success;
 }
 
 SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {
@@ -168,12 +233,20 @@ EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
         if (exists)
             return db;
     }
+    // Lowest-priority fallback: a materialized transient item lives only in the scratch database.
+    if (mTemporaryDatabase != nullptr && mTemporaryDatabase->DoesItemExist(type, id))
+        return mTemporaryDatabase;
     return nullptr;
 }
 
 SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
     for (EmuDb* db : mMountedDatabases) {
         SqlDb::Response res = db->RetrieveAssetData(id, version, dataOutput, hashOutput);
+        if (res == SqlDb::Response::Success)
+            return res;
+    }
+    if (mTemporaryDatabase != nullptr) {
+        SqlDb::Response res = mTemporaryDatabase->RetrieveAssetData(id, version, dataOutput, hashOutput);
         if (res == SqlDb::Response::Success)
             return res;
     }

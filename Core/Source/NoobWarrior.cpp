@@ -649,12 +649,12 @@ std::optional<std::string> Core::MintJoinVoucher(const std::string &masterUrl, c
         cpr::Timeout{std::chrono::seconds(10)},
         cpr::VerifySsl{false});
     if (res.error.code != cpr::ErrorCode::OK)
-        return fail("Couldn't reach your master server " + base + " — " + res.error.message);
+        return fail("Couldn't reach your master server " + base + ": " + res.error.message);
     if (res.status_code >= 400) {
         std::string serverMsg;
         try { serverMsg = nlohmann::json::parse(res.text).value("Error", ""); } catch (...) {}
         return fail("Master " + base + " refused (HTTP " + std::to_string(res.status_code) + ", target=" +
-                    targetMasterUrl + ")" + (serverMsg.empty() ? "" : " — " + serverMsg));
+                    targetMasterUrl + ")" + (serverMsg.empty() ? "" : ": " + serverMsg));
     }
 
     std::string actionId, identity, body, signature;

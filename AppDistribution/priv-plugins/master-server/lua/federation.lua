@@ -133,6 +133,79 @@ function fed.ResolveBaseUrl(domain)
     return "https://" .. tostring(domain)
 end
 
+-- Catalog federation: browse wearable items across masters. See the picker for how the origin is shown.
+
+-- This master's OWN wearable items of a type: { {id, name, db} }. No pagination (the aggregator pages the
+-- merged result); capped so one master can't flood the federated listing.
+function fed.LocalCatalog(assetType, search)
+    local out = {}
+    local mgr = core.GetEmuDbManager()
+    if mgr == nil then return out end
+    assetType = tonumber(assetType) or 0
+    search = tostring(search or "")
+    local seen = {}
+    local cap = 1000
+    for _, dbh in ipairs(mgr:GetMountedDatabases()) do
+        local rows
+        if search ~= "" then
+            local esc = search:gsub("([%%_\\])", "\\%1") -- escape LIKE wildcards
+            rows = dbh:QueryTyped("SELECT Id, Name FROM Asset WHERE Type = ? AND Name LIKE ? ESCAPE '\\';",
+                assetType, "%" .. esc .. "%")
+        else
+            rows = dbh:QueryTyped("SELECT Id, Name FROM Asset WHERE Type = ?;", assetType)
+        end
+        if type(rows) == "table" then
+            local dbName = dbh:GetFileName()
+            for _, r in ipairs(rows) do
+                if not seen[r.Id] then
+                    seen[r.Id] = true
+                    out[#out + 1] = { id = r.Id, name = r.Name, db = dbName }
+                    if #out >= cap then return out end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Items from every federated (non-banned) peer's /fed/v1/catalog, each tagged with its origin domain. A
+-- peer that's unreachable or slow is skipped, never fatal (blocking GETs are fine cross-process).
+function fed.PeerCatalog(assetType, search)
+    local out = {}
+    assetType = tonumber(assetType) or 0
+    search = tostring(search or "")
+    for _, peer in ipairs(fed.GetPeers()) do
+        local domain = tostring(peer.Domain or "")
+        if domain ~= "" and not fed.IsLocalDomain(domain)
+            and tostring(peer.Status):lower() ~= "banned" and not fed.IsBanned(domain) then
+            local url = fed.ResolveBaseUrl(domain) .. "/fed/v1/catalog?type=" .. tostring(assetType)
+                .. "&search=" .. _G.MASTERSERVER_URL_ENCODE(search)
+            local res = httpGet(url, 5)
+            if res and (not res.Status or res.Status < 400) then
+                local body = parseJson(res.Body)
+                if body and type(body.items) == "table" then
+                    for _, it in ipairs(body.items) do
+                        if it.id then
+                            out[#out + 1] = { id = it.id, name = it.name, db = it.db, originDomain = domain }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Fetches an asset's thumbnail bytes from a federated peer's /fed/v1/thumbnail (for the catalog proxy).
+-- Returns the raw image bytes, or nil.
+function fed.PeerThumbnail(domain, id)
+    domain = tostring(domain or "")
+    if domain == "" or fed.IsLocalDomain(domain) or fed.IsBanned(domain) then return nil end
+    local res = httpGet(fed.ResolveBaseUrl(domain) .. "/fed/v1/thumbnail?id=" .. tostring(tonumber(id) or 0), 5)
+    if not res or (res.Status and res.Status >= 400) or blank(res.Body) then return nil end
+    return res.Body
+end
+
 local function peerKnown(domain)
     return firstRow(db():QueryTyped("SELECT 1 FROM Peer WHERE Domain = ? COLLATE NOCASE;", domain)) ~= nil
 end

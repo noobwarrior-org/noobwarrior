@@ -39,15 +39,15 @@ private:
     // GET /v1/search/universes?q=creator:User|creator:Team&limit=N&sort=-GameCreated
     // Enumerates the universes stored in the mounted databases as the home page's games list.
     void HandleSearchUniverses(evhttp_request *req);
-    // GET /v1/gametemplates — the New-experience template list (none locally, so an empty set).
+    // GET /v1/gametemplates: the New-experience template list (none locally, so an empty set).
     void HandleGameTemplates(evhttp_request *req);
-    // GET /v1/user/groups/canmanage — groups the user can build for (none locally).
+    // GET /v1/user/groups/canmanage: groups the user can build for (none locally).
     void HandleGroupsCanManage(evhttp_request *req);
-    // GET /v1/user/:userId/canmanage/:placeId — can this user edit the place? (yes, it's a local game).
+    // GET /v1/user/:userId/canmanage/:placeId: can this user edit the place? (yes, it's a local game).
     void HandleUserCanManagePlace(evhttp_request *req);
-    // GET /v1/universes/multiget/teamcreate?ids=... — per-universe team-create status (all inactive).
+    // GET /v1/universes/multiget/teamcreate?ids=...: per-universe team-create status (all inactive).
     void HandleTeamCreateMultiget(evhttp_request *req);
-    // GET /v{1,2}/universes/:universeId/configuration — universe settings. Reports
+    // GET /v{1,2}/universes/:universeId/configuration: universe settings. Reports
     // isStudioAccessToApisAllowed = true, which is the gate Studio checks before it will issue
     // DataStore/HttpService (persistence) calls; without it those calls fail with a 404 in Studio.
     void HandleUniverseConfiguration(evhttp_request *req);

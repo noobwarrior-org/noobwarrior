@@ -93,7 +93,7 @@ public:
     int64_t Created {};     // unix epoch seconds (0 = unknown)
     int64_t Updated {};     // unix epoch seconds (0 = unknown)
     int64_t StartPlaceId {}; // Universe only: its root place
-    int64_t ImageId {};      // display-icon asset id (badges, groups, ...) — what previews resolve to
+    int64_t ImageId {};      // display-icon asset id (badges, groups, ...), what previews resolve to
 
     // User only: the avatar captured from the Roblox avatar API during population, written out to the
     // UserCharacter* tables and the User row's scale columns in phase 2. The worn assets are also added

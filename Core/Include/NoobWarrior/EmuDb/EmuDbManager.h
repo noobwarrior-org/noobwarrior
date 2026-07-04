@@ -26,6 +26,9 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 
 #include <filesystem>
+#include <map>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace NoobWarrior {
@@ -53,6 +56,34 @@ public:
     EmuDb* GetDbFromFilePath(const std::filesystem::path &path);
     EmuDb* GetDbFromFileName(const std::string &name);
     EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
+
+    // hidden in-memory database that is lowest priority in asset lookups
+    // used for adding temporary federated catalog items to the database
+    // completely invisible in things like QtGui/Dialog/DatabaseDialog.cpp
+    EmuDb* GetTemporaryDatabase();
+
+    // clears the temporary database.
+    // Because the temporary database is used when players from federated master servers
+    // join & their avatar items are materialized into the temp database, it can grow
+    // massively when a lot of players join.
+    // So this is called when servers are sweeped so that memory can be freed.
+    void ClearTemporaryDatabase();
+
+    // Copies an asset's binary into the temporary database under a fresh, collision-free SYNTHETIC id, so a
+    // transient/federated asset (pulled from another master) can be served without clashing with real ids.
+    // Idempotent per originKey (the same source item, e.g. "domain#id", always maps to the same synthetic
+    // id). Returns the synthetic id, or 0 on failure. Reachable via the normal asset lookups as the
+    // lowest-priority fallback until ClearTemporaryDatabase() drops it.
+    int64_t MaterializeAsset(const std::string &originKey, int assetType, const std::string &name,
+                             const std::vector<unsigned char> &assetData);
+    // The synthetic id a source item was materialized to, if it has been (so a caller can rewrite an
+    // avatar-fetch / asset reference to point at the materialized copy).
+    std::optional<int64_t> GetMaterializedId(const std::string &originKey) const;
+
+    // Caches an asset's binary in the temporary database under its ORIGINAL id (no remap): the on-demand
+    // asset-proxy cache. Keeps the id so the engine's next fetch of it resolves locally via the scratch-db
+    // fallback. No-op if the id is already cached. Returns true on success.
+    bool CacheAssetInTemporary(int64_t id, const std::vector<unsigned char> &data);
 
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 
@@ -84,5 +115,8 @@ public:
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;
+    EmuDb* mTemporaryDatabase { nullptr };           // hidden lowest-priority scratch db (see GetTemporaryDatabase)
+    std::map<std::string, int64_t> mMaterializedIds; // originKey -> synthetic id in the scratch db
+    int64_t mNextSynthId { 1LL << 48 };              // synthetic-id allocator, well above any real Roblox asset id
 };
 }

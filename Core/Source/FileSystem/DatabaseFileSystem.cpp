@@ -168,7 +168,7 @@ std::vector<DatabaseFileSystem::Node> DatabaseFileSystem::ListChildren(const std
     if (Fail())
         return out;
 
-    // Directories first, then by name (case-insensitive) — the conventional explorer ordering. The UI
+    // Directories first, then by name (case-insensitive), the conventional explorer ordering. The UI
     // is free to re-sort; this is just a sensible default.
     Statement stmt = mDb->PrepareStatement(
         "SELECT " NWDBFS_NODE_COLUMNS " FROM FsNode WHERE ParentId IS ? "

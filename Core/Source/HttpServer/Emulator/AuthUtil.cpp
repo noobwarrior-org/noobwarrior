@@ -475,7 +475,7 @@ std::optional<SessionUser> DecodeGuestTicket(const std::string &ticket) {
     return GuestFromNumber(guestNumber);
 }
 
-// "fed:<id>:<b64url name>:<b64url displayName>" — self-contained so a federated user (no local
+// "fed:<id>:<b64url name>:<b64url displayName>". Self-contained so a federated user (no local
 // User row) can be redeemed without a DB lookup, mirroring the guest ticket.
 std::string EncodeFederatedTicket(const SessionUser &user) {
     return std::format("fed:{}:{}:{}", user.id, Base64UrlEncode(user.name), Base64UrlEncode(user.displayName));

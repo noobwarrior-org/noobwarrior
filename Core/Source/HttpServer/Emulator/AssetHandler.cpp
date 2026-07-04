@@ -471,6 +471,14 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
+    // A joined federated player's worn items (and the meshes/textures the engine fetches for them) live on
+    // their home master. Pull the asset from there (cached in the temp db for next time) before falling
+    // back to real Roblox. Skipped for material bypass (those representations legitimately come from Roblox).
+    if (!bypassForMaterial && mServerEmulator->TryFetchFederatedAsset(id, &data, &hash)) {
+        ReplyWithAsset(req, SqlDb::Response::Success, data, hash);
+        return;
+    }
+
     bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
     auto robloxFallback = [this, id, ver, res, proxyEnabled](evhttp_request *r) {
         if (proxyEnabled)
@@ -500,7 +508,7 @@ void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version,
 
     // Forward the engine's Accept header so assetdelivery returns the requested texture
     // representation (rbx-format/{color,norm,spec}_dxt or ktx/dxt) instead of the baseline XML
-    // descriptor — the same id yields a different texture per representation.
+    // descriptor; the same id yields a different texture per representation.
     if (const char *accept = evhttp_find_header(evhttp_request_get_input_headers(req), "Accept"))
         fetch->Accept = accept;
 

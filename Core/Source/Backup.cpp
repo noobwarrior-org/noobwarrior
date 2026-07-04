@@ -466,7 +466,7 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
         }
         // A non-200 (notably 429 Too Many Requests) still returns a valid JSON error body like
         // {"errors":[...]}, which would otherwise parse as a "successful" object with none of the
-        // expected fields — silently backing up nothing. Treat it as a failure.
+        // expected fields, silently backing up nothing. Treat it as a failure.
         if (res.status_code != 200) {
             Report(res.status_code == 429 ? State::Ratelimited : State::DownloadingFailed,
                    "HTTP " + std::to_string(res.status_code) + " while downloading " + description);

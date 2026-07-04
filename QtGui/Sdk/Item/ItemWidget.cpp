@@ -51,12 +51,17 @@ ItemWidget::ItemWidget(EmuDb *db, NoobWarrior::ItemType type, int64_t id, QListW
     Reload();
 }
 
-ItemWidget::ItemWidget(int64_t id, const QString& name, const QPixmap& icon, QListWidget *listview) :
+ItemWidget::ItemWidget(int64_t id, const QString& name, const QPixmap& icon,
+                       const QString& originDomain, const QString& originDb, QListWidget *listview) :
     QListWidgetItem(listview),
+    mOriginDomain(originDomain),
+    mOriginDb(originDb),
     mDb(nullptr),
     mType(NoobWarrior::ItemType::Asset),
     mId(id)
 {
+    // The origin (domain/db) is kept but NOT shown inline. The picker surfaces it in a preview dialog on
+    // double-click, so the grid stays clean.
     setText(QString("%1\n(%2)").arg(name, QString::number(id)));
     if (!icon.isNull()) {
         mIconPixmap = icon;

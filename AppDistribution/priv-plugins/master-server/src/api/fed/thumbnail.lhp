@@ -2,11 +2,9 @@
 -- ////////////////////////////////////////////////////////////////////////////////
 -- noobWarrior
 -- Plugin: Master Server
--- File: api/avatar/thumbnail.lhp
--- Description: An asset's preview image, so the avatar editor can show a catalog item the client has no
---              local copy of. Mirrors the native /emu/v1/avatar/thumbnail. GET ?id=<assetId>[&origin=<domain>]
---              When origin is a federated peer, the preview is proxied from that peer's /fed/v1/thumbnail
---              (the client can't reach the peer directly), so a federated catalog item still shows an icon.
+-- File: api/fed/thumbnail.lhp
+-- Description: Public federation endpoint - this master's OWN asset thumbnail by id, so a peer aggregating
+--              a federated catalog can proxy previews for items it lists from us. GET ?id=<assetId>
 -- Started by: Hattozo
 -- Started on: 7/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
@@ -16,14 +14,7 @@ if id == nil then
     die("Missing id")
 end
 
-local fed = _G.MASTERSERVER_FEDERATION
-local origin = _GET["origin"]
-local bytes
-if origin and origin ~= "" and not fed.IsLocalDomain(origin) then
-    bytes = fed.PeerThumbnail(origin, id) -- federated item: pull the preview from its home master
-else
-    bytes = core.GetEmuDbManager():RetrieveImageData(ItemType.Asset, id)
-end
+local bytes = core.GetEmuDbManager():RetrieveImageData(ItemType.Asset, id)
 if bytes == nil or #bytes == 0 then
     http_response_code(404)
     die("No thumbnail")

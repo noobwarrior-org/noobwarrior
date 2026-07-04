@@ -61,7 +61,7 @@ class EmulatorProxy {
 public:
     using LocalFallback = std::function<void(evhttp_request *)>;
     // Applied (on the event-loop thread) to the winning layer's 2xx response body before it is sent
-    // to the client. Lets a handler merge client-only data into a proxied response — e.g. overlay the
+    // to the client. Lets a handler merge client-only data into a proxied response, e.g. overlay the
     // local player's identity onto a join script fetched from the host. Returns the body to send.
     using ResponseTransform = std::function<std::vector<unsigned char>(std::vector<unsigned char>)>;
 

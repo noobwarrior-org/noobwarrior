@@ -78,8 +78,10 @@ public:
     // (the same shared asset shows once). Returns false when db is null or the id is already shown.
     bool AddFromDatabase(EmuDb* db, ItemType type, int64_t id);
     // Adds an Asset item that has no local database, rendering the supplied name + icon directly (used to
-    // show a remote server's catalog item the client lacks locally). Skips ids already present.
-    bool AddRemote(int64_t id, const QString& name, const QPixmap& icon);
+    // show a remote server's catalog item the client lacks locally). A non-empty originDomain tags the
+    // federated master (and db) it came from. Skips ids already present.
+    bool AddRemote(int64_t id, const QString& name, const QPixmap& icon,
+                   const QString& originDomain = QString(), const QString& originDb = QString());
     bool Remove(ItemType type, int64_t id);
     bool IsItemInList(ItemType type, int64_t id);
     ItemWidget* GetItemWidget(ItemType type, int64_t id);
