@@ -44,6 +44,9 @@ struct AvatarData {
     std::string AvatarType { "R6" };
     std::map<std::string, int64_t> Slots;
     std::vector<int64_t> Accessories;
+    // Worn accessory id to its asset type, as reported by the backend. Lets the editor classify a remote
+    // account's accessories without having the assets locally (0/absent means resolve it locally instead).
+    std::map<int64_t, int> AccessoryTypes;
 };
 
 struct AvatarCatalogItem {

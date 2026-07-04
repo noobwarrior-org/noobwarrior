@@ -1477,13 +1477,18 @@ bool PlayerDialog::LoadFromBackend() {
         if (id > 0)
             mWornAccessories.insert((qint64)id);
 
-    // Resolve each worn accessory's type so the per-subgroup worn lists can filter on it.
+    // Resolve each worn accessory's type so the per-subgroup worn lists can filter on it. Prefer the type
+    // the backend reported (works for a remote account whose assets we don't have locally); fall back to a
+    // local database lookup (the local player). Without this, a remote account's accessories resolve to
+    // type 0, match no subgroup, and vanish from the worn strips even though they're saved.
     mWornAccType.clear();
     {
         EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
         for (qint64 id : mWornAccessories) {
             int type = 0;
-            if (auto summary = mgr->GetAssetSummary(id); summary.has_value())
+            if (auto it = data.AccessoryTypes.find(id); it != data.AccessoryTypes.end() && it->second > 0)
+                type = it->second;
+            else if (auto summary = mgr->GetAssetSummary(id); summary.has_value())
                 type = summary->Type;
             mWornAccType[id] = type;
         }

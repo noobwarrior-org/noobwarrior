@@ -301,10 +301,12 @@ bool RemoteAccountBackend::Load(AvatarData& out) {
             if (id <= 0)
                 continue;
             auto it = typeToSlot.find(type);
-            if (it != typeToSlot.end())
+            if (it != typeToSlot.end()) {
                 out.Slots[it->second] = id;
-            else
+            } else {
                 out.Accessories.push_back(id);
+                out.AccessoryTypes[id] = type; // keep the server's type; the client may not have the asset locally
+            }
         }
     }
 
