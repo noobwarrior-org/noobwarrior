@@ -48,6 +48,7 @@
 #include <atomic>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -59,6 +60,7 @@ class EmuDb;
 class AvatarBackend;
 struct AvatarData;
 struct AvatarCatalogPage;
+struct PlayerThumbQueue; // thread-safe queue of fetched thumbnails (defined in the .cpp)
 
 struct AvatarBodyPart {
     QString key;
@@ -98,6 +100,7 @@ struct AvatarTab {
 
     QComboBox* subgroupCombo { nullptr };
     QLineEdit* search { nullptr };
+    QTimer* searchTimer { nullptr }; // debounces search typing so it fetches once you pause, not per keystroke
     QStackedWidget* stack { nullptr }; // 0 = list+pagination, 1 = scale controls (if present)
     ItemListWidget* list { nullptr };
     ItemListWidget* wornList { nullptr }; // the currently-worn items for the active subgroup
@@ -181,9 +184,14 @@ protected:
     bool BackendLoad(AvatarData& out);
     bool BackendSave(const AvatarData& data);
     AvatarCatalogPage BackendCatalog(int assetType, const std::string& search, int page);
-    // Fetches thumbnails for the given asset ids from the (remote) backend in one pumped worker call,
-    // returning raw image bytes per id. Only used for a remote target's items the client lacks locally.
-    std::map<int64_t, std::vector<unsigned char>> BackendThumbnails(const std::vector<int64_t>& ids);
+
+    // Async thumbnails: a remote target's items render instantly (placeholder), and their thumbnails are
+    // fetched on a background thread that pushes results into a mutex-guarded queue. A UI-thread QTimer
+    // drains the queue and fills icons in, so the editor never blocks on thumbnail I/O.
+    void StartThumbnailFetch(AvatarTab& tab); // fetch the visible tab's missing remote thumbnails
+    void StopThumbnailFetch();                // cancel the in-flight fetch and invalidate its results
+    void DrainThumbnails();                   // timer slot: apply whatever the worker has produced
+    void ApplyThumbnail(int epoch, qint64 id, const std::vector<unsigned char>& bytes);
 
     // Pump depth guard: a RunPumped call brackets itself with BeginPump/EndPump so closeEvent knows a
     // nested event loop is on the stack and defers deletion until it unwinds.
@@ -195,9 +203,16 @@ private:
     bool mLocal { true }; // true = local registry player; false = a remote DB-backed account
     bool mDirty { false }; // unsaved edits to the current target (prompts a save before switching)
     int mPumpDepth { 0 };        // >0 while a blocking server call runs on a nested event loop
-    std::atomic<bool> mCloseRequested { false }; // close requested during a pump; honored once idle (also
-                                                 // read by the fetch worker so it can stop early)
+    std::atomic<bool> mCloseRequested { false }; // close requested during a pump; honored once idle
     QTabWidget* mItemTabs { nullptr }; // the item-editor tab widget (for the visible-tab check)
+
+    // Async thumbnail loading state. The worker holds copies of the queue/cancel/inflight shared_ptrs, so it
+    // never touches this dialog and can safely outlive it; results are matched to the live view by mFetchEpoch.
+    std::shared_ptr<PlayerThumbQueue> mThumbQueue;          // worker -> UI results
+    std::shared_ptr<std::atomic<bool>> mThumbCancel;        // cancels the current fetch's worker
+    std::shared_ptr<std::atomic<int>> mThumbInFlight;       // running worker count (stops the timer when 0)
+    int mFetchEpoch { 0 };                                  // bumped whenever the shown page/tab/target changes
+    QTimer* mThumbTimer { nullptr };                        // drains mThumbQueue on the UI thread
     QPushButton* mTargetButton { nullptr };
     QMenu* mTargetMenu { nullptr };
     QVBoxLayout* mLayout;

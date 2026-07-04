@@ -216,8 +216,8 @@ AvatarCatalogPage LocalRegistryBackend::Catalog(int assetType, const std::string
     return out;
 }
 
-std::vector<unsigned char> LocalRegistryBackend::Thumbnail(int64_t assetId) {
-    return mCore->GetEmuDbManager()->RetrieveImageData(ItemType::Asset, assetId);
+ThumbnailFetcher LocalRegistryBackend::MakeThumbnailFetcher() {
+    return {}; // the local player renders straight from the mounted databases; no async fetch needed
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -399,14 +399,22 @@ AvatarCatalogPage RemoteAccountBackend::Catalog(int assetType, const std::string
     return out;
 }
 
-std::vector<unsigned char> RemoteAccountBackend::Thumbnail(int64_t assetId) {
+static std::vector<unsigned char> HttpFetchThumbnail(const std::string& baseUrl, const std::string& session, int64_t assetId) {
     cpr::Response res = cpr::Get(
-        cpr::Url{ mBaseUrl + "/emu/v1/avatar/thumbnail" },
+        cpr::Url{ baseUrl + "/emu/v1/avatar/thumbnail" },
         cpr::Parameters{ { "id", std::to_string(assetId) } },
-        cpr::Header{ { "Cookie", ".LOGINSESSION=" + mSession } },
+        cpr::Header{ { "Cookie", ".LOGINSESSION=" + session } },
         cpr::Timeout{ std::chrono::milliseconds(8000) },
         cpr::VerifySsl{ false });
     if (res.error.code != cpr::ErrorCode::OK || res.status_code != 200)
         return {};
     return std::vector<unsigned char>(res.text.begin(), res.text.end());
+}
+
+ThumbnailFetcher RemoteAccountBackend::MakeThumbnailFetcher() {
+    // Capture the URL + session by value so the callable is independent of this backend's lifetime and can
+    // be run on a background thread even after the backend/dialog is gone.
+    return [base = mBaseUrl, session = mSession](int64_t assetId) {
+        return HttpFetchThumbnail(base, session, assetId);
+    };
 }

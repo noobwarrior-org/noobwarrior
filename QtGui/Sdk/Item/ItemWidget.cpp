@@ -144,6 +144,11 @@ void ItemWidget::SetPlaying(bool playing) {
     ApplyAppearance();
 }
 
+void ItemWidget::SetRemoteIcon(const QPixmap& icon) {
+    mIconPixmap = icon;
+    ApplyAppearance();
+}
+
 void ItemWidget::SetCut(bool cut) {
     mCut = cut;
     ApplyAppearance();

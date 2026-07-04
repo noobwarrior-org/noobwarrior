@@ -24,12 +24,18 @@
 // Description: Backend interface for avatar editor
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
 
 namespace NoobWarrior {
 class Core;
+
+// A self-contained "fetch this asset's thumbnail bytes" callable. It captures everything it needs by value
+// (e.g. a remote URL + session) so a background thread can call it safely without touching the backend or
+// the dialog — decoupling it from their lifetimes.
+using ThumbnailFetcher = std::function<std::vector<unsigned char>(int64_t assetId)>;
 
 struct AvatarData {
     std::map<std::string, std::string> Colors;
@@ -57,9 +63,10 @@ public:
     virtual bool Load(AvatarData& out) = 0;
     virtual bool Save(const AvatarData& data) = 0;
     virtual AvatarCatalogPage Catalog(int assetType, const std::string& search, int page) = 0;
-    // An asset's preview image bytes (PNG/JPEG/GIF), or empty if unavailable. Used to render a catalog
-    // item the client has no local database copy of.
-    virtual std::vector<unsigned char> Thumbnail(int64_t assetId) = 0;
+    // Returns a lifetime-independent callable that fetches an asset's preview image bytes (PNG/JPEG/GIF),
+    // used to fill in a catalog item the client has no local copy of. Empty for backends that don't fetch
+    // remotely (the local player renders straight from its databases).
+    virtual ThumbnailFetcher MakeThumbnailFetcher() = 0;
     virtual std::string Describe() = 0;
 };
 
@@ -75,7 +82,7 @@ public:
     bool Load(AvatarData& out) override;
     bool Save(const AvatarData& data) override;
     AvatarCatalogPage Catalog(int assetType, const std::string& search, int page) override;
-    std::vector<unsigned char> Thumbnail(int64_t assetId) override;
+    ThumbnailFetcher MakeThumbnailFetcher() override;
     std::string Describe() override;
 private:
     Core* mCore;
@@ -87,7 +94,7 @@ public:
     bool Load(AvatarData& out) override;
     bool Save(const AvatarData& data) override;
     AvatarCatalogPage Catalog(int assetType, const std::string& search, int page) override;
-    std::vector<unsigned char> Thumbnail(int64_t assetId) override;
+    ThumbnailFetcher MakeThumbnailFetcher() override;
     std::string Describe() override;
 private:
     std::string mBaseUrl;

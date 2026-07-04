@@ -51,6 +51,9 @@ public:
     // Swaps the icon's badge between a play triangle (paused/stopped) and a pause glyph (playing).
     void SetPlaying(bool playing);
 
+    // Replaces the icon in place (used to fill in a DB-less remote item's thumbnail once it arrives async).
+    void SetRemoteIcon(const QPixmap& icon);
+
     // Greys the label and fades the icon to mark the item as part of a pending Cut (and undoes it).
     void SetCut(bool cut);
     // Re-reads the item's Name from the database and refreshes the displayed label (used after Rename).

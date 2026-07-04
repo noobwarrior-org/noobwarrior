@@ -47,6 +47,7 @@
 
 #include <BusyDialog.h>
 
+#include <mutex>
 #include <thread>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -74,6 +75,21 @@ using Kind = AvatarSubgroup::Kind;
 
 // Catalog items shown per page in each subgroup's list.
 static constexpr int kPageSize = 60;
+
+namespace NoobWarrior {
+// One background-fetched thumbnail, tagged with the fetch epoch it belongs to (so a result from a
+// superseded fetch can be discarded).
+struct ThumbResult {
+    int Epoch;
+    qint64 Id;
+    std::vector<unsigned char> Bytes;
+};
+// The worker->UI handoff: the fetch thread appends results under the mutex; the UI-thread timer drains it.
+struct PlayerThumbQueue {
+    std::mutex Mutex;
+    std::vector<ThumbResult> Items;
+};
+}
 
 namespace {
 // Draws a selected picker item as a full-bleed inverted box (light fill) with contrasting dark text,
@@ -156,7 +172,10 @@ PlayerDialog::PlayerDialog(QWidget *parent) : QDialog(parent) {
     mDirty = false;
 }
 
-PlayerDialog::~PlayerDialog() { delete mBackend; }
+PlayerDialog::~PlayerDialog() {
+    StopThumbnailFetch(); // cancel the background fetch (its worker self-cleans via shared_ptrs)
+    delete mBackend;
+}
 
 QString PlayerDialog::CurrentTargetName() const {
     return mLocal ? QStringLiteral("Local Player") : QString::fromStdString(mBackend->Describe());
@@ -185,6 +204,13 @@ void PlayerDialog::ApplyTargetToIdentity() {
 }
 
 void PlayerDialog::InitWidgets() {
+    // Async thumbnail plumbing: a shared queue the fetch worker pushes into, and a UI-thread timer that
+    // drains it and fills in icons.
+    mThumbQueue = std::make_shared<PlayerThumbQueue>();
+    mThumbInFlight = std::make_shared<std::atomic<int>>(0);
+    mThumbTimer = new QTimer(this);
+    connect(mThumbTimer, &QTimer::timeout, this, &PlayerDialog::DrainThumbnails);
+
     mLayout = new QVBoxLayout(this);
     mMainLayout = new QHBoxLayout;
     mFormLayout = new QFormLayout;
@@ -306,6 +332,8 @@ void PlayerDialog::SwitchTarget(AvatarBackend* newBackend) {
         if (r == QMessageBox::Cancel) { delete newBackend; return; }
         if (r == QMessageBox::Save && !SaveToBackend()) { delete newBackend; return; } // save failed, stay put
     }
+
+    StopThumbnailFetch(); // stop fetching the outgoing target's thumbnails
 
     // Swap in the new target but KEEP the old backend, so an unreachable server can be undone: on failure
     // LoadFromBackend leaves the displayed avatar untouched, so we just restore the previous backend.
@@ -613,10 +641,17 @@ void PlayerDialog::BuildTab(QTabWidget* tabs, AvatarTab def) {
     connect(tab.subgroupCombo, &QComboBox::currentIndexChanged, this, [this, idx](int) {
         OnSubgroupChanged(mTabs[idx]);
     });
-    connect(tab.search, &QLineEdit::textChanged, this, [this, idx](const QString&) {
+    // Debounced search: each keystroke just restarts the timer; the fetch (which may hit a remote server)
+    // only fires once the user pauses, so typing stays smooth and doesn't repeatedly refetch.
+    tab.searchTimer = new QTimer(this);
+    tab.searchTimer->setSingleShot(true);
+    connect(tab.searchTimer, &QTimer::timeout, this, [this, idx]() {
         CollectIds(mTabs[idx]);
         mTabs[idx].page = 0;
         RenderPage(mTabs[idx]);
+    });
+    connect(tab.search, &QLineEdit::textChanged, this, [this, idx](const QString&) {
+        mTabs[idx].searchTimer->start(300);
     });
     connect(tab.prevBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], -1); });
     connect(tab.nextBtn, &QPushButton::clicked, this, [this, idx]() { StepPage(mTabs[idx], +1); });
@@ -664,8 +699,8 @@ void PlayerDialog::OnSubgroupChanged(AvatarTab& tab) {
 void PlayerDialog::CollectIds(AvatarTab& tab) {
     // Fetches the CURRENT page from the backend's catalog (the local DBs for the local player, or the
     // remote server's catalog for an account). Each id is bound to whichever local database has it for
-    // rendering; a remote server may list assets the client has no local copy of — for those we fetch a
-    // thumbnail from the server so they can still be shown, rather than dropped.
+    // rendering; a remote server may list assets the client has no local copy of — those render from a
+    // thumbnail fetched asynchronously (see StartThumbnailFetch), so this never blocks on thumbnail I/O.
     tab.pageItems.clear();
     const AvatarSubgroup& sg = ActiveSubgroup(tab);
     if (sg.kind == Kind::Scale) {
@@ -679,7 +714,6 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
 
     EmuDbManager* mgr = gApp->GetCore()->GetEmuDbManager();
     QSet<qint64> seen;
-    std::vector<int64_t> remoteOnly;
     for (const AvatarCatalogItem& item : cat.Items) {
         qint64 id = static_cast<qint64>(item.Id);
         if (id <= 0 || seen.contains(id))
@@ -690,30 +724,14 @@ void PlayerDialog::CollectIds(AvatarTab& tab) {
         pi.name = QString::fromStdString(item.Name);
         pi.db = mgr->GetFirstDbWhereItemExists(ItemType::Asset, id);
         if (pi.db == nullptr && !mLocal) {
-            // Remote-only item. Reuse a thumbnail we've already fetched; else queue it — but only for the
-            // VISIBLE tab, so switching to a remote account doesn't block fetching all four tabs' thumbnails.
-            if (auto c = mRemoteItemCache.find(id); c != mRemoteItemCache.end())
+            // Remote-only item. Reuse an already-fetched thumbnail if we have one; otherwise leave it null
+            // (RenderPage shows a placeholder) and remember the item so an async result can fill its icon.
+            if (auto c = mRemoteItemCache.find(id); c != mRemoteItemCache.end() && !c->thumb.isNull())
                 pi.thumb = c->thumb;
-            else if (IsActiveTab(tab))
-                remoteOnly.push_back(id);
+            else if (!mRemoteItemCache.contains(id))
+                mRemoteItemCache.insert(id, pi); // records the name; thumb filled in by ApplyThumbnail
         }
         tab.pageItems.push_back(std::move(pi));
-    }
-
-    if (remoteOnly.empty())
-        return;
-
-    std::map<int64_t, std::vector<unsigned char>> thumbs = BackendThumbnails(remoteOnly);
-    for (AvatarPageItem& pi : tab.pageItems) {
-        if (pi.db != nullptr || !pi.thumb.isNull())
-            continue;
-        if (auto it = thumbs.find(pi.id); it != thumbs.end() && !it->second.empty()) {
-            QImage img;
-            img.loadFromData(it->second.data(), static_cast<int>(it->second.size()));
-            if (!img.isNull())
-                pi.thumb = QPixmap::fromImage(img);
-        }
-        mRemoteItemCache.insert(pi.id, pi); // so revisits + the worn strip can reuse it
     }
 }
 
@@ -723,7 +741,8 @@ void PlayerDialog::RenderPage(AvatarTab& tab) {
         return;
 
     // pageItems already holds just the current page (CollectIds fetched it), so render all of it. Items
-    // the client has locally render from their database; a remote-only item renders from its fetched thumb.
+    // the client has locally render from their database; a remote-only item renders immediately with its
+    // cached thumbnail (or a placeholder), and StartThumbnailFetch fills any missing ones in the background.
     tab.list->Clear();
     for (const AvatarPageItem& pi : tab.pageItems) {
         if (pi.db != nullptr)
@@ -735,6 +754,9 @@ void PlayerDialog::RenderPage(AvatarTab& tab) {
     tab.pageLabel->setText(QString("Page %1 / %2").arg(tab.page + 1).arg(tab.pageCount));
     tab.prevBtn->setEnabled(tab.page > 0);
     tab.nextBtn->setEnabled(tab.page < tab.pageCount - 1);
+
+    if (!mLocal && IsActiveTab(tab))
+        StartThumbnailFetch(tab); // kick off background thumbnail loading for the visible tab
 }
 
 void PlayerDialog::StepPage(AvatarTab& tab, int delta) {
@@ -1188,7 +1210,10 @@ static R RunPumped(F fn) {
         result = fn();
         QMetaObject::invokeMethod(&loop, [&loop]() { loop.quit(); }, Qt::QueuedConnection);
     });
-    loop.exec();
+    // Exclude user input while pumping: timers (the Core event pump + thumbnail drain) still fire, but
+    // clicks/keystrokes are deferred until the call returns — so the caller needn't disable the dialog to
+    // block re-entrant fetches, and the search field keeps focus while a fetch runs.
+    loop.exec(QEventLoop::ExcludeUserInputEvents);
     worker.join();
     return result;
 }
@@ -1246,36 +1271,113 @@ bool PlayerDialog::BackendSave(const AvatarData& data) {
 AvatarCatalogPage PlayerDialog::BackendCatalog(int assetType, const std::string& search, int page) {
     if (mLocal)
         return mBackend->Catalog(assetType, search, page);
-    // Called often (page/search), so no busy dialog; disable the dialog to stop re-entrant fetches.
-    setEnabled(false);
+    // No busy dialog and no setEnabled: RunPumped excludes user input while it runs, which blocks re-entrant
+    // fetches without disabling (and stealing focus from) the search field.
     BeginPump();
     AvatarCatalogPage cat = RunPumped<AvatarCatalogPage>(
         [this, assetType, search, page]() { return mBackend->Catalog(assetType, search, page); });
     EndPump();
-    setEnabled(true);
     return cat;
 }
 
-std::map<int64_t, std::vector<unsigned char>> PlayerDialog::BackendThumbnails(const std::vector<int64_t>& ids) {
-    // Only remote targets have items the client lacks locally; a local target renders straight from its DBs.
-    if (mLocal || ids.empty())
-        return {};
-    setEnabled(false);
-    BeginPump();
-    auto thumbs = RunPumped<std::map<int64_t, std::vector<unsigned char>>>([this, ids]() {
-        std::map<int64_t, std::vector<unsigned char>> out;
+void PlayerDialog::StartThumbnailFetch(AvatarTab& tab) {
+    if (mLocal)
+        return;
+    std::vector<int64_t> ids;
+    for (const AvatarPageItem& pi : tab.pageItems)
+        if (pi.db == nullptr && pi.thumb.isNull())
+            ids.push_back(pi.id);
+    if (ids.empty())
+        return;
+
+    ThumbnailFetcher fetch = mBackend->MakeThumbnailFetcher();
+    if (!fetch)
+        return;
+
+    StopThumbnailFetch(); // supersede any previous fetch and invalidate its results
+    const int epoch = mFetchEpoch;
+    auto cancel = std::make_shared<std::atomic<bool>>(false);
+    mThumbCancel = cancel;
+    auto queue = mThumbQueue;
+    auto inflight = mThumbInFlight;
+    inflight->fetch_add(1);
+
+    // The worker holds only copies (fetch/queue/cancel/inflight) — never `this` or the backend — so it is
+    // safe even if the dialog is closed while it runs. Results flow through the queue, drained by mThumbTimer.
+    std::thread([fetch = std::move(fetch), ids = std::move(ids), epoch, cancel, queue, inflight]() {
         for (int64_t id : ids) {
-            if (mCloseRequested.load()) // user asked to close mid-fetch; stop pulling the rest
+            if (cancel->load())
                 break;
-            std::vector<unsigned char> bytes = mBackend->Thumbnail(id);
-            if (!bytes.empty())
-                out.emplace(id, std::move(bytes));
+            std::vector<unsigned char> bytes = fetch(id);
+            if (cancel->load())
+                break;
+            if (!bytes.empty()) {
+                std::lock_guard<std::mutex> lk(queue->Mutex);
+                queue->Items.push_back({ epoch, static_cast<qint64>(id), std::move(bytes) });
+            }
         }
-        return out;
-    });
-    EndPump();
-    setEnabled(true);
-    return thumbs;
+        inflight->fetch_sub(1);
+    }).detach();
+
+    if (!mThumbTimer->isActive())
+        mThumbTimer->start(120);
+}
+
+void PlayerDialog::StopThumbnailFetch() {
+    if (mThumbCancel) {
+        mThumbCancel->store(true);
+        mThumbCancel.reset();
+    }
+    mFetchEpoch++; // any results still in flight now carry a stale epoch and are ignored
+}
+
+void PlayerDialog::DrainThumbnails() {
+    std::vector<ThumbResult> batch;
+    {
+        std::lock_guard<std::mutex> lk(mThumbQueue->Mutex);
+        batch.swap(mThumbQueue->Items);
+    }
+    for (const ThumbResult& r : batch)
+        ApplyThumbnail(r.Epoch, r.Id, r.Bytes);
+    if (batch.empty() && mThumbInFlight->load() == 0)
+        mThumbTimer->stop();
+}
+
+void PlayerDialog::ApplyThumbnail(int epoch, qint64 id, const std::vector<unsigned char>& bytes) {
+    QImage img;
+    img.loadFromData(bytes.data(), static_cast<int>(bytes.size()));
+    if (img.isNull())
+        return;
+    QPixmap px = QPixmap::fromImage(img);
+
+    // Cache it (keeping the item's name) so revisits and the worn strip can reuse it.
+    if (auto c = mRemoteItemCache.find(id); c != mRemoteItemCache.end())
+        c->thumb = px;
+    else {
+        AvatarPageItem pi;
+        pi.id = id;
+        pi.thumb = px;
+        mRemoteItemCache.insert(id, pi);
+    }
+
+    if (epoch != mFetchEpoch)
+        return; // a newer fetch (tab / page / target change) owns the display now
+
+    int idx = mItemTabs ? mItemTabs->currentIndex() : -1;
+    if (idx < 0 || idx >= mTabs.size())
+        return;
+    AvatarTab& tab = mTabs[idx];
+    for (AvatarPageItem& pi : tab.pageItems)
+        if (pi.id == id && pi.db == nullptr) {
+            pi.thumb = px;
+            break;
+        }
+    if (tab.list)
+        if (ItemWidget* w = tab.list->GetItemWidget(ItemType::Asset, id))
+            w->SetRemoteIcon(px);
+    if (tab.wornList)
+        if (ItemWidget* w = tab.wornList->GetItemWidget(ItemType::Asset, id))
+            w->SetRemoteIcon(px);
 }
 
 bool PlayerDialog::LoadFromBackend() {
