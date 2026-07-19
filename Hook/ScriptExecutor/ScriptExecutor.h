@@ -39,33 +39,6 @@
 namespace NoobHook::ScriptExecutor {
 extern uintptr_t gDataModelAddress;
 
-namespace Offsets {
-    // Instance
-    constexpr std::uint64_t This = 0x8;
-    constexpr std::uint64_t Name = 0x50; // 0x48
-    constexpr std::uint64_t Children = 0x58; // 0x50
-    constexpr std::uint64_t Parent = 0x28; // 0x60
-
-    constexpr std::uint64_t ClassDescriptor = 0x18;
-    constexpr std::uint64_t ClassName = 0x8;
-
-    // Scripts
-    constexpr std::uint64_t ModuleScriptEmbedded = 0x160;
-    constexpr std::uint64_t IsCoreScript = 0x1a8;
-    constexpr std::uint64_t ModuleFlags = IsCoreScript - 0x4;
-    constexpr std::uint64_t LocalScriptEmbedded = 0x1c0;
-
-    constexpr std::uint64_t Bytecode = 0x10;
-    constexpr std::uint64_t BytecodeSize = 0x20;
-
-    // Other
-    constexpr std::uint64_t LocalPlayer = 0x110; // 0x100
-    constexpr std::uint64_t ObjectValue = 0xc0;
-}
-
-std::vector<uintptr_t> GetChildrenAddresses(uintptr_t address);
-std::string ReadRobloxString(uintptr_t address);
-
 void Install();
 uintptr_t FindDataModelAddress();
 void Execute(const std::string& source);

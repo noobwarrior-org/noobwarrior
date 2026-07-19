@@ -17,8 +17,8 @@
  * License along with noobWarrior; if not, see
  * <https://www.gnu.org/licenses/>.
  */
- // === noobWarrior ===
- // File: Instance.cpp
- // Started by: Hattozo
- // Started on: 7/19/2026
- // Description:
+// === noobWarrior ===
+// File: Offsets.h
+// Started by: Hattozo
+// Started on: 7/19/2026
+// Description:
