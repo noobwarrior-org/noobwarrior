@@ -22,3 +22,8 @@
 // Started by: Hattozo
 // Started on: 7/19/2026
 // Description:
+#include <cstdint>
+
+namespace NoobHook::Offsets {
+
+}
