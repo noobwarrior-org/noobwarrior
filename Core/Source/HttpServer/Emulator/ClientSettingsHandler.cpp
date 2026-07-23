@@ -24,6 +24,7 @@
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/Log.h>
+#include <event2/http.h>
 
 #include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
@@ -34,6 +35,7 @@ ClientSettingsHandler::ClientSettingsHandler(ServerEmulator *server) {}
 void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
+    evkeyvalq* headers = evhttp_request_get_input_headers(req);
 
     const char* peer_address = "";
     uint16_t peer_port {};
@@ -44,7 +46,15 @@ void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
-    evbuffer_add_printf(reply, "%s", PCDesktopClient_json);
+
+    const char* val = evhttp_find_header(headers, "applicationName");
+    if (val != nullptr && strncmp(val, "PCStudioApp", 12) == 0) {
+        // serve no fflags so that it doesnt freeze and die (dont ask me why this happens)
+        evbuffer_add_printf(reply, "%s", "{ \"applicationSettings\": {} }");
+    } else {
+        evbuffer_add_printf(reply, "%s", PCDesktopClient_json);
+    }
+
     evhttp_send_reply(req, 200, nullptr, reply);
     evbuffer_free(reply);
 }
