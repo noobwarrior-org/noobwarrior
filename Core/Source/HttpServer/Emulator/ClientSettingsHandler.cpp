@@ -25,6 +25,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/Log.h>
 #include <event2/http.h>
+#include <cstring>
 
 #include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
