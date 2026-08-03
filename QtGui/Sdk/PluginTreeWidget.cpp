@@ -26,10 +26,12 @@
 #include "../Application.h"
 #include "NoobWarrior/Plugin.h"
 
+#include <NoobWarrior/Macros.h>
+
 #include <QIcon>
 #include <QPixmap>
+#include <QMessageBox>
 #include <filesystem>
-#include <qnamespace.h>
 
 using namespace NoobWarrior;
 
@@ -110,22 +112,14 @@ void PluginTreeWidget::OnItemChanged(QTreeWidgetItem* item, int column) {
     if (item->data(0, RolePrivileged).toBool())
         return;
 
+    if (!mSeenDisclaimer) {
+        mSeenDisclaimer = true;
+        QMessageBox::warning(this, "Notice", "Changes to plugins do not apply until " NOOBWARRIOR_BRAND " is restarted.");
+    }
+
     PluginManager* plgMgr = gApp->GetCore()->GetPluginManager();
     std::string identifier = item->data(0, RoleIdentifier).toString().toStdString();
     std::filesystem::path filePath = item->data(0, RoleFilePath).toString().toStdString();
-    bool wantEnabled = item->checkState(1) == Qt::Checked;
-
-    if (wantEnabled == plgMgr->IsPluginMounted(identifier))
-        return;
-
-    if (wantEnabled) {
-        if (plgMgr->EnablePlugin(filePath) != Plugin::Response::Success) {
-            // Mounting failed; revert the checkbox without re-triggering this handler
-            mRefreshing = true;
-            item->setCheckState(1, Qt::Unchecked);
-            mRefreshing = false;
-        }
-    } else {
-        plgMgr->DisablePlugin(identifier);
-    }
+    bool enabled = item->checkState(1) == Qt::Checked;
+    plgMgr->SetPluginSelected(filePath.filename().string(), enabled);
 }

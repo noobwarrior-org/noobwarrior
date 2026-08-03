@@ -40,5 +40,6 @@ private:
     // Set while Refresh() is repopulating items so the programmatic setCheckState() calls don't get
     // mistaken for the user toggling the enable checkbox.
     bool mRefreshing = false;
+    bool mSeenDisclaimer = false;
 };
 }

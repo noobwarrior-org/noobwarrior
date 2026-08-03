@@ -52,21 +52,15 @@ public:
     void ExecutePlugins();
 
     /**
-     * @brief Mounts the plugin at filePath and persists it in the plugins.selected registry list so
-     * it loads again on the next startup.
-     */
-    Plugin::Response EnablePlugin(const std::filesystem::path &filePath);
-
-    /**
-     * @brief Unmounts the plugin with the given identifier (if mounted) and removes it from the
-     * plugins.selected registry list so it stays disabled on the next startup.
-     */
-    void DisablePlugin(const std::string &identifier);
-
-    /**
      * @brief Returns true if a plugin with the given identifier is currently mounted.
      */
     bool IsPluginMounted(const std::string &identifier);
+
+    /**
+     * @brief Adds or removes a plugin's file name from the plugins.selected registry list. The list
+     * is stored as a Lua table of file names that MountPlugins() consults on startup.
+     */
+    void SetPluginSelected(const std::string &fileName, bool selected);
 
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
 
@@ -86,12 +80,6 @@ public:
     std::vector<Plugin::Properties> GetPrivilegedPluginProperties();
 protected:
     void MountPrivilegedPlugins();
-
-    /**
-     * @brief Adds or removes a plugin's file name from the plugins.selected registry list. The list
-     * is stored as a Lua table of file names that MountPlugins() consults on startup.
-     */
-    void SetPluginSelected(const std::string &fileName, bool selected);
 private:
     Core* mCore;
     std::vector<Plugin*> mMountedPlugins;

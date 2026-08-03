@@ -66,29 +66,6 @@ void PluginManager::Unmount(Plugin* plugin) {
     }
 }
 
-Plugin::Response PluginManager::EnablePlugin(const std::filesystem::path &filePath) {
-    Plugin* plugin = new Plugin(filePath, mCore);
-    Plugin::Response res = Mount(plugin);
-    if (res != Plugin::Response::Success) {
-        NOOBWARRIOR_FREE_PTR(plugin)
-        return res;
-    }
-    // Every other plugin is already mounted and running by the time a plugin is enabled at runtime,
-    // so execute this one immediately rather than deferring it like the startup batch does.
-    plugin->Execute();
-    SetPluginSelected(filePath.filename().string(), true);
-    return res;
-}
-
-void PluginManager::DisablePlugin(const std::string &identifier) {
-    Plugin* plugin = GetPluginFromIdentifier(identifier);
-    if (!plugin)
-        return;
-    std::string fileName = plugin->GetFileName();
-    Unmount(plugin);
-    SetPluginSelected(fileName, false);
-}
-
 bool PluginManager::IsPluginMounted(const std::string &identifier) {
     return GetPluginFromIdentifier(identifier) != nullptr;
 }
@@ -97,12 +74,12 @@ void PluginManager::SetPluginSelected(const std::string &fileName, bool selected
     // Read the current list of selected plugin file names, dropping any existing occurrence of
     // fileName so we don't create duplicates when re-enabling.
     std::vector<std::string> fileNames;
-    auto existing = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("plugins.selected");
-    if (existing.has_value() && existing->is_array()) {
+    auto existing = mCore->GetRegistry()->GetKeyValue<sol::table>("plugins.selected");
+    if (existing.has_value() && existing->is<sol::table>()) {
         for (const auto &element : *existing) {
-            if (!element.is_string())
+            if (!element.second.is<std::string>())
                 continue;
-            std::string name = element.get<std::string>();
+            std::string name = element.second.as<std::string>();
             if (name == fileName)
                 continue;
             fileNames.push_back(name);
@@ -111,10 +88,9 @@ void PluginManager::SetPluginSelected(const std::string &fileName, bool selected
     if (selected)
         fileNames.push_back(fileName);
 
-    // Arrays in the registry are stored as Lua tables (1-indexed).
-    sol::table tbl = mCore->GetLuaState()->create_table();
+    sol::table tbl = mCore->GetLuaState()->create_table();;
     for (std::size_t i = 0; i < fileNames.size(); i++)
-        tbl[i + 1] = fileNames[i];
+        tbl.add(fileNames[i]);
 
     mCore->GetRegistry()->SetKeyValue<sol::table>("plugins.selected", tbl);
 }
@@ -130,13 +106,13 @@ void PluginManager::MountPlugins() {
     }
     */
 
-    auto selected = mCore->GetRegistry()->GetKeyValue<nlohmann::json>("plugins.selected");
+    auto selected = mCore->GetRegistry()->GetKeyValue<sol::table>("plugins.selected");
     if (!selected.has_value())
         return;
     
     for (auto &fileNameElement : *selected) {
-        if (!fileNameElement.is_string()) continue;
-        auto fileName = fileNameElement.get<std::string>();
+        if (!fileNameElement.second.is<std::string>()) continue;
+        auto fileName = fileNameElement.second.as<std::string>();
 
         std::filesystem::path installPath = mCore->GetInstallDataDir() / NW_PATH_PLUGINS / fileName;
         std::filesystem::path userPath = mCore->GetUserDataDir() / NW_PATH_PLUGINS / fileName;
