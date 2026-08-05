@@ -1,0 +1,81 @@
+/* ////////////////////////////////////////////////////////////////////////////////
+ * noobWarrior
+ * Plugin: Documentation
+ * File: main.css
+ * Description:
+ * Started by: Hattozo
+ * Started on: 8/3/2026
+ * //////////////////////////////////////////////////////////////////////////////// */
+@font-face {
+    font-family: 'Liberation Serif';
+    src: url('/fonts/LiberationSerif-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Liberation Serif';
+    src: url('/fonts/LiberationSerif-Italic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Liberation Serif';
+    src: url('/fonts/LiberationSerif-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: bold;
+}
+
+body {
+    background-image: url('/img/lightdark-linen.png');
+    background-repeat: repeat;
+    color: rgb(200, 200, 200);
+    font-family: 'Liberation Serif', sans-serif;
+}
+
+hr {
+    border-style: solid;
+    border-bottom: 1px;
+}
+
+.main {
+    background-image: url('/img/dark-linen.png');
+    background-repeat: repeat;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0px 0px 8px 2px rgb(10, 10, 10);
+    padding: 24px;
+    font-size: 1.2rem;
+}
+
+#header-logo {
+    display: flex;
+    gap: 4px;
+}
+
+#header-logo p {
+    font-size: 1.6rem;
+}
+
+#logo-text {
+    font-family: 'Source Sans Pro', sans-serif;
+    color: rgb(255, 255, 255);
+}
+
+#docs-text {
+    transform: translateX(-3.2em) translateY(1em);
+    font-style: italic;
+}
+
+.content {
+    display: flex;
+    gap: 20px;
+}
+
+.divider {
+    width: 1px;
+    height: 100%;
+    background-color: rgb(128, 128, 128);
+}

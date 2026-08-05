@@ -1,4 +1,5 @@
             </div>
+            <hr>
             <div class="footer">
                 <p>Powered by <a href="https://noobwarrior.org">noobWarrior</a> Documentation Server</p>
                 <p>This page was rendered in <?lua echo(string.format("%.2fms", os.clock() - startRenderTime)) ?></p>

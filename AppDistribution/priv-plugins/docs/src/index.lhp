@@ -1,6 +1,22 @@
 <?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Documentation
+-- File: index.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 8/3/2026
+-- ////////////////////////////////////////////////////////////////////////////////
 pageTitle = "noobWarrior Documentation"
 include("header.lhp")
 ?>
+
+<div class="sidebar">
+    <h3>Getting Started</h3>
+</div>
+<div class="divider"></div>
+<div class="lol">
+    <p>Hello guys</p>
+</div>
 
 <?lua include("footer.lhp") ?>
