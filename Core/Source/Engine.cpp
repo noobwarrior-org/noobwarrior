@@ -27,6 +27,7 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/PeFile.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
@@ -42,6 +43,8 @@
 #include <chrono>
 #include <thread>
 
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <set>
 
@@ -64,88 +67,6 @@ extern char** environ;
 #endif
 
 using namespace NoobWarrior;
-
-static EngineArchitecture ReadPeArchitecture(const std::filesystem::path &path) {
-    std::ifstream f(path, std::ios::binary);
-    if (!f.is_open()) return EngineArchitecture::x86;
-
-    uint8_t dosHeader[64];
-    f.read(reinterpret_cast<char*>(dosHeader), sizeof(dosHeader));
-    if (f.gcount() < (std::streamsize)sizeof(dosHeader)) return EngineArchitecture::x86;
-    if (dosHeader[0] != 'M' || dosHeader[1] != 'Z')      return EngineArchitecture::x86;
-
-    uint32_t peOffset = 0;
-    std::memcpy(&peOffset, dosHeader + 0x3C, sizeof(peOffset));
-
-    f.seekg(peOffset, std::ios::beg);
-    char sig[4];
-    f.read(sig, 4);
-    if (f.gcount() < 4)                          return EngineArchitecture::x86;
-    if (std::memcmp(sig, "PE\0\0", 4) != 0)      return EngineArchitecture::x86;
-
-    uint16_t machine = 0;
-    f.read(reinterpret_cast<char*>(&machine), sizeof(machine));
-    return machine == 0x8664 ? EngineArchitecture::x86_64 : EngineArchitecture::x86;
-}
-
-static std::string ReadPeProductVersion(const std::filesystem::path &path) {
-#if defined(_WIN32)
-    std::string pathStr = path.string();
-    DWORD handle = 0;
-    DWORD size = GetFileVersionInfoSizeA(pathStr.c_str(), &handle);
-    if (size == 0) return "";
-
-    std::vector<char> buffer(size);
-    if (!GetFileVersionInfoA(pathStr.c_str(), handle, size, buffer.data())) return "";
-
-    auto normalize = [](const char* raw, UINT len) -> std::string {
-        std::string s(raw, len);
-        while (!s.empty() && s.back() == '\0') s.pop_back();
-        // "0, 463, 0, 417004" -> "0.463.0.417004"
-        std::string out;
-        out.reserve(s.size());
-        for (char c : s) {
-            if (c == ' ') continue;
-            out += (c == ',') ? '.' : c;
-        }
-        return out;
-    };
-
-    struct LangCp { WORD lang; WORD cp; };
-    LangCp* translations = nullptr;
-    UINT translationsLen = 0;
-    if (VerQueryValueA(buffer.data(), "\\VarFileInfo\\Translation",
-                       reinterpret_cast<void**>(&translations), &translationsLen)) {
-        UINT count = translationsLen / sizeof(LangCp);
-        for (UINT i = 0; i < count; i++) {
-            char sub[64];
-            std::snprintf(sub, sizeof(sub),
-                          "\\StringFileInfo\\%04x%04x\\ProductVersion",
-                          translations[i].lang, translations[i].cp);
-            void* value = nullptr;
-            UINT len = 0;
-            if (VerQueryValueA(buffer.data(), sub, &value, &len) && value != nullptr)
-                return normalize(static_cast<const char*>(value), len);
-        }
-    }
-    
-    const char* fallbacks[] = {
-        "\\StringFileInfo\\040904B0\\ProductVersion",
-        "\\StringFileInfo\\040904E4\\ProductVersion",
-        "\\StringFileInfo\\000004B0\\ProductVersion",
-    };
-    for (const char* p : fallbacks) {
-        void *value = nullptr;
-        UINT len = 0;
-        if (VerQueryValueA(buffer.data(), p, &value, &len) && value != nullptr)
-            return normalize(static_cast<const char*>(value), len);
-    }
-    return "";
-#else
-    (void)path;
-    return "";
-#endif
-}
 
 static std::optional<Engine> InspectEngineDirectory(const std::filesystem::path &dir) {
     static const std::unordered_map<std::string, EngineSide> exeToSide = {
@@ -173,8 +94,9 @@ static std::optional<Engine> InspectEngineDirectory(const std::filesystem::path 
     engine.Side         = side;
     engine.Hash         = dir.filename().string();
     engine.FilePath     = exe;
-    engine.Architecture = ReadPeArchitecture(exe);
-    engine.Version      = ReadPeProductVersion(exe);
+    engine.Architecture = Pe::ReadMachine(exe) == Pe::Machine::x86_64 ? EngineArchitecture::x86_64
+                                                                      : EngineArchitecture::x86;
+    engine.Version      = Pe::ReadProductVersion(exe);
     return engine;
 }
 
@@ -366,10 +288,10 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back("--emucert");
         args.push_back("\"" + emuCert.string() + "\"");
     }
-
-    Out("Engine", params.Engine.Version.substr(2, 3));
+    
+    const int era = ParseEraVersion(params.Engine.Version);
     args.push_back("--scheme");
-    args.push_back(params.Engine.Version.substr(2, 3) == "463" ? "old" : "new");
+    args.push_back(era == 463 ? "old" : "new");
 
     std::string argsStr;
     for (int i = 0; i < args.size(); i++) {

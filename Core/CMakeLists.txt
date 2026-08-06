@@ -169,6 +169,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Url.cpp
     Source/RccServiceManager.cpp
     Source/Engine.cpp
+    Source/PeFile.cpp
     Source/Backup.cpp
     Source/HttpServer/Base/HttpServer.cpp
     Source/HttpServer/Base/Handler.cpp
@@ -281,8 +282,7 @@ elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
 
     target_link_libraries(NoobWarrior.Core
         PRIVATE
-            crypt32
-            version)  # GetFileVersionInfo etc. for Engine PE inspection
+            crypt32)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     target_sources(NoobWarrior.Core PRIVATE Source/Keychain/OsKeychainMac.cpp)
 

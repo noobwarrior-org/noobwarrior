@@ -49,7 +49,10 @@ void SelectStudioVersionDialog::InitWidgets() {
 
     for (auto &engine : gApp->GetCore()->GetInstalledEngines()) {
         if (engine.Side == EngineSide::Studio) {
-            auto *item = new QListWidgetItem(QString::fromStdString(engine.Version));
+            QString label = engine.Version.empty()
+                ? QString("Unknown version (%1)").arg(QString::fromStdString(engine.Hash))
+                : QString::fromStdString(engine.Version);
+            auto *item = new QListWidgetItem(label);
             item->setData(Qt::UserRole, QVariant::fromValue(engine));
             mListWidget->addItem(item);
         }
