@@ -28,6 +28,7 @@
 #include <sqlite3.h>
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace NoobWarrior {
@@ -55,9 +56,13 @@ public:
     inline int Bind(int pos, const std::string &val) { return sqlite3_bind_text(mStmt, pos, val.c_str(), static_cast<int>(val.size()), SQLITE_TRANSIENT); }
     inline int Bind(int pos, const char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, SQLITE_TRANSIENT); }
     inline int Bind(int pos, char* val) { return sqlite3_bind_text(mStmt, pos, val, -1, SQLITE_TRANSIENT); }
-    inline int Bind(int pos, int val) { return sqlite3_bind_int(mStmt, pos, val); }
-    inline int Bind(int pos, bool val) { return sqlite3_bind_int(mStmt, pos, val); }
-    inline int Bind(int pos, int64_t val) { return sqlite3_bind_int64(mStmt, pos, val); }
+    template <typename T> requires std::is_integral_v<T>
+    inline int Bind(int pos, T val) {
+        if constexpr (sizeof(T) > sizeof(int))
+            return sqlite3_bind_int64(mStmt, pos, static_cast<sqlite3_int64>(val));
+        else
+            return sqlite3_bind_int(mStmt, pos, static_cast<int>(val));
+    }
     inline int Bind(int pos, const std::vector<unsigned char>& val) { return sqlite3_bind_blob64(mStmt, pos, val.data(), val.size(), SQLITE_TRANSIENT); }
     inline int Bind(int pos, double val) { return sqlite3_bind_double(mStmt, pos, val); }
     inline int Bind(int pos) { return sqlite3_bind_null(mStmt, pos); }
