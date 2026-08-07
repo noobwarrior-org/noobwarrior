@@ -169,7 +169,7 @@ public:
 
     /**
      * @brief Warning: Any call to this function will automatically create a directory if it does not exist.
-    */
+     */
     std::filesystem::path GetUserDataDir();
 
     void CreateStandardUserDataDirectories();
@@ -201,6 +201,14 @@ public:
     void DiscoverEngines();
 
     bool IsEngineInManifest(const Engine &client);
+
+    /* Updates local Wine installation in user data directory and also pulls in DXVK and WebView2
+     * The callback needs to return a boolean. If it returns true, the update function continues. If it
+     * returns false, any downloads are aborted and the function is cancelled.
+     * The 3 parameters represent the current state of the function as it is progressing. 
+     * WineUpdateState is the stage (downloading, installing), the 2nd double parameter is a
+     * decimal percentage describing how much of the current stage is complete. */
+    void UpdateWine(std::function<bool(WineUpdateState, double)> callback);
     void DownloadAndInstallEngine(const Engine &client, std::function<void()> callback);
     EngineLaunchResponse LaunchEngine(EngineStartParameters params);
 

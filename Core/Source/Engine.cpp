@@ -66,6 +66,8 @@
 extern char** environ;
 #endif
 
+#define NOOBWARRIOR_WINE_VERSION "wine-11.14"
+
 using namespace NoobWarrior;
 
 static std::optional<Engine> InspectEngineDirectory(const std::filesystem::path &dir) {
@@ -212,6 +214,42 @@ bool Core::IsEngineInManifest(const Engine &engine) {
     return ok;
 }
 
+// TODO: FINISH THIS SHIT
+void Core::UpdateWine(std::function<bool(WineUpdateState, double)> callback) {
+    std::filesystem::path wineRoot = GetUserDataDir() / NW_PATH_WINE_ROOT;
+    std::filesystem::path wine = wineRoot / "bin" / "wine";
+    bool needsUpdating = false;
+    if (!std::filesystem::exists(wine)) {
+        needsUpdating = true;
+    } else {
+#if defined(__unix__) || defined(__APPLE__)
+        if (fork() == 0) {
+            execlp(wine.c_str(), wine.c_str(), "--version", nullptr);
+            
+        }
+#endif
+    }
+
+    if (needsUpdating) {
+        cpr::Session session {};
+        session.SetUrl("https://github.com/Kron4ek/Wine-Builds/releases/download/11.14/wine-11.14-amd64-wow64.tar.xz");
+
+        session.SetOption(cpr::ProgressCallback {
+            [callback](cpr::cpr_pf_arg_t downloadTotal, cpr::cpr_pf_arg_t downloadNow, cpr::cpr_pf_arg_t uploadTotal, cpr::cpr_pf_arg_t uploadNow, intptr_t userdata) -> bool {
+                callback(WineUpdateState::DownloadingWine, static_cast<double>(downloadNow) / downloadTotal);
+                // reminder: returning true will continue the transfer, returning false will abort it
+                return true;
+            }
+        });
+
+        session.GetCallback([](cpr::Response response) {
+            // callback()
+        });
+
+        std::thread t;
+    }
+}
+
 void Core::DownloadAndInstallEngine(const Engine &engine, std::function<void()> callback) {
     nlohmann::json index;
 
@@ -288,7 +326,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
         args.push_back("--emucert");
         args.push_back("\"" + emuCert.string() + "\"");
     }
-    
+
     const int era = ParseEraVersion(params.Engine.Version);
     args.push_back("--scheme");
     args.push_back(era == 463 ? "old" : "new");

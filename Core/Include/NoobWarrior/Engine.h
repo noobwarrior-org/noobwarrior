@@ -139,5 +139,16 @@ enum class EngineLaunchResponse {
     FailedToLoadPlace
 };
 
+enum class WineUpdateState {
+    Failed,
+    Success,
+    DownloadingWine,
+    InstallingWine,
+    DownloadingDxvk,
+    InstallingDxvk,
+    DownloadingWebView2,
+    InstallingWebView2
+};
+
 std::string GetEngineVersion(const Engine &engine);
 }
