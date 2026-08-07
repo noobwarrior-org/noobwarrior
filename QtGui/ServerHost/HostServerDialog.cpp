@@ -173,7 +173,7 @@ void HostServerDialog::InitWidgets() {
                 .Engine = {
                     .Type = EngineType::Roblox,
                     .Side = EngineSide::Server,
-                    .Hash = "07b64feec0bd47c1",
+                    .Hash = "version-07b64feec0bd47c1",
                     .Version = "0.463.0.417004"
                 },
                 .Port = 53640,
@@ -185,7 +185,7 @@ void HostServerDialog::InitWidgets() {
                     .Architecture = EngineArchitecture::x86_64,
                     .Type = EngineType::Roblox,
                     .Side = EngineSide::Studio,
-                    .Hash = "c2e4d104afaf449c",
+                    .Hash = "version-c2e4d104afaf449c",
                     .Version = "0.574.0.5740446"
                 },
                 .Port = 53640,

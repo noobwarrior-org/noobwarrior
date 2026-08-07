@@ -34,9 +34,9 @@ void StudioCommand::Main(CommandContext& ctx) {
             .Architecture = EngineArchitecture::x86_64,
             .Type = EngineType::Roblox,
             .Side = EngineSide::Studio,
-            // .Hash = "ef266da340bc4058",
+            // .Hash = "version-ef266da340bc4058",
             // .Version = "0.463.0.417004"
-            .Hash = "c2e4d104afaf449c",
+            .Hash = "version-c2e4d104afaf449c",
             .Version = "0.574.0.5740446"
         },
         .Ip = "",
