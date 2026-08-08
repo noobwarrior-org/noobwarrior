@@ -308,6 +308,9 @@ static BOOL WINAPI MyCertGetCertificateChain(HCERTCHAINENGINE hChainEngine, PCCE
 static wchar_t gMergedCaBundle[MAX_PATH] = {0};
 static std::atomic<bool> gMergedCaReady { false };
 static CRITICAL_SECTION gCaLock;
+// Set while BuildMergedCaBundle reads/writes during the merge, so the ntdll NtCreateFile/NtOpenFile
+// hooks below don't recursively try to redirect those very opens.
+static thread_local bool gInCaResolve = false;
 
 static HANDLE (WINAPI* pOrigCreateFileW)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 static HANDLE (WINAPI* pOrigCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
@@ -381,7 +384,9 @@ static const wchar_t* ResolveCaRedirect(LPCWSTR requested) {
     EnterCriticalSection(&gCaLock);
     bool ready = gMergedCaReady.load();
     if (!ready) {
+        gInCaResolve = true;                 // suppress the ntdll hooks for the merge's own file I/O
         ready = BuildMergedCaBundle(requested);
+        gInCaResolve = false;
         gMergedCaReady.store(ready);
     }
     LeaveCriticalSection(&gCaLock);
@@ -409,6 +414,78 @@ static HANDLE WINAPI MyCreateFileA(LPCSTR lpFileName, DWORD access, DWORD share,
         }
     }
     return pOrigCreateFileA(lpFileName, access, share, sec, disp, flags, tmpl);
+}
+
+// Studio 0.729 opens ssl/cacert.pem below kernel32 (its statically-linked OpenSSL/curl calls straight
+// into ntdll), so MyCreateFileW/A never see it and the CA merge never happens -- the self-signed
+// emulator cert is then rejected and the splash hangs. Hook the syscall stubs that every file open
+// funnels through and apply the same redirect there. This is API-independent, so it also covers older
+// builds without changing their behaviour (their kernel32 opens still get redirected, just one layer
+// deeper), and it keeps the engine's own ssl/cacert.pem untouched on disk.
+typedef NTSTATUS (NTAPI* NtCreateFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PVOID /*PIO_STATUS_BLOCK*/,
+                                         PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+typedef NTSTATUS (NTAPI* NtOpenFile_t)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PVOID /*PIO_STATUS_BLOCK*/,
+                                       ULONG, ULONG);
+static NtCreateFile_t pOrigNtCreateFile = nullptr;
+static NtOpenFile_t   pOrigNtOpenFile   = nullptr;
+
+// If this open targets a cacert.pem, resolve the merged bundle and fill an OBJECT_ATTRIBUTES pointing
+// at it (NT path form "\??\<win32 path>"); returns false to pass the open through untouched. The
+// caller owns ntBuf/usOut/oaOut, which must outlive the following NtCreateFile/NtOpenFile call.
+static bool CaRedirectNt(POBJECT_ATTRIBUTES in, wchar_t* ntBuf, size_t ntBufCch,
+                         UNICODE_STRING* usOut, OBJECT_ATTRIBUTES* oaOut) {
+    if (gInCaResolve) return false;                 // a read/write issued by the merge itself
+    if (!in || !in->ObjectName || !in->ObjectName->Buffer) return false;
+    const UNICODE_STRING* nm = in->ObjectName;
+    size_t chars = nm->Length / sizeof(wchar_t);
+    if (chars < 10 || _wcsnicmp(nm->Buffer + (chars - 10), L"cacert.pem", 10) != 0)
+        return false;                               // fast reject: not a cacert.pem open
+
+    // Null-terminated copy for the merge read; drop the NT "\??\" device prefix so it's a plain
+    // Win32 path CreateFileW can open.
+    wchar_t full[MAX_PATH];
+    size_t cc = chars < MAX_PATH ? chars : MAX_PATH - 1;
+    wmemcpy(full, nm->Buffer, cc);
+    full[cc] = L'\0';
+    const wchar_t* win32 = full;
+    if (wcsncmp(win32, L"\\??\\", 4) == 0) win32 += 4;
+
+    const wchar_t* merged = ResolveCaRedirect(win32);
+    if (!merged) return false;
+
+    swprintf(ntBuf, ntBufCch, L"\\??\\%s", merged);
+    usOut->Buffer = ntBuf;
+    usOut->Length = (USHORT)(wcslen(ntBuf) * sizeof(wchar_t));
+    usOut->MaximumLength = (USHORT)(usOut->Length + sizeof(wchar_t));
+    *oaOut = *in;                                   // keep Attributes/SecurityDescriptor/RootDirectory flags
+    oaOut->ObjectName = usOut;
+    oaOut->RootDirectory = nullptr;                 // ntBuf is an absolute \??\ path
+    Out("NtFile", "redirect %ws -> %ws", full, ntBuf);
+    return true;
+}
+
+static NTSTATUS NTAPI MyNtCreateFile(PHANDLE FileHandle, ACCESS_MASK Access, POBJECT_ATTRIBUTES ObjectAttributes,
+                                     PVOID /*PIO_STATUS_BLOCK*/ IoStatusBlock, PLARGE_INTEGER AllocationSize,
+                                     ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition,
+                                     ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength) {
+    wchar_t ntBuf[MAX_PATH + 8];
+    UNICODE_STRING us;
+    OBJECT_ATTRIBUTES oa;
+    if (CaRedirectNt(ObjectAttributes, ntBuf, _countof(ntBuf), &us, &oa))
+        return pOrigNtCreateFile(FileHandle, Access, &oa, IoStatusBlock, AllocationSize, FileAttributes,
+                                 ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
+    return pOrigNtCreateFile(FileHandle, Access, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes,
+                             ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
+}
+
+static NTSTATUS NTAPI MyNtOpenFile(PHANDLE FileHandle, ACCESS_MASK Access, POBJECT_ATTRIBUTES ObjectAttributes,
+                                   PVOID /*PIO_STATUS_BLOCK*/ IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions) {
+    wchar_t ntBuf[MAX_PATH + 8];
+    UNICODE_STRING us;
+    OBJECT_ATTRIBUTES oa;
+    if (CaRedirectNt(ObjectAttributes, ntBuf, _countof(ntBuf), &us, &oa))
+        return pOrigNtOpenFile(FileHandle, Access, &oa, IoStatusBlock, ShareAccess, OpenOptions);
+    return pOrigNtOpenFile(FileHandle, Access, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
 }
 
 static std::atomic<bool> gGoodbyeSent { false };
@@ -493,6 +570,8 @@ DWORD WINAPI Thread(LPVOID param) {
     hook(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
     hook(L"kernel32", "CreateFileW", MyCreateFileW, (LPVOID*)&pOrigCreateFileW);
     hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
+    hook(L"ntdll", "NtCreateFile", MyNtCreateFile, (LPVOID*)&pOrigNtCreateFile);
+    hook(L"ntdll", "NtOpenFile",   MyNtOpenFile,   (LPVOID*)&pOrigNtOpenFile);
     hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
     hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     LoadLibraryW(L"crypt32.dll");
