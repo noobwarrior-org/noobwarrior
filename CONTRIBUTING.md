@@ -14,6 +14,8 @@ After that, explore the source code and try to find where it makes most sense to
 
 If you're doing anything GUI related, look at QtGui. It's where all of the Qt GUI code is located. If it's anything internal-backend related on the C++ side, check Core. If you're modifying any Lua plugins (including the master server), they're located in AppDistribution.
 
+Once you're experienced enough with the codebase, try looking at the issues on the GitHub page and take a crack at whatever you may find is easy.
+
 ## Read the documentation (and expand on it, if it's lacking)
 The documentation provides guides on how the program is architected under the hood and it gives you a good introductory experience on how everything works in general. Read through as much of it as you can.
 
@@ -23,4 +25,4 @@ Think it's lacking? Go to AppDistribution/priv-plugins/docs/texts and improve up
 Help make some small contributions, later express your desire to help maintain the project to other maintainers and they shall let you in to the secret Discord server. This server is not open to the public because Discord servers are usually terrible for fostering a community.
 
 ## Policy on LLMs
-I would be a hypocrite to ban LLMs from this project entirely, as I've used them before in some aspects for this project. That being said, please make sure any LLM contributions provide some value to the project, instead of serving as a way to fill up your GitHub commit history. Please actually know what you're doing and have some technical background in this instead of vibe-coding entire contributions. That's all I ask for.
+I would be a hypocrite to ban LLMs from this project entirely, as I've used them before in some aspects for this project. That being said, please make sure any LLM contributions provide some value to the project, instead of serving as a way to fill up your GitHub commit history. Please actually know what you're doing and have some technical background in this instead of vibe-coding entire contributions. Look at the codebase, get yourself experienced with it, and write some code by hand before submitting any LLM-related PRs. That's all I ask for.
