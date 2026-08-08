@@ -196,6 +196,10 @@ public:
     std::vector<Engine> GetInstalledEngines();
     std::vector<Engine> GetAllEngines();
     std::filesystem::path GetEngineDirectory(const Engine &client);
+    // Resolve an engine specification (side + version, hash optional) to the best-matching installed engine,
+    // using the same matcher as GetEngineDirectory. Lets callers adopt the real installed version
+    // instead of a requested one that may not exist as an installed build. std::nullopt if none match.
+    std::optional<Engine> ResolveInstalledEngine(const Engine &want);
 
     /* This searches your engine manifest file, finds engines from master servers you have added, and compiles a list of usable engines */
     void DiscoverEngines();

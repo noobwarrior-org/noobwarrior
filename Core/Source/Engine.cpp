@@ -199,6 +199,10 @@ std::filesystem::path Core::GetEngineDirectory(const Engine &engine) {
     return {};
 }
 
+std::optional<Engine> Core::ResolveInstalledEngine(const Engine &want) {
+    return PickBestMatch(GetInstalledEngines(), want);
+}
+
 void Core::DiscoverEngines() {
 
 }

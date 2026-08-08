@@ -381,7 +381,7 @@ bool Core::IsServerEmulatorRunning() {
 }
 
 void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback, const std::string &sessionToken) {
-    std::thread([=]() {
+    std::thread([=, this]() {
         cpr::Response response = cpr::Get(
             cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers"},
             cpr::Timeout{std::chrono::seconds(10)},
@@ -449,6 +449,12 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             }
 
             params.Engine.Side = EngineSide::Client;
+            
+            if (auto resolved = ResolveInstalledEngine(params.Engine)) {
+                resolved->Side = EngineSide::Client;
+                params.Engine = *resolved;
+            }
+
             if (!sessionToken.empty())
                 params.SessionToken = sessionToken; // the account we logged in as (local launch ticket)
             if (!IsLoopbackOrEmpty(ip)) {
