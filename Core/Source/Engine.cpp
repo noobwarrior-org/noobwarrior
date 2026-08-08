@@ -557,6 +557,13 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
     std::filesystem::path exe = FindEngineExecutable(engineDir);
     if (exe.empty())
         return EngineLaunchResponse::NoValidExecutable;
+    
+    if (params.Engine.Side == EngineSide::Studio && mServerEmulator != nullptr) {
+        std::string ver  = params.Engine.Version.empty() ? Pe::ReadProductVersion(exe) : params.Engine.Version;
+        std::string hash = params.Engine.Hash.empty() ? engineDir.filename().string() : params.Engine.Hash;
+        mServerEmulator->SetLaunchedStudioVersion(ver, hash);
+        Out("LaunchEngine", "Studio client-version pinned to \"{}\" (upload {})", ver, hash);
+    }
 
     // A launched client has no cookie, so in auth mode mint a launch ticket for the local user and
     // pass it to the injector (-t) for PlaceLauncher to redeem. Remote joins are the host's job.

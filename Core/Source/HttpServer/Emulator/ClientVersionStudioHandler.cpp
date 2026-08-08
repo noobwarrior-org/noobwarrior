@@ -42,16 +42,29 @@ void ClientVersionStudioHandler::OnRequest(evhttp_request *req, void *userdata) 
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("ClientVersionStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
+    // Answer with the version of the Studio that's actually asking, so it never self-updates.
     std::string version, hash;
-    time_t newest = 0;
-    for (const auto &inst : mEmu->GetRunningInstances()) {
-        if (inst.Side == EngineSide::Studio && !inst.Version.empty() && inst.FirstSeen >= newest) {
-            newest = inst.FirstSeen;
-            version = inst.Version;
-            hash = inst.Hash;
+    {
+        auto pinned = mEmu->GetLaunchedStudioVersion();
+        version = pinned.first;
+        hash = pinned.second;
+    }
+
+    // If that fails then check the newest running instance carying a version.
+    if (version.empty()) {
+        time_t newest = 0;
+        for (const auto &inst : mEmu->GetRunningInstances()) {
+            if (!inst.Version.empty() && inst.FirstSeen >= newest) {
+                newest = inst.FirstSeen;
+                version = inst.Version;
+                hash = inst.Hash;
+            }
         }
     }
-    if (version.empty()) version = "0.729.0.7290838";
+
+    // As a last resort, the launching engine's version is unknown.
+    // Return a version that is never newer than any real client so Studio never tries to self-update.
+    if (version.empty()) version = "0.1.0.1";
 
     nlohmann::json j;
     j["version"] = version;

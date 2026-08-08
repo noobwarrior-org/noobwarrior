@@ -639,6 +639,17 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
     return servers;
 }
 
+void ServerEmulator::SetLaunchedStudioVersion(const std::string &version, const std::string &hash) {
+    std::lock_guard lock(mLaunchedStudioMutex);
+    mLaunchedStudioVersion = version;
+    mLaunchedStudioHash = hash;
+}
+
+std::pair<std::string, std::string> ServerEmulator::GetLaunchedStudioVersion() const {
+    std::lock_guard lock(mLaunchedStudioMutex);
+    return { mLaunchedStudioVersion, mLaunchedStudioHash };
+}
+
 namespace {
 std::mutex gPublicIpMtx;
 std::string gPublicIp; // last successfully detected WAN IP

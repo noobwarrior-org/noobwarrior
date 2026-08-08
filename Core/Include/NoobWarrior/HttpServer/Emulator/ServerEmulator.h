@@ -143,6 +143,11 @@ public:
     bool TouchInstance(int pid); // returns false if the PID isn't tracked
     std::vector<RunningInstance> GetRunningInstances() const;
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
+
+    // Version/hash of the most recently launched Studio engine.
+    // This function is called so ClientVersionStudioHandler always has reliable results on what Studio version is running.
+    void SetLaunchedStudioVersion(const std::string &version, const std::string &hash);
+    std::pair<std::string, std::string> GetLaunchedStudioVersion() const;
     
     std::string ResolveAdvertisedAddress(const std::string &localAddr);
 
@@ -285,6 +290,10 @@ private:
 
     mutable std::mutex mInstancesMutex;
     std::vector<RunningInstance> mInstances;
+
+    mutable std::mutex mLaunchedStudioMutex;
+    std::string mLaunchedStudioVersion {};
+    std::string mLaunchedStudioHash {};
 
     // Avatar appearances federated from joining clients, keyed by their user id (see the public
     // Set/Get/ClearAvatarOverride methods). Each value is a /v1.1/avatar-fetch response body.
