@@ -34,6 +34,7 @@
 enum class HostEngineChoice {
     Rcc2021,
     Studio2023TeamTest,
+    Studio2026TeamTest
 };
 
 using namespace NoobWarrior;
@@ -127,6 +128,7 @@ void HostServerDialog::InitWidgets() {
     // handler reads it directly without parsing the label text.
     mEngineCombo->addItem("RCCService 2021 (0.463)",            static_cast<int>(HostEngineChoice::Rcc2021));
     mEngineCombo->addItem("Studio 2023 Team Test (0.574)",      static_cast<int>(HostEngineChoice::Studio2023TeamTest));
+    mEngineCombo->addItem("Studio 2026 Team Test (0.729)",      static_cast<int>(HostEngineChoice::Studio2026TeamTest));
     engineRow->addWidget(mEngineCombo, 1);
 
     mButtonBox = new QDialogButtonBox();
@@ -179,7 +181,7 @@ void HostServerDialog::InitWidgets() {
                 .Port = 53640,
                 .PlaceId = placeId.value()
             });
-        } else {
+        } else if (choice == HostEngineChoice::Studio2023TeamTest) {
             gApp->LaunchEngine({
                 .Engine = {
                     .Architecture = EngineArchitecture::x86_64,
@@ -187,6 +189,19 @@ void HostServerDialog::InitWidgets() {
                     .Side = EngineSide::Studio,
                     .Hash = "version-c2e4d104afaf449c",
                     .Version = "0.574.0.5740446"
+                },
+                .Port = 53640,
+                .PlaceId = placeId.value(),
+                .LaunchSide = EngineSide::Server
+            });
+        } else if (choice == HostEngineChoice::Studio2026TeamTest) {
+            gApp->LaunchEngine({
+                .Engine = {
+                    .Architecture = EngineArchitecture::x86_64,
+                    .Type = EngineType::Roblox,
+                    .Side = EngineSide::Studio,
+                    .Hash = "version-4bb3958a2cde4efb",
+                    .Version = "0.729.0.7290838"
                 },
                 .Port = 53640,
                 .PlaceId = placeId.value(),
