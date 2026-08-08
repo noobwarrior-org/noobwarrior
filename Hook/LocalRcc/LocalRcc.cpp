@@ -275,13 +275,17 @@ static char* NotTrustedHook(void* /*a1*/, void* /*a2*/) {
 
 static bool InstallOfflineHooks() {
     gFromComponents = reinterpret_cast<offline::from_components_fn>(ScanAny("offline.fromComponents", {
-        "48 89 5C 24 18 4C 89 4C 24 20 48 89 4C 24 08 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 60",
+        "48 89 5C 24 18 4C 89 4C 24 20 48 89 4C 24 08 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 60",  // 0.574
+        "48 89 5C 24 ? 48 89 4C 24 ? 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC ? 4D 8B F9 49 8B D8",
     }));
     gTrustCheck = reinterpret_cast<offline::trust_check_fn>(ScanAny("offline.trustCheck", {
-        "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 56 41 57 48 8D AC 24 10 FF FF FF 48 81 EC F0 01 00 00 45",
+        "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 55 41 56 41 57 48 8D AC 24 10 FF FF FF 48 81 EC F0 01 00 00 45",  // 0.574
+        "48 89 5C 24 ? 48 89 74 24 ? 48 89 7C 24 ? 4C 89 64 24 ? 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 45 0F B6 E1 45 0F B6 F8",  // 0.712
+        "48 89 5C 24 ? 48 89 74 24 ? 55 57 41 54 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 45 0F B6 E1 45 0F B6 F8 44 0F B6 F2 48 8B F9",  // 0.729
     }));
     gNotTrusted = reinterpret_cast<offline::not_trusted_fn>(ScanAny("offline.httpReqNotTrusted", {
-        "48 89 74 24 10 57 48 83 EC 40 48 8B FA 48 8B F1 E8",
+        "48 89 74 24 10 57 48 83 EC 40 48 8B FA 48 8B F1 E8",  // 0.574 (still a single hit on 0.712 & 0.729)
+        "48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B F1 E8 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? 48 8B C8",
     }));
 
     // All three are independent -- install whichever matched. Missing one just
@@ -296,6 +300,48 @@ static bool InstallOfflineHooks() {
     install("TrustCheck",     (void*)gTrustCheck,     (void*)&TrustCheckHook,     (void**)&gOrigTrustCheck);
     install("NotTrusted",     (void*)gNotTrusted,     (void*)&NotTrustedHook,     (void**)&gOrigNotTrusted);
     return gFromComponents || gTrustCheck || gNotTrusted;
+}
+
+// -----------------------------------------------------------------------------
+// Patch: StudioCookieManager security-cookie check -> always "proceed"
+//
+// WebView2 is the Studio login surface, and it only proceeds once
+// StudioCookieManager decides the security cookie is valid -- the codepath logged
+// as "[FLog::StudioCookieManager] Security cookie is cached so we proceed saving
+// now." Running offline against the emulator, that check takes the reject branch
+// and login stalls, so the studio-offline URL hooks alone are not enough. This is
+// a port of studio-offline's cookie patch:
+// flip the `jz` guarding that FLog path to `jnz`.
+//
+// studio-offline finds it by string xref: locate the FLog literal, find its lone
+// `lea`, then walk back to the `jz` after a `cmp`. On both 0.712 and 0.729 that
+// `jz` sits 14 bytes before the lea, at the head of a version-stable compare
+// epilogue -- `jz(74 74) ; cmp al,6 ; jb ; shr rax,8 ; cmp al,4 ; jb ; lea` -- so
+// we anchor on that epilogue directly (unique single hit on both builds:
+// .text+0x218092f in 0.712, .text+0x24ff2c1 in 0.729). The leading 74 IS the jz.
+// -----------------------------------------------------------------------------
+
+static void PatchSecurityCookie() {
+    auto* jz = reinterpret_cast<uint8_t*>(ScanAny("securityCookie.jz", {
+        "74 74 3C 06 72 5C 48 C1 E8 08 3C 04 72 54 48 8D 05",
+    }));
+    if (!jz) {
+        Log("cookie", "security-cookie jz pattern not found -- WebView2 login may stall offline");
+        return;
+    }
+    if (jz[0] != 0x74) {
+        Log("cookie", "expected jz (0x74) at %p, got 0x%02x -- not patching", jz, jz[0]);
+        return;
+    }
+    DWORD oldProtect;
+    if (!VirtualProtect(jz, 1, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        Log("cookie", "VirtualProtect failed @ %p", jz);
+        return;
+    }
+    jz[0] = 0x75; // jz -> jnz
+    VirtualProtect(jz, 1, oldProtect, &oldProtect);
+    FlushInstructionCache(GetCurrentProcess(), jz, 1);
+    Log("cookie", "patched StudioCookieManager security-cookie jz->jnz @ %p", jz);
 }
 
 // -----------------------------------------------------------------------------
@@ -535,6 +581,7 @@ static bool ScanForAddresses() {
     void* deserAddr = ScanAny("deserializeItem", {
         "48 89 5C 24 08 48 89 54 24 10 55 56 57 41 56 41 57 48 8D 6C 24 C9 48 81 EC C0 00 00 00 4D 8B F0",  // 2022 (0.574)
         "48 89 5C 24 ? 48 89 74 24 ? 48 89 54 24 ? 55 57 41 56 48 8B EC 48 83 EC 40 49 8B F8",              // 2023+
+        "48 89 5C 24 08 48 89 54 24 10 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ? 48 81 EC D0 00 00 00 45 8B F9 4D 8B F0 48 8B FA 48 8B F1 45 33 E4",  // 0.729
     });
     if (!deserAddr) return false;
     gDeserializeItem = reinterpret_cast<types::deserialize_item_fn>(deserAddr);
@@ -598,6 +645,10 @@ static DWORD WINAPI WorkerThread(LPVOID) {
     // If none of the three patterns match, log and keep going.
     if (!InstallOfflineHooks())
         Log("main", "No studio-offline patterns matched (connection bypass disabled)");
+
+    // WebView2 login also needs StudioCookieManager to accept the security cookie
+    // offline. Raw byte patch (independent of MinHook), also needed in both modes.
+    PatchSecurityCookie();
 
     // The compile hook, deserializeItem hook and typeForProperty patch together make
     // Studio serialize script Source as ProtectedStringBytecode and emit local_rcc's

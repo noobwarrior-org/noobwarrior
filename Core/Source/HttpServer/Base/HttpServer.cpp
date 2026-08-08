@@ -143,6 +143,24 @@ int HttpServer::Stop() {
     return 1;
 }
 
+// do this so that studio doesnt send a http/2 connection that evhttp can't parse.
+static int HttpServerAlpnSelectCb(SSL*, const unsigned char** out, unsigned char* outlen,
+                                  const unsigned char* in, unsigned int inlen, void*) {
+    const unsigned char* h11 = nullptr;
+    for (unsigned int i = 0; i < inlen;) {
+        unsigned int len = in[i];
+        if (i + 1 + len > inlen) break;
+        const unsigned char* p = in + i + 1;
+        if (len == 8 && p[0]=='h'&&p[1]=='t'&&p[2]=='t'&&p[3]=='p'&&p[4]=='/'&&p[5]=='1'&&p[6]=='.'&&p[7]=='1')
+            h11 = p;
+        i += 1 + len;
+    }
+    static const unsigned char kH11[8] = { 'h','t','t','p','/','1','.','1' };
+    *out = h11 ? h11 : kH11;
+    *outlen = 8;
+    return SSL_TLSEXT_ERR_OK;
+}
+
 int HttpServer::StartSecure(uint16_t port) {
     if (mRunningSecure)
         return 0;
@@ -155,6 +173,8 @@ int HttpServer::StartSecure(uint16_t port) {
             Out(mLogName, "Failed to initialize OpenSSL context");
             return -1;
         }
+
+        SSL_CTX_set_alpn_select_cb(mSslCtx, HttpServerAlpnSelectCb, nullptr); // force HTTP/1.1 (evhttp can't do h2)
 
         // Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
         // SSL_CTX_set_default_passwd_cb(mSslCtx, pem_passwd_cb);

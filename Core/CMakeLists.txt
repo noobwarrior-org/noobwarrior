@@ -225,6 +225,10 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/OAuthTokenHandler.cpp
     Source/HttpServer/Emulator/OAuthUserInfoHandler.cpp
     Source/HttpServer/Emulator/StudioLoginHandler.cpp
+    Source/HttpServer/Emulator/ClientVersionStudioHandler.cpp
+    Source/HttpServer/Emulator/StudioPbeHandler.cpp
+    Source/HttpServer/Emulator/GuacBundlesStudioHandler.cpp
+    Source/HttpServer/Emulator/UserModerationHandler.cpp
     Source/HttpServer/Emulator/UniversalAppConfigStudioHandler.cpp
     Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
     Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp

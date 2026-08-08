@@ -100,6 +100,10 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mStudioLoginHandler(this),
     mStudioOpenPlaceHandler(this),
     mDataStorePersistenceHandler(this, mCore->GetEmuDbManager()),
+    mClientVersionStudioHandler(this),
+    mStudioPbeHandler(),
+    mGuacBundlesStudioHandler(),
+    mUserModerationHandler(),
     mEmulatorProxy(this),
     mAssetEnricher(mCore)
 {
@@ -136,6 +140,12 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
     SetRequestHandler("/v2/settings/application/PCDesktopClient", &mClientSettingsV2DesktopHandler);
     SetRequestHandler("/v2/settings/application/PCStudioApp", &mClientSettingsV2StudioHandler);
+
+    SetRequestHandler("/v2/client-version/WindowsStudio64", &mClientVersionStudioHandler);
+    SetRequestHandler("/studio/pbe", &mStudioPbeHandler);
+    SetRequestHandler("/guac-v2/v1/bundles/studio", &mGuacBundlesStudioHandler);
+    SetRequestHandler("/v1/not-approved", &mUserModerationHandler);
+    SetRequestHandler("/v2/not-approved", &mUserModerationHandler);
 
     SetRequestHandler("/Login/Negotiate.ashx", &mNegotiateHandler);
     SetRequestHandler("/login/negotiate.ashx", &mNegotiateHandler);

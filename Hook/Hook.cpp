@@ -37,6 +37,7 @@
 #include <MinHook.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <wincrypt.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <strsafe.h>
@@ -280,6 +281,30 @@ static BOOL WINAPI MyWinHttpSendRequest(HINTERNET hRequest, LPCWSTR lpszHeaders,
     return pOrigWinHttpSendRequest(hRequest, lpszHeaders, dwHeadersLength, lpOptional, dwOptionalLength, dwTotalLength, dwContext);
 }
 
+static BOOL (WINAPI* pOrigCertVerifyChainPolicy)(LPCSTR, PCCERT_CHAIN_CONTEXT, PCERT_CHAIN_POLICY_PARA, PCERT_CHAIN_POLICY_STATUS);
+static BOOL WINAPI MyCertVerifyCertificateChainPolicy(LPCSTR pszPolicyOID, PCCERT_CHAIN_CONTEXT pChainContext,
+                                                      PCERT_CHAIN_POLICY_PARA pPolicyPara,
+                                                      PCERT_CHAIN_POLICY_STATUS pPolicyStatus) {
+    BOOL r = pOrigCertVerifyChainPolicy(pszPolicyOID, pChainContext, pPolicyPara, pPolicyStatus);
+    DWORD wasError = pPolicyStatus ? pPolicyStatus->dwError : 0;
+    if (pPolicyStatus) pPolicyStatus->dwError = 0; // ERROR_SUCCESS == trusted
+    Out("CertVerify", "CertVerifyCertificateChainPolicy oid=%Iu ret=%d dwError=0x%lx -> forced success",
+        (size_t)(ULONG_PTR)pszPolicyOID, r, (unsigned long)wasError);
+    return TRUE;
+}
+
+static BOOL (WINAPI* pOrigCertGetCertificateChain)(HCERTCHAINENGINE, PCCERT_CONTEXT, LPFILETIME, HCERTSTORE,
+                                                   PCERT_CHAIN_PARA, DWORD, LPVOID, PCCERT_CHAIN_CONTEXT*);
+static BOOL WINAPI MyCertGetCertificateChain(HCERTCHAINENGINE hChainEngine, PCCERT_CONTEXT pCertContext, LPFILETIME pTime,
+                                             HCERTSTORE hAdditionalStore, PCERT_CHAIN_PARA pChainPara, DWORD dwFlags,
+                                             LPVOID pvReserved, PCCERT_CHAIN_CONTEXT* ppChainContext) {
+    static int n = 0;
+    BOOL r = pOrigCertGetCertificateChain(hChainEngine, pCertContext, pTime, hAdditionalStore,
+                                          pChainPara, dwFlags, pvReserved, ppChainContext);
+    if (n < 20) { n++; Out("CertVerify", "CertGetCertificateChain ret=%d (schannel cert path active)", r); }
+    return r;
+}
+
 static wchar_t gMergedCaBundle[MAX_PATH] = {0};
 static std::atomic<bool> gMergedCaReady { false };
 static CRITICAL_SECTION gCaLock;
@@ -431,6 +456,15 @@ DWORD WINAPI Thread(LPVOID param) {
     if (GetEnvironmentVariableA("NOOBHOOK_HTTPS_PORT", portBuf, sizeof(portBuf)) > 0)
         gEmuHttpsPort = static_cast<uint16_t>(atoi(portBuf));
     Out("Main", "Emulator ports: HTTP=%d HTTPS=%d", gEmuHttpPort, gEmuHttpsPort);
+    
+    {
+        wchar_t wv2Args[512];
+        swprintf(wv2Args, 512,
+            L"--host-resolver-rules=\"MAP *.roblox.com 127.0.0.1:%u,MAP roblox.com 127.0.0.1:%u\" --ignore-certificate-errors",
+            (unsigned)gEmuHttpsPort, (unsigned)gEmuHttpsPort);
+        SetEnvironmentVariableW(L"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", wv2Args);
+        Out("Main", "Routed WebView2 -> emulator :%d via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", gEmuHttpsPort);
+    }
 
     gProcessInfo = NoobHook::CollectProcessInfo();
     Out("Main", "Process info: pid=%d side=%d version=%s port=%d placeId=%lld",
@@ -461,6 +495,9 @@ DWORD WINAPI Thread(LPVOID param) {
     hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
     hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
     hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
+    LoadLibraryW(L"crypt32.dll");
+    hook(L"crypt32", "CertVerifyCertificateChainPolicy", MyCertVerifyCertificateChainPolicy, (LPVOID*)&pOrigCertVerifyChainPolicy);
+    hook(L"crypt32", "CertGetCertificateChain", MyCertGetCertificateChain, (LPVOID*)&pOrigCertGetCertificateChain);
 #if defined(_M_IX86)
     Patches::InstallCsgHeapGuard(); // b2: swallow the corrupt CSG temp-buffer free (0.574) so load survives
 #endif

@@ -178,6 +178,7 @@ void NoobHook::ReadServerEnvFallback(ProcessInfo *info) {
 }
 
 static char gNormalizedVersion[64] = {0};
+static char gHash[128] = {0};
 static void NormalizeVersion(const char *raw) {
     if (!raw) { gNormalizedVersion[0] = '\0'; return; }
     size_t w = 0;
@@ -195,6 +196,13 @@ ProcessInfo NoobHook::CollectProcessInfo() {
     info.Side = DetectSide();
     NormalizeVersion(GetProductVersion());
     info.Version = gNormalizedVersion;
+    {
+        std::string dir = CurrentExeDir();
+        auto pos = dir.find_last_of("\\/");
+        std::string folder = (pos == std::string::npos) ? dir : dir.substr(pos + 1);
+        strncpy_s(gHash, sizeof(gHash), folder.c_str(), _TRUNCATE);
+        info.Hash = gHash;
+    }
     if (info.Side == ProcessSide::Server) {
         ReadGameServerJson(&info);
         ReadServerEnvFallback(&info);
@@ -208,6 +216,7 @@ bool NoobHook::SendHello(const ProcessInfo &info) {
         {"Pid",     info.Pid},
         {"Side",    SideAsString(info.Side)},
         {"Version", info.Version ? info.Version : ""},
+        {"Hash", info.Hash ? info.Hash : ""},
     };
     if (info.Side == ProcessSide::Server) {
         body["Port"] = info.Port;
@@ -230,6 +239,7 @@ bool NoobHook::SendHeartbeat(const ProcessInfo &info) {
         {"Pid",     info.Pid},
         {"Side",    SideAsString(info.Side)},
         {"Version", info.Version ? info.Version : ""},
+        {"Hash", info.Hash ? info.Hash : ""},
     };
     if (info.Side == ProcessSide::Server) {
         body["Port"] = info.Port;

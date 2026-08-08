@@ -78,6 +78,10 @@
 #include "OAuthTokenHandler.h"
 #include "OAuthUserInfoHandler.h"
 #include "StudioLoginHandler.h"
+#include "ClientVersionStudioHandler.h"
+#include "StudioPbeHandler.h"
+#include "GuacBundlesStudioHandler.h"
+#include "UserModerationHandler.h"
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
@@ -106,6 +110,7 @@ struct RunningInstance {
     int Pid {0};
     EngineSide Side {};
     std::string Version {};
+    std::string Hash {};  // engine folder ("version-<hash>"); the client-version upload id
     std::string Ip {};
     std::optional<uint16_t> Port {std::nullopt};
     std::optional<int64_t> PlaceId {std::nullopt};
@@ -261,6 +266,14 @@ private:
     StudioLoginHandler mStudioLoginHandler;
     StudioOpenPlaceHandler mStudioOpenPlaceHandler;
     DataStorePersistenceHandler mDataStorePersistenceHandler;
+
+    // Studio 0.729 boot endpoints. client-version reports the running version so Studio
+    // never tries to update; /studio/pbe returns an empty list. Own classes (rather than
+    // canned StaticJsonHandler) so they can be made data-driven later.
+    ClientVersionStudioHandler mClientVersionStudioHandler;
+    StudioPbeHandler mStudioPbeHandler;
+    GuacBundlesStudioHandler mGuacBundlesStudioHandler;
+    UserModerationHandler mUserModerationHandler;
 
     // Layered reverse proxy to the remote emulator(s) the local client is currently joined to.
     EmulatorProxy mEmulatorProxy;

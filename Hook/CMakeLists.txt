@@ -68,7 +68,7 @@ set_target_properties(NoobWarrior.Hook PROPERTIES
 target_include_directories(NoobWarrior.Hook PRIVATE
     ${xxhash_SOURCE_DIR}
 )
-target_link_libraries(NoobWarrior.Hook PRIVATE dbghelp wsock32 ws2_32 winhttp minhook patterns version nlohmann_json Luau.Compiler libzstd_static)
+target_link_libraries(NoobWarrior.Hook PRIVATE dbghelp wsock32 ws2_32 winhttp crypt32 minhook patterns version nlohmann_json Luau.Compiler libzstd_static)
 target_compile_features(NoobWarrior.Hook PUBLIC cxx_std_23)
 if (MSVC)
     target_link_libraries(NoobWarrior.Hook PRIVATE

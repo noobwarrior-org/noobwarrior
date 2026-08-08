@@ -37,6 +37,7 @@ void OAuthDiscoveryHandler::OnRequest(evhttp_request *req, void *userdata) {
     j["token_endpoint"] = "https://apis.roblox.com/oauth/v1/token";
     j["introspection_endpoint"] = "https://apis.roblox.com/oauth/v1/token/introspect";
     j["revocation_endpoint"] = "https://apis.roblox.com/oauth/v1/token/revoke";
+    j["resources_endpoint"] = "https://apis.roblox.com/oauth/v1/token/resources";
     j["userinfo_endpoint"] = "https://apis.roblox.com/oauth/v1/userinfo";
     j["jwks_uri"] = "https://apis.roblox.com/oauth/v1/certs";
     j["registration_endpoint"] = "https://create.roblox.com/settings/api";
@@ -56,6 +57,9 @@ void OAuthDiscoveryHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const std::string body = j.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Set-Cookie",
+        ".ROBLOSECURITY=_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-into-your-account-and-to-steal-your-ROBUX-and-items.|_noobwarrior-studio-session; "
+        "Domain=.roblox.com; Path=/; Secure; SameSite=None");
     evbuffer* buf = evbuffer_new();
     evbuffer_add_printf(buf, "%s", body.c_str());
     evhttp_send_reply(req, HTTP_OK, nullptr, buf);

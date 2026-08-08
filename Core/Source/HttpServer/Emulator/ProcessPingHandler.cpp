@@ -89,6 +89,7 @@ void ProcessPingHandler::OnRequest(evhttp_request *req, void *userdata) {
     instance.Pid = pid;
     instance.Side = ParseSide(json.value("Side", "Client"));
     instance.Version = json.value("Version", "");
+    instance.Hash = json.value("Hash", "");
     if (json.contains("Port") && json["Port"].is_number_unsigned())
         instance.Port = static_cast<uint16_t>(json["Port"].get<unsigned>());
     if (json.contains("PlaceId") && json["PlaceId"].is_number_integer())

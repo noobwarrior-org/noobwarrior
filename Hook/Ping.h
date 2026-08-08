@@ -39,6 +39,7 @@ struct ProcessInfo {
     int Pid {0};
     ProcessSide Side {ProcessSide::Unknown};
     const char* Version {""};
+    const char* Hash {""};  // engine folder name ("version-<hash>"); the client-version upload id
     int Port {0};          // 0 = absent
     int64_t PlaceId {0};   // 0 = absent
 };
