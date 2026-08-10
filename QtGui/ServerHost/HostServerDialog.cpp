@@ -120,7 +120,6 @@ void HostServerDialog::InitWidgets() {
     auto* engineRow = new QHBoxLayout();
     engineRow->addWidget(new QLabel("Host engine:"));
     mEngineCombo = new QComboBox();
-    mEngineCombo->setPlaceholderText("No engines found");
     int engines = 0;
     for (const Engine &engine : gApp->GetCore()->GetInstalledEngines()) {
         engines++;
@@ -130,6 +129,7 @@ void HostServerDialog::InitWidgets() {
         }
     }
     if (engines <= 0) { // not sure why this would ever be less than zero but whatever
+        mEngineCombo->setPlaceholderText("No engines found");
         mEngineCombo->setCurrentIndex(-1); // do this so that the placeholder "No engines found" text shows
         mEngineCombo->setDisabled(true);
     }
