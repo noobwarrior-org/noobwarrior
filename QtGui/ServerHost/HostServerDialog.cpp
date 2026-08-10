@@ -31,13 +31,9 @@
 #include <QMessageBox>
 #include <qsizepolicy.h>
 
-enum class HostEngineChoice {
-    Rcc2021,
-    Studio2023TeamTest,
-    Studio2026TeamTest
-};
-
 using namespace NoobWarrior;
+
+Q_DECLARE_METATYPE(Engine)
 
 HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent)
 {
@@ -124,11 +120,19 @@ void HostServerDialog::InitWidgets() {
     auto* engineRow = new QHBoxLayout();
     engineRow->addWidget(new QLabel("Host engine:"));
     mEngineCombo = new QComboBox();
-    // userData on each item carries the HostEngineChoice enum so the click
-    // handler reads it directly without parsing the label text.
-    mEngineCombo->addItem("RCCService 2021 (0.463)",            static_cast<int>(HostEngineChoice::Rcc2021));
-    mEngineCombo->addItem("Studio 2023 Team Test (0.574)",      static_cast<int>(HostEngineChoice::Studio2023TeamTest));
-    mEngineCombo->addItem("Studio 2026 Team Test (0.729)",      static_cast<int>(HostEngineChoice::Studio2026TeamTest));
+    mEngineCombo->setPlaceholderText("No engines found");
+    int engines = 0;
+    for (const Engine &engine : gApp->GetCore()->GetInstalledEngines()) {
+        engines++;
+        if (engine.Side == EngineSide::Server || (engine.Side == EngineSide::Studio && ParseEraVersion(engine.Version) >= 574)) {
+            mEngineCombo->addItem(QString("%1 - %2").arg(engine.Side == EngineSide::Server ? "RCCService" : "Studio").arg(engine.Version),
+            QVariant::fromValue(engine));
+        }
+    }
+    if (engines <= 0) { // not sure why this would ever be less than zero but whatever
+        mEngineCombo->setCurrentIndex(-1); // do this so that the placeholder "No engines found" text shows
+        mEngineCombo->setDisabled(true);
+    }
     engineRow->addWidget(mEngineCombo, 1);
 
     mButtonBox = new QDialogButtonBox();
@@ -147,7 +151,7 @@ void HostServerDialog::InitWidgets() {
 
         QList<QTreeWidgetItem*> items = mUniverseTreeWidget->selectedItems();
         if (items.size() <= 0) {
-            QMessageBox::critical(nullptr, "Error", "You need to select a place!");
+            QMessageBox::critical(this, "Error", "You need to select a place!");
             return;
         }
 
@@ -155,59 +159,32 @@ void HostServerDialog::InitWidgets() {
 
         int flagThatTellsUsIfSomethingWentWrong = item->data(0, Qt::UserRole + 1).toInt();
         if (flagThatTellsUsIfSomethingWentWrong != 0) {
-            QMessageBox::critical(nullptr, "Error", flagThatTellsUsIfSomethingWentWrong == 1 ? "This universe has no places!" : "This universe does not have a set start place!");
+            QMessageBox::critical(this, "Error", flagThatTellsUsIfSomethingWentWrong == 1 ? "This universe has no places!" : "This universe does not have a set start place!");
             return;
         }
 
         if (!placeId.has_value()) {
-            QMessageBox::critical(nullptr, "Error", "No selected place id!");
+            QMessageBox::critical(this, "Error", "No selected place id!");
             return;
         }
 
         if (!mDbListWidget->GetSelectedDatabase()->DoesItemExist(ItemType::Asset, placeId.value())) {
-            QMessageBox::critical(nullptr, "Error", "This place no longer exists in the database!");
+            QMessageBox::critical(this, "Error", "This place no longer exists in the database!");
             return;
         }
 
-        const auto choice = static_cast<HostEngineChoice>(mEngineCombo->currentData().toInt());
-        if (choice == HostEngineChoice::Rcc2021) {
+        if (mEngineCombo->currentData().canConvert<Engine>()) {
+            const auto engine = mEngineCombo->currentData().value<Engine>();
             gApp->LaunchEngine({
-                .Engine = {
-                    .Type = EngineType::Roblox,
-                    .Side = EngineSide::Server,
-                    .Hash = "version-07b64feec0bd47c1",
-                    .Version = "0.463.0.417004"
-                },
-                .Port = 53640,
-                .PlaceId = placeId.value()
-            });
-        } else if (choice == HostEngineChoice::Studio2023TeamTest) {
-            gApp->LaunchEngine({
-                .Engine = {
-                    .Architecture = EngineArchitecture::x86_64,
-                    .Type = EngineType::Roblox,
-                    .Side = EngineSide::Studio,
-                    .Hash = "version-c2e4d104afaf449c",
-                    .Version = "0.574.0.5740446"
-                },
+                .Engine = engine,
                 .Port = 53640,
                 .PlaceId = placeId.value(),
                 .LaunchSide = EngineSide::Server
             });
-        } else if (choice == HostEngineChoice::Studio2026TeamTest) {
-            gApp->LaunchEngine({
-                .Engine = {
-                    .Architecture = EngineArchitecture::x86_64,
-                    .Type = EngineType::Roblox,
-                    .Side = EngineSide::Studio,
-                    .Hash = "version-4bb3958a2cde4efb",
-                    .Version = "0.729.0.7290838"
-                },
-                .Port = 53640,
-                .PlaceId = placeId.value(),
-                .LaunchSide = EngineSide::Server
-            });
+        } else {
+            QMessageBox::critical(this, "Error", "You are trying to start a server without a selected engine.");
         }
+        
         close();
     });
 
