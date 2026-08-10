@@ -139,7 +139,7 @@ std::vector<Engine> Core::GetAllEngines() {
     return {};
 }
 
-static int ParseEraVersion(const std::string &version) {
+int NoobWarrior::ParseEraVersion(const std::string &version) {
     if (version.empty()) return -1;
     size_t firstDot = version.find('.');
     if (firstDot == std::string::npos) return -1;

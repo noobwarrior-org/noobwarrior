@@ -122,6 +122,7 @@ enum class ServerEmulatorConnectFailReason {
 
 std::string WideCharToUTF8(wchar_t* wc);
 bool IsLoopbackOrEmpty(const std::string &ip);
+int ParseEraVersion(const std::string &version);
 class Core {
 public:
     enum class Response {
