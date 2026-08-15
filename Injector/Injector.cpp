@@ -991,13 +991,37 @@ Args:
             printf("CreateProcessW failed: %lu (%s)\n", GetLastError(), LastErrorStr().c_str());
             return 7;
         }
-        EngineLaunchResponse inject = Inject(GetProcessId(pi.hProcess), IsProcess64Bit(pi.hProcess) ? dllx64DirStr.c_str() : dllx86DirStr.c_str());
+        const DWORD targetPid = GetProcessId(pi.hProcess);
+
+        // noobhook installs the socket redirect on its own thread because minhook cant do its thing in dllmain
+        // so keep the initial thread suspended until the hook says its redirect system is activated.
+        wchar_t hooksReadyName[64];
+        swprintf(hooksReadyName, _countof(hooksReadyName),
+                 L"Local\\noobhook_hooks_ready_%lu", targetPid);
+        HANDLE hooksReady = CreateEventW(nullptr, TRUE, FALSE, hooksReadyName);
+        if (!hooksReady)
+            printf("Couldn't create the hook-ready event: %lu\n", GetLastError());
+
+        EngineLaunchResponse inject = Inject(targetPid, IsProcess64Bit(pi.hProcess) ? dllx64DirStr.c_str() : dllx86DirStr.c_str());
         if (inject != EngineLaunchResponse::Success) {
             printf("Failed to inject to target process: error %d\n", inject);
+            if (hooksReady) CloseHandle(hooksReady);
             TerminateProcess(pi.hProcess, 0xEEEEEEEE);
             WaitForSingleObject(pi.hProcess, 5000);
             CloseHandle(pi.hProcess); CloseHandle(pi.hThread);
             return static_cast<int>(inject);
+        }
+        if (hooksReady) {
+            const DWORD startTicks = GetTickCount();
+            const DWORD waited = WaitForSingleObject(hooksReady, 10000);
+            if (waited == WAIT_OBJECT_0)
+                printf("Hooks reported ready after %lu ms\n", GetTickCount() - startTicks);
+            else
+                // Resuming anyway: a hookless engine that reaches the real Roblox is still better
+                // than one that never starts, and the failure is visible in this log.
+                printf("Hooks were not reported ready within 10000 ms (wait=%lu); resuming anyway\n",
+                       waited);
+            CloseHandle(hooksReady);
         }
         if (ResumeThread(pi.hThread) == -1) {
             printf("Can't resume thread of target process\n");
