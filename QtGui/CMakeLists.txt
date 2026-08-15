@@ -103,6 +103,7 @@ set_target_properties(NoobWarrior.QtGui PROPERTIES
 target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
+target_compile_definitions(NoobWarrior.QtGui PRIVATE POC_BUILD)
 
 if (NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     target_link_options(NoobWarrior.QtGui PRIVATE -static-libgcc -static-libstdc++)

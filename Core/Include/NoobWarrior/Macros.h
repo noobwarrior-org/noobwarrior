@@ -28,8 +28,11 @@
 #define NOOBWARRIOR_VERSION "0.0.8"
 #define NOOBWARRIOR_AUTHORS \
 "Hattozo - Creator of the " NOOBWARRIOR_BRAND " project and software\n"
-#define NOOBWARRIOR_CONTRIBUTORS \
+#define NOOBWARRIOR_MAINTAINERS \
 "Hattozo\n"
+#define NOOBWARRIOR_CONTRIBUTORS \
+"VisualPlugin\n" \
+"Heraklis\n"
 #define NOOBWARRIOR_ATTRIBUTIONS_BRIEF \
 "noobWarrior (https://github.com/noobWarrior-org/noobWarrior), licensed under the LGPLv3 License (https://www.gnu.org/licenses/lgpl-3.0.html)\n" \
 "curl (https://github.com/curl/curl), licensed under the curl license (https://curl.se/docs/copyright.html)\n" \
@@ -43,7 +46,11 @@
 "zstd (https://github.com/facebook/zstd), licensed under the 3-clause BSD License (https://github.com/facebook/zstd/blob/dev/LICENSE)\n" \
 "pugixml (https://github.com/zeux/pugixml), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
 "Roblox-File-Format (https://github.com/MaximumADHD/Roblox-File-Format), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
-"famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n"
+"famfamfam (Mark James) silk icons (https://github.com/markjames/famfamfam-silk-icons), licensed under the Creative Commons Attribution 2.5 License (http://creativecommons.org/licenses/by/2.5/)\n" \
+"local_rcc (https://github.com/rsblox/local_rcc), licensed under the MIT License (https://opensource.org/license/mit/)\n" \
+"studio-offline (https://github.com/Roblox-Devs/studio-offline), licensed under the WTFPL license (https://github.com/Roblox-Devs/studio-offline/blob/main/LICENSE)\n" \
+"MinHook (https://github.com/tsudakageyu/minhook), licensed under the 2-clause BSD license (https://github.com/TsudaKageyu/minhook/blob/master/LICENSE.txt)\n" \
+"BLAKE3 (https://github.com/BLAKE3-team/BLAKE3), licensed under the CC0 1.0 (https://github.com/BLAKE3-team/BLAKE3/blob/master/LICENSE_CC0)\n"
 
 #define NOOBWARRIOR_FREE_PTR(ptr) delete ptr; ptr = nullptr;
 #define NOOBWARRIOR_ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])

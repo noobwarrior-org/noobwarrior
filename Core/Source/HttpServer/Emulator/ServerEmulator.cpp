@@ -41,8 +41,56 @@
 #include <mutex>
 #include <thread>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 using namespace NoobWarrior;
 using json = nlohmann::json;
+
+namespace {
+#if defined(_WIN32)
+std::optional<uint64_t> GetLiveLocalProcessStartToken(int pid) {
+    if (pid <= 0)
+        return std::nullopt;
+
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE,
+                                 FALSE, static_cast<DWORD>(pid));
+    if (process == nullptr)
+        return std::nullopt;
+
+    // A signaled process handle represents an exited process even if its kernel object has not
+    // disappeared yet. WAIT_FAILED is also indeterminate and must not extend the lease.
+    if (WaitForSingleObject(process, 0) != WAIT_TIMEOUT) {
+        CloseHandle(process);
+        return std::nullopt;
+    }
+
+    FILETIME created {}, exited {}, kernel {}, user {};
+    if (!GetProcessTimes(process, &created, &exited, &kernel, &user)
+        || WaitForSingleObject(process, 0) != WAIT_TIMEOUT) {
+        CloseHandle(process);
+        return std::nullopt;
+    }
+    CloseHandle(process);
+
+    ULARGE_INTEGER token {};
+    token.LowPart = created.dwLowDateTime;
+    token.HighPart = created.dwHighDateTime;
+    return token.QuadPart;
+}
+
+bool IsVerifiedLocalInstance(const RunningInstance &instance) {
+    return !instance.Ip.empty() && IsLoopbackOrEmpty(instance.Ip);
+}
+#endif
+}
 
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mProcessPingHandler(this),
@@ -51,10 +99,11 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mLogoutHandler(this),
     mRunningGameServersHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
+    mAssetBatchHandler(this),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
     mClientSettingsV2StudioHandler(this),
-    mClientSettingsV2DesktopHandler(),
+    mClientSettingsV2DesktopHandler(this),
     mNegotiateHandler(),
     mPlaceLauncherHandler(this),
     mJoinScriptJsonHandler(this),
@@ -68,6 +117,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mLocalesHandler(),
     mGamesHandler(mCore->GetEmuDbManager()),
     mUserChannelHandler(),
+    mUserProfilesHandler(this),
     mPlaceDetailsHandler(mCore->GetEmuDbManager()),
     mPlaceUniverseHandler(this, mCore->GetEmuDbManager()),
     mToolboxServiceHandler(this, mCore->GetEmuDbManager()),
@@ -126,6 +176,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/process-ping", &mProcessPingHandler);
     SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
     SetRequestHandler("/v1/login", &mLoginHandler);
+    SetRequestHandler("/v2/login", &mLoginHandler);
     SetRequestHandler("/v1/logout", &mLogoutHandler);
     SetRequestHandler("/v1/running-game-servers", &mRunningGameServersHandler);
 
@@ -134,16 +185,26 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/asset/", &mAssetHandler);
     SetRequestHandler("/v1/asset", &mAssetHandler);
     SetRequestHandler("/v1/asset/", &mAssetHandler);
+    SetRequestHandler("/v1/assets/batch", &mAssetBatchHandler);
+    SetRequestHandler("/v1/assets/batch/", &mAssetBatchHandler);
 
     SetRequestHandler("/asset-thumbnail/json", &mAssetThumbnailJsonHandler);
 
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
     SetRequestHandler("/v2/settings/application/PCDesktopClient", &mClientSettingsV2DesktopHandler);
+    SetRequestHandler("/v2/settings/application/PCDesktopClient/bucket/:bucket", &mClientSettingsV2DesktopHandler);
+    SetRequestHandler("/v2/settings-compressed/application/PCDesktopClient/:dictionary", &mClientSettingsV2DesktopHandler);
+    SetRequestHandler("/v2/settings-compressed/application/PCDesktopClient/bucket/:bucket/:dictionary", &mClientSettingsV2DesktopHandler);
+    SetRequestHandler("/v2/settings-compressed/application/PCDesktopClient.zst", &mClientSettingsV2DesktopHandler);
     SetRequestHandler("/v2/settings/application/PCStudioApp", &mClientSettingsV2StudioHandler);
 
     SetRequestHandler("/v2/client-version/WindowsStudio64", &mClientVersionStudioHandler);
+    SetRequestHandler("/v2/client-version/WindowsPlayer", &mClientVersionStudioHandler);
+    SetRequestHandler("/v2/client-version/WindowsPlayer/channel/:channel", &mClientVersionStudioHandler);
     SetRequestHandler("/studio/pbe", &mStudioPbeHandler);
     SetRequestHandler("/guac-v2/v1/bundles/studio", &mGuacBundlesStudioHandler);
+    SetRequestHandler("/guac-v2/v1/bundles/app-policy", &mGuacBundlesStudioHandler);
+    SetRequestHandler("/guac-v2/v1/bundles/intl-auth-compliance", &mGuacBundlesStudioHandler);
     SetRequestHandler("/v1/not-approved", &mUserModerationHandler);
     SetRequestHandler("/v2/not-approved", &mUserModerationHandler);
 
@@ -168,6 +229,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/locales/user-localization-locus-supported-locales", &mLocalesHandler);
     SetRequestHandler("/v1/games", &mGamesHandler);
     SetRequestHandler("/v2/user-channel", &mUserChannelHandler);
+    SetRequestHandler("/user-profile-api/v1/user/profiles/get-profiles", &mUserProfilesHandler);
     SetRequestHandler("/v1/games/multiget-place-details", &mPlaceDetailsHandler);
     SetRequestHandler("/v1/games/multiget-playability-status", &mPlaceDetailsHandler);
     SetRequestHandler("/universes/v1/places/:placeId/universe", &mPlaceUniverseHandler);
@@ -178,7 +240,6 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/user/groups/canmanage", &mDevelopHandler);
     SetRequestHandler("/v1/user/:userId/canmanage/:placeId", &mDevelopHandler);
     SetRequestHandler("/v1/universes/multiget/teamcreate", &mDevelopHandler);
-    // Universe configuration: gates DataStore/HttpService access in Studio (isStudioAccessToApisAllowed).
     SetRequestHandler("/v1/universes/:universeId/configuration", &mDevelopHandler);
     SetRequestHandler("/v2/universes/:universeId/configuration", &mDevelopHandler);
 
@@ -203,6 +264,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/games/sorts", &mGamesSortsHandler);
     SetRequestHandler("/v1/games/list", &mGamesListHandler);
     SetRequestHandler("/v2/avatar/avatar-fetch", &mAvatarFetchHandler);
+    SetRequestHandler("/v2/avatar/avatar-fetch/", &mAvatarFetchHandler);
     SetRequestHandler("/v1/avatar-fetch", &mAvatarFetchHandler);
     SetRequestHandler("/v1/avatar-fetch/", &mAvatarFetchHandler);
     SetRequestHandler("/v1.1/avatar-fetch", &mAvatarFetchHandler);
@@ -295,6 +357,18 @@ void ServerEmulator::RemoveProxyLayer(const std::string &host, uint16_t port) {
 
 void ServerEmulator::ClearProxyLayers() {
     mEmulatorProxy.ClearLayers();
+    // The joined place belongs to the join those layers represented, so it dies with them.
+    SetJoinedPlaceId(std::nullopt);
+}
+
+void ServerEmulator::SetJoinedPlaceId(std::optional<int64_t> placeId) {
+    std::lock_guard lock(mJoinedPlaceMutex);
+    mJoinedPlaceId = (placeId.has_value() && placeId.value() > 0) ? placeId : std::nullopt;
+}
+
+std::optional<int64_t> ServerEmulator::GetJoinedPlaceId() const {
+    std::lock_guard lock(mJoinedPlaceMutex);
+    return mJoinedPlaceId;
 }
 
 std::vector<std::pair<std::string, uint16_t>> ServerEmulator::GetProxyLayers() const {
@@ -554,6 +628,54 @@ std::string ServerEmulator::GetActiveEditDbFile() const {
     return mActiveEditDbFile;
 }
 
+void ServerEmulator::SetActiveEditPlaceId(int64_t placeId) {
+    std::lock_guard lock(mActiveEditDbMutex);
+    mActiveEditPlaceId = placeId > 0 ? std::optional<int64_t>(placeId) : std::nullopt;
+}
+
+std::optional<int64_t> ServerEmulator::GetActiveEditPlaceId() const {
+    std::lock_guard lock(mActiveEditDbMutex);
+    return mActiveEditPlaceId;
+}
+
+std::optional<int64_t> ServerEmulator::GetCurrentPlaceId() const {
+    // game servers know exactly what place is running so just base it off that
+    std::vector<RunningInstance> instances = GetRunningInstances();
+    const RunningInstance *best = nullptr;
+    for (const auto &inst : instances) {
+        if (!inst.PlaceId.has_value() || inst.PlaceId.value() <= 0)
+            continue;
+        if (best == nullptr) {
+            best = &inst;
+            continue;
+        }
+
+        bool instIsServer = inst.Side == EngineSide::Server;
+        bool bestIsServer = best->Side == EngineSide::Server;
+        if (instIsServer != bestIsServer) {
+            if (instIsServer)
+                best = &inst;
+        } else if (inst.FirstSeen > best->FirstSeen) {
+            best = &inst;
+        }
+    }
+    if (best != nullptr && best->Side == EngineSide::Server)
+        return best->PlaceId;
+
+    // if no game server is running then check if we are joined to a remote host and base it off that instead.
+    if (std::optional<int64_t> joined = GetJoinedPlaceId())
+        return joined;
+
+    if (best != nullptr)
+        return best->PlaceId;
+
+    // nothing is playing so just check the place Studio has open for editing
+    for (const auto &inst : instances)
+        if (inst.Side != EngineSide::Studio)
+            return std::nullopt;
+    return GetActiveEditPlaceId();
+}
+
 void ServerEmulator::SetMode(Mode mode) {
 }
 
@@ -566,6 +688,13 @@ void ServerEmulator::SweepStaleInstancesLocked() {
     auto it = std::remove_if(mInstances.begin(), mInstances.end(),
         [&](const RunningInstance &inst) {
             bool stale = inst.LastSeen > 0 && (now - inst.LastSeen) > kStaleInstanceThresholdSecs;
+#if defined(_WIN32)
+            if (stale && IsVerifiedLocalInstance(inst) && inst.ProcessStartToken.has_value()) {
+                std::optional<uint64_t> liveToken = GetLiveLocalProcessStartToken(inst.Pid);
+                if (liveToken.has_value() && liveToken.value() == inst.ProcessStartToken.value())
+                    return false;
+            }
+#endif
             if (stale)
                 Out(mLogName, "Reaping stale instance pid={} side={} (last seen {}s ago)",
                     inst.Pid, EngineSideAsString(inst.Side), static_cast<long long>(now - inst.LastSeen));
@@ -585,14 +714,30 @@ void ServerEmulator::RegisterInstance(const RunningInstance &instance) {
     std::lock_guard lock(mInstancesMutex);
     SweepStaleInstancesLocked();
     time_t now = std::time(nullptr);
+    RunningInstance copy = instance;
+#if defined(_WIN32)
+    if (IsVerifiedLocalInstance(copy))
+        copy.ProcessStartToken = GetLiveLocalProcessStartToken(copy.Pid);
+#endif
     for (auto &existing : mInstances) {
-        if (existing.Pid == instance.Pid) {
-            existing = instance;
+        if (existing.Pid == copy.Pid) {
+#if defined(_WIN32)
+            // A transient query failure must not erase an identity captured earlier. It still
+            // cannot extend a lease while access is denied: the sweep requires a fresh live token.
+            if (IsVerifiedLocalInstance(existing) && IsVerifiedLocalInstance(copy)
+                && !copy.ProcessStartToken.has_value())
+                copy.ProcessStartToken = existing.ProcessStartToken;
+#endif
+            bool sameProcess = existing.ProcessStartToken.has_value()
+                && copy.ProcessStartToken.has_value()
+                && existing.ProcessStartToken.value() == copy.ProcessStartToken.value();
+            time_t firstSeen = sameProcess ? existing.FirstSeen : now;
+            existing = copy;
+            existing.FirstSeen = firstSeen;
             existing.LastSeen = now;
             return;
         }
     }
-    RunningInstance copy = instance;
     if (copy.FirstSeen == 0) copy.FirstSeen = now;
     copy.LastSeen = now;
     mInstances.push_back(copy);

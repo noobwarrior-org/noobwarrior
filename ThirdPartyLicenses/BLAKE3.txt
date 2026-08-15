@@ -1,0 +1,8 @@
+BLAKE3 C implementation
+Copyright 2019-2026 the BLAKE3 team
+
+The upstream project offers this software under CC0 1.0, Apache 2.0, or
+Apache 2.0 with the LLVM exception. noobWarrior uses it under CC0 1.0.
+
+Upstream project and complete license texts:
+https://github.com/BLAKE3-team/BLAKE3

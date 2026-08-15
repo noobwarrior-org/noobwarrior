@@ -46,4 +46,5 @@ void InstallCsgHeapGuard();
 // EXPERIMENTAL (x86, 0.574 only): flips the new-vertex-format FastFlag (RVA 0x390bb20) so 2026 unions
 // take the new render branch (geom+0x1c) instead of the legacy null (geom+0x10) and actually display.
 void InstallUnionRenderUnlock();
+void InstallTrampolineIntegrityBypass();
 }

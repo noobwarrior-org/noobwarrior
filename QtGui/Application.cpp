@@ -59,7 +59,6 @@
 #include <thread>
 
 #define USE_CUSTOM_STYLE 1
-#define SHOW_DISCLAIMER 0
 
 using namespace NoobWarrior;
 
@@ -182,12 +181,13 @@ int Application::Run() {
     mTrayIcon->setIcon(appIcon);
     mTrayIcon->show();
     
-#if SHOW_DISCLAIMER
+#ifdef POC_BUILD
     QString title = "Disclaimer";
     QString text =
-        "This program is just a proof of concept at the moment. It's not finished. "
+        "What you are running is a proof of concept build of noobWarrior. It's not finished. "
         "You'll inevitably run into missing functionality or things that are just straight up broken. "
-        "You should only be using this program to see what you think of it, and to test it for bugs and other oddities."
+        "You should only be using this program to see what you think of it, and to test it for bugs and other oddities. "
+        "In the meantime, do not use it for critical work as it has not yet been battle-tested."
         "\n\nBy clicking Yes, you agree to the statements made above.";
 
     QMessageBox msg;

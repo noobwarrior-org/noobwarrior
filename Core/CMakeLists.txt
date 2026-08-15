@@ -186,6 +186,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/LogoutHandler.cpp
     Source/HttpServer/Emulator/RunningGameServersHandler.cpp
     Source/HttpServer/Emulator/AssetHandler.cpp
+    Source/HttpServer/Emulator/AssetBatchHandler.cpp
     Source/HttpServer/Emulator/AssetThumbnailJsonHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsV2StudioHandler.cpp
@@ -208,6 +209,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/LocalesHandler.cpp
     Source/HttpServer/Emulator/GamesHandler.cpp
     Source/HttpServer/Emulator/UserChannelHandler.cpp
+    Source/HttpServer/Emulator/UserProfilesHandler.cpp
     Source/HttpServer/Emulator/PlaceDetailsHandler.cpp
     Source/HttpServer/Emulator/PlaceUniverseHandler.cpp
     Source/HttpServer/Emulator/ToolboxServiceHandler.cpp

@@ -10,7 +10,18 @@ The only official website for noobWarrior is at [https://noobwarrior.org](https:
 ## Downloads?
 Downloads for pre-built binaries will be available on September 1st, 2026.
 
-Do note that if you want to access game and editor functionality, you will have to provide a copy of Roblox versions 0.463.0.417004 or 0.574.0.5740446. We cannot provide them ourselves. Sorry.
+Do note that if you want to access game and editor functionality, you will have to provide a copy of Roblox versions 0.719.0.7191339, 0.574.0.5740446, or 0.463.0.417004. We cannot provide them ourselves. Sorry.
+
+## Compatible Roblox versions
+- Roblox Player 0.719.0.7191339 (version-acc4b74f79e743b9) (2026M)
+- Roblox Studio 0.719.0.7191339 (version-547feaebd3b44131) (2026M)
+- Roblox Player 0.574.0.5740446 (version-08c4cfa3d43c47ef) (2023M)
+- Roblox Studio 0.574.0.5740446 (version-c2e4d104afaf449c) (2023M)
+- Roblox Player 0.463.0.417004 (version-5a54208fe8e24e87) (2021E)
+- Roblox Studio 0.463.0.417004 (version-ef266da340bc4058) (2021E)
+- RCCService 0.463.0.417004 (version-07b64feec0bd47c1) (2021E)
+
+Anything not on this list will probably crash when you try to load it into noobWarrior.
 
 ## Building
 Check out [BUILDING.md](BUILDING.md).

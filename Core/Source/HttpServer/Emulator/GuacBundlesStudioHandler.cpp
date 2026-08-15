@@ -41,12 +41,26 @@ void GuacBundlesStudioHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
     Out("GuacBundlesStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
-    
-    long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-    std::string json =
-        "{\"data\":{\"applicationSettings\":{}},\"hash\":\"noobwarrior-guac\",\"timestamp\":"
-        + std::to_string(nowMs) + "}";
+
+    std::string path = uri ? uri : "";
+    if (const size_t query = path.find('?'); query != std::string::npos)
+        path.resize(query);
+
+    std::string json;
+    if (path == "/guac-v2/v1/bundles/app-policy") {
+        // GUAC v2 bundle endpoints return the policy dictionary directly. The Player supplies
+        // built-in defaults for omitted keys, so an empty local policy is sufficient.
+        json = "{}";
+    } else if (path == "/guac-v2/v1/bundles/intl-auth-compliance") {
+        json = "{\"disableSignupCheckbox\":false}";
+    } else {
+        // Preserve the older Studio response that this handler was originally written for.
+        long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        json =
+            "{\"data\":{\"applicationSettings\":{}},\"hash\":\"noobwarrior-guac\",\"timestamp\":"
+            + std::to_string(nowMs) + "}";
+    }
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

@@ -83,8 +83,8 @@ uintptr_t NoobHook::ScriptExecutor::FindDataModelAddress() {
 	std::smatch match;
 	
 	std::string addrStr;
-
-	NoobHook::Out("ScriptExecutor", "%s", content.c_str());
+	
+	// NoobHook::Out("ScriptExecutor", "%s", content.c_str());
 	if (std::regex_search(content, match, regex)) {
 		if (match.size() <= 1) {
 			NoobHook::Out("ScriptExecutor::FindDataModelAddress", "Failed to find regex match for DataModel address in log file");

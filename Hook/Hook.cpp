@@ -35,6 +35,9 @@
 #include <sspi.h>
 
 #include <MinHook.h>
+#ifdef NOOBHOOK_HYPERION
+#include <buffer.h>
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wincrypt.h>
@@ -47,6 +50,19 @@
 #include <format>
 
 using namespace NoobHook;
+
+#ifdef NOOBHOOK_HYPERION
+// Hook enable table — filled by Thread(), read by the injector
+// Placed in a dedicated PE section so the injector can find it easily
+#pragma section(".hkinfo", read, write)
+__declspec(allocate(".hkinfo")) HookInfoBlock g_HookInfo = {
+    0x4B4F4F484E4F4F42ULL, // magic "BOONHOOK"
+    {}, // table (zero-initialized)
+    0    // count
+};
+
+static void* g_HookTableMagicRef = (void*)&g_HookInfo.magic;
+#endif
 
 FILE* NoobHook::gFile = nullptr;
 uint16_t NoobHook::gEmuHttpsPort = 53640;
@@ -203,15 +219,19 @@ static void ResumeAllThreadsExceptMines(DWORD targetProcessId, DWORD targetThrea
     }
 }
 
-static bool RedirectConnectAddr(const char* api, SOCKET s, const sockaddr* name, sockaddr_in* out) {
+static bool RedirectConnectAddr(const char* api, SOCKET s, const sockaddr* name, sockaddr_in* out,
+                                bool querySocketType = true) {
+
     if (name == nullptr || name->sa_family != AF_INET)
         return false;
 
-    int sockType = 0;
-    int optLen = sizeof(sockType);
-    getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&sockType, &optLen);
-    if (sockType != SOCK_STREAM)
-        return false;
+    if (querySocketType) {
+        int sockType = 0;
+        int optLen = sizeof(sockType);
+        getsockopt(s, SOL_SOCKET, SO_TYPE, reinterpret_cast<char*>(&sockType), &optLen);
+        if (sockType != SOCK_STREAM)
+            return false;
+    }
 
     const sockaddr_in* in = reinterpret_cast<const sockaddr_in*>(name);
     int port = ntohs(in->sin_port);
@@ -232,20 +252,54 @@ static bool RedirectConnectAddr(const char* api, SOCKET s, const sockaddr* name,
 }
 
 static int (WSAAPI* pOrigConnect)(SOCKET, const sockaddr*, int);
+static int (WSAAPI* pOrigWSAConnect)(SOCKET, const sockaddr*, int,
+                                     LPWSABUF, LPWSABUF, LPQOS, LPQOS);
+static int (WSAAPI* pOrigWSPConnect)(SOCKET, const sockaddr*, int,
+                                     LPWSABUF, LPWSABUF, LPQOS, LPQOS, LPINT);
+
 static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
     sockaddr_in redirected;
-    if (RedirectConnectAddr("connect", s, name, &redirected))
+    if (RedirectConnectAddr("connect", s, name, &redirected)) {
+#ifdef NOOBHOOK_HYPERION
+        // The injector detours WS2_32!connect itself on 0.728. Calling that export here would
+        // recurse, so use the equivalent untouched WSAConnect entry point as the gateway.
+        return pOrigWSAConnect(s, reinterpret_cast<sockaddr*>(&redirected), sizeof(redirected),
+                               nullptr, nullptr, nullptr, nullptr);
+#else
         return pOrigConnect(s, (sockaddr*)&redirected, sizeof(redirected));
+#endif
+    }
+#ifdef NOOBHOOK_HYPERION
+    return pOrigWSAConnect(s, name, namelen, nullptr, nullptr, nullptr, nullptr);
+#else
     return pOrigConnect(s, name, namelen);
+#endif
 }
 
-static int (WSAAPI* pOrigWSAConnect)(SOCKET, const sockaddr*, int, LPWSABUF, LPWSABUF, LPQOS, LPQOS);
 static int WSAAPI MyWSAConnect(SOCKET s, const sockaddr* name, int namelen,
                                LPWSABUF callerData, LPWSABUF calleeData, LPQOS sqos, LPQOS gqos) {
     sockaddr_in redirected;
-    if (RedirectConnectAddr("WSAConnect", s, name, &redirected))
+    if (RedirectConnectAddr("WSAConnect", s, name, &redirected)) {
         return pOrigWSAConnect(s, (sockaddr*)&redirected, sizeof(redirected), callerData, calleeData, sqos, gqos);
+    }
     return pOrigWSAConnect(s, name, namelen, callerData, calleeData, sqos, gqos);
+}
+
+// WS2_32 dispatches connect through the provider's WSPPROC_TABLE.  On 0.728 the injector changes
+// only the writable, heap-backed copy of that table, leaving both Roblox and Windows image pages
+// pristine.  The extra errno argument is part of the Winsock SPI contract and must be forwarded.
+static int WSAAPI MyWSPConnect(SOCKET s, const sockaddr* name, int namelen,
+                               LPWSABUF callerData, LPWSABUF calleeData,
+                               LPQOS sqos, LPQOS gqos, LPINT error) {
+    sockaddr_in redirected;
+    // This runs below WS2_32's socket lookup. Re-entering getsockopt for the same socket here can
+    // contend with that lookup, so avoid the optional SO_TYPE query. Roblox's HTTP transports use
+    // TCP for the only redirected destination ports; non-HTTP ports still pass through unchanged.
+    if (RedirectConnectAddr("WSPConnect", s, name, &redirected, false)) {
+        return pOrigWSPConnect(s, reinterpret_cast<sockaddr*>(&redirected), sizeof(redirected),
+                               callerData, calleeData, sqos, gqos, error);
+    }
+    return pOrigWSPConnect(s, name, namelen, callerData, calleeData, sqos, gqos, error);
 }
 
 static HINTERNET (WINAPI* pOrigInternetConnectW)(HINTERNET, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD, DWORD_PTR);
@@ -308,9 +362,10 @@ static BOOL WINAPI MyCertGetCertificateChain(HCERTCHAINENGINE hChainEngine, PCCE
 static wchar_t gMergedCaBundle[MAX_PATH] = {0};
 static std::atomic<bool> gMergedCaReady { false };
 static CRITICAL_SECTION gCaLock;
-// Set while BuildMergedCaBundle reads/writes during the merge, so the ntdll NtCreateFile/NtOpenFile
-// hooks below don't recursively try to redirect those very opens.
-static thread_local bool gInCaResolve = false;
+// Identify the thread doing the merge so its own ntdll file operations do not recurse. A global bool
+// would also let unrelated threads bypass the redirect; thread_local is unavailable because the
+// Hyperion DLL is manually mapped and has no loader-initialized static TLS slot.
+static std::atomic<DWORD> gCaResolverThreadId { 0 };
 
 static HANDLE (WINAPI* pOrigCreateFileW)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 static HANDLE (WINAPI* pOrigCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
@@ -323,6 +378,8 @@ static bool PathEndsWith(const wchar_t* path, const wchar_t* suffix) {
 
 // Read a whole file via the original CreateFileW so we never re-enter our own hook.
 static bool ReadWholeFileOrig(LPCWSTR path, std::string& out) {
+    if (!pOrigCreateFileW)
+        return false;
     HANDLE h = pOrigCreateFileW(path, GENERIC_READ, FILE_SHARE_READ, nullptr,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == INVALID_HANDLE_VALUE)
@@ -368,8 +425,15 @@ static bool BuildMergedCaBundle(LPCWSTR originalCacert) {
         return false;
     }
     DWORD written = 0;
-    WriteFile(h, merged.data(), (DWORD)merged.size(), &written, nullptr);
+    bool writeOk = WriteFile(h, merged.data(), static_cast<DWORD>(merged.size()), &written, nullptr)
+        && written == merged.size();
     CloseHandle(h);
+    if (!writeOk) {
+        DeleteFileW(gMergedCaBundle);
+        Out("CaBundle", "Failed to write complete merged bundle at %ws", gMergedCaBundle);
+        gMergedCaBundle[0] = L'\0';
+        return false;
+    }
     Out("CaBundle", "Merged emulator CA into %ws (%zu bytes)", gMergedCaBundle, merged.size());
     return true;
 }
@@ -384,9 +448,9 @@ static const wchar_t* ResolveCaRedirect(LPCWSTR requested) {
     EnterCriticalSection(&gCaLock);
     bool ready = gMergedCaReady.load();
     if (!ready) {
-        gInCaResolve = true;                 // suppress the ntdll hooks for the merge's own file I/O
+        gCaResolverThreadId.store(GetCurrentThreadId(), std::memory_order_release);
         ready = BuildMergedCaBundle(requested);
-        gInCaResolve = false;
+        gCaResolverThreadId.store(0, std::memory_order_release);
         gMergedCaReady.store(ready);
     }
     LeaveCriticalSection(&gCaLock);
@@ -434,7 +498,8 @@ static NtOpenFile_t   pOrigNtOpenFile   = nullptr;
 // caller owns ntBuf/usOut/oaOut, which must outlive the following NtCreateFile/NtOpenFile call.
 static bool CaRedirectNt(POBJECT_ATTRIBUTES in, wchar_t* ntBuf, size_t ntBufCch,
                          UNICODE_STRING* usOut, OBJECT_ATTRIBUTES* oaOut) {
-    if (gInCaResolve) return false;                 // a read/write issued by the merge itself
+    if (gCaResolverThreadId.load(std::memory_order_acquire) == GetCurrentThreadId())
+        return false;                               // a read/write issued by the merge itself
     if (!in || !in->ObjectName || !in->ObjectName->Buffer) return false;
     const UNICODE_STRING* nm = in->ObjectName;
     size_t chars = nm->Length / sizeof(wchar_t);
@@ -511,6 +576,45 @@ static void WINAPI MyRtlExitUserProcess(NTSTATUS exitStatus) {
     pOrigRtlExitUserProcess(exitStatus);
 }
 
+#ifdef NOOBHOOK_HYPERION
+static FARPROC (WINAPI* pOrigGetProcAddress)(HMODULE, LPCSTR);
+
+static FARPROC WINAPI MyGetProcAddress(HMODULE module, LPCSTR procName) {
+    FARPROC resolved = pOrigGetProcAddress(module, procName);
+    if (resolved == nullptr || procName == nullptr || IS_INTRESOURCE(procName))
+        return resolved;
+
+    // Roblox 0.728's embedded HTTP stack obtains Winsock entry points at runtime instead of
+    // keeping them in a conventional PE import table.  The external injector redirects this
+    // GetProcAddress import, then this detour substitutes only exports whose resolved address is
+    // exactly the original API.  Comparing the address as well as the name avoids changing an
+    // unrelated module that happens to export a function with the same name.
+    #define REDIRECT_RESOLVED_API(name, original, detour) \
+        if (strcmp(procName, name) == 0 && resolved == reinterpret_cast<FARPROC>(original)) { \
+            Out("GetProcAddress", "redirect dynamically resolved %s", name); \
+            return reinterpret_cast<FARPROC>(detour); \
+        }
+
+    REDIRECT_RESOLVED_API("connect", pOrigConnect, MyConnect);
+    REDIRECT_RESOLVED_API("WSAConnect", pOrigWSAConnect, MyWSAConnect);
+    REDIRECT_RESOLVED_API("WinHttpConnect", pOrigWinHttpConnect, MyWinHttpConnect);
+    REDIRECT_RESOLVED_API("WinHttpSendRequest", pOrigWinHttpSendRequest, MyWinHttpSendRequest);
+    REDIRECT_RESOLVED_API("CreateFileW", pOrigCreateFileW, MyCreateFileW);
+    REDIRECT_RESOLVED_API("CreateFileA", pOrigCreateFileA, MyCreateFileA);
+    REDIRECT_RESOLVED_API("NtCreateFile", pOrigNtCreateFile, MyNtCreateFile);
+    REDIRECT_RESOLVED_API("NtOpenFile", pOrigNtOpenFile, MyNtOpenFile);
+    REDIRECT_RESOLVED_API("ExitProcess", pOrigExitProcess, MyExitProcess);
+    REDIRECT_RESOLVED_API("RtlExitUserProcess", pOrigRtlExitUserProcess, MyRtlExitUserProcess);
+    REDIRECT_RESOLVED_API("CertVerifyCertificateChainPolicy", pOrigCertVerifyChainPolicy,
+                          MyCertVerifyCertificateChainPolicy);
+    REDIRECT_RESOLVED_API("CertGetCertificateChain", pOrigCertGetCertificateChain,
+                          MyCertGetCertificateChain);
+
+    #undef REDIRECT_RESOLVED_API
+    return resolved;
+}
+#endif
+
 static NoobHook::ProcessInfo gProcessInfo;
 
 static DWORD WINAPI HeartbeatThread(LPVOID) {
@@ -523,9 +627,7 @@ static DWORD WINAPI HeartbeatThread(LPVOID) {
 }
 
 DWORD WINAPI Thread(LPVOID param) {
-	Out("Main", "Initializing noobHook");
-
-    Patches::InstallCrashDiagnostics();
+ 	Out("Main", "Initializing noobHook");
 
     char portBuf[16];
     if (GetEnvironmentVariableA("NOOBHOOK_HTTP_PORT", portBuf, sizeof(portBuf)) > 0)
@@ -552,35 +654,131 @@ DWORD WINAPI Thread(LPVOID param) {
     else
         Out("Main", "Failed to send Hello ping (server emulator unreachable?)");
 
+#ifndef NOOBHOOK_HYPERION
     HANDLE hbThread = CreateThread(0, 0, HeartbeatThread, nullptr, 0, nullptr);
     if (hbThread) CloseHandle(hbThread);
+#else
+    // Do not perform HTTP work from a Winsock detour. Hyperion enters parts of its transport
+    // path with private stack state, and a synchronous heartbeat here re-enters that path.
+    Out("Main", "Hyperion socket detours use no re-entrant heartbeat");
+#endif
 
     Out("Main", "Initializing MinHook");
     InitializeCriticalSection(&gCaLock);
     MH_Initialize();
-    auto hook = [](const wchar_t* mod, const char* fn, LPVOID detour, LPVOID* orig) {
+    auto hook = [](const wchar_t* mod, const char* fn, LPVOID detour, LPVOID* orig) -> bool {
+        Out("MinHook", "CreateHookApi(%ls!%s) START", mod, fn);
         MH_STATUS st = MH_CreateHookApi(mod, fn, detour, orig);
         Out("MinHook", "CreateHookApi(%ls!%s) = %d (%s)", mod, fn, (int)st,
             st == MH_OK ? "ok" : "FAILED");
+#ifdef NOOBHOOK_HYPERION
+        if (st != MH_OK) {
+            // The clean 0.728 process policy prevents MinHook from allocating
+            // executable trampolines.  External IAT redirection does not need
+            // a trampoline: the detour can call the untouched export directly.
+            HMODULE module = GetModuleHandleW(mod);
+            FARPROC target = module ? GetProcAddress(module, fn) : nullptr;
+            if (target && orig) {
+                *orig = reinterpret_cast<LPVOID>(target);
+                Out("MinHook", "Using direct-export original for external IAT hook %ls!%s -> %p",
+                    mod, fn, target);
+                return true;
+            }
+        }
+#endif
+        return st == MH_OK;
     };
-    hook(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
-    hook(L"ws2_32", "WSAConnect", MyWSAConnect, (LPVOID*)&pOrigWSAConnect);
+    Out("Main", "Installing hooks...");
+#ifdef NOOBHOOK_HYPERION
+    // ACG prevents MinHook from allocating a private executable trampoline. The 0.728 injector
+    // redirects the writable Winsock provider table and publishes its original WSPConnect target;
+    // older Hyperion paths can still consume the conventional connect entry below.
+    HMODULE winsock = GetModuleHandleW(L"ws2_32.dll");
+    pOrigConnect = winsock
+        ? reinterpret_cast<decltype(pOrigConnect)>(GetProcAddress(winsock, "connect")) : nullptr;
+    pOrigWSAConnect = winsock
+        ? reinterpret_cast<decltype(pOrigWSAConnect)>(GetProcAddress(winsock, "WSAConnect")) : nullptr;
+    bool madeConnect = pOrigConnect != nullptr && pOrigWSAConnect != nullptr;
+    bool madeWSAConnect = false;
+    bool madeWSPConnect = true;
+    Out("Main", "Prepared external WS2_32!connect detour (connect=%p WSAConnect=%p)",
+        pOrigConnect, pOrigWSAConnect);
+#else
+    bool madeConnect = hook(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
+    bool madeWSAConnect = hook(L"ws2_32", "WSAConnect", MyWSAConnect, (LPVOID*)&pOrigWSAConnect);
+    bool madeWSPConnect = false;
+#endif
+#ifdef NOOBHOOK_HYPERION
+    // The 0.728 image-backed payload only needs callable socket detours. Every additional
+    // MH_CreateHookApi/LoadLibrary operation lengthens synchronous DllMain execution, and the app
+    // shell can exit before the injector receives the hook table. The on-disk CA merge handles TLS
+    // trust for this path; the bootstrap already covers GetProcAddress.
+    bool madeWinHttpConnect = false;
+    bool madeWinHttpSendRequest = false;
+    bool madeCreateFileW = false;
+    bool madeCreateFileA = false;
+    bool madeNtCreateFile = false;
+    bool madeNtOpenFile = false;
+    bool madeExitProcess = false;
+    bool madeRtlExitUserProcess = false;
+    bool madeCertVerify = false;
+    bool madeCertGetChain = false;
+    bool madeGetProcAddress = false;
+#else
     hook(L"wininet", "InternetConnectW", MyInternetConnectW, (LPVOID*)&pOrigInternetConnectW);
-    hook(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
-    hook(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
-    hook(L"kernel32", "CreateFileW", MyCreateFileW, (LPVOID*)&pOrigCreateFileW);
-    hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
-    hook(L"ntdll", "NtCreateFile", MyNtCreateFile, (LPVOID*)&pOrigNtCreateFile);
-    hook(L"ntdll", "NtOpenFile",   MyNtOpenFile,   (LPVOID*)&pOrigNtOpenFile);
-    hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
-    hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
+    bool madeWinHttpConnect = hook(L"winhttp", "WinHttpConnect", MyWinHttpConnect, (LPVOID*)&pOrigWinHttpConnect);
+    bool madeWinHttpSendRequest = hook(L"winhttp", "WinHttpSendRequest", MyWinHttpSendRequest, (LPVOID*)&pOrigWinHttpSendRequest);
+    bool madeCreateFileW = hook(L"kernel32", "CreateFileW", MyCreateFileW, (LPVOID*)&pOrigCreateFileW);
+    bool madeCreateFileA = hook(L"kernel32", "CreateFileA", MyCreateFileA, (LPVOID*)&pOrigCreateFileA);
+    bool madeNtCreateFile = hook(L"ntdll", "NtCreateFile", MyNtCreateFile, (LPVOID*)&pOrigNtCreateFile);
+    bool madeNtOpenFile = hook(L"ntdll", "NtOpenFile", MyNtOpenFile, (LPVOID*)&pOrigNtOpenFile);
+    bool madeExitProcess = hook(L"kernel32", "ExitProcess", MyExitProcess, (LPVOID*)&pOrigExitProcess);
+    bool madeRtlExitUserProcess = hook(L"ntdll", "RtlExitUserProcess", MyRtlExitUserProcess, (LPVOID*)&pOrigRtlExitUserProcess);
     LoadLibraryW(L"crypt32.dll");
-    hook(L"crypt32", "CertVerifyCertificateChainPolicy", MyCertVerifyCertificateChainPolicy, (LPVOID*)&pOrigCertVerifyChainPolicy);
-    hook(L"crypt32", "CertGetCertificateChain", MyCertGetCertificateChain, (LPVOID*)&pOrigCertGetCertificateChain);
+    bool madeCertVerify = hook(L"crypt32", "CertVerifyCertificateChainPolicy", MyCertVerifyCertificateChainPolicy, (LPVOID*)&pOrigCertVerifyChainPolicy);
+    bool madeCertGetChain = hook(L"crypt32", "CertGetCertificateChain", MyCertGetCertificateChain, (LPVOID*)&pOrigCertGetCertificateChain);
+#endif
 #if defined(_M_IX86)
     Patches::InstallCsgHeapGuard(); // b2: swallow the corrupt CSG temp-buffer free (0.574) so load survives
 #endif
+    Out("Main", "Hooks created.");
+
+#ifdef NOOBHOOK_HYPERION
+    // Hyperion path: skip in-process enable (ACG blocks it).
+    // Store hook info so the injector can write JMPs from outside.
+    Out("Main", "Storing hook info for external enable...");
+    g_HookInfo.count = 0;
+    #define STORE_HOOK(created, mod, fn, detourPtr, originalStorage) \
+        if ((created) && g_HookInfo.count < 16) { \
+            strncpy_s(g_HookInfo.table[g_HookInfo.count].targetModule, mod, sizeof(g_HookInfo.table[0].targetModule)-1); \
+            strncpy_s(g_HookInfo.table[g_HookInfo.count].targetFunc, fn, sizeof(g_HookInfo.table[0].targetFunc)-1); \
+            g_HookInfo.table[g_HookInfo.count].detourFunc = (void*)(detourPtr); \
+            g_HookInfo.table[g_HookInfo.count].originalFuncStorage = reinterpret_cast<void**>(originalStorage); \
+            g_HookInfo.count++; \
+        }
+
+    STORE_HOOK(madeConnect, "ws2_32.dll", "connect", MyConnect, &pOrigConnect);
+    STORE_HOOK(madeWSAConnect, "ws2_32.dll", "WSAConnect", MyWSAConnect, &pOrigWSAConnect);
+    STORE_HOOK(madeWSPConnect, "mswsock.dll", "WSPConnect", MyWSPConnect, &pOrigWSPConnect);
+    STORE_HOOK(madeWinHttpConnect, "winhttp.dll", "WinHttpConnect", MyWinHttpConnect, &pOrigWinHttpConnect);
+    STORE_HOOK(madeWinHttpSendRequest, "winhttp.dll", "WinHttpSendRequest", MyWinHttpSendRequest, &pOrigWinHttpSendRequest);
+    STORE_HOOK(madeCreateFileW, "kernel32.dll", "CreateFileW", MyCreateFileW, &pOrigCreateFileW);
+    STORE_HOOK(madeCreateFileA, "kernel32.dll", "CreateFileA", MyCreateFileA, &pOrigCreateFileA);
+    STORE_HOOK(madeNtCreateFile, "ntdll.dll", "NtCreateFile", MyNtCreateFile, &pOrigNtCreateFile);
+    STORE_HOOK(madeNtOpenFile, "ntdll.dll", "NtOpenFile", MyNtOpenFile, &pOrigNtOpenFile);
+    STORE_HOOK(madeExitProcess, "kernel32.dll", "ExitProcess", MyExitProcess, &pOrigExitProcess);
+    STORE_HOOK(madeRtlExitUserProcess, "ntdll.dll", "RtlExitUserProcess", MyRtlExitUserProcess, &pOrigRtlExitUserProcess);
+    STORE_HOOK(madeCertVerify, "crypt32.dll", "CertVerifyCertificateChainPolicy", MyCertVerifyCertificateChainPolicy, &pOrigCertVerifyChainPolicy);
+    STORE_HOOK(madeCertGetChain, "crypt32.dll", "CertGetCertificateChain", MyCertGetCertificateChain, &pOrigCertGetCertificateChain);
+    STORE_HOOK(madeGetProcAddress, "kernel32.dll", "GetProcAddress", MyGetProcAddress, &pOrigGetProcAddress);
+
+    Out("Main", "Stored %d hooks for injector", g_HookInfo.count);
+#else
+    // Legacy path: enable hooks normally in-process
+    Out("Main", "Enabling hooks in-process...");
     MH_EnableHook(MH_ALL_HOOKS);
+    Out("Main", "All hooks enabled");
+#endif
 
 #if defined(_WIN64)
     char exePath[MAX_PATH] = {0};
@@ -593,15 +791,36 @@ DWORD WINAPI Thread(LPVOID param) {
         if (n > 0) {
             char* slash = strrchr(dllDir, '\\');
             if (slash) *slash = '\0';
-            std::string path = std::string(dllDir) + "\\noobhook_localrcc.dll";
+            std::string path = std::string(dllDir) + "\\noobhook_x86-64_localrcc.dll";
             Out("Main", "Studio binary detected -- loading %s", path.c_str());
-            if (LoadLibraryA(path.c_str()) == nullptr)
-                Out("Main", "Failed to load noobhook_localrcc.dll (err=%lu)", GetLastError());
+            HMODULE localRcc = LoadLibraryA(path.c_str());
+            if (localRcc == nullptr) {
+                Out("Main", "Failed to load noobhook_x86-64_localrcc.dll (err=%lu)", GetLastError());
+            } else {
+                using LocalRccInitialize = DWORD (WINAPI*)(LPVOID);
+                auto initialize = reinterpret_cast<LocalRccInitialize>(
+                    GetProcAddress(localRcc, "NoobLocalRccInitialize"));
+                if (initialize == nullptr) {
+                    Out("Main", "noobhook_x86-64_localrcc.dll has no initializer (err=%lu)",
+                        GetLastError());
+                } else {
+                    const DWORD result = initialize(localRcc);
+                    if (result == ERROR_SUCCESS)
+                        Out("Main", "noobhook_x86-64_localrcc.dll initialized");
+                    else
+                        Out("Main", "noobhook_x86-64_localrcc.dll initialization failed: %lu",
+                            result);
+                }
+            }
         }
     }
 #endif
 
-    ScriptExecutor::Install();
+#ifndef NOOBHOOK_HYPERION
+    // pretty hard to pull off with a hyperion client.
+    //ScriptExecutor::Install();
+    Patches::InstallCrashDiagnostics();
+#endif
 
     Out("Main", "Done");
     //fclose(file);
@@ -613,7 +832,15 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
     HANDLE hThread = NULL;
     switch (reason) {
     case DLL_PROCESS_ATTACH:
-        gFile = freopen("noobhook.log", "w", stdout);
+        {
+            wchar_t configuredLog[MAX_PATH] = {};
+            DWORD configuredLogLength = GetEnvironmentVariableW(
+                L"NOOBHOOK_LOG_PATH", configuredLog, _countof(configuredLog));
+            if (configuredLogLength > 0 && configuredLogLength < _countof(configuredLog))
+                gFile = _wfreopen(configuredLog, L"w", stdout);
+            else
+                gFile = freopen("noobhook.log", "w", stdout);
+        }
         if (gFile == nullptr) {
             MessageBoxA(NULL, "Failed to open log file for writing.", "noobHook", MB_ICONWARNING | MB_OK);
         }
@@ -623,19 +850,29 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD reason, LPVOID lpReserved) {
         Patches::InstallUnionRenderUnlock(); // experiment: un-gate the new-vertex-format render path so 2026 unions display
 #endif
         Out("DllMain", "Applying patches...");
-        Patches::RemoveTrustCheck(); // This should be commented out unless if you know what you're doing. It's not commented out though because I'm trying to debug something.
+        Patches::RemoveTrustCheck();
         Patches::RemoveSignatureCheck();
         Patches::RemoveTLSVerification();
         Patches::FixSettingsKeyMustBeDefined();
         Patches::FixInsertObjects();
+#if defined(_M_X64)
+        Patches::InstallTrampolineIntegrityBypass();
+#endif
 
         DisableThreadLibraryCalls(hModule);
 
-        hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
-        SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
-
-        ResumeThread(hThread);
-        CloseHandle(hThread);
+#ifdef NOOBHOOK_HYPERION
+        // Hyperion: run synchronously to avoid thread-creation detection
+        Thread(hModule);
+#else
+        // Legacy: run in a real thread (needed for LoadLibrary from DllMain to not deadlock)
+        {
+            HANDLE hThread = CreateThread(0, 0, Thread, hModule, CREATE_SUSPENDED, 0);
+            SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+            ResumeThread(hThread);
+            CloseHandle(hThread);
+        }
+#endif
         break;
     case DLL_PROCESS_DETACH:
         EmitGoodbyeOnce();

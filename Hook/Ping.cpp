@@ -101,7 +101,7 @@ bool PostJson(const char *path, const std::string &body, int timeoutMs) {
 
     sockaddr_in addr {};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(8080);
+    addr.sin_port = htons(gEmuHttpPort);
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     if (connect(s, (sockaddr*)&addr, sizeof(addr)) != 0) {
@@ -113,11 +113,11 @@ bool PostJson(const char *path, const std::string &body, int timeoutMs) {
     char request[1024];
     int n = _snprintf_s(request, sizeof(request), _TRUNCATE,
         "POST %s HTTP/1.1\r\n"
-        "Host: 127.0.0.1:8080\r\n"
+        "Host: 127.0.0.1:%u\r\n"
         "Content-Type: application/json\r\n"
         "Content-Length: %d\r\n"
         "Connection: close\r\n\r\n",
-        path, static_cast<int>(body.size()));
+        path, (unsigned)gEmuHttpPort, static_cast<int>(body.size()));
 
     bool ok = send(s, request, n, 0) > 0 && send(s, body.data(), (int)body.size(), 0) > 0;
     if (ok) {
@@ -132,11 +132,6 @@ bool PostJson(const char *path, const std::string &body, int timeoutMs) {
 }
 
 ProcessSide NoobHook::DetectSide() {
-    // The injector sets NOOBHOOK_SIDE from EngineStartParameters::LaunchSide so
-    // the host process can decide what role a binary plays independently of its
-    // filename. Notably, EngineSide::Server + RobloxStudioBeta.exe == "Studio
-    // is hosting a Team Test server", which we want exposed to noobwarrior via
-    // GetRunningGameServers() so the Player launcher can target it.
     char sideBuf[16] = {0};
     DWORD n = GetEnvironmentVariableA("NOOBHOOK_SIDE", sideBuf, sizeof(sideBuf));
     if (n > 0 && n < sizeof(sideBuf)) {
@@ -163,10 +158,6 @@ void NoobHook::ReadGameServerJson(ProcessInfo *info) {
     if (ExtractNumber(body, "PreferredPort", &v)) info->Port = static_cast<int>(v);
 }
 
-// Env-var fallback for Studio-hosted Team Test servers, which don't have a
-// gameserver.json. The injector sets NOOBHOOK_PORT / NOOBHOOK_PLACEID from
-// --port / --placeid; the host process uses these to advertise the server to
-// noobwarrior's /v1/running-game-servers list so a Player can target it.
 void NoobHook::ReadServerEnvFallback(ProcessInfo *info) {
     char buf[32] = {0};
     if (info->Port == 0 && GetEnvironmentVariableA("NOOBHOOK_PORT", buf, sizeof(buf)) > 0) {

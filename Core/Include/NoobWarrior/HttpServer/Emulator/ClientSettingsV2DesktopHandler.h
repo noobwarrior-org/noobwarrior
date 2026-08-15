@@ -25,10 +25,16 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
+#include <string>
+#include <vector>
+
 namespace NoobWarrior {
+class ServerEmulator;
 class ClientSettingsV2DesktopHandler : public Handler {
 public:
-    ClientSettingsV2DesktopHandler();
+    explicit ClientSettingsV2DesktopHandler(ServerEmulator *server);
     void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    ServerEmulator *mEmu;
 };
 }

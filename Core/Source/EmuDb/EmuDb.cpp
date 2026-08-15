@@ -1118,12 +1118,15 @@ SqlDb::Response EmuDb::AttachBlobHashToAsset(int64_t id, int version, const std:
     if (version > 0) {
 		Statement checkStmt = PrepareStatement("SELECT * FROM AssetData WHERE Id = ? AND Version = ?;");
 		CHECK_STMT(checkStmt)
-		checkStmt.Bind(1, hash);
+		checkStmt.Bind(1, id);
 		checkStmt.Bind(2, version);
 		int checkStmtRes = checkStmt.Step();
 		if (checkStmtRes == SQLITE_ROW) {
-			Statement updateStmt = PrepareStatement("UPDATE AssetData SET DataHash WHERE Id = ?;");
+			Statement updateStmt = PrepareStatement("UPDATE AssetData SET DataHash = ? WHERE Id = ? AND Version = ?;");
 			CHECK_STMT(updateStmt)
+			updateStmt.Bind(1, hash);
+			updateStmt.Bind(2, id);
+			updateStmt.Bind(3, version);
 			if (updateStmt.Step() != SQLITE_DONE) {
 				Out("Failed to attach data to asset id {} because updating the hash {} failed. Message: \"{}\"", id, hash, GetLastErrorMsg());
 				return SqlDb::Response::Failed;

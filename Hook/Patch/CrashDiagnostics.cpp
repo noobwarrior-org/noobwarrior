@@ -82,6 +82,9 @@ void Patches::InstallCrashDiagnostics_LogBacktrace() {
 }
 
 namespace {
+using MiniDumpWriteDump_t = BOOL (WINAPI*)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
+    PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
+
 std::atomic<bool> gDumpWritten { false };
 void WriteCrashDump(EXCEPTION_POINTERS* ep) {
     bool expected = false;
@@ -100,10 +103,20 @@ void WriteCrashDump(EXCEPTION_POINTERS* ep) {
     mei.ThreadId = GetCurrentThreadId();
     mei.ExceptionPointers = ep;
     mei.ClientPointers = FALSE;
-    BOOL ok = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), h,
-                                static_cast<MINIDUMP_TYPE>(MiniDumpWithFullMemory | MiniDumpWithHandleData |
-                                                           MiniDumpWithThreadInfo),
-                                ep ? &mei : nullptr, nullptr, nullptr);
+    // dbghelp forwards MiniDumpWriteDump to dbgcore on current Windows builds.
+    // Resolve it only when a crash actually needs a dump so the manually mapped
+    // Hyperion hook has no startup import on an otherwise-unloaded dbgcore.dll.
+    HMODULE dbghelp = GetModuleHandleW(L"dbghelp.dll");
+    if (!dbghelp)
+        dbghelp = LoadLibraryW(L"dbghelp.dll");
+    const auto miniDumpWriteDump = dbghelp
+        ? reinterpret_cast<MiniDumpWriteDump_t>(GetProcAddress(dbghelp, "MiniDumpWriteDump"))
+        : nullptr;
+    BOOL ok = miniDumpWriteDump && miniDumpWriteDump(
+        GetCurrentProcess(), GetCurrentProcessId(), h,
+        static_cast<MINIDUMP_TYPE>(MiniDumpWithFullMemory | MiniDumpWithHandleData |
+                                   MiniDumpWithThreadInfo),
+        ep ? &mei : nullptr, nullptr, nullptr);
     CloseHandle(h);
     Out("Crash", "MiniDumpWriteDump %s -> %s", ok ? "OK" : "FAILED", path);
 }
@@ -199,8 +212,6 @@ LONG WINAPI MyUEFHook(EXCEPTION_POINTERS* ep) {
 // dump via dbgcore!MiniDumpWriteDump (dbghelp forwards there), so OR MiniDumpWithFullMemory into
 // the type it asks for and its dump captures the whole heap instead -- catching exactly what the
 // player catches, including load-phase heap-corruption crashes. ~1-1.5 GB per dump.
-using MiniDumpWriteDump_t = BOOL (WINAPI*)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
-    PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
 MiniDumpWriteDump_t pOrigMiniDumpWriteDump = nullptr;
 BOOL WINAPI MyMiniDumpWriteDump(HANDLE proc, DWORD pid, HANDLE file, MINIDUMP_TYPE type,
                                 PMINIDUMP_EXCEPTION_INFORMATION exc,

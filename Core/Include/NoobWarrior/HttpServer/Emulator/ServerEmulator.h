@@ -49,6 +49,7 @@
 #include "RequestAuthHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
+#include "AssetBatchHandler.h"
 #include "AssetThumbnailJsonHandler.h"
 #include "GameIconHandler.h"
 #include "UniversalAppConfigStudioHandler.h"
@@ -60,6 +61,7 @@
 #include "LocalesHandler.h"
 #include "GamesHandler.h"
 #include "UserChannelHandler.h"
+#include "UserProfilesHandler.h"
 #include "PlaceDetailsHandler.h"
 #include "PlaceUniverseHandler.h"
 #include "ToolboxServiceHandler.h"
@@ -114,6 +116,9 @@ struct RunningInstance {
     std::string Ip {};
     std::optional<uint16_t> Port {std::nullopt};
     std::optional<int64_t> PlaceId {std::nullopt};
+    // Windows FILETIME creation value captured for loopback processes. It distinguishes the
+    // registered process from a later process that happens to reuse the same PID.
+    std::optional<uint64_t> ProcessStartToken {std::nullopt};
     time_t FirstSeen {0};
     time_t LastSeen {0};
 };
@@ -156,6 +161,12 @@ public:
     void RemoveProxyLayer(const std::string &host, uint16_t port);
     void ClearProxyLayers();
     std::vector<std::pair<std::string, uint16_t>> GetProxyLayers() const;
+
+    /* The place we joined on a remote host, recorded when that join's proxy layer is pushed and
+     * cleared with the layers. A joining client never reports a place id of its own (noobhook only
+     * reads one on the server side), so this is our only record of what the user is playing. */
+    void SetJoinedPlaceId(std::optional<int64_t> placeId);
+    std::optional<int64_t> GetJoinedPlaceId() const;
     
     bool TryProxyRequest(evhttp_request *req,
                          std::function<void(evhttp_request *)> localFallback = {},
@@ -192,6 +203,16 @@ public:
     void SetActiveEditDbFile(const std::string &dbFileName);
     std::string GetActiveEditDbFile() const;
 
+    // Id of that same place (also set by StudioOpenPlaceHandler).
+    void SetActiveEditPlaceId(int64_t placeId);
+    std::optional<int64_t> GetActiveEditPlaceId() const;
+
+    /* The place noobWarrior currently has loaded, i.e. what a request served right now belongs to:
+     * the running game server's place (from the gameserver.json it was launched with), else any other
+     * running instance that reported one (a Studio team-test host gets it from the injector's
+     * --placeid), else the place Studio has open for editing. nullopt when nothing is loaded. */
+    std::optional<int64_t> GetCurrentPlaceId() const;
+
     // Identity from the most recent launch-ticket redemption. A launched client redeems its -t ticket
     // to authenticate, then joins; the local join reads this instead of the client's persistence-prone
     // .LOGINSESSION cookie. Assumes one local launch at a time.
@@ -221,6 +242,7 @@ private:
     LogoutHandler mLogoutHandler;
     RunningGameServersHandler mRunningGameServersHandler;
     AssetHandler mAssetHandler;
+    AssetBatchHandler mAssetBatchHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
     ClientSettingsV2StudioHandler mClientSettingsV2StudioHandler;
@@ -238,6 +260,7 @@ private:
     LocalesHandler mLocalesHandler;
     GamesHandler mGamesHandler;
     UserChannelHandler mUserChannelHandler;
+    UserProfilesHandler mUserProfilesHandler;
     PlaceDetailsHandler mPlaceDetailsHandler;
     PlaceUniverseHandler mPlaceUniverseHandler;
     ToolboxServiceHandler mToolboxServiceHandler;
@@ -311,9 +334,14 @@ private:
     mutable std::mutex mFederatedHandlesMutex;
     std::map<int64_t, std::string> mFederatedHandles;
 
-    // Database file name of the place currently open for editing (see Set/GetActiveEditDbFile).
+    // Database file name and id of the place currently open for editing (see Set/GetActiveEditDbFile).
     mutable std::mutex mActiveEditDbMutex;
     std::string mActiveEditDbFile;
+    std::optional<int64_t> mActiveEditPlaceId;
+
+    // Place joined on a remote host (see Set/GetJoinedPlaceId).
+    mutable std::mutex mJoinedPlaceMutex;
+    std::optional<int64_t> mJoinedPlaceId;
 
     mutable std::mutex mCurrentLaunchUserMutex;
     std::optional<AuthUtil::SessionUser> mCurrentLaunchUser;

@@ -25,11 +25,36 @@
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
 #include <NoobWarrior/Log.h>
 #include <event2/http.h>
+#include <nlohmann/json.hpp>
 #include <cstring>
 
 #include "FFlagJson/PCDesktopClient.json.inc.cpp"
 
 using namespace NoobWarrior;
+
+namespace {
+nlohmann::json GetLocalDesktopSettings() {
+    nlohmann::json settings = nlohmann::json::parse(PCDesktopClient_json);
+    nlohmann::json& flags = settings["applicationSettings"];
+    flags["FFlagDebugLocalRccServerConnection"] = "True";
+    flags["FFlagRefactorPlayerConnect"] = "False";
+    flags["FFlagLoadRawBytecodeWithHashKey"] = "False";
+    // Player 0.719 registers these as FInts (without the D prefix). Preserve the
+    // aliases for adjacent builds that used the older spelling.
+    flags["FIntLsbOptimizeMin"] = "0";
+    flags["FIntLsbOptimizeMax"] = "1";
+    flags["FIntLsbValidateMin"] = "256";
+    flags["DFIntLsbOptimizeMin"] = "0";
+    flags["DFIntLsbOptimizeMax"] = "1";
+    flags["DFIntLsbValidateMin"] = "256";
+    flags["DFFlagFetchAndWriteFlagsAfterSuccessfulCachedFlagsLoad"] = "False";
+    flags["DFFlagWriteFlagCacheAfterDynamicFetch"] = "False";
+    flags["DFFlagWriteTombstoneAfterDynamicFetch"] = "False";
+    flags["FIntScheduledFlagFetchPeriodMinutes"] = "525600";
+    flags["FIntScheduledFlagFetchPeriodFlexMinutes"] = "0";
+    return settings;
+}
+}
 
 ClientSettingsHandler::ClientSettingsHandler(ServerEmulator *server) {}
 
@@ -37,6 +62,7 @@ void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
     evkeyvalq* headers = evhttp_request_get_input_headers(req);
+    evkeyvalq get_params;
 
     const char* peer_address = "";
     uint16_t peer_port {};
@@ -48,12 +74,16 @@ void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();
 
-    const char* val = evhttp_find_header(headers, "applicationName");
-    if (val != nullptr && strncmp(val, "PCStudioApp", 12) == 0) {
-        // serve no fflags so that it doesnt freeze and die (dont ask me why this happens)
-        evbuffer_add_printf(reply, "%s", "{ \"applicationSettings\": {} }");
-    } else {
-        evbuffer_add_printf(reply, "%s", PCDesktopClient_json);
+    if (evhttp_parse_query(uri, &get_params) == 0) {
+        const char* val = evhttp_find_header(&get_params, "applicationName");
+        if (val != nullptr && strncmp(val, "PCStudioApp", 12) == 0) {
+            // serve no fflags so that it doesnt freeze and die (dont ask me why this happens)
+            evbuffer_add_printf(reply, "%s", "{ \"applicationSettings\": {} }");
+        } else {
+            const std::string body = GetLocalDesktopSettings().dump();
+            evbuffer_add(reply, body.data(), body.size());
+        }
+        evhttp_clear_headers(&get_params);
     }
 
     evhttp_send_reply(req, 200, nullptr, reply);

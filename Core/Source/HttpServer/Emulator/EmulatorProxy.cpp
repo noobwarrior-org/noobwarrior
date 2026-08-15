@@ -248,10 +248,13 @@ void EmulatorProxy::RunWorker() {
             result.Body.assign(resp.text.begin(), resp.text.end());
             result.ContentType.clear();
             result.ContentDisposition.clear();
+            result.PlaceId.clear();
             if (auto it = resp.header.find("Content-Type"); it != resp.header.end())
                 result.ContentType = it->second;
             if (auto it = resp.header.find("Content-Disposition"); it != resp.header.end())
                 result.ContentDisposition = it->second;
+            if (auto it = resp.header.find("Roblox-Place-Id"); it != resp.header.end())
+                result.PlaceId = it->second;
 
             if (resp.status_code >= 200 && resp.status_code < 300) {
                 result.Served = true;
@@ -285,6 +288,11 @@ void EmulatorProxy::OnComplete(std::shared_ptr<ProxyRequest> r, ProxyResult resu
             evhttp_add_header(outHeaders, "Content-Type", contentType.c_str());
         if (!contentDisposition.empty())
             evhttp_add_header(outHeaders, "Content-Disposition", contentDisposition.c_str());
+        // Keep the host's place stamp on a proxied reply (see AssetHandler::AddPlaceIdHeader). The
+        // joiner's own emulator has no local instance to learn the host's place from, so dropping
+        // this header would leave the joining client with an unstamped asset.
+        if (!result.PlaceId.empty())
+            evhttp_add_header(outHeaders, "Roblox-Place-Id", result.PlaceId.c_str());
 
         evbuffer *buf = evbuffer_new();
         if (!body.empty())

@@ -35,6 +35,8 @@
 
 #include <cctype>
 #include <chrono>
+#include <cstdlib>
+#include <optional>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
@@ -307,6 +309,15 @@ void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, i
     mServerEmulator->GetAssetEnricher()->Enqueue(dbFilePath, id);
 }
 
+void AssetHandler::AddPlaceIdHeader(evhttp_request *req) {
+    std::optional<int64_t> placeId = mServerEmulator->GetCurrentPlaceId();
+    if (!placeId.has_value())
+        return;
+
+    std::string value = std::to_string(placeId.value());
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Roblox-Place-Id", value.c_str());
+}
+
 void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
                                   const std::vector<unsigned char> &data, const std::string &hash) {
     std::string contentDispositionVal;
@@ -337,6 +348,7 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
 
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
+        AddPlaceIdHeader(req);
 
         evbuffer_add(buf, out->data(), out->size());
         evhttp_send_reply(req, 200, NULL, buf);
@@ -389,10 +401,32 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     bool isMaterialFormat = acceptHdr &&
         (std::string_view(acceptHdr).starts_with("rbx-format/") ||
          std::string_view(acceptHdr) == "ktx/dxt");
+    /* The batch reply put the engine's chosen representation into this URL (see AssetBatchHandler).
+     * Carry it upstream: assetdelivery answers a bare id with a 268-byte
+     * "<roblox><texturepack_version>" descriptor rather than a texture, so a fetch that loses the
+     * specifier returns something the engine cannot decode. These must also never be answered from the
+     * blob cache, which is keyed by id alone and cannot tell one representation from another. */
+    std::string upstreamQuery;
+    bool hasRepresentation = false;
+    for (const char *param : {"contentRepresentationPriorityList",
+                              "doNotFallbackToBaselineRepresentation",
+                              "assetResolutionMode"}) {
+        const char *value = evhttp_find_header(&headers, param);
+        if (value == nullptr || *value == 0)
+            continue;
+        char *encoded = evhttp_uriencode(value, -1, 0);
+        if (encoded == nullptr)
+            continue;
+        upstreamQuery += std::string("&") + param + "=" + encoded;
+        free(encoded);
+        if (std::string_view(param) != "doNotFallbackToBaselineRepresentation")
+            hasRepresentation = true;
+    }
+
     bool numericId = idStr[0] != '\0';
     for (const char *p = idStr; *p; ++p)
         if (!std::isdigit(static_cast<unsigned char>(*p))) { numericId = false; break; }
-    bool bypassForMaterial = isMaterialFormat && numericId;
+    bool bypassForMaterial = (isMaterialFormat || hasRepresentation) && numericId;
 
     if (!bypassForMaterial && !mServerEmulator->GetRunningInstances().empty()) {
         auto idCppStr = std::string(idStr);
@@ -428,6 +462,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
             evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
             evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", "attachment; filename=\"material.dds\"");
+            AddPlaceIdHeader(req);
 
             evbuffer_add(buf, data.data(), data.size());
             evhttp_send_reply(req, 200, NULL, buf);
@@ -480,9 +515,9 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
-    auto robloxFallback = [this, id, ver, res, proxyEnabled](evhttp_request *r) {
+    auto robloxFallback = [this, id, ver, res, proxyEnabled, upstreamQuery](evhttp_request *r) {
         if (proxyEnabled)
-            BeginProxyFetch(r, id, ver, res); // reply happens later, in OnFetchComplete
+            BeginProxyFetch(r, id, ver, res, upstreamQuery); // reply happens later, in OnFetchComplete
         else
             ReplyWithAsset(r, res, std::vector<unsigned char>{}, std::string{});
     };
@@ -492,7 +527,8 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     robloxFallback(req);
 }
 
-void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult) {
+void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult,
+                                   const std::string &upstreamQuery) {
     Core *core = mServerEmulator->GetCore();
 
     auto fetch = std::make_shared<ProxyFetch>();
@@ -505,6 +541,7 @@ void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version,
     fetch->Url = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
     if (version > 0)
         fetch->Url += "&version=" + std::to_string(version);
+    fetch->Url += upstreamQuery; // else assetdelivery returns a descriptor instead of the texture
 
     // Forward the engine's Accept header so assetdelivery returns the requested texture
     // representation (rbx-format/{color,norm,spec}_dxt or ktx/dxt) instead of the baseline XML

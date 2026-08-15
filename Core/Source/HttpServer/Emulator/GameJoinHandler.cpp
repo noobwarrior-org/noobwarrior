@@ -137,9 +137,55 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         }
     }
 
+    Registry *reg = mEmu->GetCore()->GetRegistry();
+    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+
+    auto servers = mEmu->GetRunningGameServers();
+    if (servers.empty()) {
+        // Keep the authentication gate intact even while there is no server. Otherwise an
+        // unauthenticated caller could distinguish "waiting" from "authentication required".
+        if (authEnabled && !mEmu->ResolveJoiningUser(req)
+            && !reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false)) {
+            Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
+            nlohmann::json denied = {
+                {"jobId", gameJoinAttemptId},
+                {"status", 22},
+                {"joinScriptUrl", nullptr},
+                {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
+                {"authenticationTicket", nullptr},
+                {"message", "Authentication required to join this server"},
+                {"joinScript", nullptr},
+            };
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+            evbuffer *deny = evbuffer_new();
+            std::string denyBody = denied.dump();
+            evbuffer_add(deny, denyBody.data(), denyBody.size());
+            evhttp_send_reply(req, 200, nullptr, deny);
+            evbuffer_free(deny);
+            return;
+        }
+
+        Out("GameJoinHandler", "No running game server for placeId={}; returning waiting status", placeId);
+        nlohmann::json waiting = {
+            {"jobId", gameJoinAttemptId},
+            {"status", 0}, // Waiting: the client may poll again, but must not start a game DataModel.
+            {"joinScriptUrl", nullptr},
+            {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
+            {"authenticationTicket", nullptr},
+            {"message", "Waiting for a game server"},
+            {"joinScript", nullptr},
+        };
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+        evbuffer *reply = evbuffer_new();
+        std::string body = waiting.dump();
+        evbuffer_add(reply, body.data(), body.size());
+        evhttp_send_reply(req, 200, nullptr, reply);
+        evbuffer_free(reply);
+        return;
+    }
+
     std::string address = "127.0.0.1";
     uint16_t port = 53640;
-    auto servers = mEmu->GetRunningGameServers();
     const RunningInstance* chosen = nullptr;
     for (const auto &s : servers) {
         if (placeId != 0 && s.PlaceId.has_value() && s.PlaceId.value() == placeId) { chosen = &s; break; }
@@ -205,11 +251,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         {"PrivateServerID", ""},
     };
 
-    Registry *reg = mEmu->GetCore()->GetRegistry();
-    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
-
-    // ClientTicket the game server redeems to confirm identity; "1" is the legacy auth-off value.
-    std::string ticket = "1";
+    std::string ticket = "1"; // 1 is just a placeholder ticket if the auth system is off
 
     if (!authEnabled) {
         ApplyLocalIdentity(joinScript);

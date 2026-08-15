@@ -47,7 +47,7 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
 
     auto *text = new QTextEdit(this);
     text->setReadOnly(true);
-    text->insertPlainText("Authors\n" NOOBWARRIOR_AUTHORS "\nContributors\n" NOOBWARRIOR_CONTRIBUTORS "\nAttributions\n" NOOBWARRIOR_ATTRIBUTIONS_BRIEF);
+    text->insertPlainText("Authors\n" NOOBWARRIOR_AUTHORS "\nMaintainers\n" NOOBWARRIOR_MAINTAINERS "\nContributors\n" NOOBWARRIOR_CONTRIBUTORS "\nAttributions\n" NOOBWARRIOR_ATTRIBUTIONS_BRIEF);
     // do all of this retarded shit just to center the text
     text->selectAll(); text->setAlignment(Qt::AlignCenter); auto retard = text->textCursor(); retard.clearSelection(); text->setTextCursor(retard);
     text->moveCursor(QTextCursor::Start); // scroll the text widget to the top

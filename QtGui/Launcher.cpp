@@ -144,6 +144,17 @@ static void LaunchOfflineStudio(Launcher &launcher) {
         .PlaceId = std::nullopt
     });*/
 }
+static void LaunchPlayer(Launcher &launcher) {
+    gApp->LaunchEngine({
+        .Engine = {
+            .Architecture = EngineArchitecture::x86_64,
+            .Type = EngineType::Roblox,
+            .Side = EngineSide::Client,
+            .Hash = "version-acc4b74f79e743b9",
+            .Version = "0.719.0.7191339"
+        }
+    });
+}
 
 static const char* sCategoryNames[] = {
     "Play",
@@ -153,7 +164,8 @@ static const char* sCategoryNames[] = {
 
 static const void* sPlay[][3] = {
     {"Online", (void*)&ShowJoinServer, ":/images/silk/world.png"},
-    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"},
+    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"}
+    // {"Launch Player", (void*)&LaunchPlayer, ":/images/silk/controller.png"} Launching player into desktop app is currently bugged, uncomment when this is more stable
 };
 
 static const void* sTools[][3] = {
@@ -188,7 +200,11 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     mPlayerDialog(nullptr)
 {
     // ui->setupUi(this);
+#ifndef POC_BUILD
     setWindowTitle("noobWarrior");
+#else
+    setWindowTitle("noobWarrior - PoC Build");
+#endif
 
     Layout = new QVBoxLayout(this);
     Layout->setSizeConstraint(QLayout::SetFixedSize);
@@ -234,6 +250,18 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
 #endif
     titleLabel->setFont(font);
     logoLayout->addWidget(titleLabel);
+
+#ifdef POC_BUILD
+    auto *pocLabel = new QLabel();
+    pocLabel->setText("PROOF OF CONCEPT");
+    pocLabel->setStyleSheet("QLabel { color: red; }");
+    pocLabel->setAlignment(Qt::AlignLeft);
+    QFont pocFont = pocLabel->font();
+    pocFont.setBold(true);
+    pocFont.setPointSize(14);
+    pocLabel->setFont(pocFont);
+    Layout->addWidget(pocLabel);
+#endif
 
     auto *frame = new QFrame(this);
     // QPalette framePalette = frame->palette();

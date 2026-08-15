@@ -81,12 +81,19 @@ private:
     void RunProxyWorker();                                       // worker threads
 
     // Everything below runs on the event-loop thread.
-    void BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult);
+    // upstreamQuery carries the engine's content-representation parameters through to assetdelivery;
+    // without them it answers with a texture pack descriptor instead of the requested texture.
+    void BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult,
+                         const std::string &upstreamQuery = "");
     // Called on the event loop once a worker's network fetch finishes. The cpr result is decoded
     // into plain fields by the worker so this header doesn't depend on the HTTP client.
     void OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, long httpStatus, std::vector<unsigned char> data);
     void ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
                         const std::vector<unsigned char> &data, const std::string &hash);
+    // Stamps "Roblox-Place-Id: <id>" onto a successful reply so the receiver can tell which game the
+    // asset was served for. No-op when nothing is loaded, and only useful on 2xx replies:
+    // evhttp_send_error wipes the output headers before it sends its own page.
+    void AddPlaceIdHeader(evhttp_request *req);
     void SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, int version,
                           const std::vector<unsigned char> &data);
     static void OnClientDisconnect(evhttp_connection *conn, void *arg);

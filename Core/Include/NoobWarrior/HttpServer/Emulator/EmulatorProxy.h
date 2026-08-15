@@ -119,6 +119,7 @@ private:
         long                       Status {0};     // winning status, or the last miss status
         std::string                ContentType;
         std::string                ContentDisposition;
+        std::string                PlaceId;        // the host's Roblox-Place-Id, if it sent one
         std::vector<unsigned char> Body;
     };
 

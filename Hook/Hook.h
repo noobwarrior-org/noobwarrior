@@ -103,3 +103,22 @@ bool WritePrimitive(std::uintptr_t address, const T& value) {
     return true;
 }
 }
+
+#ifdef NOOBHOOK_HYPERION
+// Hook enable info — read by the injector to write hooks from outside
+// (bypasses Windows ACG/DynamicCodePolicy)
+struct HookEnableInfo {
+    char targetModule[32];
+    char targetFunc[64];
+    void* detourFunc;
+    void** originalFuncStorage;
+};
+
+struct HookInfoBlock {
+    uint64_t magic;
+    HookEnableInfo table[16];
+    int count;
+};
+
+extern HookInfoBlock g_HookInfo;
+#endif

@@ -46,6 +46,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <set>
 
 #if defined(_WIN32)
@@ -274,6 +276,95 @@ static std::string LastErrorStr(DWORD err = GetLastError()) {
 }
 #endif
 
+static bool MergeEmulatorCertIntoEngineCaBundle(const std::filesystem::path &emuCertPath,
+                                                 const std::filesystem::path &engineDir) {
+    static constexpr const char *kMarker = "# noobWarrior emulator CA";
+    const std::filesystem::path caBundle = engineDir / "ssl" / "cacert.pem";
+    const std::filesystem::path backup = engineDir / "ssl" / "cacert.pem.noobwarrior.bak";
+
+    auto readFile = [](const std::filesystem::path &path, std::string &contents) {
+        std::ifstream input(path, std::ios::binary);
+        if (!input.is_open())
+            return false;
+        contents.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+        return !input.bad();
+    };
+
+    std::string emulatorCert;
+    if (!readFile(emuCertPath, emulatorCert) || emulatorCert.empty()) {
+        Out("LaunchEngine", "Could not read emulator CA certificate {}", emuCertPath.string());
+        return false;
+    }
+
+    std::error_code filesystemError;
+    if (!std::filesystem::is_regular_file(caBundle, filesystemError) || filesystemError) {
+        Out("LaunchEngine", "Could not find engine CA bundle {}", caBundle.string());
+        return false;
+    }
+
+    if (!std::filesystem::exists(backup, filesystemError)) {
+        filesystemError.clear();
+        if (!std::filesystem::copy_file(caBundle, backup, std::filesystem::copy_options::none,
+                                        filesystemError)) {
+            // Another simultaneous launch may have created the backup between exists and copy_file.
+            std::error_code backupError;
+            if (!std::filesystem::is_regular_file(backup, backupError) || backupError) {
+                Out("LaunchEngine", "Could not back up engine CA bundle {} to {}: {}",
+                    caBundle.string(), backup.string(), filesystemError.message());
+                return false;
+            }
+        } else {
+            Out("LaunchEngine", "Backed up engine CA bundle to {}", backup.string());
+        }
+    } else if (filesystemError || !std::filesystem::is_regular_file(backup, filesystemError) || filesystemError) {
+        Out("LaunchEngine", "Engine CA backup is not a readable file: {}", backup.string());
+        return false;
+    }
+
+    // Always rebuild from the durable backup. If that backup came from an older direct-merge run,
+    // remove its tagged block in memory so the current certificate remains idempotent.
+    std::string baseBundle;
+    if (!readFile(backup, baseBundle)) {
+        Out("LaunchEngine", "Could not read engine CA backup {}", backup.string());
+        return false;
+    }
+    if (const size_t markerPosition = baseBundle.find(kMarker); markerPosition != std::string::npos)
+        baseBundle.erase(markerPosition);
+
+    std::string merged = baseBundle;
+    if (!merged.empty() && merged.back() != '\n')
+        merged.push_back('\n');
+    merged += kMarker;
+    merged.push_back('\n');
+    merged += emulatorCert;
+    if (!merged.empty() && merged.back() != '\n')
+        merged.push_back('\n');
+
+    std::string installedBundle;
+    if (readFile(caBundle, installedBundle) && installedBundle == merged) {
+        Out("LaunchEngine", "Engine CA bundle already includes the current emulator CA; backup is {}",
+            backup.string());
+        return true;
+    }
+
+    std::ofstream output(caBundle, std::ios::binary | std::ios::trunc);
+    if (!output.is_open()) {
+        Out("LaunchEngine", "Could not open {} to merge emulator CA", caBundle.string());
+        return false;
+    }
+    output.write(merged.data(), static_cast<std::streamsize>(merged.size()));
+    output.close();
+    if (!output) {
+        Out("LaunchEngine", "Could not finish writing merged engine CA bundle {}; restore from {}",
+            caBundle.string(), backup.string());
+        return false;
+    }
+
+    Out("LaunchEngine", "Merged emulator CA into {}; original backup is {}",
+        caBundle.string(), backup.string());
+    return true;
+}
+
 EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params) {
     const std::filesystem::path &injectorPath = GetInstallDataDir() / (arch == EngineArchitecture::x86_64 ? "noobhook_x86-64_injector.exe" : "noobhook_x86_injector.exe");
     if (!std::filesystem::exists(injectorPath)) {
@@ -323,17 +414,31 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     args.push_back("--emuhttps");
     args.push_back(std::to_string(emuHttpsPort));
 
-    // Hand noobhook the emulator's CA cert so it can transparently merge it into a temp
-    // cacert.pem (the engine's own ssl/cacert.pem is never modified). See MyCreateFileW.
-    std::filesystem::path emuCert = GetUserDataDir() / NW_PATH_SSL / "cert.pem";
-    if (std::filesystem::exists(emuCert)) {
-        args.push_back("--emucert");
-        args.push_back("\"" + emuCert.string() + "\"");
-    }
+    // Select arguments from the executable that will actually be launched. params.Engine may be a
+    // requested version which PickBestMatch resolved to a different installed build.
+    const std::string detectedVersion = Pe::ReadProductVersion(filePath);
+    const int era = ParseEraVersion(detectedVersion.empty() ? params.Engine.Version : detectedVersion);
 
-    const int era = ParseEraVersion(params.Engine.Version);
+    // 0.574+'s Player and Studio HTTP stacks explicitly open ssl/cacert.pem beside the executable.
+    // Preserve the original bundle once, then install an idempotent merge in that existing location.
+    std::filesystem::path emuCert = GetUserDataDir() / NW_PATH_SSL / "cert.pem";
+    const bool usesMergedEngineCa = era >= 574 &&
+        (filePath.filename() == "RobloxPlayerBeta.exe" ||
+         filePath.filename() == "RobloxStudioBeta.exe");
+    if (usesMergedEngineCa && !MergeEmulatorCertIntoEngineCaBundle(emuCert, filePath.parent_path()))
+        return EngineLaunchResponse::Failed;
+
+    // Opening Player from the launcher and joining a server are distinct operations.
+    // Player 0.719 needs a dedicated direct-join argument set in the injector;
+    // launching without a join target intentionally opens the ordinary app UI.
+    // Keep the established --play path for 0.574 and the other earlier clients.
+    const bool hasJoinTarget = !params.Ip.empty() || params.Port.has_value() ||
+                               params.PlaceId.has_value();
     args.push_back("--scheme");
-    args.push_back(era == 463 ? "old" : "new");
+    if (era == 719)
+        args.push_back(hasJoinTarget ? "app" : "home");
+    else
+        args.push_back(era == 463 ? "old" : "new");
 
     std::string argsStr;
     for (int i = 0; i < args.size(); i++) {
@@ -514,6 +619,7 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
         if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value()) {
             mServerEmulator->PushProxyLayer(*params.RemoteEmulatorHost, *params.RemoteEmulatorPort,
                                             params.RemoteEmulatorSessionToken.value_or(""));
+            mServerEmulator->SetJoinedPlaceId(params.PlaceId);
 
             // Federate this client's avatar to the host so its game server builds our character with
             // our own look (the host otherwise only knows its own local appearance). Build the JSON
