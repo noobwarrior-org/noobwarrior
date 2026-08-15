@@ -113,23 +113,25 @@ static std::optional<nlohmann::json> DecodeArchivedDesktopSettings(Core* core) {
 }
 
 static nlohmann::json GetStudioSettings(ServerEmulator* emu) {
-    nlohmann::json settings = nlohmann::json::parse(PCStudioAppV2_json); // for older versions of Studio
-
     Core* core = emu != nullptr ? emu->GetCore() : nullptr;
     const std::string version = emu != nullptr ? emu->GetLaunchedStudioVersion().first : std::string();
-    if (StudioEngineGeneration(version) < 700)
-        return settings;
+
+    if (StudioEngineGeneration(version) < 700) // old versions of studio get a hardcoded fflag dump from 0.574 era
+        return nlohmann::json::parse(PCStudioAppV2_json);
 
     const std::optional<nlohmann::json> archived = DecodeArchivedDesktopSettings(core);
-    const nlohmann::json modern = archived.value_or(nlohmann::json::parse(PCDesktopClientV2_json));
+    nlohmann::json settings = archived.value_or(nlohmann::json::parse(PCDesktopClientV2_json));
+    
+    if (core != nullptr &&
+        core->GetRegistry()->GetKeyValue<bool>("debug.log_http_server_requests").value_or(false)) {
+        nlohmann::json& flags = settings["applicationSettings"];
+        flags["DFLogHttpTrace"] = "7";
+        flags["DFLogBatchAssetApiLog"] = "7";
+    }
 
-    nlohmann::json& flags = settings["applicationSettings"];
-    const nlohmann::json& modernFlags = modern["applicationSettings"];
-    for (auto it = modernFlags.begin(); it != modernFlags.end(); ++it)
-        flags[it.key()] = it.value();
-
-    Out("ClientSettingsV2StudioHandler", "Aligned Studio \"{}\" with the {} desktop snapshot ({} flags)",
-        version, archived.has_value() ? "archived frame" : "loose JSON fallback", flags.size());
+    Out("ClientSettingsV2StudioHandler", "Serving Studio \"{}\" the {} desktop snapshot ({} flags)",
+        version, archived.has_value() ? "archived frame" : "loose JSON fallback",
+        settings["applicationSettings"].size());
     return settings;
 }
 

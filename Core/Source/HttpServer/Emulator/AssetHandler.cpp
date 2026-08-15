@@ -37,6 +37,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
@@ -367,6 +368,27 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
     evbuffer_free(buf);
 }
 
+static constexpr const char* kResolvedParam = "dontRedirect";
+
+bool AssetHandler::RedirectToSelfForResolution(evhttp_request *req, const char *uri, evkeyvalq *query) {
+    if (evhttp_find_header(query, kResolvedParam) != nullptr)
+        return false; // second hit: serve the bytes
+    if (evhttp_find_header(query, "expectedAssetType") == nullptr &&
+        evhttp_find_header(query, "serverplaceid") == nullptr)
+        return false;
+    
+    std::string location = "https://assetdelivery.roblox.com" + std::string(uri ? uri : "");
+    location += (location.find('?') == std::string::npos) ? '?' : '&';
+    location += kResolvedParam;
+    location += "=true";
+
+    Out("AssetHandler", "  resolving via redirect -> {}", location);
+
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Location", location.c_str());
+    evhttp_send_reply(req, 302, "Found", nullptr);
+    return true;
+}
+
 void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* uri = evhttp_request_get_uri(req);
     evhttp_connection* conn = evhttp_request_get_connection(req);
@@ -390,6 +412,10 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, 400, "Id parameter not given");
         return;
     }
+
+    if (RedirectToSelfForResolution(req, uri, &headers))
+        return;
+
 
     // 0.574 negotiates material/terrain textures via the Accept header (rbx-format/{color,norm,spec}_dxt
     // and ktx/dxt): the SAME asset id returns a DIFFERENT texture per representation. Our local map and

@@ -21,7 +21,7 @@
 // File: AssetBatchHandler.cpp
 // Started by: Hattozo
 // Started on: 8/12/2026
-// Description: Implements POST /v1/assets/batch for modern Roblox clients.
+// Description: Implements POST /v1/assets/batch and /v2/assets/batch for modern Roblox clients.
 #include <NoobWarrior/HttpServer/Emulator/AssetBatchHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>

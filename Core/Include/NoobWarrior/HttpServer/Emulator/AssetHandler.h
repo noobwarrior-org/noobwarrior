@@ -80,6 +80,11 @@ private:
     void StopProxyPool();
     void RunProxyWorker();                                       // worker threads
 
+    // A modern engine resolves an asset URL to a location before downloading it, so the first hit on a
+    // character/asset-delivery URL is answered with a redirect back here and the bytes are served on
+    // the second. Returns true when it replied and OnRequest is done.
+    bool RedirectToSelfForResolution(evhttp_request *req, const char *uri, evkeyvalq *query);
+
     // Everything below runs on the event-loop thread.
     // upstreamQuery carries the engine's content-representation parameters through to assetdelivery;
     // without them it answers with a texture pack descriptor instead of the requested texture.

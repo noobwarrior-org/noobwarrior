@@ -187,6 +187,8 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/asset/", &mAssetHandler);
     SetRequestHandler("/v1/assets/batch", &mAssetBatchHandler);
     SetRequestHandler("/v1/assets/batch/", &mAssetBatchHandler);
+    SetRequestHandler("/v2/assets/batch", &mAssetBatchHandler);
+    SetRequestHandler("/v2/assets/batch/", &mAssetBatchHandler);
 
     SetRequestHandler("/asset-thumbnail/json", &mAssetThumbnailJsonHandler);
 
