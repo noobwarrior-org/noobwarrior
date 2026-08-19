@@ -626,20 +626,6 @@ static DWORD WINAPI HeartbeatThread(LPVOID) {
     return 0;
 }
 
-// tell the injector the socket redirect is live so that it can unsuspend the thread
-static void SignalHooksReady() {
-    wchar_t name[64];
-    swprintf(name, _countof(name), L"Local\\noobhook_hooks_ready_%lu", GetCurrentProcessId());
-    HANDLE ready = OpenEventW(EVENT_MODIFY_STATE, FALSE, name);
-    if (ready == nullptr) {
-        Out("Main", "No hook-ready event to signal (err=%lu)", GetLastError());
-        return;
-    }
-    SetEvent(ready);
-    CloseHandle(ready);
-    Out("Main", "Signalled hook-ready to the injector");
-}
-
 DWORD WINAPI Thread(LPVOID param) {
  	Out("Main", "Initializing noobHook");
 
@@ -659,11 +645,24 @@ DWORD WINAPI Thread(LPVOID param) {
         Out("Main", "Routed WebView2 -> emulator :%d via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", gEmuHttpsPort);
     }
 
-    // Nothing that can block goes before the socket redirect. This thread runs concurrently with
-    // the engine's own startup, and the engine's very first HTTP request (the client-settings
-    // fetch) is issued about 100 ms in. Anything slow here -- and the Hello ping is a full TCP
-    // round trip -- widens the window in which that request reaches the real Roblox CDN instead of
-    // the emulator. The ping is sent further down, once the hooks are live.
+    gProcessInfo = NoobHook::CollectProcessInfo();
+    Out("Main", "Process info: pid=%d side=%d version=%s port=%d placeId=%lld",
+        gProcessInfo.Pid, (int)gProcessInfo.Side, gProcessInfo.Version ? gProcessInfo.Version : "",
+        gProcessInfo.Port, (long long)gProcessInfo.PlaceId);
+    if (NoobHook::SendHello(gProcessInfo))
+        Out("Main", "Sent Hello ping to server emulator");
+    else
+        Out("Main", "Failed to send Hello ping (server emulator unreachable?)");
+
+#ifndef NOOBHOOK_HYPERION
+    HANDLE hbThread = CreateThread(0, 0, HeartbeatThread, nullptr, 0, nullptr);
+    if (hbThread) CloseHandle(hbThread);
+#else
+    // Do not perform HTTP work from a Winsock detour. Hyperion enters parts of its transport
+    // path with private stack state, and a synchronous heartbeat here re-enters that path.
+    Out("Main", "Hyperion socket detours use no re-entrant heartbeat");
+#endif
+
     Out("Main", "Initializing MinHook");
     InitializeCriticalSection(&gCaLock);
     MH_Initialize();
@@ -779,26 +778,6 @@ DWORD WINAPI Thread(LPVOID param) {
     Out("Main", "Enabling hooks in-process...");
     MH_EnableHook(MH_ALL_HOOKS);
     Out("Main", "All hooks enabled");
-    SignalHooksReady();
-#endif
-
-    // Traffic is redirected from here on, so the ping round trip is safe to make now.
-    gProcessInfo = NoobHook::CollectProcessInfo();
-    Out("Main", "Process info: pid=%d side=%d version=%s port=%d placeId=%lld",
-        gProcessInfo.Pid, (int)gProcessInfo.Side, gProcessInfo.Version ? gProcessInfo.Version : "",
-        gProcessInfo.Port, (long long)gProcessInfo.PlaceId);
-    if (NoobHook::SendHello(gProcessInfo))
-        Out("Main", "Sent Hello ping to server emulator");
-    else
-        Out("Main", "Failed to send Hello ping (server emulator unreachable?)");
-
-#ifndef NOOBHOOK_HYPERION
-    HANDLE hbThread = CreateThread(0, 0, HeartbeatThread, nullptr, 0, nullptr);
-    if (hbThread) CloseHandle(hbThread);
-#else
-    // Do not perform HTTP work from a Winsock detour. Hyperion enters parts of its transport
-    // path with private stack state, and a synchronous heartbeat here re-enters that path.
-    Out("Main", "Hyperion socket detours use no re-entrant heartbeat");
 #endif
 
 #if defined(_WIN64)
