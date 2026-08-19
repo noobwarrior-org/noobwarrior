@@ -65,15 +65,13 @@ endif()
 
 option(NOOBWARRIOR_TARGET_ROBLOX_GENERATOR "Add the Roblox API C++ generator" ON)
 if (NOOBWARRIOR_TARGET_ROBLOX_GENERATOR AND NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(RobloxFileFormatGenerator)
+    add_subdirectory(FileFormatGenerator)
 endif()
 
 if (NOOBWARRIOR_TARGET_CORE)
     add_subdirectory(RoundTripPlace)
-endif()
-
-if (NOOBWARRIOR_TARGET_CORE)
     add_subdirectory(DiffPlace)
+    add_subdirectory(PlacePollution)
 endif()
 
 if (NOOBWARRIOR_TARGET_UNITTEST)

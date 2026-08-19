@@ -9,12 +9,12 @@ if (NOT TARGET nlohmann_json)
     CPMAddPackage("gh:nlohmann/json#v3.11.3")
 endif()
 
-add_executable(NoobWarrior.RobloxFileFormatGenerator EXCLUDE_FROM_ALL main.cpp)
-target_compile_features(NoobWarrior.RobloxFileFormatGenerator PRIVATE cxx_std_23)
-target_include_directories(NoobWarrior.RobloxFileFormatGenerator PRIVATE
+add_executable(NoobWarrior.FileFormatGenerator EXCLUDE_FROM_ALL main.cpp)
+target_compile_features(NoobWarrior.FileFormatGenerator PRIVATE cxx_std_23)
+target_include_directories(NoobWarrior.FileFormatGenerator PRIVATE
     ${libcppgenerate_SOURCE_DIR}
 )
-target_link_libraries(NoobWarrior.RobloxFileFormatGenerator PRIVATE
+target_link_libraries(NoobWarrior.FileFormatGenerator PRIVATE
     cppgenerate_static
     nlohmann_json
 )

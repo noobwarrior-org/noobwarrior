@@ -1,0 +1,3 @@
+add_executable(NoobWarrior.PlacePollution EXCLUDE_FROM_ALL main.cpp)
+target_link_libraries(NoobWarrior.PlacePollution PRIVATE NoobWarrior.Core)
+target_compile_features(NoobWarrior.PlacePollution PRIVATE cxx_std_23)
