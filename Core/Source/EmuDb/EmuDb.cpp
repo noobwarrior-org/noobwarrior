@@ -33,6 +33,7 @@
 #include <zstd.h>
 #include <cstdio>
 #include <algorithm>
+#include <limits>
 
 #include "../algorithm/base64.h"
 #include "../algorithm/gzip.h"
@@ -1411,8 +1412,12 @@ SqlDb::Response EmuDb::RenderThumbnailForAsset(int64_t id, int version) {
 	return SqlDb::Response::Failed;
 }
 
-SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
+SqlDb::Response EmuDb::RetrieveAssetDataHash(int64_t id, int version,
+                                             std::string *hashOutput) {
     if (Fail()) return SqlDb::Response::DatabaseFailed;
+    if (hashOutput == nullptr)
+        return SqlDb::Response::Misuse;
+    hashOutput->clear();
 
     Statement checkAssetExistsStmt = PrepareStatement("SELECT Id FROM Asset WHERE Id = ?;");
     CHECK_STMT(checkAssetExistsStmt);
@@ -1432,47 +1437,70 @@ SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version, std::vector<un
     if (version > 0)
         getHashStmt.Bind(2, version);
 
-    int res = getHashStmt.Step();
-    if (res != SQLITE_ROW && res != SQLITE_DONE)
+    const int result = getHashStmt.Step();
+    if (result != SQLITE_ROW && result != SQLITE_DONE)
         return SqlDb::Response::Failed;
-    if (res == SQLITE_ROW) {
-        std::string hash = getHashStmt.GetStringFromColumnIndex(0);
-        if (hashOutput != nullptr)
-            *hashOutput = hash;
+    if (result != SQLITE_ROW)
+        return SqlDb::Response::MissingBlob;
 
-        Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
-        CHECK_STMT(getHashStmt)
-        blobStmt.Bind(1, hash);
+    *hashOutput = getHashStmt.GetStringFromColumnIndex(0);
+    if (hashOutput->empty())
+        return SqlDb::Response::MissingBlob;
 
-        int blobStmtRes = blobStmt.Step();
-        if (blobStmtRes != SQLITE_ROW && blobStmtRes != SQLITE_DONE)
-            return SqlDb::Response::Failed;
-        if (blobStmtRes == SQLITE_ROW) {
-			std::vector<unsigned char> data = blobStmt.GetBlobFromColumnIndex(0);
+    Statement blobExistsStmt =
+        PrepareStatement("SELECT 1 FROM BlobStorage WHERE Hash = ? LIMIT 1;");
+    CHECK_STMT(blobExistsStmt)
+    blobExistsStmt.Bind(1, *hashOutput);
+    const int blobExistsResult = blobExistsStmt.Step();
+    if (blobExistsResult == SQLITE_ROW)
+        return SqlDb::Response::Success;
+    return blobExistsResult == SQLITE_DONE
+        ? SqlDb::Response::MissingBlob
+        : SqlDb::Response::Failed;
+}
 
-			if (IsZstdCompressed(data)) {
-				unsigned long long decompSize = ZSTD_getFrameContentSize(data.data(), data.size());
-				if (decompSize == ZSTD_CONTENTSIZE_ERROR || decompSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-					return SqlDb::Response::BlobDecompressionFailed;
-				}
+SqlDb::Response EmuDb::RetrieveAssetData(int64_t id, int version,
+                                         std::vector<unsigned char> *dataOutput,
+                                         std::string *hashOutput) {
+    std::string hash;
+    const SqlDb::Response hashResult = RetrieveAssetDataHash(id, version, &hash);
+    if (hashResult != SqlDb::Response::Success)
+        return hashResult;
+    if (hashOutput != nullptr)
+        *hashOutput = hash;
 
-				std::vector<unsigned char> decompressed(decompSize);
-				size_t result = ZSTD_decompress(
-					decompressed.data(), decompSize,
-					data.data(), data.size()
-				);
-				if (ZSTD_isError(result)) {
-					return SqlDb::Response::BlobDecompressionFailed;
-				}
-				data = std::move(decompressed);
-			}
+    Statement blobStmt = PrepareStatement("SELECT Blob FROM BlobStorage WHERE Hash = ?");
+    CHECK_STMT(blobStmt)
+    blobStmt.Bind(1, hash);
 
-            if (dataOutput != nullptr)
-                *dataOutput = std::move(data);
-            return SqlDb::Response::Success;
+    const int blobResult = blobStmt.Step();
+    if (blobResult != SQLITE_ROW && blobResult != SQLITE_DONE)
+        return SqlDb::Response::Failed;
+    if (blobResult != SQLITE_ROW)
+        return SqlDb::Response::MissingBlob;
+
+    std::vector<unsigned char> data = blobStmt.GetBlobFromColumnIndex(0);
+    if (IsZstdCompressed(data)) {
+        const unsigned long long decompressedSize =
+            ZSTD_getFrameContentSize(data.data(), data.size());
+        if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
+            decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN ||
+            decompressedSize >= 2147483648ULL ||
+            decompressedSize > std::numeric_limits<size_t>::max()) {
+            return SqlDb::Response::BlobDecompressionFailed;
         }
+
+        std::vector<unsigned char> decompressed(decompressedSize);
+        const size_t result = ZSTD_decompress(
+            decompressed.data(), decompressed.size(), data.data(), data.size());
+        if (ZSTD_isError(result) || result != decompressed.size())
+            return SqlDb::Response::BlobDecompressionFailed;
+        data = std::move(decompressed);
     }
-    return SqlDb::Response::MissingBlob;
+
+    if (dataOutput != nullptr)
+        *dataOutput = std::move(data);
+    return SqlDb::Response::Success;
 }
 
 SqlDb::Response EmuDb::AddPlaceToUniverse(int64_t universeId, int64_t placeId) {

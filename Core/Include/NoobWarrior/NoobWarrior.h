@@ -36,6 +36,7 @@
 #include "Engine.h"
 #include "HttpServer/Emulator/ServerEmulator.h"
 #include "Roblox/FileFormat/RobloxFile.h"
+#include "Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.h"
 #include "Roblox/Api/Asset.h"
 #include "Roblox/DataType/Color3.h"
 #include "Roblox/DataType/BrickColor.h"
@@ -53,6 +54,8 @@
 #include <event.h>
 #include <lua.hpp>
 #include <curl/curl.h>
+
+#include <string_view>
 
 #include <functional>
 #include <vector>
@@ -215,7 +218,9 @@ public:
      * decimal percentage describing how much of the current stage is complete. */
     void UpdateWine(std::function<bool(WineUpdateState, double)> callback);
     void DownloadAndInstallEngine(const Engine &client, std::function<void()> callback);
-    EngineLaunchResponse LaunchEngine(EngineStartParameters params);
+    EngineLaunchResponse LaunchEngine(
+        EngineStartParameters params,
+        const EngineLaunchProgressCallback& progressCallback = {});
 
     /* This is a two-part flow.
      * Whenever callback is fired, the first parameter indicates if the request succeeded or not, and the second parameter is the response if successful.
@@ -260,7 +265,10 @@ public:
 protected:
     std::string GetWinePath(const std::filesystem::path &path);
     bool WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params);
-    bool WriteServerRbxl(int64_t placeId, int version = 0);
+    bool WriteServerRbxl(int64_t placeId, int version = 0,
+                         const StudioServerBootstrap& serverBootstrap = {},
+                         const EngineLaunchProgressCallback& progressCallback = {},
+                         std::string_view studioFingerprint = {});
     std::filesystem::path FindEngineExecutable(const std::filesystem::path &engineDir);
     EngineLaunchResponse LaunchProcessThroughInjector(EngineArchitecture arch, const std::filesystem::path &filePath, EngineStartParameters params);
     void AutocreateCert();

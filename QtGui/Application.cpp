@@ -39,7 +39,9 @@
 #include <QApplication>
 #include <QDir>
 #include <QFontDatabase>
+#include <QEventLoop>
 #include <QLabel>
+#include <QLocale>
 #include <QMessageBox>
 #include <QFile>
 #include <QTimer>
@@ -293,7 +295,40 @@ void Application::LaunchEngine(EngineStartParameters params) {
         dialog->DisableCancel(true);
         dialog->show();
 
-        EngineLaunchResponse res = mCore->LaunchEngine(params);
+        QPointer<LoadingDialog> dialogPtr(dialog);
+        const QString startingText = QString("Loading Roblox %1 %2...").arg(
+            QString::fromUtf8(EngineSideAsString(params.Engine.Side)),
+            QString::fromStdString(params.Engine.Version));
+        EngineLaunchResponse res = mCore->LaunchEngine(
+            params, [dialogPtr, startingText](const EngineLaunchProgress &progress) {
+                if (!dialogPtr)
+                    return;
+
+                const QString size = progress.PlaceBytes == 0
+                    ? QString()
+                    : QString(" (%1)").arg(QLocale().formattedDataSize(
+                          static_cast<qint64>(progress.PlaceBytes), 1,
+                          QLocale::DataSizeIecFormat));
+                switch (progress.Stage) {
+                case EngineLaunchStage::PreparingStudioServerPlace:
+                    dialogPtr->SetText("Preparing Studio server place...");
+                    break;
+                case EngineLaunchStage::LoadingStudioServerPlace:
+                    dialogPtr->SetText("Loading Studio server place...");
+                    break;
+                case EngineLaunchStage::MutatingStudioServerPlace:
+                    dialogPtr->SetText(QString("Preparing Studio server place%1... (this may take a while)").arg(size));
+                    break;
+                case EngineLaunchStage::WritingStudioServerPlace:
+                    dialogPtr->SetText(QString("Writing Studio server place%1...").arg(size));
+                    break;
+                case EngineLaunchStage::StartingEngine:
+                    dialogPtr->SetText(startingText);
+                    break;
+                }
+                dialogPtr->SetProgress(progress.Progress);
+                QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            });
         if (res != EngineLaunchResponse::Success) {
             QString errMsg;
             switch (res) {
@@ -320,8 +355,6 @@ void Application::LaunchEngine(EngineStartParameters params) {
             QMessageBox::critical(dialog, "Cannot Launch Engine", errMsg);
             dialog->close();
         } else {
-            QPointer<LoadingDialog> dialogPtr(dialog);
-
             QTimer::singleShot(5000, [dialogPtr]() {
                 if (dialogPtr) {
                     dialogPtr->deleteLater();

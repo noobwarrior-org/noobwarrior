@@ -7,20 +7,20 @@ return {
 
     -- Runs each file in sequential order, since Lua automatically uses incremental integer-based indexing for its arrays.
     autorun = { "lua/main.lua" },
-    hook_autorun = {
+    engine_autorun = {
         -- Same goes for here
         client = {
-            "hook_scripts/client.lua"
+            "engine_scripts/client.lua"
         },
         server = {
-            "hook_scripts/server.lua"
+            "engine_scripts/server.lua"
         },
         shared = {
-            "hook_scripts/shared.lua"
+            "engine_scripts/shared.lua"
         }
     },
     datamodel = {
-        {
+        { -- Inserting instances into the client side is currently unsupported for now.
             dir = "datamodel_client",
             side = "Client",
             predicate = function(data)

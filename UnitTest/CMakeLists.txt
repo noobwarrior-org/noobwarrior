@@ -5,6 +5,22 @@ CPMAddPackage(
 add_executable(NoobWarrior.UnitTest)
 target_sources(NoobWarrior.UnitTest PRIVATE
     main.cpp
+    PluginDataModelTest.cpp
+    BinaryFileIoTest.cpp
+    BinaryFileChunkTest.cpp
+    BinaryRobloxFileTest.cpp
+    AppendBinaryModelTest.cpp
+    AppendSemanticsTest.cpp
+    BootstrapInjectionTest.cpp
+    PluginMountingTest.cpp
+    PluginPlanFidelityTest.cpp
+    XmlPropertyTokensTest.cpp
+    XmlRobloxFileTest.cpp
+    ChunkTableTest.cpp
+    INSTTest.cpp
+    PRNTTest.cpp
+    PROPTest.cpp
+    StudioServerPlaceCacheTest.cpp
 )
 target_link_libraries(NoobWarrior.UnitTest PUBLIC NoobWarrior.Core GTest::gtest)
 target_include_directories(NoobWarrior.UnitTest PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -25,13 +25,16 @@
 #pragma once
 #include <NoobWarrior/Roblox/FileFormat/Tree/Property.h>
 
-#include <string>
 #include <map>
+#include <string>
+#include <string_view>
+#include <utility>
 
 namespace NoobWarrior::Roblox {
 class RbxObject {
 public:
     RbxObject();
+    virtual ~RbxObject() = default;
 
     /**
      * @brief The ClassName of this Instance.
@@ -44,6 +47,7 @@ public:
     std::string Referent;
 
     std::map<std::string, Property> &GetProperties();
+    const std::map<std::string, Property> &GetProperties() const;
 
     bool Destroyed;
 
@@ -85,6 +89,49 @@ public:
             props.erase(it);
         return it != props.end();
     }
+    /**
+     * @brief Whether this object carries a property under this name.
+     */
+    bool HasProperty(const std::string &name) const {
+        return props.contains(name);
+    }
+
+    /**
+     * @brief The decoded value of a property, or @p fallback when it is absent or holds another
+     * type. Generated classes wrap this so callers can name a property at compile time.
+     */
+    template<typename T>
+    T GetPropertyValue(const std::string &name, T fallback = T{}) const {
+        const auto found = props.find(name);
+        if (found == props.end())
+            return fallback;
+        if (const T *value = std::any_cast<T>(&found->second.Value))
+            return *value;
+        return fallback;
+    }
+
+    /**
+     * @brief Sets a property, creating it when absent.
+     *
+     * The XML token has to be supplied because the XML writer falls back to "string" for a
+     * property that carries none, which would mis-serialize anything else. Generated setters pass
+     * the token their declared type maps to.
+     */
+    template<typename T>
+    void SetPropertyValue(const std::string &name, PropertyType type,
+                          std::string_view xmlToken, T value) {
+        Property &slot = props[name];
+        slot.Name = name;
+        slot.Object = this;
+        slot.Type = type;
+        slot.XmlToken = xmlToken;
+        // The raw buffer describes the value being replaced -- a CFrame's orientation id, a
+        // PhysicalProperties flag byte -- so keeping it would make the writer emit the encoding
+        // of something that is no longer there.
+        slot.RawBuffer.clear();
+        slot.Value = std::move(value);
+    }
+
 protected:
     std::map<std::string, Property> props;
 };

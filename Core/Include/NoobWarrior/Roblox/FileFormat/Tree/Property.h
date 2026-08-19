@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <any>
+#include <cstdint>
 
 namespace NoobWarrior::Roblox {
 enum class PropertyType {
@@ -69,6 +70,8 @@ class RbxObject;
 class RobloxFile;
 class Property {
 public:
+    Property() : Object(nullptr), Type(PropertyType::Unknown), File(nullptr) {}
+
     enum class BindingFlags {
         Instance = 1 << 0,
         Public = 1 << 1,
@@ -84,7 +87,29 @@ public:
 
     std::string XmlToken;
     std::vector<unsigned char> RawBuffer;
-protected:
-    void* RawValue { nullptr };
+
+    // The decoded value, typed per the DataTypes layer. std::any is the direct analogue of
+    // RobloxFiles.Property.Value, which is a bare object.
+    std::any Value;
+
+    // Returns nullptr when the value is absent or holds a different type, so callers branch
+    // rather than handling an exception.
+    template<typename T>
+    const T *CastValue() const {
+        return std::any_cast<T>(&Value);
+    }
+
+    template<typename T>
+    T *CastValue() {
+        return std::any_cast<T>(&Value);
+    }
+
+    bool HasValue() const {
+        return Value.has_value();
+    }
+
+    bool HasRawBuffer() const {
+        return !RawBuffer.empty();
+    }
 };
 }

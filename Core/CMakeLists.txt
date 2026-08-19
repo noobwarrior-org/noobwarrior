@@ -21,6 +21,19 @@ CPMAddPackage(
     OPTIONS "ZSTD_BUILD_STATIC ON"
 )
 
+# Roblox's binary chunks are LZ4-compressed. The reference implementation only ever writes LZ4,
+# which is also the oldest codec every supported engine understands, so the writer needs a real
+# encoder rather than just the hand-rolled decoder.
+CPMAddPackage(
+    URI "gh:lz4/lz4#v1.10.0"
+    SOURCE_SUBDIR "build/cmake"
+    OPTIONS
+    "LZ4_BUILD_CLI OFF"
+    "LZ4_BUILD_LEGACY_LZ4C OFF"
+    "BUILD_SHARED_LIBS OFF"
+    "BUILD_STATIC_LIBS ON"
+)
+
 # use old ass curl if we on android cuz google sux
 if (ANDROID)
     set(_NW_CURL_REV "curl-8_11_0")
@@ -163,6 +176,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/BaseRegistry.cpp
     Source/Registry.cpp
     Source/Plugin.cpp
+    Source/PluginDataModel.cpp
+    Source/PluginTreeMaterializer.cpp
     Source/PluginManager.cpp
     Source/Log.cpp
     Source/Shell.cpp
@@ -245,9 +260,21 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/DataType/BrickColor.cpp
     Source/Roblox/DataType/Color3.cpp
     Source/Roblox/FileFormat/RobloxFile.cpp
+    Source/Roblox/FileFormat/StudioServerPlace.cpp
+    Source/Roblox/FileFormat/StudioServerPlaceCache.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryFileChunk.cpp
     Source/Roblox/FileFormat/BinaryFormat/BinaryRobloxFile.cpp
-    Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryFileReader.cpp
+    Source/Roblox/FileFormat/BinaryFormat/BinaryFileWriter.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/INST.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/META.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/PRNT.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/PROP.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/SIGN.cpp
+    Source/Roblox/FileFormat/BinaryFormat/Chunks/SSTR.cpp
     Source/Roblox/FileFormat/XmlFormat/XmlFileReader.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlFileWriter.cpp
+    Source/Roblox/FileFormat/XmlFormat/XmlRobloxFile.cpp
     Source/Roblox/FileFormat/Tree/RbxObject.cpp
     Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/algorithm/base64.cpp
@@ -258,6 +285,7 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     OpenSSL::Crypto
     zlibstatic
     libzstd_static
+    lz4_static
     libcurl
     cpr::cpr
     sqlite3
@@ -271,6 +299,15 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     pugixml-static
 )
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Include/NoobWarrior/Roblox/FileFormat/Generated/Classes.cpp")
+    # this file is auto-generated. check if it exists so that we don't end up in a catch 22 where
+    # we need the generator to work but cmake doesn't let us do it because this file doesn't exist yet
+    target_sources(NoobWarrior.Core PRIVATE Include/NoobWarrior/Roblox/FileFormat/Generated/Classes.cpp)
+    # Lets the rest of Core ask the API dump for class and property facts, while still building
+    # when nobody has run the generator yet.
+    target_compile_definitions(NoobWarrior.Core PUBLIC NOOBWARRIOR_HAVE_GENERATED_ROBLOX_API)
+endif()
 
 if (ANDROID)
     # TODO: replace with an Android Keystore-backed keychain (OsKeychainAndroid.cpp).

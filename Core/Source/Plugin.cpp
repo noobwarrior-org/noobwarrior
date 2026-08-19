@@ -23,6 +23,7 @@
 // Started on: 12/3/2025
 // Description:
 #include <NoobWarrior/Plugin.h>
+#include <NoobWarrior/PluginDataModel.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Url.h>
@@ -34,11 +35,46 @@
 #include <lua.hpp>
 #include <sol/sol.hpp>
 #include <memory>
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <iterator>
+#include <limits>
 
 #define ERR_LOG_TEMPLATE "Failed to load plugin \"{}\" because "
-#define PLUGIN_OUT(...) Out("Plugin", "[" + identifier + "] " + __VA_ARGS__);
+#define PLUGIN_OUT(format, ...) \
+    Out("Plugin", "[{}] " format, identifier __VA_OPT__(,) __VA_ARGS__);
 
 using namespace NoobWarrior;
+
+static std::string LuaLongString(const std::string &value) {
+    std::string equals;
+    while (value.find("]" + equals + "]") != std::string::npos ||
+           value.ends_with("]" + equals)) {
+        equals += '=';
+    }
+    return "[" + equals + "[" + value + "]" + equals + "]";
+}
+
+static std::string SandboxedEngineAutorun(const std::string &source) {
+    // Keep plugin text at the top level of its own Script. Putting it inside a generated function
+    // would let malformed or hostile text close that function before setfenv is applied. The
+    // setup locals also go out of lexical scope before plugin text begins.
+    return "do\n"
+        "local host = getfenv(1)\n"
+        "local sandbox = {}\n"
+        "for key, value in pairs(host) do\n"
+        "if key ~= 'script' and key ~= 'getfenv' and key ~= 'setfenv' then "
+        "sandbox[key] = value end\n"
+        "end\n"
+        "sandbox._G = sandbox\n"
+        "setmetatable(sandbox, {__index = function(_, key)\n"
+        "if key == 'script' or key == 'getfenv' or key == 'setfenv' then return nil end\n"
+        "return host[key]\n"
+        "end, __metatable = false})\n"
+        "setfenv(1, sandbox)\n"
+        "end\n" + source + "\n";
+}
 
 /* NOTE: File names are relative to the path of the plugins folder in noobWarrior's user directory folder. */
 Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
@@ -173,6 +209,152 @@ std::string Plugin::GetFileName() {
 
 std::string Plugin::GetIdentifier() {
     return mManifestTbl.get_or<std::string>("identifier", "");
+}
+
+bool Plugin::ReadFile(const std::string &path, std::vector<unsigned char> *data) {
+    if (Fail() || mVfs == nullptr || data == nullptr)
+        return false;
+    data->clear();
+
+    std::string normalized = path;
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    if (!normalized.starts_with('/'))
+        normalized.insert(normalized.begin(), '/');
+    if (normalized.find("/../") != std::string::npos || normalized.ends_with("/..") ||
+        !mVfs->EntryExists(normalized)) {
+        return false;
+    }
+
+    FSEntryInfo info = mVfs->GetEntryFromPath(normalized);
+    if (info.Failed || info.Type != FSEntryInfo::Type::File ||
+        info.Size > std::numeric_limits<unsigned int>::max()) {
+        return false;
+    }
+
+    FSEntryHandle handle = mVfs->OpenHandle(normalized);
+    if (handle == 0)
+        return false;
+    bool read = info.Size == 0 || mVfs->ReadHandleChunk(
+        handle, data, static_cast<unsigned int>(info.Size));
+    mVfs->CloseHandle(handle);
+    return read;
+}
+
+StudioServerBootstrap Plugin::BuildStudioServerBootstrap(int64_t placeId, int64_t universeId) {
+    if (Fail() || mVfs == nullptr)
+        return {};
+
+    const std::string identifier = GetIdentifier();
+    StudioServerBootstrap bootstrap;
+    auto dataModel = mManifestTbl.get<std::optional<sol::table>>("datamodel");
+    if (dataModel) {
+        PluginDataModel builder(mVfs, identifier);
+        for (std::size_t i = 1; i <= dataModel->size(); i++) {
+            sol::object value = dataModel->get<sol::object>(i);
+            if (!value.is<sol::table>()) {
+                PLUGIN_OUT("Value in index {} in datamodel is not a table!", i)
+                continue;
+            }
+
+            sol::table entry = value.as<sol::table>();
+            std::string side = entry.get_or<std::string>("side", "");
+            std::transform(side.begin(), side.end(), side.begin(), [](unsigned char character) {
+                return static_cast<char>(std::tolower(character));
+            });
+            if (side != "server" && side != "shared")
+                continue;
+
+            auto directory = entry.get<std::optional<std::string>>("dir");
+            if (!directory) {
+                PLUGIN_OUT("Value in index {} in datamodel has no dir string!", i)
+                continue;
+            }
+
+            bool selected = true;
+            sol::object predicateObject = entry.get<sol::object>("predicate");
+            if (predicateObject.get_type() != sol::type::none &&
+                predicateObject.get_type() != sol::type::lua_nil) {
+                if (!predicateObject.is<sol::protected_function>()) {
+                    PLUGIN_OUT("Predicate in datamodel index {} is not a function!", i)
+                    continue;
+                }
+                sol::table data = mCore->GetLuaState()->create_table_with(
+                    "PlaceId", placeId,
+                    "UniverseId", universeId,
+                    "Side", "Server");
+                sol::protected_function_result result =
+                    predicateObject.as<sol::protected_function>()(data);
+                if (!result.valid()) {
+                    sol::error error = result;
+                    PLUGIN_OUT("Predicate in datamodel index {} failed: {}", i, error.what())
+                    continue;
+                }
+                selected = result.get_type() == sol::type::boolean && result.get<bool>();
+            }
+
+            if (selected) {
+                StudioServerBootstrap built = builder.BuildBootstrap(*directory);
+                bootstrap.Plans.insert(bootstrap.Plans.end(),
+                    built.Plans.begin(), built.Plans.end());
+                bootstrap.Scripts.insert(bootstrap.Scripts.end(),
+                    std::make_move_iterator(built.Scripts.begin()),
+                    std::make_move_iterator(built.Scripts.end()));
+                bootstrap.Models.insert(bootstrap.Models.end(),
+                    std::make_move_iterator(built.Models.begin()),
+                    std::make_move_iterator(built.Models.end()));
+            }
+        }
+    }
+
+    auto engineAutorun = mManifestTbl.get<std::optional<sol::table>>("engine_autorun");
+    if (!engineAutorun)
+        return bootstrap;
+
+    auto readAutorunCategory = [&](const char *category, bool server) {
+        auto scripts = engineAutorun->get<std::optional<sol::table>>(category);
+        if (!scripts)
+            return;
+        for (std::size_t i = 1; i <= scripts->size(); i++) {
+            auto path = scripts->get<std::optional<std::string>>(i);
+            if (!path) {
+                PLUGIN_OUT("Value in index {} in engine_autorun.{} is not a string!", i,
+                           category)
+                continue;
+            }
+            std::vector<unsigned char> bytes;
+            if (!ReadFile(*path, &bytes)) {
+                PLUGIN_OUT("Could not read engine_autorun script \"{}\"", *path)
+                continue;
+            }
+            std::string source(bytes.begin(), bytes.end());
+            const std::string key = "__noobWarriorEngineAutorun:" + identifier + ":" +
+                category + ":" + std::to_string(i);
+            if (server) {
+                bootstrap.Scripts.push_back({
+                    key,
+                    "Script",
+                    SandboxedEngineAutorun(source),
+                    "ServerScriptService",
+                    // The place is fully built before any script runs, so there is nothing
+                    // to wait for and the script can be enabled outright.
+                    false,
+                });
+            } else {
+                bootstrap.Scripts.push_back({
+                    key,
+                    "LocalScript",
+                    std::move(source),
+                    "StarterPlayerScripts",
+                    false,
+                });
+            }
+        }
+    };
+
+    for (const char *category : std::array<const char *, 2> {"shared", "server"})
+        readAutorunCategory(category, true);
+    readAutorunCategory("client", false);
+    return bootstrap;
 }
 
 std::vector<unsigned char> Plugin::GetIconData() {

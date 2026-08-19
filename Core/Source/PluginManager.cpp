@@ -27,6 +27,8 @@
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Paths.h>
 
+#include <iterator>
+
 using namespace NoobWarrior;
 
 PluginManager::PluginManager(Core* core) : mCore(core) {}
@@ -70,21 +72,36 @@ bool PluginManager::IsPluginMounted(const std::string &identifier) {
     return GetPluginFromIdentifier(identifier) != nullptr;
 }
 
+namespace {
+// plugins.selected is an array, and its order is the mount order: plugins are applied in turn and
+// a later one overwrites what an earlier one placed. Iterating a sol::table with a range-for walks
+// it in hash order, so the list has to be read by index or the user's chosen order is lost.
+std::vector<std::string> ReadSelectedPluginFileNames(Core *core) {
+    std::vector<std::string> fileNames;
+    auto selected = core->GetRegistry()->GetKeyValue<sol::table>("plugins.selected");
+    if (!selected.has_value())
+        return fileNames;
+    const std::size_t count = selected->size();
+    fileNames.reserve(count);
+    for (std::size_t index = 1; index <= count; ++index) {
+        sol::optional<std::string> name = selected->get<sol::optional<std::string>>(index);
+        if (name.has_value() && !name->empty())
+            fileNames.push_back(*name);
+    }
+    return fileNames;
+}
+} // namespace
+
 void PluginManager::SetPluginSelected(const std::string &fileName, bool selected) {
     // Read the current list of selected plugin file names, dropping any existing occurrence of
-    // fileName so we don't create duplicates when re-enabling.
+    // fileName so we don't create duplicates when re-enabling. Everything else keeps its place:
+    // toggling one plugin must not reorder the others.
     std::vector<std::string> fileNames;
-    auto existing = mCore->GetRegistry()->GetKeyValue<sol::table>("plugins.selected");
-    if (existing.has_value() && existing->is<sol::table>()) {
-        for (const auto &element : *existing) {
-            if (!element.second.is<std::string>())
-                continue;
-            std::string name = element.second.as<std::string>();
-            if (name == fileName)
-                continue;
-            fileNames.push_back(name);
-        }
+    for (std::string &name : ReadSelectedPluginFileNames(mCore)) {
+        if (name != fileName)
+            fileNames.push_back(std::move(name));
     }
+    // A newly enabled plugin mounts last, so it wins against everything already in the list.
     if (selected)
         fileNames.push_back(fileName);
 
@@ -106,14 +123,7 @@ void PluginManager::MountPlugins() {
     }
     */
 
-    auto selected = mCore->GetRegistry()->GetKeyValue<sol::table>("plugins.selected");
-    if (!selected.has_value())
-        return;
-    
-    for (auto &fileNameElement : *selected) {
-        if (!fileNameElement.second.is<std::string>()) continue;
-        auto fileName = fileNameElement.second.as<std::string>();
-
+    for (const std::string &fileName : ReadSelectedPluginFileNames(mCore)) {
         std::filesystem::path installPath = mCore->GetInstallDataDir() / NW_PATH_PLUGINS / fileName;
         std::filesystem::path userPath = mCore->GetUserDataDir() / NW_PATH_PLUGINS / fileName;
 
@@ -138,6 +148,22 @@ void PluginManager::MountPlugins() {
 void PluginManager::ExecutePlugins() {
     for (Plugin* plugin : mMountedPlugins)
         plugin->Execute();
+}
+
+StudioServerBootstrap PluginManager::BuildStudioServerBootstrap(int64_t placeId, int64_t universeId) {
+    StudioServerBootstrap bootstrap;
+    for (Plugin *plugin : mMountedPlugins) {
+        StudioServerBootstrap built = plugin->BuildStudioServerBootstrap(placeId, universeId);
+        bootstrap.Plans.insert(bootstrap.Plans.end(),
+            built.Plans.begin(), built.Plans.end());
+        bootstrap.Scripts.insert(bootstrap.Scripts.end(),
+            std::make_move_iterator(built.Scripts.begin()),
+            std::make_move_iterator(built.Scripts.end()));
+        bootstrap.Models.insert(bootstrap.Models.end(),
+            std::make_move_iterator(built.Models.begin()),
+            std::make_move_iterator(built.Models.end()));
+    }
+    return bootstrap;
 }
 
 void PluginManager::UnmountPlugins() {

@@ -1,0 +1,3 @@
+add_executable(NoobWarrior.RoundTripPlace EXCLUDE_FROM_ALL main.cpp)
+target_link_libraries(NoobWarrior.RoundTripPlace PRIVATE NoobWarrior.Core)
+target_compile_features(NoobWarrior.RoundTripPlace PRIVATE cxx_std_23)

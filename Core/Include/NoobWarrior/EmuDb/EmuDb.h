@@ -253,6 +253,9 @@ public:
 
     SqlDb::Response RenderThumbnailForAsset(int64_t id, int version = 0);
 
+    // Resolves the SHA-256 BlobStorage key without loading or decompressing the blob itself.
+    // Version zero selects the latest available version, matching RetrieveAssetData.
+    SqlDb::Response RetrieveAssetDataHash(int64_t id, int version, std::string *hashOutput);
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 
     // Like RetrieveAssetData, but additionally un-gzips the body when it's gzip-encoded (some Roblox

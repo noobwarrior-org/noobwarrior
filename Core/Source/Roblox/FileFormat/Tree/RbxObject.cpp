@@ -21,6 +21,7 @@
 // File: RbxObject.cpp
 // Started by: Hattozo
 // Started on: 11/3/2025
+// Description:
 #include <NoobWarrior/Roblox/FileFormat/Tree/RbxObject.h>
 
 using namespace NoobWarrior::Roblox;
@@ -28,5 +29,9 @@ using namespace NoobWarrior::Roblox;
 RbxObject::RbxObject() : Destroyed(false) {}
 
 std::map<std::string, Property>& RbxObject::GetProperties() {
+    return props;
+}
+
+const std::map<std::string, Property>& RbxObject::GetProperties() const {
     return props;
 }

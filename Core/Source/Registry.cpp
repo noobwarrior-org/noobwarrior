@@ -24,6 +24,7 @@
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/Macros.h>
 
 #include <cstdint>
 #include <fstream>
@@ -51,10 +52,13 @@ RegistryResponse Registry::Open() {
     sol::table plugins_tbl = mLua->create_table();
     SetKeyValueIfNotSet("plugins", plugins_tbl);
 
+    SetKeyValueIfNotSet("disable_rbxl_mutation", false);
+    SetKeyComment("disable_rbxl_mutation", "If true, will disable " NOOBWARRIOR_BRAND "'s ability to edit place files on demand when loading plugin datamodels and scripts.");
+
     SetKeyValueIfNotSet("debug.log_http_server_requests", false);
 
     SetKeyValueIfNotSet("allow_multiple_instances", false);
-    SetKeyComment("allow_multiple_instances", "If true, lets more than one copy of noobWarrior run at once instead of blocking the second one. Only enable this if you know what you're doing!");
+    SetKeyComment("allow_multiple_instances", "If true, lets more than one copy of " NOOBWARRIOR_BRAND " run at once instead of blocking the second one. Only enable this if you know what you're doing!");
 
     SetKeyValueIfNotSet("internet.roblox.asset_delivery", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
@@ -125,9 +129,9 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("user.appearance.scale.proportion", 0);
     SetKeyValueIfNotSet("user.appearance.scale.width", 0);
 
-    SetKeyValueIfNotSet("emu.branding.title", "noobWarrior Server Emulator");
+    SetKeyValueIfNotSet("emu.branding.title", NOOBWARRIOR_BRAND " Server Emulator");
     SetKeyValueIfNotSet("emu.branding.icon", "/img/icon1024.png");
-    SetKeyValueIfNotSet("emu.branding.tagline", "My noobWarrior server");
+    SetKeyValueIfNotSet("emu.branding.tagline", "My " NOOBWARRIOR_BRAND " server");
     SetKeyComment("emu.branding", "The branding that people will see when they connect to your website.");
 
     SetKeyValueIfNotSet("emu.auth.enabled", false);
@@ -169,7 +173,7 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet<int64_t>("emu.auth.session_ttl_days", 30);
     SetKeyComment("emu.auth.session_ttl_days", "How long, in days, a login session stays valid while idle before the user must sign in again. Each use of a session refreshes this window. Set to 0 to never expire sessions.");
 
-    SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my noobWarrior server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
+    SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my " NOOBWARRIOR_BRAND " server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
     SetKeyValueIfNotSet("emu.autostart", true);
     SetKeyComment("emu.autostart", "If false, the server emulator does not start on launch.");

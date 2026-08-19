@@ -27,6 +27,9 @@
 
 #include <string>
 #include <ctime>
+#include <cstdint>
+#include <filesystem>
+#include <functional>
 #include <optional>
 
 namespace NoobWarrior {
@@ -107,6 +110,9 @@ struct EngineStartParameters {
     // auth mode. Passed to the injector as -t; the client presents it (rbx-authentication-ticket
     // header) to PlaceLauncher, which redeems it into a session. Empty on a non-auth launch.
     std::optional<std::string> LaunchTicket { std::nullopt };
+    // Reserved for launch-scoped Studio server data. The current implementation embeds the
+    // bootstrap in server.rbxl so the edit-mode DataModel never receives it.
+    std::optional<std::filesystem::path> StudioServerBootstrap { std::nullopt };
 };
 
 enum class EngineInstallState {
@@ -138,6 +144,24 @@ enum class EngineLaunchResponse {
     WineMissing,
     FailedToLoadPlace
 };
+
+enum class EngineLaunchStage {
+    PreparingStudioServerPlace,
+    LoadingStudioServerPlace,
+    MutatingStudioServerPlace,
+    WritingStudioServerPlace,
+    StartingEngine
+};
+
+struct EngineLaunchProgress {
+    EngineLaunchStage Stage {};
+    // Overall launch-preparation progress in the range [0, 1].
+    double Progress {};
+    // Current serialized place size, or zero before the place has been loaded.
+    uint64_t PlaceBytes {};
+};
+
+using EngineLaunchProgressCallback = std::function<void(const EngineLaunchProgress&)>;
 
 enum class WineUpdateState {
     Failed,

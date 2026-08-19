@@ -365,6 +365,42 @@ TEST(Database, RenderThumbnailForAsset) {
         << "RenderThumbnailForAsset should report NotFound for a missing asset.";
 }
 
+TEST(Database, RetrieveAssetDataHashSelectsVersionWithoutLoadingBlob) {
+    EmuDb db(":memory:");
+    ASSERT_FALSE(db.Fail());
+    ASSERT_EQ(SqlDb::Response::Success,
+              db.AddItem(ItemType::User, {{"Id", 700}, {"Name", "HashOwner"}}));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 701}, {"Name", "Hashed Place"},
+        {"Type", static_cast<int>(Roblox::AssetType::Place)}, {"UserId", 700}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success,
+              db.AttachDataToAsset(701, 1, {'o', 'n', 'e'}));
+    ASSERT_EQ(SqlDb::Response::Success,
+              db.AttachDataToAsset(701, 2, {'t', 'w', 'o'}));
+
+    std::string versionOne;
+    std::string versionTwo;
+    std::string latest;
+    EXPECT_EQ(SqlDb::Response::Success,
+              db.RetrieveAssetDataHash(701, 1, &versionOne));
+    EXPECT_EQ(SqlDb::Response::Success,
+              db.RetrieveAssetDataHash(701, 2, &versionTwo));
+    EXPECT_EQ(SqlDb::Response::Success,
+              db.RetrieveAssetDataHash(701, 0, &latest));
+    EXPECT_EQ(64u, versionOne.size());
+    EXPECT_EQ(64u, versionTwo.size());
+    EXPECT_NE(versionOne, versionTwo);
+    EXPECT_EQ(versionTwo, latest);
+
+    EXPECT_EQ(SqlDb::Response::MissingBlob,
+              db.RetrieveAssetDataHash(701, 3, &latest));
+    EXPECT_EQ(SqlDb::Response::NotFound,
+              db.RetrieveAssetDataHash(999999, 0, &latest));
+    EXPECT_EQ(SqlDb::Response::Misuse,
+              db.RetrieveAssetDataHash(701, 0, nullptr));
+}
+
 TEST(Database, UniversePlaceMapping) {
     // Self-contained DB so this test doesn't depend on the shared sEmuDb's state/order. This covers
     // the lookups behind the /universes/v1/places/{id}/universe, /v1/games and place-details handlers.

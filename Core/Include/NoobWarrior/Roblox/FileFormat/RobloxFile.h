@@ -26,6 +26,9 @@
 
 #include "Tree/Instance.h"
 
+#include <memory>
+#include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -39,18 +42,51 @@ enum class FileResponse {
     VersionTooLow
 };
 
+struct LuaSourceContainerSpec {
+    std::string_view ClassName;
+    std::string_view Name;
+    std::string_view Source;
+    bool Disabled {};
+    std::string_view ParentClassName {"ServerScriptService"};
+};
+
 class RobloxFile : public Instance {
 public:
     static bool LogErrors;
 
-    // RobloxFile(char *buffer);
-    // RobloxFile(const std::filesystem::path &filePath);
+    virtual ~RobloxFile() = default;
 
     static FileResponse Open(RobloxFile **file, std::vector<unsigned char> buffer);
+    static FileResponse Open(std::unique_ptr<RobloxFile> &file,
+                             const std::vector<unsigned char> &buffer);
     static FileResponse Open(RobloxFile **file, std::string_view filePath);
+    static FileResponse Open(std::unique_ptr<RobloxFile> &file, std::string_view filePath);
 
-    virtual void Save() = 0;
+    virtual FileResponse Save(std::vector<unsigned char> &buffer) const = 0;
+    virtual bool AppendLuaSourceContainer(std::string_view className,
+                                          std::string_view name,
+                                          std::string_view source,
+                                          bool disabled,
+                                          std::string *error = nullptr,
+                                          std::string_view parentClassName =
+                                              "ServerScriptService");
+    virtual bool AppendLuaSourceContainers(
+        std::span<const LuaSourceContainerSpec> containers,
+        std::string *error = nullptr) = 0;
+
+    // Tree editing, so callers can mount content without caring whether the place is the
+    // binary or the XML format. Save() stays virtual, so each keeps its own encoding.
+    virtual Instance *CreateInstance(const std::string &className, const std::string &name,
+                                     Instance *parent) = 0;
+    virtual void DestroySubtree(Instance *instance) = 0;
+    FileResponse Save(std::string_view filePath) const;
+
+    const std::string &GetLastError() const;
 protected:
-    virtual FileResponse ReadFile(std::vector<unsigned char> buffer) = 0;
+    void SetLastError(std::string error);
+    virtual FileResponse ReadFile(const std::vector<unsigned char> &buffer) = 0;
+
+private:
+    std::string mLastError;
 };
 }

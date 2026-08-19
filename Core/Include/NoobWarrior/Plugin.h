@@ -26,11 +26,13 @@
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Lua/LuaScript.h>
+#include <NoobWarrior/PluginDataModel.h>
 
 #include <sol/sol.hpp>
 
 #include <vector>
 #include <string>
+#include <cstdint>
 
 namespace NoobWarrior {
 enum PluginFlag {
@@ -86,6 +88,9 @@ public:
     std::filesystem::path GetFilePath();
     std::string GetFileName();
     std::string GetIdentifier();
+
+    StudioServerBootstrap BuildStudioServerBootstrap(int64_t placeId, int64_t universeId);
+    bool ReadFile(const std::string &path, std::vector<unsigned char> *data);
 
     const Properties GetProperties();
 protected:

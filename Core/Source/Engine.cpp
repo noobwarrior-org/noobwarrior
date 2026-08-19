@@ -28,7 +28,10 @@
 #include <NoobWarrior/Engine.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/PeFile.h>
+#include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/Registry.h>
+#include <NoobWarrior/Roblox/FileFormat/StudioServerPlace.h>
+#include <NoobWarrior/Roblox/FileFormat/StudioServerPlaceCache.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
@@ -71,6 +74,13 @@ extern char** environ;
 #define NOOBWARRIOR_WINE_VERSION "wine-11.14"
 
 using namespace NoobWarrior;
+
+static void ReportEngineLaunchProgress(const EngineLaunchProgressCallback &callback,
+                                       EngineLaunchStage stage, double progress,
+                                       uint64_t placeBytes = 0) {
+    if (callback)
+        callback({stage, progress, placeBytes});
+}
 
 static std::optional<Engine> InspectEngineDirectory(const std::filesystem::path &dir) {
     static const std::unordered_map<std::string, EngineSide> exeToSide = {
@@ -452,7 +462,8 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
     PROCESS_INFORMATION pi {};
     STARTUPINFOA si = {};
     si.cb = sizeof(si);
-    if (!CreateProcessA(nullptr, const_cast<char*>(argsStr.c_str()), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
+    if (!CreateProcessA(nullptr, const_cast<char*>(argsStr.c_str()), nullptr, nullptr, FALSE, 0,
+                        nullptr, nullptr, &si, &pi)) {
         DWORD err = GetLastError();
         Out("Inject", "Failed to create injector process: {} ({})", err, LastErrorStr(err));
         return EngineLaunchResponse::FailedToCreateProcess;
@@ -495,8 +506,9 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 
     std::vector<std::string> env_strings;
     for (char** ep = environ; ep && *ep; ep++) {
-        if (strncmp(*ep, "WINEPREFIX=", 11) != 0)
+        if (strncmp(*ep, "WINEPREFIX=", 11) != 0) {
             env_strings.push_back(*ep);
+        }
     }
     env_strings.push_back(wineprefix_env);
     std::vector<char*> env_ptrs;
@@ -567,7 +579,10 @@ bool Core::WriteGameServerConfig(const std::filesystem::path &engineDir, const E
     return true;
 }
 
-bool Core::WriteServerRbxl(int64_t placeId, int version) {
+bool Core::WriteServerRbxl(int64_t placeId, int version,
+                           const StudioServerBootstrap& serverBootstrap,
+                           const EngineLaunchProgressCallback& progressCallback,
+                           std::string_view studioFingerprint) {
 #if defined(_WIN32)
     WCHAR *path;
     SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, NULL, &path);
@@ -579,22 +594,85 @@ bool Core::WriteServerRbxl(int64_t placeId, int version) {
     return false;
 #endif
     std::filesystem::path serverRbxlPath = baseDir / "Roblox" / "server.rbxl";
-    std::vector<unsigned char> data;
+    ReportEngineLaunchProgress(progressCallback,
+                               EngineLaunchStage::LoadingStudioServerPlace, 0.15);
     EmuDb* db = mEmuDbManager.GetFirstDbWhereItemExists(ItemType::Asset, placeId);
-    SqlDb::Response res = db->RetrieveAssetData(placeId, version, &data);
+    if (db == nullptr) {
+        Out("Core", "Could not find a database containing place ID {}", placeId);
+        return false;
+    }
 
-    if (res != SqlDb::Response::Success || data.empty()) {
+    if (mRegistry->GetKeyValue<bool>("disable_rbxl_mutation") == true) {
+        std::vector<unsigned char> data;
+        SqlDb::Response res = db->RetrieveAssetData(placeId, version, &data);
+        if (res != SqlDb::Response::Success || data.empty()) {
+            Out("Core", "Failed to read data from place ID {}", placeId);
+            return false;
+        }
+
+        std::ofstream stream(serverRbxlPath, std::ios::binary);
+        if (!stream.is_open()) {
+            Out("Core", "Failed to open std::ofstream object for \"{}\"", serverRbxlPath.string());
+            return false;
+        }
+        stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+        stream.close();
+        ReportEngineLaunchProgress(progressCallback, EngineLaunchStage::StartingEngine, 1.0, data.size());
+        return true;
+    }
+    std::string sourceHash;
+    const SqlDb::Response hashResponse =
+        db->RetrieveAssetDataHash(placeId, version, &sourceHash);
+    if (hashResponse != SqlDb::Response::Success || sourceHash.empty()) {
         Out("Core", "Failed to read data from place ID {}", placeId);
         return false;
     }
 
-    std::ofstream stream(serverRbxlPath, std::ios::binary);
-    if (!stream.is_open()) {
-        Out("Core", "Failed to open std::ofstream object for \"{}\"", serverRbxlPath.string());
+    const std::filesystem::path cacheDirectory =
+        GetUserDataDir() / NW_PATH_TEMP / "studio-server-places" /
+        ("v" + std::to_string(kStudioServerPlaceCacheSchema));
+    uint64_t placeBytes = 0;
+    std::string error;
+    const StudioServerPlacePreparationResponse preparation = PrepareStudioServerPlace(
+        sourceHash, serverBootstrap, studioFingerprint, cacheDirectory, serverRbxlPath,
+        [&](std::vector<unsigned char> &data, std::string *loadError) {
+            const SqlDb::Response response =
+                db->RetrieveAssetData(placeId, version, &data);
+            if (response != SqlDb::Response::Success || data.empty()) {
+                if (loadError != nullptr)
+                    *loadError = "could not retrieve place data from the database";
+                return false;
+            }
+
+            if (!serverBootstrap.Empty()) {
+                ReportEngineLaunchProgress(progressCallback,
+                    EngineLaunchStage::MutatingStudioServerPlace, 0.30, data.size());
+            }
+            return true;
+        }, &placeBytes, &error,
+        [&](uint64_t bytes) {
+            ReportEngineLaunchProgress(progressCallback,
+                EngineLaunchStage::WritingStudioServerPlace, 0.90, bytes);
+        });
+    if (preparation == StudioServerPlacePreparationResponse::Failed) {
+        Out("LaunchEngine", "Could not prepare Studio's launch-only server place: {}", error);
         return false;
     }
-    stream.write(reinterpret_cast<const char*>(data.data()), data.size());
-    stream.close();
+
+    if (preparation == StudioServerPlacePreparationResponse::CacheHit) {
+        Out("LaunchEngine", "Using cached {}-byte launch-only server.rbxl", placeBytes);
+    } else if (!serverBootstrap.Empty()) {
+        size_t modelBytes = 0;
+        for (const StudioServerModel &model : serverBootstrap.Models)
+            modelBytes += model.Data.size();
+        Out("LaunchEngine", "Mounted {} plugin plans, {} launch-scoped scripts, and "
+            "{} embedded binary models ({} bytes) into launch-only server.rbxl",
+            serverBootstrap.Plans.size(),
+            serverBootstrap.Scripts.size(), serverBootstrap.Models.size(), modelBytes);
+    }
+
+    ReportEngineLaunchProgress(progressCallback, EngineLaunchStage::StartingEngine, 1.0,
+                                placeBytes);
     return true;
 }
 
@@ -613,7 +691,9 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
 
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
-EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
+EngineLaunchResponse Core::LaunchEngine(
+    EngineStartParameters params,
+    const EngineLaunchProgressCallback& progressCallback) {
     if (mServerEmulator != nullptr) {
         mServerEmulator->ClearProxyLayers();
         if (params.RemoteEmulatorHost.has_value() && params.RemoteEmulatorPort.has_value()) {
@@ -651,23 +731,34 @@ EngineLaunchResponse Core::LaunchEngine(EngineStartParameters params) {
 
     const std::filesystem::path engineDir = GetEngineDirectory(params.Engine);
 
+    std::filesystem::path exe = FindEngineExecutable(engineDir);
+    if (exe.empty()) {
+        return EngineLaunchResponse::NoValidExecutable;
+    }
+
     if (params.Engine.Side == EngineSide::Server) {
         if (!WriteGameServerConfig(engineDir, params))
             return EngineLaunchResponse::Failed;
     }
 
     if (params.Engine.Side == EngineSide::Studio && params.LaunchSide == EngineSide::Server && params.PlaceId.has_value()) {
-        // Launching Local RCC Studio, studio will read from %localappdata%\Roblox\server.rbxl
-        // So we need to write to that file.
-        bool success = WriteServerRbxl(params.PlaceId.value(), 0);
-        if (!success)
+        int64_t placeId = *params.PlaceId;
+        int64_t universeId = mEmuDbManager.GetUniverseIdForPlace(placeId).value_or(placeId);
+        ReportEngineLaunchProgress(progressCallback,
+                                   EngineLaunchStage::PreparingStudioServerPlace, 0.05);
+        StudioServerBootstrap bootstrap =
+            mPluginManager.BuildStudioServerBootstrap(placeId, universeId);
+        // Studio's StartServer task reads this launch-only place copy. Embedding the
+        // bootstrap here keeps scripts out of the separate edit-mode DataModel.
+        std::string productVersion = Pe::ReadProductVersion(exe);
+        if (productVersion.empty())
+            productVersion = params.Engine.Version;
+        const std::string studioFingerprint = engineDir.filename().string() + "|" +
+            productVersion;
+        if (!WriteServerRbxl(placeId, 0, bootstrap, progressCallback, studioFingerprint))
             return EngineLaunchResponse::FailedToLoadPlace;
     }
 
-    std::filesystem::path exe = FindEngineExecutable(engineDir);
-    if (exe.empty())
-        return EngineLaunchResponse::NoValidExecutable;
-    
     if (params.Engine.Side == EngineSide::Studio && mServerEmulator != nullptr) {
         std::string ver  = params.Engine.Version.empty() ? Pe::ReadProductVersion(exe) : params.Engine.Version;
         std::string hash = params.Engine.Hash.empty() ? engineDir.filename().string() : params.Engine.Hash;

@@ -27,6 +27,7 @@
 #include <NoobWarrior/Plugin.h>
 
 #include <string>
+#include <cstdint>
 #include <filesystem>
 #include <vector>
 
@@ -50,6 +51,8 @@ public:
      * every other plugin already being available.
      */
     void ExecutePlugins();
+
+    StudioServerBootstrap BuildStudioServerBootstrap(int64_t placeId, int64_t universeId);
 
     /**
      * @brief Returns true if a plugin with the given identifier is currently mounted.
