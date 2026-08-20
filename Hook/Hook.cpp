@@ -263,11 +263,18 @@ static int WSAAPI MyConnect(SOCKET s, const sockaddr* name, int namelen) {
 #ifdef NOOBHOOK_HYPERION
         // The injector detours WS2_32!connect itself on 0.728. Calling that export here would
         // recurse, so use the equivalent untouched WSAConnect entry point as the gateway.
-        return pOrigWSAConnect(s, reinterpret_cast<sockaddr*>(&redirected), sizeof(redirected),
-                               nullptr, nullptr, nullptr, nullptr);
+        const int result = pOrigWSAConnect(s, reinterpret_cast<sockaddr*>(&redirected),
+                                           sizeof(redirected), nullptr, nullptr, nullptr, nullptr);
 #else
-        return pOrigConnect(s, (sockaddr*)&redirected, sizeof(redirected));
+        const int result = pOrigConnect(s, (sockaddr*)&redirected, sizeof(redirected));
 #endif
+        if (result != 0) {
+            const int error = WSAGetLastError();
+            if (error != WSAEWOULDBLOCK)
+                Out("connect", "redirected connect to 127.0.0.1:%d FAILED with WSA error %d",
+                    ntohs(redirected.sin_port), error);
+        }
+        return result;
     }
 #ifdef NOOBHOOK_HYPERION
     return pOrigWSAConnect(s, name, namelen, nullptr, nullptr, nullptr, nullptr);
@@ -300,6 +307,55 @@ static int WSAAPI MyWSPConnect(SOCKET s, const sockaddr* name, int namelen,
                                callerData, calleeData, sqos, gqos, error);
     }
     return pOrigWSPConnect(s, name, namelen, callerData, calleeData, sqos, gqos, error);
+}
+
+static bool IsEmulatedHost(const char* host) {
+    if (host == nullptr || *host == 0)
+        return false;
+    static const char* kDomains[] = {"roblox.com", "rbxcdn.com", "robloxlabs.com", "rbxinfra.com"};
+    const size_t hostLength = strlen(host);
+    for (const char* domain : kDomains) {
+        const size_t domainLength = strlen(domain);
+        if (hostLength < domainLength)
+            continue;
+        if (_stricmp(host + (hostLength - domainLength), domain) != 0)
+            continue;
+        if (hostLength == domainLength || host[hostLength - domainLength - 1] == '.')
+            return true;
+    }
+    return false;
+}
+
+static int (WSAAPI* pOrigGetAddrInfo)(PCSTR, PCSTR, const ADDRINFOA*, PADDRINFOA*);
+static INT (WSAAPI* pOrigGetAddrInfoW)(PCWSTR, PCWSTR, const ADDRINFOW*, PADDRINFOW*);
+
+static int WSAAPI MyGetAddrInfo(PCSTR node, PCSTR service, const ADDRINFOA* hints,
+                                PADDRINFOA* result) {
+    if (IsEmulatedHost(node)) {
+        ADDRINFOA local {};
+        if (hints != nullptr)
+            local = *hints;
+        local.ai_family = AF_INET;  // the emulator listens on IPv4 loopback only
+        Out("getaddrinfo", "%s -> 127.0.0.1 (resolved locally)", node);
+        return pOrigGetAddrInfo("127.0.0.1", service, &local, result);
+    }
+    return pOrigGetAddrInfo(node, service, hints, result);
+}
+
+static INT WSAAPI MyGetAddrInfoW(PCWSTR node, PCWSTR service, const ADDRINFOW* hints,
+                                 PADDRINFOW* result) {
+    char narrow[256] = {0};
+    if (node != nullptr)
+        WideCharToMultiByte(CP_UTF8, 0, node, -1, narrow, sizeof(narrow) - 1, nullptr, nullptr);
+    if (IsEmulatedHost(narrow)) {
+        ADDRINFOW local {};
+        if (hints != nullptr)
+            local = *hints;
+        local.ai_family = AF_INET;
+        Out("GetAddrInfoW", "%s -> 127.0.0.1 (resolved locally)", narrow);
+        return pOrigGetAddrInfoW(L"127.0.0.1", service, &local, result);
+    }
+    return pOrigGetAddrInfoW(node, service, hints, result);
 }
 
 static HINTERNET (WINAPI* pOrigInternetConnectW)(HINTERNET, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD, DWORD_PTR);
@@ -707,6 +763,8 @@ DWORD WINAPI Thread(LPVOID param) {
     bool madeConnect = hook(L"ws2_32", "connect", MyConnect, (LPVOID*)&pOrigConnect);
     bool madeWSAConnect = hook(L"ws2_32", "WSAConnect", MyWSAConnect, (LPVOID*)&pOrigWSAConnect);
     bool madeWSPConnect = false;
+    hook(L"ws2_32", "getaddrinfo", MyGetAddrInfo, (LPVOID*)&pOrigGetAddrInfo);
+    hook(L"ws2_32", "GetAddrInfoW", MyGetAddrInfoW, (LPVOID*)&pOrigGetAddrInfoW);
 #endif
 #ifdef NOOBHOOK_HYPERION
     // The 0.728 image-backed payload only needs callable socket detours. Every additional
