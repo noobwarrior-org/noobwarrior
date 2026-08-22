@@ -25,6 +25,7 @@
 #pragma once
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Plugin.h>
+#include <NoobWarrior/Url.h>
 
 #include <string>
 #include <cstdint>
@@ -66,6 +67,13 @@ public:
     void SetPluginSelected(const std::string &fileName, bool selected);
 
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
+
+    /**
+     * @brief Resolves the plugin that owns a plugin:// or plugindata:// url, using the url's host
+     * name as the plugin identifier. Returns nullptr for any other protocol, or if no plugin with
+     * that identifier is mounted.
+     */
+    Plugin* GetPluginFromUrl(const Url &url);
 
     std::vector<std::filesystem::path> GetPrivilegedPluginPaths();
     std::vector<std::filesystem::path> GetPluginPaths();

@@ -26,6 +26,7 @@
 #include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/PluginManager.h>
 
 #include <lua.hpp>
 
@@ -93,6 +94,13 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         };
     }
     
+    Plugin* owner = path.IsBlank()
+        ? nullptr
+        : mLua->GetCore()->GetPluginManager()->GetPluginFromUrl(path);
+    sol::object prevPlugin = lhpEnv["plugin"];
+    if (owner != nullptr)
+        lhpEnv["plugin"] = owner;
+
     sol::object prevInclude = lhpEnv["include"];
     lhpEnv["include"] = [this, lhpEnv, output, path](sol::this_state state, std::string fileLocation) mutable -> void {
         UrlContext ctx = {
@@ -128,7 +136,11 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
         *output += includeOutput;
     };
 
-    auto restoreInclude = [&]() { lhpEnv["include"] = prevInclude; };
+    auto restoreEnv = [&]() {
+        lhpEnv["include"] = prevInclude;
+        if (owner != nullptr)
+            lhpEnv["plugin"] = prevPlugin;
+    };
 
     lhpEnv["exit"] = [output](sol::this_state state , std::string msg) {
         *output += msg;
@@ -146,7 +158,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     if (!bytecode.valid()) {
         sol::error err = bytecode;
         Out("Lhp", "(Compile Failure) {}", err.what());
-        restoreInclude();
+        restoreEnv();
         return RenderResponse::LuaError;
     }
 
@@ -156,14 +168,14 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     if (!res.valid()) {
         sol::error err = res;
         if (std::string_view(err.what()).find("__LHP_EXIT__") != std::string_view::npos) {
-            restoreInclude();
+            restoreEnv();
             return RenderResponse::ExitCalled;
         }
         Out("Lhp", "(Render Failure) {}", err.what());
-        restoreInclude();
+        restoreEnv();
         return RenderResponse::LuaError;
     }
-    restoreInclude();
+    restoreEnv();
     return RenderResponse::Success;
 }
 

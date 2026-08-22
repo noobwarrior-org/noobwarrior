@@ -13,6 +13,20 @@ include("header.lhp")
 
 <div class="sidebar">
     <h3>Getting Started</h3>
+    <?lua
+    local indexStr = ""
+    local indexHandle = plugin:GetVfs():OpenHandle("/texts/index.lua")
+    if indexHandle == 0 then
+        die("Failed to read file /texts/index.lua")
+    end
+    local isReading = true
+    while isReading do
+        isReading, buf = plugin:GetVfs():ReadHandleLine(indexHandle)
+        indexStr = indexStr .. buf .. "\n"
+    end
+    plugin:GetVfs():CloseHandle(indexHandle)
+    print(indexStr)
+    ?>
 </div>
 <div class="divider"></div>
 <div class="lol">

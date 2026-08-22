@@ -28,6 +28,8 @@
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/PluginManager.h>
 #include <sol/load_result.hpp>
 #include <sol/protected_function_result.hpp>
 #include <sol/types.hpp>
@@ -111,6 +113,9 @@ LuaScript::ExecResponse LuaScript::Execute() {
     sol::environment sandbox = sol::environment(*mLua, sol::create, mBaseEnv);
     sandbox["script"] = this;
     
+    if (Plugin* owner = mLua->GetCore()->GetPluginManager()->GetPluginFromUrl(mUrl))
+        sandbox["plugin"] = owner;
+    
     sandbox["print"] = [this](sol::this_state state, sol::variadic_args args) {
         sol::state_view lua(state);
         std::string msg;
@@ -126,7 +131,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
         if (!mUrl.IsBlank())
             Out("LuaScript", "[{}] {}", mUrl.Resolve(), msg);
         else
-            Out("LuaScript", msg);
+            Out("LuaScript", "{}", msg);
     };
 
     sandbox["require"] = [this](sol::this_state state, const std::string& urlStr) -> sol::object {

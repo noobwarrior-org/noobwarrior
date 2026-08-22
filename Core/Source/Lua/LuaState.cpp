@@ -120,7 +120,7 @@ static int printBS(lua_State *L) {
         msg.append(str, len);
         lua_pop(L, 1);  // pop the string pushed by luaL_tolstring
     }
-    Out("Lua", msg);
+    Out("Lua", "{}", msg);
     return 0;
 }
 
@@ -292,13 +292,16 @@ int LuaState::Open() {
     );
 
     auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
-    scriptType["new"] = [this](std::string src) {
+    scriptType["new"] = [this](sol::this_environment thisEnv, std::string src) {
+        if (thisEnv.env.has_value())
+            return std::make_unique<LuaScript>(this, thisEnv.env.value(), src);
         return std::make_unique<LuaScript>(this, this->globals(), src);
     };
     scriptType["GetUrl"] = &LuaScript::GetUrl;
 
     auto pluginType = new_usertype<Plugin>("Plugin", sol::no_constructor);
     pluginType["GetIdentifier"] = &Plugin::GetIdentifier;
+    pluginType["GetVfs"] = &Plugin::GetVfs;
 
     auto signalListenerType = new_usertype<LuaSignalListener>("SignalListener", sol::no_constructor);
     signalListenerType["Disconnect"] = &LuaSignalListener::Disconnect;

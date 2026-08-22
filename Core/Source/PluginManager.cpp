@@ -178,11 +178,18 @@ void PluginManager::UnmountPlugins() {
 
 Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {
     for (Plugin *plugin : GetMountedPlugins()) {
-        Plugin::Properties props = plugin->GetProperties();
-        if (identifier.compare(props.Identifier) == 0)
+        if (identifier.compare(plugin->GetIdentifier()) == 0)
             return plugin;
     }
     return nullptr;
+}
+
+Plugin* PluginManager::GetPluginFromUrl(const Url &url) {
+    if (url.GetProtocol() != ProtocolType::Plugin && url.GetProtocol() != ProtocolType::PluginData)
+        return nullptr;
+    if (url.GetHostName().empty())
+        return nullptr;
+    return GetPluginFromIdentifier(url.GetHostName());
 }
 
 static std::vector<std::filesystem::path> GetEntriesInDir(const std::filesystem::path &path) {
