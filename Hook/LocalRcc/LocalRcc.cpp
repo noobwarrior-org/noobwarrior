@@ -130,6 +130,8 @@ void operator delete[](void* p, size_t) noexcept { if (p) ResolveDeallocate()(p)
 namespace types {
     using compile_fn         = std::string (*)(const std::string& source, int target, int options);
     using deserialize_item_fn = void* (*)(void* self, void* result, void* in_bitstream, int item_type);
+    using process_remote_event_fn = void (*)(void* self, void* event_descriptor,
+                                              void* arguments, void* system_address);
 
     enum network_value_format { protected_string_bytecode = 0x2f };
 }
@@ -140,6 +142,9 @@ static types::deserialize_item_fn gDeserializeItemOuter  = nullptr;
 static types::deserialize_item_fn gOrigDeserializeOuter  = nullptr;
 static types::deserialize_item_fn gDeserializeItemInner  = nullptr;
 static types::deserialize_item_fn gOrigDeserializeInner  = nullptr;
+static types::process_remote_event_fn gLogServiceProcessRemoteEvent = nullptr;
+static types::process_remote_event_fn gOrigLogServiceProcessRemoteEvent = nullptr;
+static void**                     gRequestScriptExecutionEventSlot = nullptr;
 static uintptr_t                  gTypeForPropertyImm     = 0;
 
 namespace {
@@ -487,6 +492,34 @@ static void* DeserializeItemInnerHook(void* self, void* result, void* inBitstrea
     return DeserializeItemOuterHook(self, result, inBitstream, itemType);
 }
 
+// -----------------------------------------------------------------------------
+// Hook: LogService::processRemoteEvent
+//
+// The Developer Console sends server-side code through LogService's reflected
+// RequestScriptExecutionSignal. Hooking processRemoteEvent consumes the complete
+// network item before making the authorization decision, so rejecting the event
+// here cannot leave Replicator's bitstream cursor in the middle of a packet.
+//
+// For now this is deliberately unconditional. An authenticated-admin exception
+// can be added here later once LocalRcc has a trustworthy link to Core identity;
+// Roblox's own developer check is not sufficient for a self-hosted server.
+// -----------------------------------------------------------------------------
+
+static void LogServiceProcessRemoteEventHook(
+    void* self, void* eventDescriptor, void* arguments, void* systemAddress) {
+    void* requestScriptExecution = gRequestScriptExecutionEventSlot
+        ? *gRequestScriptExecutionEventSlot
+        : nullptr;
+    if (requestScriptExecution && eventDescriptor == requestScriptExecution) {
+        Log("security", "Blocked Developer Console server script request (sender context=%p)",
+            systemAddress);
+        return;
+    }
+
+    gOrigLogServiceProcessRemoteEvent(
+        self, eventDescriptor, arguments, systemAddress);
+}
+
 namespace offline {
     using from_components_fn = void  (*)(void* res16, void* schema, void* host, void* path, void* query, void* fragment);
     using trust_check_fn     = uint64_t* (*)(const char* url, char a2, char a3);
@@ -717,6 +750,8 @@ static void RemoveTeamTestHooks() {
         LPVOID address;
     };
     const HookTarget hooks[] = {
+        {"LogService.processRemoteEvent",
+         reinterpret_cast<LPVOID>(gLogServiceProcessRemoteEvent)},
         {"deserializeItem.inner", reinterpret_cast<LPVOID>(gDeserializeItemInner)},
         {"deserializeItem.outer", reinterpret_cast<LPVOID>(gDeserializeItemOuter)},
         {"compile", reinterpret_cast<LPVOID>(gCompile)},
@@ -1054,6 +1089,38 @@ static bool ScanForAddresses() {
     if (!deserInnerAddr) return false;
     gDeserializeItemInner = reinterpret_cast<types::deserialize_item_fn>(deserInnerAddr);
 
+    // ---- LogService::processRemoteEvent -----------------------------------
+    // Exact 0.719 receiver for the five privileged Developer Console remote
+    // events. The first compare is against
+    // LogServiceEvents::event_RequestScriptExecutionSignal. Resolve its
+    // RIP-relative pointer slot from that compare instead of baking in an RVA.
+    if (IsExactStudio719(GetStudioImageIdentity())) {
+        auto* logServiceAddr = reinterpret_cast<uint8_t*>(ScanAny(
+            "LogService.processRemoteEvent", {
+                "48 89 5C 24 18 4C 89 4C 24 20 48 89 4C 24 08 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 70 49 8B D9 4D 8B E8 4C 8B FA 45 33 E4 44 89 65 48 48 3B 15 ? ? ? ? 74 2E 48 3B 15 ? ? ? ? 74 25",
+            }));
+        if (!logServiceAddr)
+            return false;
+
+        constexpr size_t kRequestScriptExecutionCompareOffset = 49;
+        uint8_t* compare = logServiceAddr + kRequestScriptExecutionCompareOffset;
+        if (compare[0] != 0x48 || compare[1] != 0x3B || compare[2] != 0x15) {
+            Log("scan", "Unexpected RequestScriptExecution compare @ %p -- not hooking",
+                compare);
+            return false;
+        }
+
+        int32_t displacement = 0;
+        std::memcpy(&displacement, compare + 3, sizeof(displacement));
+        gRequestScriptExecutionEventSlot = reinterpret_cast<void**>(
+            reinterpret_cast<uintptr_t>(compare + 7) +
+            static_cast<intptr_t>(displacement));
+        gLogServiceProcessRemoteEvent =
+            reinterpret_cast<types::process_remote_event_fn>(logServiceAddr);
+        Log("scan", "RequestScriptExecution descriptor slot @ %p",
+            gRequestScriptExecutionEventSlot);
+    }
+
     // ---- NetworkSchema::generateSchemaDefinitionPacket ---------------------
     // We patch the immediate at +4 (the `06` byte in `mov byte ptr [rsp+disp], 6`).
     // 2023 ends in `48 3B 15` (cmp r/m64, [rip+disp32]); 2022 ends in `48 8D 05` (lea).
@@ -1217,6 +1284,19 @@ static DWORD InitializeLocalRcc() {
             return 1;
         }
 
+        if (gLogServiceProcessRemoteEvent) {
+            st = MH_CreateHook(
+                reinterpret_cast<LPVOID>(gLogServiceProcessRemoteEvent),
+                reinterpret_cast<LPVOID>(&LogServiceProcessRemoteEventHook),
+                reinterpret_cast<LPVOID*>(&gOrigLogServiceProcessRemoteEvent));
+            if (st != MH_OK) {
+                Log("main", "Hook(LogService.processRemoteEvent) failed: %d",
+                    (int)st);
+                RemoveTeamTestHooks();
+                return 1;
+            }
+        }
+
         if (!PatchTypeForProperty(schemaPatch)) {
             Log("main", "Could not enable ProtectedStringBytecode replication");
             RemoveTeamTestHooks();
@@ -1240,8 +1320,9 @@ static DWORD InitializeLocalRcc() {
         }
         return 1;
     }
-    Log("main", "Enabled hooks (offline%s)",
-        teamTest ? " + compile + deserializeItem outer/inner" : " only");
+    Log("main", "Enabled hooks (offline%s)", teamTest
+        ? " + compile + deserializeItem outer/inner + console script filter"
+        : " only");
 
     if (teamTest)
         Log("main", "Patched RBX::Network::NetworkSchema::typeForProperty");
