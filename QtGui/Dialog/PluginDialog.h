@@ -25,12 +25,19 @@
 #pragma once
 #include <NoobWarrior/Plugin.h>
 
-#include "../Sdk/PluginTreeWidget.h"
+#include "../Sdk/PluginListWidget.h"
 
 #include <QDialog>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+#include <QStringList>
 #include <QVBoxLayout>
-#include <QTreeView>
-#include <QStandardItemModel>
+
+#include <filesystem>
 
 namespace NoobWarrior {
 class PluginDialog : public QDialog {
@@ -38,10 +45,62 @@ class PluginDialog : public QDialog {
 public:
     PluginDialog(QWidget *parent = nullptr);
     void InitWidgets();
+protected:
+    void closeEvent(QCloseEvent* event) override;
 private:
-    QVBoxLayout *mLayout;
-    PluginTreeWidget* mPluginTreeWidget;
-    QTreeView *mView;
-    QStandardItemModel *mModel;
+    QGridLayout* mGridLayout;
+
+    QFrame* mAvailableFrame;
+    QVBoxLayout* mAvailableLayout;
+    QLabel* mAvailableLabel;
+    PluginListWidget* mAvailableList;
+
+    QFrame* mSelectedFrame;
+    QVBoxLayout* mSelectedLayout;
+    QLabel* mSelectedLabel;
+    PluginListWidget* mSelectedList;
+    QLabel* mSelectedHintLabel;
+
+    QFrame* mSelectorArrowFrame;
+    QVBoxLayout* mSelectorArrowLayout;
+    QPushButton* mSelectorArrow_MoveOneRight;
+    QPushButton* mSelectorArrow_MoveAllRight;
+    QPushButton* mSelectorArrow_MoveOneLeft;
+    QPushButton* mSelectorArrow_MoveAllLeft;
+
+    QHBoxLayout* mBottomLayout;
+    QPushButton* mOpenFolderButton;
+    QPushButton* mDiscardButton;
+    QPushButton* mSaveButton;
+
+    // Working copy of plugins.selected, in mount order. Unlike DatabaseDialog there is nothing live
+    // to mutate, a plugin can only be mounted on startup, so changes stay here until Save.
+    QStringList mSelection;
+
+    bool mCommitted = false;
+    bool mDirty = false;
+    bool mSeenDisclaimer = false;
+    // Set while RefreshLists() is repopulating the lists so the row moves it causes don't get
+    // mistaken for the user reordering the selection.
+    bool mRefreshing = false;
+
+    void RefreshLists();
+    void UpdateButtonStates();
+    void SaveToRegistry();
+    void NotifyRestartRequired();
+    void ImportFiles(const QStringList& filePaths, bool selectThem);
+    void DeletePlugins(const QList<QListWidgetItem*>& items);
+private slots:
+    void OnMoveOneRight();
+    void OnMoveAllRight();
+    void OnMoveOneLeft();
+    void OnMoveAllLeft();
+    void OnSelectedOrderChanged();
+    void OnAvailableFilesDropped(const QStringList& filePaths);
+    void OnSelectedFilesDropped(const QStringList& filePaths);
+    void OnOpenFolder();
+    void OnSave();
+    void OnDiscard();
+    void OnContextMenuRequested(const QPoint& pos);
 };
 }

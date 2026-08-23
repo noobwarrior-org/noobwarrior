@@ -24,15 +24,64 @@
 // Description:
 #pragma once
 #include <QListWidget>
+#include <QStringList>
 #include <NoobWarrior/Plugin.h>
 
 namespace NoobWarrior {
+// "Selected" here always means "listed in the plugins.selected registry key", i.e. the plugin is
+// enabled and gets mounted on startup. The Qt sense of selected (the rows the user highlighted) is
+// called "highlighted" throughout this class so the two never get confused.
 class PluginListWidget : public QListWidget {
     Q_OBJECT
 public:
-    PluginListWidget(QWidget* parent = nullptr);
+    enum class Mode {
+        ShowEntriesInDir, // Shows every plugin found in the plugins folders, selected or not
+        ShowSelected, // Shows only the selected plugins, in the order they are mounted in
+        ShowNotSelected, // Shows the plugins that aren't selected
+        Manual // Shows nothing, you add stuff manually
+    };
+
+    PluginListWidget(Mode mode = Mode::ShowEntriesInDir,
+                     int flags = NW_NON_PRIVILEGED_PLUGINS,
+                     QWidget* parent = nullptr);
     ~PluginListWidget();
 
     void Refresh();
+    void AddPlugin(const Plugin::Properties& props, bool locked = false);
+
+    /**
+     * @brief Overrides the list of selected plugin file names that ShowSelected/ShowNotSelected
+     * filter against. A dialog that stages changes before writing them (PluginDialog) hands its
+     * working copy over here; leave it unset and the widget reads plugins.selected straight out of
+     * the registry instead.
+     */
+    void SetSelection(const QStringList& fileNames);
+    QStringList GetSelection() const;
+
+    /**
+     * @brief File names of the items in the list, in row order. Locked (privileged) items are left
+     * out: they are shown for information only and are never part of plugins.selected.
+     */
+    QStringList GetFileNames() const;
+
+    /**
+     * @brief File names of the items the user highlighted, in row order. Locked items are left out.
+     */
+    QStringList GetHighlightedFileNames() const;
+
+    static QString GetItemFileName(const QListWidgetItem* item);
+    static QString GetItemFilePath(const QListWidgetItem* item);
+    static bool IsItemLocked(const QListWidgetItem* item);
+signals:
+    void filesDropped(const QStringList& filePaths);
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+private:
+    Mode mMode;
+    int mFlags;
+    bool mHasSelectionOverride = false;
+    QStringList mSelection;
 };
 }
