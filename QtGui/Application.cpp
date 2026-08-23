@@ -285,6 +285,8 @@ void Application::DownloadAndInstallEngine(const Engine &client, std::function<v
 }
 
 void Application::LaunchEngine(EngineStartParameters params) {
+    // Disabled the ability for the launcher to auto-download clients because we don't want a cease and desist in the mail 5 months from now
+    /*
     std::function callback = [this, params](bool success) {
         if (!success) return;
 
@@ -367,13 +369,102 @@ void Application::LaunchEngine(EngineStartParameters params) {
         Out("LaunchEngine", "Engine not in manifest!");
         DownloadAndInstallEngine(params.Engine, callback);
     } else callback(true);
+    */
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+    dialog->SetText(QString("Loading %1 %2 %3...").arg(QString::fromStdString(EngineTypeAsString(params.Engine.Type)), QString::fromUtf8(EngineSideAsString(params.Engine.Side)), QString::fromStdString(params.Engine.Version)));
+    dialog->DisableCancel(true);
+    dialog->show();
+
+    QPointer<LoadingDialog> dialogPtr(dialog);
+    const QString startingText = QString("Loading %1 %2 %3...").arg(
+        QString::fromStdString(EngineTypeAsString(params.Engine.Type)),
+        QString::fromUtf8(EngineSideAsString(params.Engine.Side)),
+        QString::fromStdString(params.Engine.Version));
+    EngineLaunchResponse res = mCore->LaunchEngine(
+        params, [dialogPtr, startingText](const EngineLaunchProgress &progress) {
+            if (!dialogPtr)
+                return;
+
+            const QString size = progress.PlaceBytes == 0
+                ? QString()
+                : QString(" (%1)").arg(QLocale().formattedDataSize(
+                        static_cast<qint64>(progress.PlaceBytes), 1,
+                        QLocale::DataSizeIecFormat));
+            switch (progress.Stage) {
+            case EngineLaunchStage::PreparingStudioServerPlace:
+                dialogPtr->SetText("Preparing Studio server place...");
+                break;
+            case EngineLaunchStage::LoadingStudioServerPlace:
+                dialogPtr->SetText("Loading Studio server place...");
+                break;
+            case EngineLaunchStage::MutatingStudioServerPlace:
+                dialogPtr->SetText(QString("Preparing Studio server place%1... (this may take a while)").arg(size));
+                break;
+            case EngineLaunchStage::WritingStudioServerPlace:
+                dialogPtr->SetText(QString("Writing Studio server place%1...").arg(size));
+                break;
+            case EngineLaunchStage::StartingEngine:
+                dialogPtr->SetText(startingText);
+                break;
+            }
+            dialogPtr->SetProgress(progress.Progress);
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        });
+    if (res != EngineLaunchResponse::Success) {
+        QString errMsg;
+        switch (res) {
+        default: errMsg = QString("An error occurred while trying to launch Roblox. (code %1)").arg(static_cast<int>(res)); break;
+        case EngineLaunchResponse::Failed: errMsg = "The injector process finished but the launcher could not retrieve its exit code."; break;
+        case EngineLaunchResponse::NotInstalled: errMsg = "The engine that you are trying to launch is not installed on your computer. Please install it and try again."; break;
+        case EngineLaunchResponse::NoValidExecutable: errMsg = "Could not find a valid executable for the version of Roblox that you are trying to launch. Please re-install and try again."; break;
+        case EngineLaunchResponse::FailedToCreateProcess: errMsg = "Could not create an injector process. Check if noobhook_x86_injector.exe is inside of the noobWarrior installation folder."; break;
+        case EngineLaunchResponse::InjectFailed: errMsg = "Failed to inject into the Roblox process."; break;
+        case EngineLaunchResponse::InjectDllMissing: errMsg = "Failed to locate DLL file. Please make sure it's in the right place."; break;
+        case EngineLaunchResponse::InjectCannotAccessProcess: errMsg = "Could not access the Roblox process in order to perform DLL injection. Do you have a kernel-level anti-cheat running?"; break;
+        case EngineLaunchResponse::InjectWrongArchitecture: errMsg = "Tried injecting 64-bit DLL into 32-bit process. If you are on a 32-bit version of Windows, this error message is misleading. Feel free to fix it!"; break;
+        case EngineLaunchResponse::InjectCannotWriteToProcessMemory: errMsg = "Could not write arbitrary memory to the Roblox process."; break;
+        case EngineLaunchResponse::InjectFailedToGetModuleHandle: errMsg = "The injector could not resolve a required module handle inside the target process."; break;
+        case EngineLaunchResponse::InjectFailedToGetFunctionAddress: errMsg = "The injector could not locate a required function inside the target process."; break;
+        case EngineLaunchResponse::InjectCannotCreateThreadInProcess: errMsg = "Could not create a thread in the Roblox process."; break;
+        case EngineLaunchResponse::InjectThreadTimedOut: errMsg = "The injected thread in the Roblox process timed out before completing."; break;
+        case EngineLaunchResponse::InjectCouldNotGetReturnValueOfLoadLibrary: errMsg = "Could not get the return value of the LoadLibrary API call."; break;
+        case EngineLaunchResponse::InjectFailedToLoadLibrary: errMsg = "Failed to load the DLL file. Please make sure that it's in the right place and see if the version of Roblox you're using is supported."; break;
+        case EngineLaunchResponse::InjectFailedToResumeProcess: errMsg = "Failed to resume Roblox process after injecting DLL."; break;
+        case EngineLaunchResponse::WineMissing: errMsg = "A Wine installation could not be found on your system. Please install it. If you have installed it, go to the Settings menu and configure your Wine path."; break;
+        case EngineLaunchResponse::FailedToLoadPlace: errMsg = "Failed to write to the server.rbxl file."; break;
+        }
+        QMessageBox::critical(dialog, "Cannot Launch Engine", errMsg);
+        dialog->close();
+    } else {
+        QTimer::singleShot(5000, [dialogPtr]() {
+            if (dialogPtr) {
+                dialogPtr->deleteLater();
+            }
+        });
+    }
 }
 
 void Application::ConnectToServer(const std::string &ip, uint16_t port) {
+    auto *dialog = new LoadingDialog(nullptr);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+    dialog->SetText(QString("Connecting to server emulator %1:%2...").arg(QString::fromStdString(ip), QString::number(port)));
+    dialog->DisableCancel(false);
+    dialog->show();
+
+    auto cancelled = std::make_shared<bool>(false);
+    QPointer<LoadingDialog> dialogPtr(dialog);
+
+    connect(dialog, &QWidget::destroyed, [cancelled]() {
+        *cancelled = true;
+    });
+
     // Ask the host whether it requires auth before doing anything else.
     std::string url = "https://" + ip + ":" + std::to_string(port) + "/emu/v1/auth-info";
     QPointer<Application> self(this);
-    std::thread([self, ip, port, url]() {
+    std::thread([dialogPtr, cancelled, self, ip, port, url]() {
         bool authEnabled = false, passwordBased = true, allowGuests = false;
         std::string title, tagline, authType = "master", authMasterUrl;
         cpr::Response res = cpr::Get(cpr::Url{url}, cpr::VerifySsl{false},
@@ -391,11 +482,13 @@ void Application::ConnectToServer(const std::string &ip, uint16_t port) {
                 tagline = b.value("tagline", std::string{});
             }
         }
-        QTimer::singleShot(0, qApp, [self, ip, port, authEnabled, passwordBased, allowGuests, authType, authMasterUrl, title, tagline]() {
-            if (!self) return;
+        QTimer::singleShot(0, qApp, [dialogPtr, cancelled, self, ip, port, authEnabled, passwordBased, allowGuests, authType, authMasterUrl, title, tagline]() {
+            if (*cancelled || !self) return;
             self->PromptAndConnect(ip, port, authEnabled, passwordBased, allowGuests,
                                    QString::fromStdString(authType), QString::fromStdString(authMasterUrl),
                                    QString::fromStdString(title), QString::fromStdString(tagline));
+            if (dialogPtr)
+                dialogPtr->close();
         });
     }).detach();
 }
@@ -527,7 +620,7 @@ void Application::DoConnect(const std::string &ip, uint16_t port, const std::str
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(false);
-    dialog->SetText(QString("Connecting to server %1:%2...").arg(QString::fromStdString(ip), QString::number(port)));
+    dialog->SetText(QString("Searching for running game servers at %1:%2...").arg(QString::fromStdString(ip), QString::number(port)));
     dialog->show();
 
     auto cancelled = std::make_shared<bool>(false);

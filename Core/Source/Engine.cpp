@@ -691,6 +691,7 @@ std::filesystem::path Core::FindEngineExecutable(const std::filesystem::path &en
 
 // Notes about getting Roblox working
 // FFlagDebugLocalRccServerConnection is required to be set in order to prevent Id 24 error
+// Edit 8/23/26: Thats such an old note!!!!!!!!!!!!
 EngineLaunchResponse Core::LaunchEngine(
     EngineStartParameters params,
     const EngineLaunchProgressCallback& progressCallback) {
