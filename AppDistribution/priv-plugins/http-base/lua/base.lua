@@ -160,11 +160,37 @@ local function match_sitemap(sitemap, uri)
     return nil, {}
 end
 
+local function normalize_sitemap(sitemap)
+    for uri, entry in pairs(sitemap) do
+        if type(entry) == "table" then
+            assert(entry.Page ~= nil, string.format("Sitemap entry %q has no Page", uri))
+            entry.Page = url.ResolveFromCaller(entry.Page)
+            sitemap[uri] = entry
+        else
+            sitemap[uri] = { Page = url.ResolveFromCaller(entry) }
+        end
+    end
+end
+
+local function warn_about_unguarded_endpoints(sitemap)
+    local unguarded = {}
+    for uri, entry in pairs(sitemap) do
+        if entry.Permission == nil and (uri:find("^/v%d+/") or uri:find("^/emu/v%d+/")) then
+            unguarded[#unguarded + 1] = uri
+        end
+    end
+    if #unguarded == 0 then return end
+    table.sort(unguarded)
+    print(string.format("%d API route(s) declare no Permission and are open to anyone who is logged in:", #unguarded))
+    for _, uri in ipairs(unguarded) do
+        print("  " .. uri)
+    end
+end
+
 function http_base.AttachToServer(srv, params)
     if params.Sitemap then
-        for uri, entry in pairs(params.Sitemap) do
-            params.Sitemap[uri] = url.ResolveFromCaller(entry)
-        end
+        normalize_sitemap(params.Sitemap)
+        warn_about_unguarded_endpoints(params.Sitemap)
     end
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}
@@ -209,6 +235,16 @@ function http_base.AttachToServer(srv, params)
 
         local sitemap_entry, url_params = match_sitemap(params.Sitemap, uri_without_params)
         if sitemap_entry then
+            local current_user = core.ResolveSession(cookies_tbl[".LOGINSESSION"] or "")
+
+            if sitemap_entry.Permission ~= nil
+                and not core.HasPermission(current_user, sitemap_entry.Permission) then
+                req:AddHeader("Content-Type", "text/html")
+                req:SendError(403, current_user == nil
+                    and "You must be logged in to do this."
+                    or "Your rank is not high enough to do this.")
+                return
+            end
             local session_tbl = {}
             local session_id = nil
             local session_started = false
@@ -249,10 +285,10 @@ function http_base.AttachToServer(srv, params)
             local response_code = 200
 
             local success, result = pcall(function()
-                return lhp.RenderFile(sitemap_entry, {
+                return lhp.RenderFile(sitemap_entry.Page, {
                     ["_SERVER"] = {
                         LHP_SELF = uri_without_params,
-                        SCRIPT_FILENAME = sitemap_entry,
+                        SCRIPT_FILENAME = sitemap_entry.Page,
                         SERVER_NAME = req.Headers["Host"] or "",
                         HTTP_HOST = req.Headers["Host"] or "",
                         HTTP_USER_AGENT = req.Headers["User-Agent"] or "",
@@ -267,6 +303,10 @@ function http_base.AttachToServer(srv, params)
                     ["_COOKIE"] = cookies_tbl,
                     ["_PARAMS"] = url_params,
                     ["_SESSION"] = session_proxy,
+                    ["_USER"] = current_user,
+                    ["has_permission"] = function(permission)
+                        return core.HasPermission(current_user, permission)
+                    end,
                     ["_REQUEST"] = {},
                     ["_ENV"] = {},
                     ["session_destroy"] = session_destroy,
@@ -332,7 +372,7 @@ function http_base.AttachToServer(srv, params)
             if success then
                 req:SendReply(response_code, nil, result)
             else
-                req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.."\"<br>"..result)
+                req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.Page.."\"<br>"..result)
             end
         else
             local vfs = srv:GetVfs()

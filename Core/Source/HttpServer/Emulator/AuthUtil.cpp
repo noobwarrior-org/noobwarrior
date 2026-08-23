@@ -25,6 +25,7 @@
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/Log.h>
+#include <NoobWarrior/Registry.h>
 
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
@@ -234,13 +235,19 @@ bool Ed25519Verify(const std::string &pubHex, std::string_view message, const st
     return ok;
 }
 
+static int64_t ResolveStoredRank(int64_t stored) {
+    if (stored < kUserRankMin)
+        return kUserRankDefault;
+    return ClampUserRank(stored);
+}
+
 std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token, int64_t ttlSeconds) {
     if (master == nullptr || master->Fail() || token.empty())
         return std::nullopt;
 
     // ttlSeconds <= 0 disables expiry; otherwise a session idle longer than the TTL no longer resolves.
     Statement stmt = master->PrepareStatement(
-        "SELECT u.Id, u.Name, u.DisplayName FROM LoginSession s "
+        "SELECT u.Id, u.Name, u.DisplayName, COALESCE(u.Rank, -1) FROM LoginSession s "
         "JOIN User u ON u.Id = s.UserId "
         "WHERE s.Token = ? AND (? <= 0 OR (unixepoch() - s.LastUsedTimestamp) < ?);"
     );
@@ -256,6 +263,10 @@ std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &
     user.displayName = stmt.GetStringFromColumnIndex(2);
     if (user.displayName.empty())
         user.displayName = user.name;
+    // A NULL Rank column comes back as -1 (see the COALESCE above) and means the account predates
+    // ranks, or was made by CreateLocalAccount, which does not set one. Resolve that to the lowest
+    // logged-in rank rather than to 0, which is the rank of somebody with no account at all.
+    user.rank = ResolveStoredRank(stmt.GetInt64FromColumnIndex(3));
 
     // Keep the session fresh so the idle-TTL check above (and ReapExpiredSessions) doesn't reap active players.
     Statement touch = master->PrepareStatement(
@@ -310,7 +321,7 @@ std::optional<SessionUser> RedeemAuthTicket(EmuDb *master, const std::string &ti
         return std::nullopt;
 
     Statement stmt = master->PrepareStatement(
-        "SELECT u.Id, u.Name, u.DisplayName FROM AuthTicket t "
+        "SELECT u.Id, u.Name, u.DisplayName, COALESCE(u.Rank, -1) FROM AuthTicket t "
         "JOIN User u ON u.Id = t.UserId "
         "WHERE t.Ticket = ? AND t.Redeemed = 0 AND (unixepoch() - t.CreatedTimestamp) < ?;"
     );
@@ -325,6 +336,7 @@ std::optional<SessionUser> RedeemAuthTicket(EmuDb *master, const std::string &ti
     user.displayName = stmt.GetStringFromColumnIndex(2);
     if (user.displayName.empty())
         user.displayName = user.name;
+    user.rank = ResolveStoredRank(stmt.GetInt64FromColumnIndex(3));
 
     // single-use: only the caller that flips Redeemed 0->1 wins the ticket
     Statement redeem = master->PrepareStatement(
@@ -359,6 +371,47 @@ std::string CreateLoginSession(EmuDb *master, int64_t userId, const std::string 
     }
     master->MarkDirty();
     return token;
+}
+
+int64_t EffectiveRank(Registry *reg, int64_t userId, int64_t rank) {
+    int64_t effective = ClampUserRank(rank);
+    if (reg == nullptr)
+        return effective;
+
+    const int64_t ownerId = reg->GetKeyValue<int64_t>("emu.ranks.owner_user_id").value_or(0);
+    if (ownerId != 0 && userId == ownerId)
+        return kUserRankMax;
+    return effective;
+}
+
+std::optional<int64_t> PermissionFloor(Registry *reg, const std::string &permission) {
+    if (reg == nullptr || permission.empty())
+        return std::nullopt;
+
+    const std::string key = "emu.permissions." + permission;
+    // Registry.cpp seeds these with plain int literals, so accept either width rather than silently
+    // failing to read a floor that is plainly there.
+    if (std::optional<int64_t> wide = reg->GetKeyValue<int64_t>(key); wide.has_value())
+        return wide;
+    if (std::optional<int> narrow = reg->GetKeyValue<int>(key); narrow.has_value())
+        return static_cast<int64_t>(*narrow);
+    return std::nullopt;
+}
+
+bool HasPermission(Registry *reg, int64_t userId, int64_t rank, const std::string &permission) {
+    const int64_t effective = EffectiveRank(reg, userId, rank);
+
+    // Checked before the floor lookup on purpose: the top rank has to survive a permissions table
+    // that is missing, malformed or set above every rank that exists.
+    if (UserRankBypassesPermissions(effective))
+        return true;
+
+    const std::optional<int64_t> floor = PermissionFloor(reg, permission);
+    if (!floor.has_value()) {
+        Out("AuthUtil", "Denying \"{}\": no such key emu.permissions.{}", permission, permission);
+        return false;
+    }
+    return effective >= *floor;
 }
 
 std::vector<LocalAccount> ListLocalAccounts(EmuDb *master) {

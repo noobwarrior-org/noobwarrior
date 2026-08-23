@@ -33,6 +33,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/EmuDb/UserRank.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/OverlayFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
@@ -349,13 +350,10 @@ int LuaState::Open() {
             luaL_error(L, "error getting value for key \"%s\": key cannot end with a period", key.c_str());
             return sol::lua_nil;
         }
-        sol::protected_function_result res = safe_script(std::format("return {}.{}", reg->GetGlobalName(), key), sol::script_pass_on_error);
-        if (!res.valid()) {
-            luaL_error(L, "error getting value for key \"%s\": failed to run script", key.c_str());
+        std::optional<sol::object> obj = reg->RawGetKeyObject(key);
+        if (!obj.has_value())
             return sol::lua_nil;
-        }
-        sol::object obj = res.get<sol::object>();
-        return obj;
+        return *obj;
     };
     regLib["SetKeyValueIfNotSet"] = [this](sol::this_state state, std::string key, sol::object value) {
         lua_State* L = state;
@@ -387,6 +385,12 @@ int LuaState::Open() {
             return;
         }
         (*this)["__REG_BUF"] = sol::lua_nil;
+    };
+    regLib["Save"] = [this]() -> bool {
+        Registry* reg = mCore->GetRegistry();
+        if (reg == nullptr)
+            return false;
+        return reg->Save() == RegistryResponse::Success;
     };
     regLib["SetKeyComment"] = [this](std::string key, std::string comment) {
         Registry* reg = mCore->GetRegistry();
@@ -999,6 +1003,44 @@ int LuaState::Open() {
     });
     coreLib.set_function("GetMasterDatabase", [this]() -> EmuDb* {
         return mCore->GetEmuDbManager()->GetMasterDatabase();
+    });
+    coreLib.set_function("ResolveSession", [this](sol::this_state state, const std::string &token) -> sol::object {
+        EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
+        if (master == nullptr)
+            return sol::nil;
+
+        int64_t ttlSeconds = 0;
+        if (Registry *reg = mCore->GetRegistry())
+            ttlSeconds = reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
+
+        std::optional<AuthUtil::SessionUser> user = AuthUtil::ResolveSessionUser(master, token, ttlSeconds);
+        if (!user.has_value())
+            return sol::nil;
+
+        sol::table result = sol::state_view(state).create_table();
+        result["Id"] = user->id;
+        result["Name"] = user->name;
+        result["DisplayName"] = user->displayName;
+        result["Rank"] = user->rank;
+        result["IsGuest"] = user->isGuest;
+        result["IsFederated"] = user->isFederated;
+        return result;
+    });
+    coreLib.set_function("HasPermission", [this](sol::object session, const std::string &permission) -> bool {
+        int64_t userId = 0;
+        int64_t rank = kUserRankGuest;
+        if (session.is<sol::table>()) {
+            sol::table tbl = session.as<sol::table>();
+            userId = tbl.get_or("Id", static_cast<int64_t>(0));
+            rank = tbl.get_or("Rank", kUserRankGuest);
+        }
+        return AuthUtil::HasPermission(mCore->GetRegistry(), userId, rank, permission);
+    });
+    coreLib.set_function("GetPermissionRank", [this](sol::this_state state, const std::string &permission) -> sol::object {
+        std::optional<int64_t> floor = AuthUtil::PermissionFloor(mCore->GetRegistry(), permission);
+        if (!floor.has_value())
+            return sol::nil;
+        return sol::make_object(state, *floor);
     });
     // Builds a /v1.1/avatar-fetch body for a local user id from the master DB. Lets the master-server
     // plugin serve a user's avatar over federation without reimplementing the appearance logic.

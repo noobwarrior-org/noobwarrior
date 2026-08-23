@@ -5,7 +5,7 @@ include("header.lhp")
 
 <h1>Login</h1>
 
-<form action="/v1/login" method="post">
+<form action="/emu/v1/login" method="post">
     <div class="container">
         <label for="username"><b>Username</b></label>
         <input type="text" placeholder="Enter Username" name="username" required>

@@ -24,6 +24,8 @@
 // Description:
 #pragma once
 
+#include <NoobWarrior/EmuDb/UserRank.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -32,6 +34,7 @@
 
 namespace NoobWarrior {
 class EmuDb;
+class Registry;
 
 namespace AuthUtil {
 
@@ -44,8 +47,9 @@ struct SessionUser {
     int64_t id {0};
     std::string name;
     std::string displayName;
-    bool isGuest {false};
-    bool isFederated {false};
+    bool isGuest { false };
+    bool isFederated { false };
+    int64_t rank { kUserRankGuest };
 };
 
 // Hex helpers
@@ -101,6 +105,29 @@ std::optional<SessionUser> DecodeGuestTicket(const std::string &ticket);
 // carried inside the ticket string rather than an AuthTicket, so the game server can redeem it here.
 std::string EncodeFederatedTicket(const SessionUser &user);
 std::optional<SessionUser> DecodeFederatedTicket(const std::string &ticket);
+
+// ---- Permissions ----
+//
+// A permission is a name under the emu.permissions.* registry tree holding the minimum rank that may
+// perform it ("ban" -> emu.permissions.ban). Call sites name the permission and never a number, so an
+// operator renaming or renumbering the ranks in emu.roles never requires a code change.
+
+// The rank a request is actually judged at. This is the user's own rank, except that
+// emu.ranks.owner_user_id is always the maximum - that override is the way back in when a bad rank or
+// permission edit locks the operator out of their own control panel.
+int64_t EffectiveRank(Registry *reg, int64_t userId, int64_t rank);
+
+// The minimum rank emu.permissions.<permission> requires. Returns nullopt when the key does not
+// exist, which HasPermission treats as a denial: a typo in a permission name must fail closed rather
+// than quietly admit everyone.
+std::optional<int64_t> PermissionFloor(Registry *reg, const std::string &permission);
+
+// True when the identity may perform the named permission. The maximum rank always passes, so no
+// configuration mistake can produce a server nobody can administer.
+bool HasPermission(Registry *reg, int64_t userId, int64_t rank, const std::string &permission);
+inline bool HasPermission(Registry *reg, const SessionUser &user, const std::string &permission) {
+    return HasPermission(reg, user.id, user.rank, permission);
+}
 
 // Local accounts on the server emulator's master DB, the accounts players log in with in master
 // mode (also what the master-server plugin authenticates against).

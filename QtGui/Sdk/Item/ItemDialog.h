@@ -221,7 +221,7 @@ protected:
     QDateTimeEdit* mUser_JoinDateInput;
     QDateTimeEdit* mUser_LastOnlineInput;
     QLineEdit* mUser_PlaceVisitsInput;
-    QLineEdit* mUser_RankInput;
+    QComboBox* mUser_RankInput;
     QLineEdit* mUser_FriendCountInput;
     QLineEdit* mUser_FollowersCountInput;
     QLineEdit* mUser_FollowingCountInput;

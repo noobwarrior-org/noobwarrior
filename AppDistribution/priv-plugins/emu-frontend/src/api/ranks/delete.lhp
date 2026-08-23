@@ -1,0 +1,57 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/ranks/delete.lhp
+-- Description: Removes a rank from emu.roles.
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local function enc(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%%%%02X", string.byte(c))
+    end))
+end
+local function back(param, message)
+    header(string.format("Location: /control-panel?category=ranks&%s=%s", param, enc(message)))
+    http_response_code(302)
+    die("")
+end
+local function fail(message) back("err", message) end
+local function ok(message) back("msg", message) end
+
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local rank = tonumber(_POST["rank"])
+if rank == nil then
+    fail("No rank given.")
+end
+
+if rank == 0 then
+    fail("Rank 0 cannot be deleted, it is what users with no rank set fall back to. Rename it instead.")
+end
+if rank == 255 then
+    fail("Rank 255 cannot be deleted, it is the rank that can always administer this server. Rename it instead.")
+end
+
+local roles = reg.GetKeyValue("emu.roles") or {}
+local updated = {}
+local found = false
+for _, role in ipairs(roles) do
+    if role.rank == rank then
+        found = true
+    else
+        updated[#updated + 1] = { name = role.name, rank = role.rank }
+    end
+end
+if not found then
+    fail(string.format("There is no rank %d.", rank))
+end
+
+reg.SetKeyValue("emu.roles", updated)
+reg.Save()
+ok(string.format("Deleted rank %d. Any user still holding that number keeps it.", rank))
+?>

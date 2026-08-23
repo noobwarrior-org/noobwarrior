@@ -96,7 +96,43 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
     return RegistryResponse::Success;
 }
 
-NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
+std::optional<sol::object> NoobWarrior::BaseRegistry::RawGetKeyObject(const std::string &key) {
+    if (key.empty())
+        return std::nullopt;
+
+    sol::state &lua = *mLua;
+    sol::object cursor = lua[mGlobalName];
+
+    size_t start = 0;
+    while (start <= key.size()) {
+        const size_t dot = key.find('.', start);
+        const std::string segment = key.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+        if (segment.empty())
+            return std::nullopt;
+
+        // Every segment before the last must itself be a table for the walk to continue.
+        if (cursor.get_type() != sol::type::table)
+            return std::nullopt;
+
+        // raw_get, not operator[], so a missing segment stays missing instead of being created.
+        sol::object next = cursor.as<sol::table>().raw_get<sol::object>(segment);
+        if (next == sol::lua_nil)
+            return std::nullopt;
+        cursor = next;
+
+        if (dot == std::string::npos)
+            break;
+        start = dot + 1;
+    }
+
+    return cursor;
+}
+
+bool NoobWarrior::BaseRegistry::HasKey(const std::string &key) {
+    return RawGetKeyObject(key).has_value();
+}
+
+NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Save() {
     sol::state& lua = *mLua;
 
     // First lets remove all empty tables in our registry table.
@@ -166,9 +202,15 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
         return RegistryResponse::CantReadFile;
     fileOutput << "return " << serialized;
 
-    Out("Registry", "Closed registry");
-
     return RegistryResponse::Success;
+}
+
+// this doesn't really do all that much anymore, it's just an alias
+NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Close() {
+    const RegistryResponse res = Save();
+    if (res == RegistryResponse::Success)
+        Out("Registry", "Closed registry");
+    return res;
 }
 
 std::string NoobWarrior::BaseRegistry::GetLuaError() {

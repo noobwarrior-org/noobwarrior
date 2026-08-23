@@ -1,0 +1,69 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/ranks/save.lhp
+-- Description: Creates or renames a rank in emu.roles.
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local function enc(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%%%%02X", string.byte(c))
+    end))
+end
+local function back(param, message)
+    header(string.format("Location: /control-panel?category=ranks&%s=%s", param, enc(message)))
+    http_response_code(302)
+    die("")
+end
+local function fail(message) back("err", message) end
+local function ok(message) back("msg", message) end
+
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local rank = tonumber(_POST["rank"])
+local name = _POST["name"]
+-- originalRank is set when editing an existing row, so renumbering replaces that row rather than
+-- adding a second one. Absent when adding.
+local originalRank = tonumber(_POST["originalRank"])
+
+if rank == nil or rank ~= math.floor(rank) or rank < 0 or rank > 255 then
+    fail("A rank must be a whole number between 0 and 255.")
+end
+if name == nil or name:match("^%s*$") then
+    fail("A rank needs a name.")
+end
+name = name:gsub("^%s+", ""):gsub("%s+$", "")
+
+local roles = reg.GetKeyValue("emu.roles") or {}
+
+-- Two roles sharing a number would make the display ambiguous and the numbers no longer a ladder.
+for _, role in ipairs(roles) do
+    if role.rank == rank and rank ~= originalRank then
+        fail(string.format("Rank %d is already taken by \"%s\".", rank, tostring(role.name)))
+    end
+end
+
+local updated = {}
+local replaced = false
+for _, role in ipairs(roles) do
+    if originalRank ~= nil and role.rank == originalRank then
+        updated[#updated + 1] = { name = name, rank = rank }
+        replaced = true
+    else
+        updated[#updated + 1] = { name = role.name, rank = role.rank }
+    end
+end
+if not replaced then
+    updated[#updated + 1] = { name = name, rank = rank }
+end
+
+table.sort(updated, function(a, b) return (a.rank or 0) < (b.rank or 0) end)
+reg.SetKeyValue("emu.roles", updated)
+reg.Save()
+ok(string.format("Saved rank %d as \"%s\".", rank, name))
+?>

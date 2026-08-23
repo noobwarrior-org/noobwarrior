@@ -10,6 +10,19 @@
 pageTitle = "Control Panel"
 include("header.lhp")
 
+if _SESSION.User == nil then
+    include("plugin://http-base@noobwarrior.org/src/login-required.lhp")
+    include("footer.lhp")
+    return
+end
+
+if not has_permission("access.control_panel") then
+    http_response_code(403)
+    echo("<p>Your rank is not high enough to open the control panel.</p>")
+    include("footer.lhp")
+    return
+end
+
 local function BuildFederationSection()
     local h = {}
     h[#h + 1] = "<p>This server's domain: <code>" .. _G.MASTERSERVER_HTML_ESCAPE(_G.MASTERSERVER_DOMAIN()) ..

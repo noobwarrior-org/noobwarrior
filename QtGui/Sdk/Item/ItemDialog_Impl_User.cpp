@@ -24,7 +24,11 @@
 // Description:
 #include "ItemDialog.h"
 #include "ItemOpenSaveDialog.h"
+#include "Application.h"
 #include "Sdk/CreatorInfoWidget.h"
+
+#include <NoobWarrior/Registry.h>
+#include <NoobWarrior/EmuDb/UserRank.h>
 
 #include <QRegularExpressionValidator>
 #include <QDoubleValidator>
@@ -39,7 +43,7 @@ void ItemDialog::User_AddFields() {
     int64_t joinDate = 0;
     int64_t lastOnline = 0;
     int64_t placeVisits = 0;
-    int64_t rank = 0;
+    int64_t rank = kUserRankDefault;
     int64_t friendCount = 0;
     int64_t followersCount = 0;
     int64_t followingCount = 0;
@@ -54,7 +58,12 @@ void ItemDialog::User_AddFields() {
             joinDate = stmt.GetInt64FromColumnIndex(4);
             lastOnline = stmt.GetInt64FromColumnIndex(5);
             placeVisits = stmt.GetInt64FromColumnIndex(6);
-            rank = stmt.GetInt64FromColumnIndex(7);
+            // A NULL Rank means "never set", which resolves to the default rank - not to 0.
+            // Reading it as 0 would show every existing account as a Guest, and saving would then
+            // persist that 0 as a deliberate choice. AuthUtil::ResolveStoredRank does the same on
+            // the web side; the two must agree or the SDK and the site disagree about who somebody is.
+            if (!stmt.IsColumnIndexNull(7))
+                rank = ClampUserRank(stmt.GetInt64FromColumnIndex(7));
             friendCount = stmt.GetInt64FromColumnIndex(8);
             followersCount = stmt.GetInt64FromColumnIndex(9);
             followingCount = stmt.GetInt64FromColumnIndex(10);
@@ -86,12 +95,42 @@ void ItemDialog::User_AddFields() {
     mUser_LastOnlineInput = new QDateTimeEdit();
     mUser_LastOnlineInput->setDateTime(mId.has_value() ? QDateTime::fromSecsSinceEpoch(lastOnline) : QDateTime::currentDateTime());
     mContentLayout->addRow("Last Online", mUser_LastOnlineInput);
+    
+    AddSectionHeader("Permissions");
+    mUser_RankInput = new QComboBox();
+    bool rankIsNamed = false;
+    if (Registry* reg = gApp->GetCore()->GetRegistry()) {
+        if (std::optional<sol::table> roles = reg->GetKeyValue<sol::table>("emu.roles")) {
+            for (size_t i = 1; i <= roles->size(); i++) {
+                sol::optional<sol::table> role = roles->get<sol::optional<sol::table>>(i);
+                if (!role.has_value())
+                    continue;
+                const int64_t roleRank = role->get_or("rank", static_cast<int64_t>(0));
+                const std::string roleName = role->get_or<std::string>("name", "");
+                if (roleName.empty())
+                    continue;
+                // Rank 0 is the rank of having no account at all - it is what an unauthenticated
+                // visitor is judged as, which is why emu.permissions.connect_to_server defaults to
+                // it. A row in the User table is by definition an account, so 0 is not offered here.
+                // It is still shown if some row already holds it, so opening and saving such a user
+                // does not quietly move them.
+                if (roleRank <= kUserRankGuest && rank != roleRank)
+                    continue;
+                mUser_RankInput->addItem(QString("%1 (%2)").arg(QString::fromStdString(roleName)).arg(roleRank),
+                                         QVariant::fromValue(roleRank));
+                if (roleRank == rank)
+                    rankIsNamed = true;
+            }
+        }
+    }
+    if (!rankIsNamed)
+        mUser_RankInput->addItem(QString("Rank %1").arg(rank), QVariant::fromValue(rank));
+
+    if (const int rankIdx = mUser_RankInput->findData(QVariant::fromValue(rank)); rankIdx != -1)
+        mUser_RankInput->setCurrentIndex(rankIdx);
+    mContentLayout->addRow("Rank", mUser_RankInput);
 
     AddSectionHeader("Statistics");
-
-    mUser_RankInput = new QLineEdit(QString::number(rank));
-    mUser_RankInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUser_RankInput));
-    mContentLayout->addRow("Rank", mUser_RankInput);
 
     mUser_PlaceVisitsInput = new QLineEdit(QString::number(placeVisits));
     mUser_PlaceVisitsInput->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), mUser_PlaceVisitsInput));
@@ -237,7 +276,7 @@ bool ItemDialog::User_OnSave() {
     std::string email = mUser_EmailInput->text().toStdString();
     int64_t joinDate = mUser_JoinDateInput->dateTime().toSecsSinceEpoch();
     int64_t lastOnline = mUser_LastOnlineInput->dateTime().toSecsSinceEpoch();
-    int64_t rank = mUser_RankInput->text().toLongLong();
+    int64_t rank = mUser_RankInput->currentData().toLongLong();
     int64_t placeVisits = mUser_PlaceVisitsInput->text().toLongLong();
     int64_t friendCount = mUser_FriendCountInput->text().toLongLong();
     int64_t followersCount = mUser_FollowersCountInput->text().toLongLong();

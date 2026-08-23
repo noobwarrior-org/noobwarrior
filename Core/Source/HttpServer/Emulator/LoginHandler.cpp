@@ -30,7 +30,6 @@
 #include <NoobWarrior/Registry.h>
 #include <nlohmann/json.hpp>
 
-#include <string_view>
 
 using namespace NoobWarrior;
 
@@ -39,17 +38,6 @@ LoginHandler::LoginHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 namespace {
-bool IsPlayerLoginRequest(evhttp_request *req) {
-    const char *uri = evhttp_request_get_uri(req);
-    if (uri == nullptr)
-        return false;
-
-    std::string_view path(uri);
-    if (const size_t query = path.find('?'); query != std::string_view::npos)
-        path = path.substr(0, query);
-    return path == "/v2/login";
-}
-
 void SendJson(evhttp_request *req, int status, const nlohmann::json &body) {
     const std::string encoded = body.dump();
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
@@ -68,38 +56,29 @@ std::map<std::string, std::string> GetPlayerLoginParameters(evhttp_request *req)
         evbuffer_copyout(input, body.data(), length);
 
     const nlohmann::json json = nlohmann::json::parse(body, nullptr, false);
-    if (!json.is_discarded() && json.is_object()) {
-        // Roblox's /v2/login schema calls the username field cvalue. Accept the ordinary names as
-        // well so this endpoint remains easy to exercise without the Player.
-        for (const char *key : {"cvalue", "username", "userName"}) {
-            if (json.contains(key) && json[key].is_string()) {
-                params["username"] = json[key].get<std::string>();
-                break;
-            }
-        }
-        if (json.contains("password") && json["password"].is_string())
-            params["password"] = json["password"].get<std::string>();
+    if (json.is_discarded() || !json.is_object())
         return params;
-    }
 
-    return Handler::GetPostFormParameters(req);
+    for (const char *key : {"cvalue", "username", "userName"}) {
+        if (json.contains(key) && json[key].is_string()) {
+            params["username"] = json[key].get<std::string>();
+            break;
+        }
+    }
+    if (json.contains("password") && json["password"].is_string())
+        params["password"] = json["password"].get<std::string>();
+    return params;
 }
 }
 
 void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
-    const bool playerLogin = IsPlayerLoginRequest(req);
-    std::map<std::string, std::string> params = playerLogin
-        ? GetPlayerLoginParameters(req)
-        : GetPostFormParameters(req);
+    std::map<std::string, std::string> params = GetPlayerLoginParameters(req);
 
     Registry *registry = mEmu->GetCore()->GetRegistry();
     const bool authEnabled = registry != nullptr
         && registry->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
 
-    // With account authentication disabled, the desktop app signs into the configured local
-    // identity. This mirrors the rest of the emulator's legacy trust-local-user behavior and,
-    // importantly, gives the app a cross-subdomain .ROBLOSECURITY cookie before any game launch.
-    if (playerLogin && !authEnabled) {
+    if (!authEnabled) {
         const int64_t userId = registry != nullptr
             ? registry->GetKeyValue<int64_t>("user.id").value_or(1) : 1;
         const std::string userName = registry != nullptr
@@ -122,7 +101,6 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     auto userIt = params.find("username");
     auto passIt = params.find("password");
-    auto rememberIt = params.find("remember");
 
     if (userIt == params.end() || passIt == params.end()) {
         evhttp_send_error(req, HTTP_BADREQUEST, "Missing username or password");
@@ -182,9 +160,8 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create session");
         return;
     }
-    Out("LoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
-
-    // Opportunistically sweep sessions idle past the TTL so the table doesn't grow without bound.
+    Out("LoginHandler", "Player \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
+    
     if (Registry *reg = mEmu->GetCore()->GetRegistry()) {
         int64_t ttlSeconds = reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
         int reaped = AuthUtil::ReapExpiredSessions(masterDb, ttlSeconds);
@@ -192,27 +169,14 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
             Out("LoginHandler", "Reaped {} expired login session(s)", reaped);
     }
 
-    if (playerLogin) {
-        const std::string playerCookie = std::format(
-            ".ROBLOSECURITY={}; Domain=.roblox.com; Path=/; Max-Age=2592000; "
-            "Secure; HttpOnly; SameSite=None", token);
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Set-Cookie",
-                          playerCookie.c_str());
-        SendJson(req, HTTP_OK, {
-            {"user", {{"id", userId}, {"name", username}, {"displayName", username}}},
-            {"userId", userId},
-            {"isBanned", false}
-        });
-        return;
-    }
-
-    std::string cookie = std::format(".LOGINSESSION={}; Path=/; HttpOnly; SameSite=Lax", token);
-    if (rememberIt != params.end())
-        cookie += "; Max-Age=2592000";
-
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Set-Cookie", cookie.c_str());
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Location", "/");
-    evbuffer *reply = evbuffer_new();
-    evhttp_send_reply(req, 302, "Found", reply);
-    evbuffer_free(reply);
+    const std::string playerCookie = std::format(
+        ".ROBLOSECURITY={}; Domain=.roblox.com; Path=/; Max-Age=2592000; "
+        "Secure; HttpOnly; SameSite=None", token);
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Set-Cookie",
+                      playerCookie.c_str());
+    SendJson(req, HTTP_OK, {
+        {"user", {{"id", userId}, {"name", username}, {"displayName", username}}},
+        {"userId", userId},
+        {"isBanned", false}
+    });
 }

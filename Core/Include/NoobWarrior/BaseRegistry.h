@@ -52,10 +52,14 @@ class BaseRegistry {
 public:
     BaseRegistry(std::string globalName, std::filesystem::path filePath, LuaState* lua);
     virtual RegistryResponse Open();
+    RegistryResponse Save();
     RegistryResponse Close();
     std::string GetLuaError();
 
     void SetKeyComment(const char *key, const char *comment);
+
+    std::optional<sol::object> RawGetKeyObject(const std::string &key);
+    bool HasKey(const std::string &key);
 
     template <typename T>
     void SetKeyValue(const std::string &key, T value) {
@@ -94,20 +98,21 @@ public:
             Out("BaseRegistry", "Error getting value for key \"{}\": key cannot end with a period", key);
             return std::nullopt;
         }
-        sol::protected_function_result res = mLua->safe_script(std::format("return {}.{}", mGlobalName, key), sol::script_pass_on_error);
-        if (!res.valid()) {
+        std::optional<sol::object> obj = RawGetKeyObject(key);
+        if (!obj.has_value() || !obj->is<T>()) {
             return std::nullopt;
         }
-        sol::object obj = res.get<sol::object>();
-        if (!obj.is<T>()) {
-            return std::nullopt;
-        }
-        return obj.as<T>();
+        return obj->as<T>();
     }
 
+    // Seeds a default. A key already holding a value of the expected type is left alone; one holding
+    // the wrong type is overwritten, so a hand-edited registry with a broken value repairs itself.
     template <typename T>
     void SetKeyValueIfNotSet(const std::string &key, T value) {
-        if (key.empty() || GetKeyValue<T>(key).has_value())
+        if (key.empty())
+            return;
+        if (std::optional<sol::object> existing = RawGetKeyObject(key);
+            existing.has_value() && existing->is<T>())
             return;
         SetKeyValue<T>(key, value);
     }

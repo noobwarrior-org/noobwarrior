@@ -24,6 +24,7 @@
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/EmuDb/UserRank.h>
 #include <NoobWarrior/Macros.h>
 
 #include <cstdint>
@@ -176,6 +177,12 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet<int64_t>("emu.auth.session_ttl_days", 30);
     SetKeyComment("emu.auth.session_ttl_days", "How long, in days, a login session stays valid while idle before the user must sign in again. Each use of a session refreshes this window. Set to 0 to never expire sessions.");
 
+    SetKeyValueIfNotSet<int64_t>("emu.ranks.owner_user_id", 0);
+    SetKeyComment("emu.ranks.owner_user_id", "The user id treated as rank 255 no matter what their User.Rank column says. This is the way back in if a rank edit locks you out of your own control panel, and the way to grant yourself the first rank on a fresh server. Set to 0 to disable.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.ranks.default_rank", kUserRankMember);
+    SetKeyComment("emu.ranks.default_rank", "The rank number given to accounts created through the website's registration form. Accounts with no rank set at all are also treated as this rank.");
+
     SetKeyValueIfNotSet("emu.motd", "<h1>Welcome</h1><p>Welcome to my " NOOBWARRIOR_BRAND " server.</p><h2>Rules</h2><p>The operator of this server has not set any rules. However, don't take this as an opportunity to be a jackass and instead have some common courtesy.</p>");
 
     SetKeyValueIfNotSet("emu.autostart", true);
@@ -261,6 +268,7 @@ RegistryResponse Registry::Open() {
         roles_tbl[5]["rank"] = 255;
         SetKeyValue("emu.roles", roles_tbl);
     }
+    SetKeyComment("emu.roles", "The ranks that exist on this server, as a list of { name = \"...\", rank = 0-255 } entries. Ranks must be unique; higher means more privileged. Rank 0 is whoever has no account at all, including guests. Rank 255 can always do everything, so a misconfigured emu.permissions cannot lock you out.");
 
     SetKeyValueIfNotSet("emu.permissions.ugc.catalog.clothing", 100);
     SetKeyComment("emu.permissions.ugc.catalog.clothing", "What rank is able to upload clothing to the website?");
@@ -331,6 +339,30 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.permissions.ban", 100);
     SetKeyComment("emu.permissions.ban", "What rank is able to ban users?");
+
+    SetKeyValueIfNotSet("emu.permissions.forums.post", 1);
+    SetKeyComment("emu.permissions.forums.post", "What rank is able to create forum threads and reply to them?");
+
+    SetKeyValueIfNotSet("emu.permissions.forums.moderate", 100);
+    SetKeyComment("emu.permissions.forums.moderate", "What rank is able to edit or delete somebody else's forum post? Editing and deleting your own post only requires emu.permissions.forums.post.");
+
+    SetKeyValueIfNotSet("emu.permissions.forums.structure", 200);
+    SetKeyComment("emu.permissions.forums.structure", "What rank is able to create, rename and delete the forum categories and forums themselves?");
+
+    SetKeyValueIfNotSet("emu.permissions.items.write", 200);
+    SetKeyComment("emu.permissions.items.write", "What rank is able to add or edit items (assets, badges, universes, users and so on) in the mounted databases through the website's control panel?");
+
+    SetKeyValueIfNotSet("emu.permissions.federation.manage", 200);
+    SetKeyComment("emu.permissions.federation.manage", "What rank is able to add, ban or auto-accept federation peers on the master server? This decides which other servers yours will trust identities from, so it should stay high.");
+
+    SetKeyValueIfNotSet("emu.permissions.workshop.moderate", 100);
+    SetKeyComment("emu.permissions.workshop.moderate", "What rank is able to edit or delete somebody else's master server workshop upload?");
+
+    SetKeyValueIfNotSet("emu.permissions.control_panel.execute", 255);
+    SetKeyComment("emu.permissions.control_panel.execute", "What rank is able to use the control panel sections that run code or touch files on the machine hosting the server - the Lua shell, the file system browser and the emergency controls? This is host access rather than game administration, so it defaults to the highest rank.");
+
+    SetKeyValueIfNotSet("emu.permissions.control_panel.ranks", 255);
+    SetKeyComment("emu.permissions.control_panel.ranks", "What rank is able to edit the rank list in emu.roles and the permissions in emu.permissions? Anybody with this can grant themselves anything, so it defaults to the highest rank.");
 
     SetKeyValueIfNotSet("emu.currency.enabled", false);
     SetKeyComment("emu.currency.enabled", "If this is enabled, users will have a visible Robux balance on the website and will be able to spend it.");

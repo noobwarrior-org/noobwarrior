@@ -107,6 +107,7 @@ bool IsVerifiedLocalInstance(const RunningInstance &instance) {
 ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mProcessPingHandler(this),
     mCreateAccountHandler(this),
+    mEmuLoginHandler(this),
     mLoginHandler(this),
     mLogoutHandler(this),
     mRunningGameServersHandler(this),
@@ -190,6 +191,8 @@ void ServerEmulator::SetupHandlers() {
 
     SetRequestHandler("/v1/process-ping", &mProcessPingHandler);
     SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
+    SetRequestHandler("/emu/v1/login", &mEmuLoginHandler);
+
     SetRequestHandler("/v1/login", &mLoginHandler);
     SetRequestHandler("/v2/login", &mLoginHandler);
     SetRequestHandler("/v1/logout", &mLogoutHandler);

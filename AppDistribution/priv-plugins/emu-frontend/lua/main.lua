@@ -33,25 +33,30 @@ local sitemap = {
     ["/forums/new-thread"] = "/src/forums_newthread.lhp",
     ["/forums/edit-post"] = "/src/forums_editpost.lhp",
     ["/forums/search"] = "/src/forums_search.lhp",
+    
     ["/control-panel"] = "/src/controlpanel.lhp",
     ["/users/:userId/profile"] = "/src/profile.lhp",
     ["/library/:id"] = "/src/asset_preview.lhp",
     ["/library/:id/"] = "/src/asset_preview.lhp",
     ["/library/:id/:name"] = "/src/asset_preview.lhp",
+    
+    ["/v1/ranks/save"] = { Page = "/src/api/ranks/save.lhp", Permission = "control_panel.ranks" },
+    ["/v1/ranks/delete"] = { Page = "/src/api/ranks/delete.lhp", Permission = "control_panel.ranks" },
+    ["/v1/ranks/set-permission"] = { Page = "/src/api/ranks/set_permission.lhp", Permission = "control_panel.ranks" },
 
-    ["/v1/items/upload"] = "/src/api/items/upload.lhp",
-    ["/v1/items/icon"] = "/src/api/items/icon.lhp",
+    ["/v1/items/upload"] = { Page = "/src/api/items/upload.lhp", Permission = "items.write" },
+    ["/v1/items/icon"] = { Page = "/src/api/items/icon.lhp", Permission = "items.write" },
 
-    ["/v1/forums/create-category"] = "/src/api/forums/create_category.lhp",
-    ["/v1/forums/update-category"] = "/src/api/forums/update_category.lhp",
-    ["/v1/forums/delete-category"] = "/src/api/forums/delete_category.lhp",
-    ["/v1/forums/create-forum"] = "/src/api/forums/create_forum.lhp",
-    ["/v1/forums/update-forum"] = "/src/api/forums/update_forum.lhp",
-    ["/v1/forums/delete-forum"] = "/src/api/forums/delete_forum.lhp",
-    ["/v1/forums/create-thread"] = "/src/api/forums/create_thread.lhp",
-    ["/v1/forums/reply"] = "/src/api/forums/reply.lhp",
-    ["/v1/forums/edit-post"] = "/src/api/forums/edit_post.lhp",
-    ["/v1/forums/delete-post"] = "/src/api/forums/delete_post.lhp"
+    ["/v1/forums/create-category"] = { Page = "/src/api/forums/create_category.lhp", Permission = "forums.structure" },
+    ["/v1/forums/update-category"] = { Page = "/src/api/forums/update_category.lhp", Permission = "forums.structure" },
+    ["/v1/forums/delete-category"] = { Page = "/src/api/forums/delete_category.lhp", Permission = "forums.structure" },
+    ["/v1/forums/create-forum"] = { Page = "/src/api/forums/create_forum.lhp", Permission = "forums.structure" },
+    ["/v1/forums/update-forum"] = { Page = "/src/api/forums/update_forum.lhp", Permission = "forums.structure" },
+    ["/v1/forums/delete-forum"] = { Page = "/src/api/forums/delete_forum.lhp", Permission = "forums.structure" },
+    ["/v1/forums/create-thread"] = { Page = "/src/api/forums/create_thread.lhp", Permission = "forums.post" },
+    ["/v1/forums/reply"] = { Page = "/src/api/forums/reply.lhp", Permission = "forums.post" },
+    ["/v1/forums/edit-post"] = { Page = "/src/api/forums/edit_post.lhp", Permission = "forums.post" },
+    ["/v1/forums/delete-post"] = { Page = "/src/api/forums/delete_post.lhp", Permission = "forums.post" }
 }
 
 http_base.AttachToServer(emu, {

@@ -1,0 +1,48 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/ranks/set_permission.lhp
+-- Description: Sets the minimum rank for one emu.permissions.* key.
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local function enc(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%%%%02X", string.byte(c))
+    end))
+end
+local function back(param, message)
+    header(string.format("Location: /control-panel?category=ranks&%s=%s", param, enc(message)))
+    http_response_code(302)
+    die("")
+end
+local function fail(message) back("err", message) end
+local function ok(message) back("msg", message) end
+
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local permission = _POST["permission"]
+local rank = tonumber(_POST["rank"])
+
+if permission == nil or permission:match("^%s*$") then
+    fail("No permission given.")
+end
+if not permission:match("^[%a_][%w_]*(%.?[%w_]*)*$") or permission:find("%.%.") then
+    fail("That is not a valid permission name.")
+end
+if rank == nil or rank ~= math.floor(rank) or rank < 0 or rank > 255 then
+    fail("A rank must be a whole number between 0 and 255.")
+end
+
+if reg.GetKeyValue("emu.permissions." .. permission) == nil then
+    fail(string.format("There is no permission named \"%s\".", permission))
+end
+
+reg.SetKeyValue("emu.permissions." .. permission, rank)
+reg.Save()
+ok(string.format("%s now needs rank %d.", permission, rank))
+?>
