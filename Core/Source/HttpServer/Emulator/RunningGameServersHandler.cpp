@@ -82,7 +82,10 @@ void RunningGameServersHandler::OnRequest(evhttp_request *req, void *userdata) {
         json.push_back(obj);
     }
 
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    evkeyvalq *headers = evhttp_request_get_output_headers(req);
+    evhttp_add_header(headers, "Content-Type", "application/json");
+    evhttp_add_header(headers, ServerEmulator::kIdentityHeader,
+                      mEmu->GetInstanceId().c_str());
     evbuffer* reply = evbuffer_new();
     evbuffer_add_printf(reply, "%s", json.dump().c_str());
     evhttp_send_reply(req, 200, nullptr, reply);

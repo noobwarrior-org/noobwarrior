@@ -18,24 +18,23 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AvatarOverrideHandler.h
+// File: SignalRCoreHandler.h
 // Started by: Hattozo
-// Started on: 6/20/2026
-// Description: Receives an avatar appearance and identity federated from a joining client. The client
-//              only knows its own local settings, so when it joins a remote host it POSTs them here,
-//              keyed by its user id. The host serves the appearance from AvatarFetchHandler and the
-//              identity from UserProfilesHandler.
-//              Some assistance by Claude Opus 4.8
+// Started on: 8/19/2026
+// Description: SignalR Core WebSocket transport used by recent voice-chat clients.
 #pragma once
+
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-class ServerEmulator;
-class AvatarOverrideHandler : public Handler {
+class Registry;
+
+class SignalRCoreHandler : public Handler {
 public:
-    AvatarOverrideHandler(ServerEmulator* emu);
+    explicit SignalRCoreHandler(Registry *registry);
     void OnRequest(evhttp_request *req, void *userdata) override;
+
 private:
-    ServerEmulator* mEmu;
+    Registry *mRegistry;
 };
 }

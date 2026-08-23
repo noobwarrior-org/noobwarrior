@@ -61,6 +61,7 @@ private:
     QVBoxLayout* mServerSettingsLayout;
     QFormLayout* mServerSettingsFormLayout;
     QLabel* mServerSettingsInfoLabel;
+    QLabel* mServerSettingsVcInfoLabel;
 
     QLineEdit* mPortInput;
     QComboBox* mMasterServerBox;

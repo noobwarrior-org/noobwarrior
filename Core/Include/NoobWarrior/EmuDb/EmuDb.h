@@ -283,6 +283,11 @@ public:
     // or std::nullopt if the universe has no UniverseMisc row / the column is unset in this database.
     std::optional<int> GetUniverseAvatarType(int64_t universeId);
 
+    // Returns the experience-level voice opt-in stored in UniverseMisc. A known
+    // universe without a misc row retains the legacy enabled default; unknown
+    // universe ids return std::nullopt.
+    std::optional<bool> GetUniverseVoiceChatEnabled(int64_t universeId);
+
     // The columns the develop "search/universes" homepage list needs to describe one universe.
     struct UniverseSummary {
         int64_t Id {0};

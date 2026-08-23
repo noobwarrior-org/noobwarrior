@@ -55,6 +55,18 @@ using namespace NoobWarrior;
 using json = nlohmann::json;
 
 namespace {
+std::string CreateEmulatorInstanceId(const void *object) {
+    std::string id = AuthUtil::RandomHex(16);
+    if (!id.empty())
+        return id;
+
+    // This identifier is for loop detection, not authentication. Keep the proxy safe even if the
+    // platform random provider is temporarily unavailable during early startup.
+    return "fallback-" +
+        std::to_string(reinterpret_cast<uintptr_t>(object)) + "-" +
+        std::to_string(static_cast<long long>(std::time(nullptr)));
+}
+
 #if defined(_WIN32)
 std::optional<uint64_t> GetLiveLocalProcessStartToken(int pid) {
     if (pid <= 0)
@@ -154,6 +166,9 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mStudioPbeHandler(),
     mGuacBundlesStudioHandler(),
     mUserModerationHandler(),
+    mVoiceChatHandler(this),
+    mSignalRCoreHandler(mCore->GetRegistry()),
+    mInstanceId(CreateEmulatorInstanceId(this)),
     mEmulatorProxy(this),
     mAssetEnricher(mCore)
 {
@@ -209,6 +224,29 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/guac-v2/v1/bundles/intl-auth-compliance", &mGuacBundlesStudioHandler);
     SetRequestHandler("/v1/not-approved", &mUserModerationHandler);
     SetRequestHandler("/v2/not-approved", &mUserModerationHandler);
+
+    // Studio 0.719 uses the voice API both from AvatarChatService in edit mode and from
+    // the RCC-side VoiceChatService during a play session.
+    SetRequestHandler("/v1/settings", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/user-opt-in", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/user-opt-in/avatarvideo", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/universe/:universeId", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/universe/avatarvideo/:universeId", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/verify/show-overlay", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/verify/show-age-verification-overlay/:universeId", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/record-user-seen-avatar-video-upsell-modal", &mVoiceChatHandler);
+    SetRequestHandler("/v1/settings/record-user-seen-upsell-modal", &mVoiceChatHandler);
+    SetRequestHandler("/v2/rccsettings/universe", &mVoiceChatHandler);
+    SetRequestHandler("/v2/rccsettings/user", &mVoiceChatHandler);
+    // LocalRCC uses this loopback-only endpoint to obtain short-lived credentials
+    // for the TURN address advertised to joining Players.
+    SetRequestHandler("/emu/v1/voice/turn-auth", &mVoiceChatHandler);
+
+    // The 0.719 client connects directly to realtime-signalr.roblox.com/userhub over
+    // WebSocket. Keep both slash variants because the engine has emitted each form.
+    SetRequestHandler("/userhub", &mSignalRCoreHandler);
+    SetRequestHandler("/userhub/", &mSignalRCoreHandler);
+    SetRequestHandler("/userhub/negotiate", &mSignalRCoreHandler);
 
     SetRequestHandler("/Login/Negotiate.ashx", &mNegotiateHandler);
     SetRequestHandler("/login/negotiate.ashx", &mNegotiateHandler);
@@ -334,12 +372,15 @@ void ServerEmulator::SetupHandlers() {
 int ServerEmulator::Start(uint16_t port) {
     mAssetHandler.ResumeProxy();
     mEmulatorProxy.Resume();
-    return HttpServer::Start(port);
+    const int result = HttpServer::Start(port);
+    mVoiceChatHandler.StartTurnRelay();
+    return result;
 }
 
 int ServerEmulator::Stop() {
     // Must pause the proxy pools before HttpServer::Stop frees the evhttp, so no in-flight proxy
     // fetch/forward replies to a freed connection.
+    mVoiceChatHandler.StopTurnRelay();
     mAssetHandler.PauseProxy();
     mEmulatorProxy.Pause();
     return HttpServer::Stop();
@@ -786,6 +827,10 @@ std::vector<RunningInstance> ServerEmulator::GetRunningGameServers() const {
     return servers;
 }
 
+const std::string &ServerEmulator::GetInstanceId() const {
+    return mInstanceId;
+}
+
 void ServerEmulator::SetLaunchedStudioVersion(const std::string &version, const std::string &hash) {
     std::lock_guard lock(mLaunchedStudioMutex);
     mLaunchedStudioVersion = version;
@@ -841,9 +886,18 @@ std::string CachedPublicIp() {
 }
 }
 
-std::string ServerEmulator::ResolveAdvertisedAddress(const std::string &localAddr) {
+std::string ServerEmulator::ResolveAdvertisedAddress(
+    const std::string &localAddr, bool waitForDetection) {
     std::string advertised = mCore->GetRegistry()
         ->GetKeyValue<std::string>("emu.public_ip").value_or("");
+    if (advertised.empty() && waitForDetection) {
+        advertised = DetectPublicIpBlocking();
+        if (!advertised.empty()) {
+            std::lock_guard<std::mutex> lock(gPublicIpMtx);
+            gPublicIp = advertised;
+            gPublicIpFetchedAt = std::time(nullptr);
+        }
+    }
     if (advertised.empty()) advertised = CachedPublicIp();
     if (advertised.empty()) advertised = localAddr;
     return advertised;

@@ -39,7 +39,7 @@ HostServerDialog::HostServerDialog(QWidget* parent) : QDialog(parent)
 {
     setWindowTitle("Host Server");
     InitWidgets();
-    resize(QSize(size().width() + 192, size().height() + 128));
+    resize(QSize(size().width() + 192, size().height() + 224));
 }
 
 void HostServerDialog::InitWidgets() {
@@ -102,9 +102,11 @@ void HostServerDialog::InitWidgets() {
 
     mServerSettingsInfoLabel = new QLabel();
     mServerSettingsInfoLabel->setWordWrap(true);
-    mServerSettingsInfoLabel->setStyleSheet("QLabel { color: orange; }");
+    mServerSettingsInfoLabel->setStyleSheet("QLabel { color: yellow; }");
     auto updateText = [this]() {
-        auto emu_https_port = gApp->GetCore()->GetRegistry()->GetKeyValue<uint16_t>("emu.https_port").value_or(53640);
+        auto* registry = gApp->GetCore()->GetRegistry();
+        const auto emu_https_port = registry->GetKeyValue<uint16_t>(
+            "emu.https_port").value_or(53640);
         mServerSettingsInfoLabel->setText(
             QString(
             "Open TCP port %1 and UDP port %2 on your router in order for the server to be accessible online. Make sure your friends join through port %3."
@@ -116,6 +118,39 @@ void HostServerDialog::InitWidgets() {
         updateText();
     });
     mServerSettingsLayout->addWidget(mServerSettingsInfoLabel);
+
+    auto* registry = gApp->GetCore()->GetRegistry();
+    const int turnPort = registry->GetKeyValue<int>(
+        "emu.voice_turn.port").value_or(3478);
+    const int relayPortBegin = registry->GetKeyValue<int>(
+        "emu.voice_turn.relay_port_begin").value_or(49160);
+    const int relayPortEnd = registry->GetKeyValue<int>(
+        "emu.voice_turn.relay_port_end").value_or(49200);
+    mServerSettingsVcInfoLabel = new QLabel();
+    mServerSettingsVcInfoLabel->setWordWrap(true);
+    mServerSettingsVcInfoLabel->setStyleSheet("QLabel { color: orange; }");
+    mServerSettingsVcInfoLabel->setText(
+        QString(
+        "You have selected a game with voice chat. This feature will not work online unless if you have opened UDP port %1 and UDP ports %2-%3 on your router."
+        ).arg(turnPort).arg(relayPortBegin).arg(relayPortEnd)
+    );
+    mServerSettingsVcInfoLabel->setVisible(false);
+    mServerSettingsLayout->addWidget(mServerSettingsVcInfoLabel);
+    connect(mUniverseTreeWidget, &QTreeWidget::currentItemChanged, [this](QTreeWidgetItem *current, QTreeWidgetItem *previous) {
+        mServerSettingsVcInfoLabel->setVisible(false);
+        if (!current)
+            return;
+
+        EmuDb* db = mDbListWidget->GetSelectedDatabase();
+        if (db == nullptr)
+            return;
+
+        std::optional<int64_t> universeId = db->GetUniverseIdForPlace(current->data(0, Qt::UserRole).toLongLong());
+        if (!universeId)
+            return;
+
+        mServerSettingsVcInfoLabel->setVisible(db->GetUniverseVoiceChatEnabled(*universeId).value_or(false));
+    });
 
     auto* engineRow = new QHBoxLayout();
     engineRow->addWidget(new QLabel("Host engine:"));

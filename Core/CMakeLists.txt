@@ -108,6 +108,120 @@ CPMAddPackage(
 
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
 
+# Studio 0.719's Player deliberately gathers relay candidates only. Core owns
+# the lightweight TURN server, its public advertised address and short-lived
+# credentials; LocalRCC remains the version-specific WebRTC/RemoteEvent bridge.
+# The relay is currently Windows-only. libjuice is MPL-2.0.
+if (WIN32)
+    CPMAddPackage(
+        NAME noobwarrior_libjuice
+        GITHUB_REPOSITORY "paullouisageneau/libjuice"
+        GIT_TAG "5948a4162d37bc213d6051b67ee2876ccc5a99a6"
+        # This also changes CPM's source-cache key, bypassing any incomplete
+        # checkout left by an interrupted configure.
+        GIT_SHALLOW FALSE
+        DOWNLOAD_ONLY YES
+    )
+    if (NOT EXISTS "${noobwarrior_libjuice_SOURCE_DIR}/src/addr.c" OR
+        NOT EXISTS "${noobwarrior_libjuice_SOURCE_DIR}/include/juice/juice.h")
+        message(FATAL_ERROR
+            "libjuice CPM checkout is incomplete at "
+            "${noobwarrior_libjuice_SOURCE_DIR}; clear only that package's "
+            "CPM cache entry and configure again")
+    endif()
+    find_package(Threads REQUIRED)
+
+    # Roblox's 0.719 TURN client starts a replacement allocation after a 438
+    # stale-nonce response instead of retrying the existing allocation's
+    # Refresh request. libjuice rotates its nonce key at the same ten-minute
+    # cadence as allocations, so that replacement receives 437 Allocation
+    # Mismatch while the old allocation is still alive and the established ICE
+    # path subsequently closes. This relay already uses fixed LAN-only test
+    # credentials, so keep its nonce stable for the relay process lifetime.
+    # libjuice has no public nonce-lifetime option. Force-include a compatibility
+    # header for server.c only, leaving both the pinned source and CPM cache
+    # untouched.
+    set(noobwarrior_voice_juice_generated_dir
+        "${CMAKE_CURRENT_BINARY_DIR}/Generated/libjuice")
+    file(MAKE_DIRECTORY "${noobwarrior_voice_juice_generated_dir}")
+    file(READ "${noobwarrior_libjuice_SOURCE_DIR}/src/server.h"
+        noobwarrior_voice_juice_server_header)
+    set(noobwarrior_voice_juice_nonce_definition
+        "#define SERVER_NONCE_KEY_LIFETIME 600 * 1000")
+    string(FIND "${noobwarrior_voice_juice_server_header}"
+        "${noobwarrior_voice_juice_nonce_definition}"
+        noobwarrior_voice_juice_nonce_definition_offset)
+    if (noobwarrior_voice_juice_nonce_definition_offset EQUAL -1)
+        message(FATAL_ERROR
+            "Pinned libjuice server nonce implementation changed; update the local TURN compatibility patch")
+    endif()
+    set(noobwarrior_voice_juice_compat_header
+        "${noobwarrior_voice_juice_generated_dir}/server_compat.h")
+    file(WRITE
+        "${noobwarrior_voice_juice_compat_header}"
+        "#include \"server.h\"\n"
+        "#undef SERVER_NONCE_KEY_LIFETIME\n"
+        "#define SERVER_NONCE_KEY_LIFETIME (INT64_MAX / 2)\n")
+    set(noobwarrior_voice_juice_server_source
+        "${noobwarrior_libjuice_SOURCE_DIR}/src/server.c")
+
+    add_library(noobwarrior_voice_juice STATIC
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/addr.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/agent.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/base64.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/conn.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/conn_mux.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/conn_poll.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/conn_thread.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/const_time.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/crc32.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/hash.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/hmac.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/ice.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/juice.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/log.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/random.c
+        ${noobwarrior_voice_juice_server_source}
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/stun.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/tcp.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/timestamp.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/turn.c
+        ${noobwarrior_libjuice_SOURCE_DIR}/src/udp.c
+    )
+    target_include_directories(noobwarrior_voice_juice
+        PUBLIC ${noobwarrior_libjuice_SOURCE_DIR}/include
+        PRIVATE
+            ${noobwarrior_libjuice_SOURCE_DIR}/include/juice
+            ${noobwarrior_libjuice_SOURCE_DIR}/src
+    )
+    target_compile_definitions(noobwarrior_voice_juice
+        PUBLIC JUICE_STATIC
+        PRIVATE
+            WIN32_LEAN_AND_MEAN
+            NOMINMAX
+            _CRT_SECURE_NO_WARNINGS
+            USE_NETTLE=0
+            $<$<CONFIG:Release>:RELEASE=1>
+    )
+    target_link_libraries(noobwarrior_voice_juice PRIVATE
+        Threads::Threads
+        ws2_32
+        bcrypt
+    )
+    set_property(TARGET noobwarrior_voice_juice PROPERTY
+        POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET noobwarrior_voice_juice PROPERTY C_STANDARD 11)
+    if (MSVC)
+        set_property(SOURCE "${noobwarrior_voice_juice_server_source}"
+            APPEND PROPERTY COMPILE_OPTIONS
+            "/FI${noobwarrior_voice_juice_compat_header}")
+    else()
+        set_property(SOURCE "${noobwarrior_voice_juice_server_source}"
+            APPEND PROPERTY COMPILE_OPTIONS
+            "-include" "${noobwarrior_voice_juice_compat_header}")
+    endif()
+endif()
+
 CPMAddPackage(
     URI "gh:libevent/libevent#a994a52"
     OPTIONS
@@ -246,6 +360,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/StudioPbeHandler.cpp
     Source/HttpServer/Emulator/GuacBundlesStudioHandler.cpp
     Source/HttpServer/Emulator/UserModerationHandler.cpp
+    Source/HttpServer/Emulator/VoiceChatHandler.cpp
+    Source/HttpServer/Emulator/SignalRCoreHandler.cpp
     Source/HttpServer/Emulator/UniversalAppConfigStudioHandler.cpp
     Source/HttpServer/Emulator/MySettingsJsonHandler.cpp
     Source/HttpServer/Emulator/AuthenticatedUserHandler.cpp
@@ -298,6 +414,13 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     libzip::zip
     pugixml-static
 )
+if (WIN32)
+    target_link_libraries(NoobWarrior.Core PRIVATE
+        noobwarrior_voice_juice
+        iphlpapi)
+    target_compile_definitions(NoobWarrior.Core PRIVATE
+        NOOBWARRIOR_VOICE_TURN_RELAY=1)
+endif()
 target_compile_features(NoobWarrior.Core PUBLIC cxx_std_23)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Include/NoobWarrior/Roblox/FileFormat/Generated/Classes.cpp")

@@ -205,6 +205,7 @@ protected:
     QCheckBox* mUniverse_AllowPrivateServersInput;
     QCheckBox* mUniverse_AllowDirectAccessInput;
     QLineEdit* mUniverse_SupportedDevicesInput;
+    QCheckBox* mUniverse_VoiceChatEnabledInput;
     QTableWidget* mUniverse_SocialLinkTable;
     QPushButton* mUniverse_AddSocialLinkButton;
     QFrame* mUniverse_PlaceFrame;

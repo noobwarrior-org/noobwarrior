@@ -24,6 +24,7 @@
 //              noobWarrior Hook system. Loaded by noobhook.dll only when running inside
 //              RobloxStudioBeta.exe -- it patches Studio so that Player can connect to
 //              a Studio-hosted team test server.
+// Exact-version voice support lives in VoiceChat719.cpp.
 //
 // Original work by 7ap & Epix (https://github.com/rsblox). Ported to MinHook +
 // Hooking.Patterns.
@@ -39,6 +40,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
+#include <new>
 #include <string>
 #include <vector>
 
@@ -58,6 +61,12 @@
 #include <xxhash.h>
 #include <zstd.h>
 
+#include "LocalRccShared.h"
+#include "VoiceChat719.h"
+
+using LocalRccShared::Log;
+using LocalRccShared::ScanAny;
+
 // -----------------------------------------------------------------------------
 // Logging -- own log file so it doesn't interleave with noobhook.log
 // -----------------------------------------------------------------------------
@@ -67,7 +76,7 @@ static HMODULE gLocalRccModule = nullptr;
 static volatile LONG gInitializationState = 0;
 static volatile LONG gInitializationResult = ERROR_DLL_INIT_FAILED;
 
-static void Log(const char* category, const char* format, ...) {
+void LocalRccShared::Log(const char* category, const char* format, ...) {
     if (!gLog) return;
     fprintf(gLog, "[LocalRcc::%s] ", category);
     va_list args;
@@ -122,7 +131,6 @@ namespace types {
     using compile_fn         = std::string (*)(const std::string& source, int target, int options);
     using deserialize_item_fn = void* (*)(void* self, void* result, void* in_bitstream, int item_type);
 
-    enum item_type           { client_qos = 0x1f };
     enum network_value_format { protected_string_bytecode = 0x2f };
 }
 
@@ -218,6 +226,11 @@ bool IsStudio574CompileCaller(const StudioImageIdentity& identity,
 
 } // namespace
 
+std::uint8_t* LocalRccShared::GetExactStudio719ImageBase() {
+    const StudioImageIdentity identity = GetStudioImageIdentity();
+    return IsExactStudio719(identity) ? identity.base : nullptr;
+}
+
 #if defined(NOOBWARRIOR_LOCALRCC_LEGACY_LUAU_ENCODER)
 constexpr uint8_t kExpectedBytecodeVersion = 3;
 #else
@@ -236,7 +249,7 @@ constexpr std::array<uint8_t, 4> kLegacyLsbMarker = {
     0x32, 0xc4, 0x6a, 0x94
 };
 constexpr std::array<uint8_t, 4> kLegacyLsbKey = {
-    0x41, 0x42, 0x43, 0x44
+    0x4E, 0x4F, 0x4F, 0x42
 };
 
 uint8_t RotateLeft8(uint8_t value, unsigned count) {
@@ -471,15 +484,8 @@ static void* DeserializeItemInnerHook(void* self, void* result, void* inBitstrea
     if (UsesInnerDeserializer(itemType))
         return gOrigDeserializeInner(self, result, inBitstream, itemType);
 
-    if (itemType == types::client_qos)
-        Log("deserializeItem", "Routing ClientQoSItem (itemType=0x%x) through outer dispatcher", itemType);
-    else
-        Log("deserializeItem", "Routing itemType=0x%x through outer dispatcher", itemType);
     return DeserializeItemOuterHook(self, result, inBitstream, itemType);
 }
-
-// Forward decl -- ScanAny lives further down with the rest of the scan helpers.
-static void* ScanAny(const char* label, std::initializer_list<const char*> patterns);
 
 namespace offline {
     using from_components_fn = void  (*)(void* res16, void* schema, void* host, void* path, void* query, void* fragment);
@@ -702,6 +708,10 @@ static bool PatchTypeForProperty(TypeForPropertyPatchState& state) {
 }
 
 static void RemoveTeamTestHooks() {
+#if defined(NOOBWARRIOR_LOCALRCC_VOICE_WEBRTC)
+    VoiceChat719::RemoveHooks();
+#endif
+
     struct HookTarget {
         const char* label;
         LPVOID address;
@@ -983,7 +993,8 @@ static void PatchConnectionRequestPassword() {
 
 // Try patterns in order; first one that produces exactly one match wins.
 // Returns nullptr if every alternative misses (caller logs and bails).
-static void* ScanAny(const char* label, std::initializer_list<const char*> patterns) {
+void* LocalRccShared::ScanAny(
+    const char* label, std::initializer_list<const char*> patterns) {
     int idx = 0;
     for (const char* sig : patterns) {
         auto p = hook::pattern(sig);
@@ -1144,6 +1155,15 @@ static DWORD InitializeLocalRcc() {
         PatchModernKeyExchange();
         PatchVerifyPreauthMac();
         PatchRecentlyConnectedWindow();
+
+        // Exact 0.719 Studio leaves the hidden VoiceChatService RCC gates false
+        // in its normal Team Test launch settings. This bridge fills those two
+        // settings from Core's per-universe policy before ConfigureWithoutRun
+        // consumes them. Other Studio fingerprints remain untouched.
+#if defined(NOOBWARRIOR_LOCALRCC_VOICE_WEBRTC)
+        if (IsExactStudio719(identity))
+            VoiceChat719::InstallHooks();
+#endif
     }
 
     // Studio-offline web-stack hooks are needed in BOTH modes -- they're what let

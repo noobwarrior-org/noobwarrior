@@ -57,6 +57,9 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("debug.log_http_server_requests", false);
 
+    SetKeyValueIfNotSet("debug.log_voice_transport", false);
+    SetKeyComment("debug.log_voice_transport", "If true, logs high-frequency voice transport diagnostics, including TURN/STUN packet traces and SignalR heartbeat frames. Leave disabled unless troubleshooting voice connectivity.");
+
     SetKeyValueIfNotSet("allow_multiple_instances", false);
     SetKeyComment("allow_multiple_instances", "If true, lets more than one copy of " NOOBWARRIOR_BRAND " run at once instead of blocking the second one. Only enable this if you know what you're doing!");
 
@@ -186,6 +189,20 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.public_ip", "");
     SetKeyComment("emu.public_ip", "The public address that remote clients should use to reach your game servers (e.g. 108.17.63.2 or a domain name). Leave empty to auto-detect your WAN IP via an external service. Set this manually if you are behind NAT/port-forwarding, use a static address, or auto-detection picks the wrong interface.");
+
+    SetKeyValueIfNotSet<int>("emu.voice_turn.port", 3478);
+    SetKeyComment("emu.voice_turn.port", "The public and local UDP port used by the built-in voice TURN relay. Forward this UDP port from your router to the host.");
+
+    SetKeyValueIfNotSet<int>("emu.voice_turn.relay_port_begin", 49160);
+    SetKeyValueIfNotSet<int>("emu.voice_turn.relay_port_end", 49200);
+    SetKeyComment("emu.voice_turn.relay_port_begin", "The first UDP media relay port used by voice TURN allocations. Forward the complete configured range to the host.");
+    SetKeyComment("emu.voice_turn.relay_port_end", "The last UDP media relay port used by voice TURN allocations. Forward the complete configured range to the host.");
+
+    SetKeyValueIfNotSet<int>("emu.voice_turn.credential_ttl_seconds", 3600);
+    SetKeyComment("emu.voice_turn.credential_ttl_seconds", "How long LocalRCC-issued TURN credentials remain valid. Active Players request replacements before expiry.");
+
+    SetKeyValueIfNotSet<int>("emu.voice_turn.max_allocations", 64);
+    SetKeyComment("emu.voice_turn.max_allocations", "Maximum simultaneous allocations accepted by the built-in voice TURN relay. Each Player can require both publishing and subscription allocations.");
 
     SetKeyValueIfNotSet("emu.asset_grab_mode", false);
     SetKeyComment("emu.asset_grab_mode", "If enabled, any asset that is retrieved from Roblox services will be downloaded and saved to a database of your choice. This requires emu.enable_roblox_proxy to be enabled.");

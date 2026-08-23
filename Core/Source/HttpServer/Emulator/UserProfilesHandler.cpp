@@ -32,9 +32,70 @@
 #include <event2/http.h>
 #include <nlohmann/json.hpp>
 
+#include <charconv>
+#include <limits>
+#include <optional>
+#include <string>
 #include <utility>
 
 using namespace NoobWarrior;
+
+namespace {
+struct ProfileIdentity {
+    std::string Username;
+    std::string DisplayName;
+};
+
+std::optional<int64_t> ParseUserId(const nlohmann::json& value) {
+    if (value.is_number_integer())
+        return value.get<int64_t>();
+    if (value.is_number_unsigned()) {
+        const uint64_t unsignedValue = value.get<uint64_t>();
+        if (unsignedValue <= static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
+            return static_cast<int64_t>(unsignedValue);
+        return std::nullopt;
+    }
+    if (!value.is_string())
+        return std::nullopt;
+
+    const std::string& text = value.get_ref<const std::string&>();
+    int64_t result = 0;
+    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), result);
+    if (error != std::errc() || end != text.data() + text.size())
+        return std::nullopt;
+    return result;
+}
+
+nlohmann::json MakeProfileDetail(const nlohmann::json& requestedUserId,
+                                 const std::optional<ProfileIdentity>& identity) {
+    std::string username;
+    std::string displayName;
+    std::string combinedName;
+    if (identity) {
+        username = identity->Username;
+        displayName = identity->DisplayName.empty() ? username : identity->DisplayName;
+        combinedName = displayName == username
+            ? username
+            : displayName + " (@" + username + ")";
+    }
+
+    nlohmann::json detail;
+    detail["userId"] = requestedUserId;
+    detail["names"] = {
+        {"username", username},
+        {"displayName", displayName},
+        {"combinedName", combinedName},
+        {"inExperienceCombinedName", combinedName},
+        {"contactName", displayName},
+        {"alias", ""},
+        {"platformName", username},
+    };
+    detail["platformProfileId"] = "";
+    detail["isVerified"] = false;
+    detail["hasRobloxSubscription"] = false;
+    return detail;
+}
+}
 
 UserProfilesHandler::UserProfilesHandler(ServerEmulator* emu) : mEmu(emu) {
 }
@@ -62,44 +123,36 @@ void UserProfilesHandler::OnRequest(evhttp_request* req, void* userdata) {
     }
 
     Registry* registry = mEmu->GetCore()->GetRegistry();
-    std::string username = registry->GetKeyValue<std::string>("user.name").value_or("Player");
-    std::string displayName = registry->GetKeyValue<std::string>("user.display_name").value_or(username);
+    const int64_t localUserId = registry->GetKeyValue<int64_t>("user.id").value_or(1000);
+    const std::string localUsername =
+        registry->GetKeyValue<std::string>("user.name").value_or("Player");
+    const std::string localDisplayName =
+        registry->GetKeyValue<std::string>("user.display_name").value_or(localUsername);
 
-    if (registry->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
-        if (auto user = mEmu->ResolveJoiningUser(req)) {
-            username = user->name;
-            displayName = user->displayName.empty() ? user->name : user->displayName;
-        }
-    }
-
-    const std::string combinedName = displayName == username
-        ? username
-        : displayName + " (@" + username + ")";
+    std::optional<AuthUtil::SessionUser> requestUser;
+    if (registry->GetKeyValue<bool>("emu.auth.enabled").value_or(false))
+        requestUser = mEmu->ResolveJoiningUser(req);
 
     nlohmann::json response;
     response["profileDetails"] = nlohmann::json::array();
     response["errors"] = nlohmann::json::array();
     for (const nlohmann::json& userId : request["userIds"]) {
-        if (!userId.is_string() && !userId.is_number_integer() &&
-            !userId.is_number_unsigned()) {
+        const std::optional<int64_t> parsedUserId = ParseUserId(userId);
+        if (!parsedUserId)
             continue;
-        }
 
-        nlohmann::json detail;
-        detail["userId"] = userId;
-        detail["names"] = {
-            {"username", username},
-            {"displayName", displayName},
-            {"combinedName", combinedName},
-            {"inExperienceCombinedName", combinedName},
-            {"contactName", displayName},
-            {"alias", ""},
-            {"platformName", username},
-        };
-        detail["platformProfileId"] = "";
-        detail["isVerified"] = false;
-        detail["hasRobloxSubscription"] = false;
-        response["profileDetails"].push_back(std::move(detail));
+        // Only label the identity owned by this emulator/request. The old implementation copied
+        // that identity onto every requested id, producing duplicate names in PlayerList.
+        std::optional<ProfileIdentity> identity;
+        if (requestUser && requestUser->id == *parsedUserId) {
+            identity = ProfileIdentity{
+                requestUser->name,
+                requestUser->displayName.empty() ? requestUser->name : requestUser->displayName,
+            };
+        } else if (*parsedUserId == localUserId) {
+            identity = ProfileIdentity{localUsername, localDisplayName};
+        }
+        response["profileDetails"].push_back(MakeProfileDetail(userId, identity));
     }
 
     const std::string body = response.dump();

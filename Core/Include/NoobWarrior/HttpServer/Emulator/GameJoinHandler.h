@@ -37,8 +37,8 @@ private:
     void HandleLocally(evhttp_request *req);
 
     // Overlays this client's local player identity (user.id / user.name / user.display_name) onto a
-    // join script's player fields. Applied to both the locally-built join script and one proxied
-    // from a remote host, so the joining player keeps their own name and id regardless of source.
+    // join script's player fields. A remote request also carries this identity to the host before
+    // the response is built; this response overlay remains as compatibility with older hosts.
     // Used only on the non-authenticated path; under auth the host is authoritative for identity.
     void ApplyLocalIdentity(nlohmann::json &joinScript);
 

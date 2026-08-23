@@ -97,9 +97,100 @@ target_compile_definitions(noobwarrior_blake3 PRIVATE
 set_property(TARGET noobwarrior_blake3 PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+if (NOOBWARRIOR_LOCALRCC_LUAU_VERSION STREQUAL "0.719")
+    # The WebRTC peer stays beside the exact 0.719 RemoteEvent and SDP codec
+    # bridge in LocalRCC. Core owns shared networking policy, public TURN
+    # reachability and credential issuance; the sidecar owns Studio-versioned
+    # media negotiation and RTP forwarding. Keep it self-contained: Mbed TLS
+    # avoids deploying datachannel.dll and OpenSSL runtime DLLs beside Studio.
+    # Mbed TLS is Apache-2.0 and libdatachannel is MPL-2.0; both dependency
+    # revisions are pinned for reproducible builds.
+    CPMAddPackage(
+        NAME noobwarrior_mbedtls
+        GITHUB_REPOSITORY "Mbed-TLS/mbedtls"
+        GIT_TAG "b336acaa2b8074c63d48a6ff43c74413102b6fdb"
+        OPTIONS
+            "ENABLE_PROGRAMS OFF"
+            "ENABLE_TESTING OFF"
+            "USE_STATIC_MBEDTLS_LIBRARY ON"
+            "USE_SHARED_MBEDTLS_LIBRARY OFF"
+            "DISABLE_PACKAGE_CONFIG_AND_INSTALL ON"
+            "MBEDTLS_FATAL_WARNINGS OFF"
+    )
+    if (NOT TARGET MbedTLS::mbedtls OR
+        NOT TARGET MbedTLS::mbedx509 OR
+        NOT TARGET MbedTLS::mbedcrypto)
+        message(FATAL_ERROR "LocalRcc: static Mbed TLS targets were not created")
+    endif()
+
+    # Mbed TLS keeps RFC 5764 negotiation behind an optional compile-time
+    # switch. libdatachannel's DTLS-SRTP transport uses the corresponding
+    # types, profile constants and APIs, so the definition must be present
+    # both while Mbed TLS itself is compiled and while its headers are parsed
+    # by libdatachannel.
+    target_compile_definitions(mbedtls PUBLIC MBEDTLS_SSL_DTLS_SRTP)
+
+    # The pinned libSRTP submodule still calls find_package(MbedTLS) even when
+    # Mbed TLS is already part of the build. Put our adapter ahead of
+    # libdatachannel's installed-library finder and force the crypto selection
+    # because other noobWarrior dependencies may have cached these generic
+    # options with different values earlier in the top-level configure.
+    set(NOOBWARRIOR_LOCALRCC_MBEDTLS_INCLUDE_DIR
+        "${noobwarrior_mbedtls_SOURCE_DIR}/include")
+    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/CMake")
+    set(USE_MBEDTLS ON CACHE BOOL "" FORCE)
+    set(USE_GNUTLS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_MBEDTLS ON CACHE BOOL "" FORCE)
+    set(ENABLE_OPENSSL OFF CACHE BOOL "" FORCE)
+    set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
+
+    CPMAddPackage(
+        NAME noobwarrior_libdatachannel
+        GITHUB_REPOSITORY "paullouisageneau/libdatachannel"
+        GIT_TAG "297244ec812b2afe65fb52d01a2d0e2e0f1dd4f1"
+        GIT_SUBMODULES_RECURSE YES
+        OPTIONS
+            "BUILD_SHARED_LIBS OFF"
+            "BUILD_SHARED_DEPS_LIBS OFF"
+            "USE_GNUTLS OFF"
+            "USE_MBEDTLS ON"
+            "USE_NICE OFF"
+            "PREFER_SYSTEM_LIB OFF"
+            "USE_SYSTEM_SRTP OFF"
+            "USE_SYSTEM_JUICE OFF"
+            "USE_SYSTEM_USRSCTP OFF"
+            "USE_SYSTEM_PLOG OFF"
+            "USE_SYSTEM_JSON OFF"
+            "NO_WEBSOCKET ON"
+            "NO_MEDIA OFF"
+            "NO_EXAMPLES ON"
+            "NO_TESTS ON"
+            "WARNINGS_AS_ERRORS OFF"
+            "CAPI_STDCALL OFF"
+            "RTC_UPDATE_VERSION_HEADER OFF"
+            "ENABLE_OPENSSL OFF"
+            "ENABLE_MBEDTLS ON"
+    )
+    if (NOT TARGET LibDataChannel::LibDataChannelStatic)
+        message(FATAL_ERROR "LocalRcc: static libdatachannel target was not created")
+    endif()
+    foreach(_noobwarrior_datachannel_target datachannel datachannel-static)
+        if (TARGET ${_noobwarrior_datachannel_target})
+            target_compile_definitions(${_noobwarrior_datachannel_target} PRIVATE
+                MBEDTLS_SSL_DTLS_SRTP
+            )
+        endif()
+    endforeach()
+endif()
+
 add_library(NoobWarrior.LocalRcc SHARED
     LocalRcc.cpp
 )
+if (NOOBWARRIOR_LOCALRCC_LUAU_VERSION STREQUAL "0.719")
+    target_sources(NoobWarrior.LocalRcc PRIVATE
+        VoiceChat719.cpp
+    )
+endif()
 if (NOOBWARRIOR_LOCALRCC_LUAU_VERSION STREQUAL "0.574")
     set(_noobwarrior_localrcc_output_name
         "noobhook_x86-64_localrcc_0574")
@@ -123,6 +214,17 @@ target_link_libraries(NoobWarrior.LocalRcc PRIVATE
     libzstd_static
     noobwarrior_blake3
 )
+if (NOOBWARRIOR_LOCALRCC_LUAU_VERSION STREQUAL "0.719")
+    target_link_libraries(NoobWarrior.LocalRcc PRIVATE
+        LibDataChannel::LibDataChannelStatic
+        nlohmann_json
+        iphlpapi
+        winhttp
+    )
+    target_compile_definitions(NoobWarrior.LocalRcc PRIVATE
+        NOOBWARRIOR_LOCALRCC_VOICE_WEBRTC=1
+    )
+endif()
 target_compile_definitions(NoobWarrior.LocalRcc PRIVATE
     NOOBWARRIOR_LOCALRCC_LUAU_VERSION="${NOOBWARRIOR_LOCALRCC_LUAU_VERSION}"
 )

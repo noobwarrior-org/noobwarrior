@@ -64,6 +64,7 @@
 #include "migrations/v19.sql.inc.cpp"
 #include "migrations/v20.sql.inc.cpp"
 #include "migrations/v21.sql.inc.cpp"
+#include "migrations/v22.sql.inc.cpp"
 
 using namespace NoobWarrior;
 
@@ -304,6 +305,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	MIGRATE(v20)
 	/* V21: added AuthTicket table for the one-time game-join authentication ticket flow */
 	MIGRATE(v21)
+	/* V22: added the per-universe voice-chat opt-in to UniverseMisc */
+	MIGRATE(v22)
 
 	// TODO: only do this when we migrate to zstandard
 	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
@@ -1585,6 +1588,21 @@ std::optional<int> EmuDb::GetUniverseAvatarType(int64_t universeId) {
 	stmt.Bind(1, universeId);
 	if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0))
 		return stmt.GetIntFromColumnIndex(0);
+	return std::nullopt;
+}
+
+std::optional<bool> EmuDb::GetUniverseVoiceChatEnabled(int64_t universeId) {
+	if (Fail()) return std::nullopt;
+	Statement stmt = PrepareStatement(R"(
+		SELECT COALESCE(UniverseMisc.VoiceChatEnabled, 1)
+		FROM Universe
+		LEFT JOIN UniverseMisc ON UniverseMisc.Id = Universe.Id
+		WHERE Universe.Id = ?;
+	)");
+	if (stmt.Fail()) return std::nullopt;
+	stmt.Bind(1, universeId);
+	if (stmt.Step() == SQLITE_ROW)
+		return stmt.GetIntFromColumnIndex(0) != 0;
 	return std::nullopt;
 }
 

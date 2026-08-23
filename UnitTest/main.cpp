@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <NoobWarrior.hpp>
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
+#include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Keychain/Keychain.h>
 #include <nlohmann/json.hpp>
 
@@ -46,6 +47,37 @@ static EmuDb* sEmuDb;
 TEST(Core, Init) {
     sCore = new Core(sInit);
     EXPECT_EQ(sCore->Fail(), false) << "noobWarrior failed to initialize. You can assume the test is over now.";
+}
+
+TEST(Core, ServerEmulatorHasStableRuntimeIdentity) {
+    ASSERT_NE(sCore, nullptr);
+    ServerEmulator *emulator = sCore->GetServerEmulator();
+    ASSERT_NE(emulator, nullptr);
+    const std::string identity = emulator->GetInstanceId();
+    EXPECT_FALSE(identity.empty());
+    EXPECT_EQ(identity, emulator->GetInstanceId());
+}
+
+TEST(Core, ServerEmulatorStoresUserProfilesById) {
+    ASSERT_NE(sCore, nullptr);
+    ServerEmulator *emulator = sCore->GetServerEmulator();
+    ASSERT_NE(emulator, nullptr);
+
+    emulator->ClearUserProfileIdentities();
+    emulator->SetUserProfileIdentity(101, "FirstUser", "First Display");
+    emulator->SetUserProfileIdentity(202, "SecondUser", "Second Display");
+
+    const std::optional<UserProfileIdentity> first = emulator->GetUserProfileIdentity(101);
+    const std::optional<UserProfileIdentity> second = emulator->GetUserProfileIdentity(202);
+    ASSERT_TRUE(first.has_value());
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(first->Username, "FirstUser");
+    EXPECT_EQ(first->DisplayName, "First Display");
+    EXPECT_EQ(second->Username, "SecondUser");
+    EXPECT_EQ(second->DisplayName, "Second Display");
+    EXPECT_FALSE(emulator->GetUserProfileIdentity(303).has_value());
+
+    emulator->ClearUserProfileIdentities();
 }
 
 TEST(Url, GetProtocol) {
@@ -438,6 +470,11 @@ TEST(Database, UniversePlaceMapping) {
     auto rootPlace = db.GetStartPlaceIdForUniverse(8);
     ASSERT_TRUE(rootPlace.has_value());
     EXPECT_EQ(1818, rootPlace.value());
+    
+    EXPECT_EQ(true, db.GetUniverseVoiceChatEnabled(8).value_or(false));
+    ASSERT_TRUE(db.ExecStatement(
+        "INSERT INTO UniverseMisc (Id, VoiceChatEnabled) VALUES (8, 0);"));
+    EXPECT_EQ(false, db.GetUniverseVoiceChatEnabled(8).value_or(true));
 
     // names and creator
     EXPECT_EQ("My Game", db.GetItemName(ItemType::Universe, 8).value_or(""));
@@ -449,6 +486,7 @@ TEST(Database, UniversePlaceMapping) {
     // misses return nullopt rather than a bogus value
     EXPECT_FALSE(db.GetUniverseIdForPlace(424242).has_value());
     EXPECT_FALSE(db.GetStartPlaceIdForUniverse(424242).has_value());
+    EXPECT_FALSE(db.GetUniverseVoiceChatEnabled(424242).has_value());
     EXPECT_FALSE(db.GetItemName(ItemType::Universe, 424242).has_value());
 }
 

@@ -397,6 +397,20 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             return;
         }
 
+        std::string remoteEmulatorId;
+        if (auto it = response.header.find(ServerEmulator::kIdentityHeader);
+            it != response.header.end()) {
+            remoteEmulatorId = it->second;
+        }
+        const bool connectedToSelf = mServerEmulator != nullptr &&
+            !remoteEmulatorId.empty() &&
+            remoteEmulatorId == mServerEmulator->GetInstanceId();
+        if (connectedToSelf) {
+            Out("ConnectToServerEmulator",
+                "Recognized this emulator through {}:{}; using local request handling",
+                ip, port);
+        }
+
         std::vector<EngineStartParameters> paramsList;
         nlohmann::json json;
         try {
@@ -457,7 +471,7 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
 
             if (!sessionToken.empty())
                 params.SessionToken = sessionToken; // the account we logged in as (local launch ticket)
-            if (!IsLoopbackOrEmpty(ip)) {
+            if (!IsLoopbackOrEmpty(ip) && !connectedToSelf) {
                 params.RemoteEmulatorHost = ip;
                 params.RemoteEmulatorPort = port;
                 if (!sessionToken.empty())

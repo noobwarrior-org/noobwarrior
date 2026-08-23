@@ -87,7 +87,9 @@ public:
     // Event-loop thread. If the stack has at least one layer (and proxying is active), takes
     // ownership of the request, forwards it down the stack on a worker thread, and returns true
     // (the reply happens later). If the stack is empty, returns false and the caller answers the
-    // request locally. If every layer misses, localFallback (if given) runs as the bottom layer.
+    // request locally. A request whose proxy chain already contains this emulator is also returned
+    // to the caller for local handling, which terminates self-proxy and multi-host routing loops.
+    // If every layer misses, localFallback (if given) runs as the bottom layer.
     bool TryProxy(evhttp_request *req, LocalFallback localFallback = {}, ResponseTransform transform = {});
 
     // Lifecycle, mirrors AssetHandler. Pause MUST run before the server's evhttp is freed so an
@@ -108,6 +110,7 @@ private:
         std::string              Body;          // request body (non-GET)
         std::string              ContentType;   // forwarded request Content-Type
         std::string              Accept;        // forwarded request Accept (asset content negotiation)
+        std::string              ProxyChain;    // comma-separated emulator ids already traversed
         LocalFallback            Fallback;      // run on the event loop if every layer misses
         ResponseTransform        Transform;     // applied to a winning layer's body before replying
     };

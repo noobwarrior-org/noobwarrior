@@ -18,24 +18,31 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AvatarOverrideHandler.h
+// File: VoiceChatHandler.h
 // Started by: Hattozo
-// Started on: 6/20/2026
-// Description: Receives an avatar appearance and identity federated from a joining client. The client
-//              only knows its own local settings, so when it joins a remote host it POSTs them here,
-//              keyed by its user id. The host serves the appearance from AvatarFetchHandler and the
-//              identity from UserProfilesHandler.
-//              Some assistance by Claude Opus 4.8
+// Started on: 8/19/2026
+// Description: Voice eligibility endpoints and the local Team Test TURN relay.
 #pragma once
+
 #include <NoobWarrior/HttpServer/Base/Handler.h>
+
+#include <memory>
 
 namespace NoobWarrior {
 class ServerEmulator;
-class AvatarOverrideHandler : public Handler {
+
+class VoiceChatHandler : public Handler {
 public:
-    AvatarOverrideHandler(ServerEmulator* emu);
+    explicit VoiceChatHandler(ServerEmulator *emulator);
+    ~VoiceChatHandler() override;
+
+    bool StartTurnRelay();
+    void StopTurnRelay();
     void OnRequest(evhttp_request *req, void *userdata) override;
+
 private:
-    ServerEmulator* mEmu;
+    struct TurnRelayState;
+    ServerEmulator *mEmulator;
+    std::unique_ptr<TurnRelayState> mTurnRelay;
 };
 }

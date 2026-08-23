@@ -31,8 +31,43 @@
 #include <NoobWarrior/Log.h>
 
 #include <algorithm>
+#include <string_view>
 
 using namespace NoobWarrior;
+
+namespace {
+constexpr size_t kMaxProxyChainBytes = 2048;
+constexpr size_t kMaxProxyHops = 16;
+
+struct ProxyChainInfo {
+    bool ContainsCurrent {false};
+    size_t HopCount {0};
+};
+
+ProxyChainInfo InspectProxyChain(std::string_view chain,
+                                 std::string_view currentId) {
+    ProxyChainInfo info;
+    size_t begin = 0;
+    while (begin < chain.size()) {
+        size_t end = chain.find(',', begin);
+        if (end == std::string_view::npos)
+            end = chain.size();
+
+        std::string_view token = chain.substr(begin, end - begin);
+        while (!token.empty() && (token.front() == ' ' || token.front() == '\t'))
+            token.remove_prefix(1);
+        while (!token.empty() && (token.back() == ' ' || token.back() == '\t'))
+            token.remove_suffix(1);
+        if (!token.empty()) {
+            ++info.HopCount;
+            if (token == currentId)
+                info.ContainsCurrent = true;
+        }
+        begin = end + 1;
+    }
+    return info;
+}
+}
 
 EmulatorProxy::EmulatorProxy(ServerEmulator *emu) : mEmu(emu) {
     StartPool();
@@ -143,6 +178,22 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, R
     const char *uri = evhttp_request_get_uri(req);
     const std::string path = uri ? uri : "/";
 
+    evkeyvalq *inHeaders = evhttp_request_get_input_headers(req);
+    const char *incomingChainHeader = evhttp_find_header(
+        inHeaders, ServerEmulator::kProxyChainHeader);
+    const std::string incomingChain = incomingChainHeader
+        ? incomingChainHeader
+        : "";
+    const ProxyChainInfo chainInfo = InspectProxyChain(
+        incomingChain, mEmu->GetInstanceId());
+    if (incomingChain.size() > kMaxProxyChainBytes ||
+        chainInfo.HopCount >= kMaxProxyHops || chainInfo.ContainsCurrent) {
+        Out("EmulatorProxy",
+            "Stopped proxy loop for {} after {} hop(s); handling locally",
+            path, chainInfo.HopCount);
+        return false;
+    }
+
     auto r = std::make_shared<ProxyRequest>();
     r->Request    = req;
     r->Connection = evhttp_request_get_connection(req);
@@ -150,6 +201,10 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, R
     r->Transform  = std::move(transform);
     r->Urls.reserve(layers.size());
     r->Cookies.reserve(layers.size());
+    r->ProxyChain = incomingChain;
+    if (!r->ProxyChain.empty())
+        r->ProxyChain += ',';
+    r->ProxyChain += mEmu->GetInstanceId();
     for (const Layer &layer : layers) {
         r->Urls.push_back("https://" + layer.Host + ":" + std::to_string(layer.Port) + path);
         r->Cookies.push_back(layer.SessionToken); // forwarded so the host can identify the joiner
@@ -174,7 +229,6 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, R
         }
     }
 
-    evkeyvalq *inHeaders = evhttp_request_get_input_headers(req);
     if (const char *accept = evhttp_find_header(inHeaders, "Accept"))
         r->Accept = accept;
     if (const char *ct = evhttp_find_header(inHeaders, "Content-Type"))
@@ -230,6 +284,7 @@ void EmulatorProxy::RunWorker() {
 
             // Attach this layer's session cookie so the host can authenticate the joiner.
             cpr::Header headers = baseHeaders;
+            headers[ServerEmulator::kProxyChainHeader] = r->ProxyChain;
             if (i < r->Cookies.size() && !r->Cookies[i].empty())
                 headers["Cookie"] = ".LOGINSESSION=" + r->Cookies[i];
             session.SetHeader(headers);

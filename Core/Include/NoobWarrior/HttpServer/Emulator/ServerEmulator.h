@@ -84,6 +84,8 @@
 #include "StudioPbeHandler.h"
 #include "GuacBundlesStudioHandler.h"
 #include "UserModerationHandler.h"
+#include "VoiceChatHandler.h"
+#include "SignalRCoreHandler.h"
 #include "OAuthAuthorizeHandler.h"
 #include "StudioOpenPlaceHandler.h"
 #include "AuthTicketRedeemHandler.h"
@@ -125,6 +127,9 @@ struct RunningInstance {
 
 class ServerEmulator : public HttpServer {
 public:
+    static constexpr const char *kIdentityHeader = "X-NoobWarrior-Emulator-Id";
+    static constexpr const char *kProxyChainHeader = "X-NoobWarrior-Proxy-Chain";
+
     enum class Mode {
         Local,
         Online
@@ -149,12 +154,17 @@ public:
     std::vector<RunningInstance> GetRunningInstances() const;
     std::vector<RunningInstance> GetRunningGameServers() const; // Side == Server subset
 
+    // Random for each Core run. The server-list handshake uses this to recognize the same emulator
+    // reached through its public address, while the proxy chain uses it to terminate routing loops.
+    const std::string &GetInstanceId() const;
+
     // Version/hash of the most recently launched Studio engine.
     // This function is called so ClientVersionStudioHandler always has reliable results on what Studio version is running.
     void SetLaunchedStudioVersion(const std::string &version, const std::string &hash);
     std::pair<std::string, std::string> GetLaunchedStudioVersion() const;
     
-    std::string ResolveAdvertisedAddress(const std::string &localAddr);
+    std::string ResolveAdvertisedAddress(const std::string &localAddr,
+                                         bool waitForDetection = false);
 
     void PushProxyLayer(const std::string &host, uint16_t port, const std::string &sessionToken = "");
     bool PopProxyLayer();
@@ -302,6 +312,10 @@ private:
     StudioPbeHandler mStudioPbeHandler;
     GuacBundlesStudioHandler mGuacBundlesStudioHandler;
     UserModerationHandler mUserModerationHandler;
+    VoiceChatHandler mVoiceChatHandler;
+    SignalRCoreHandler mSignalRCoreHandler;
+
+    std::string mInstanceId;
 
     // Layered reverse proxy to the remote emulator(s) the local client is currently joined to.
     EmulatorProxy mEmulatorProxy;

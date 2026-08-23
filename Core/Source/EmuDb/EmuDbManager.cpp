@@ -277,6 +277,14 @@ std::optional<int> EmuDbManager::GetUniverseAvatarType(int64_t universeId) {
     return std::nullopt;
 }
 
+std::optional<bool> EmuDbManager::GetUniverseVoiceChatEnabled(int64_t universeId) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto enabled = db->GetUniverseVoiceChatEnabled(universeId))
+            return enabled;
+    }
+    return std::nullopt;
+}
+
 std::optional<std::string> EmuDbManager::GetItemName(ItemType type, int64_t id) {
     for (EmuDb* db : mMountedDatabases) {
         if (auto name = db->GetItemName(type, id))

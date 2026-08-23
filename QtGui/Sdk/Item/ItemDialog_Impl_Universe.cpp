@@ -130,9 +130,10 @@ void ItemDialog::Universe_AddFields() {
     int64_t ageRating = 0;
     bool allowPrivateServers = false;
     bool allowDirectAccess = false;
+    bool voiceChatEnabled = true;
     std::string supportedDevices;
     if (mId.has_value()) {
-        Statement miscStmt = db->PrepareStatement("SELECT Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices FROM UniverseMisc WHERE Id = ?");
+        Statement miscStmt = db->PrepareStatement("SELECT Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices, VoiceChatEnabled FROM UniverseMisc WHERE Id = ?");
         miscStmt.Bind(1, mId.value());
         if (miscStmt.Step() == SQLITE_ROW) {
             genre = miscStmt.GetInt64FromColumnIndex(0);
@@ -144,6 +145,7 @@ void ItemDialog::Universe_AddFields() {
             allowDirectAccess = miscStmt.GetIntFromColumnIndex(6);
             ageRating = miscStmt.GetInt64FromColumnIndex(7);
             supportedDevices = miscStmt.GetStringFromColumnIndex(8);
+            voiceChatEnabled = miscStmt.GetIntFromColumnIndex(9) != 0;
         }
     }
 
@@ -213,6 +215,16 @@ void ItemDialog::Universe_AddFields() {
     mUniverse_SupportedDevicesInput = new QLineEdit(QString::fromStdString(supportedDevices));
     mUniverse_SupportedDevicesInput->setPlaceholderText("e.g. Computer,Phone,Tablet,Console");
     mContentLayout->addRow("Supported Devices", mUniverse_SupportedDevicesInput);
+
+    AddSectionHeader("Communication");
+
+    mUniverse_VoiceChatEnabledInput = new QCheckBox();
+    mUniverse_VoiceChatEnabledInput->setChecked(voiceChatEnabled);
+    mUniverse_VoiceChatEnabledInput->setToolTip(
+        "Allows eligible places in this universe to use voice chat. "
+        "A place can still disable its default voice setup with "
+        "VoiceChatService.EnableDefaultVoice.");
+    mContentLayout->addRow("Enable Voice Chat", mUniverse_VoiceChatEnabledInput);
 
     // A universe can have several social links (UniverseSocialLink), one per platform type.
     AddSectionHeader("Social Links");
@@ -460,10 +472,11 @@ bool ItemDialog::Universe_OnSave() {
     int ageRating = mUniverse_AgeRatingInput->currentData().toInt();
     bool allowPrivateServers = mUniverse_AllowPrivateServersInput->isChecked();
     bool allowDirectAccess = mUniverse_AllowDirectAccessInput->isChecked();
+    bool voiceChatEnabled = mUniverse_VoiceChatEnabledInput->isChecked();
     std::string supportedDevices = mUniverse_SupportedDevicesInput->text().toStdString();
 
     Statement miscStmt = db->PrepareStatement(R"(
-        INSERT INTO UniverseMisc (Id, Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO UniverseMisc (Id, Genre, Subgenre, AvatarType, AccessType, PaymentType, AllowPrivateServers, AllowDirectAccessToPlaces, AgeRating, SupportedDevices, VoiceChatEnabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (Id) DO UPDATE SET
             Genre = excluded.Genre,
             Subgenre = excluded.Subgenre,
@@ -473,7 +486,8 @@ bool ItemDialog::Universe_OnSave() {
             AllowPrivateServers = excluded.AllowPrivateServers,
             AllowDirectAccessToPlaces = excluded.AllowDirectAccessToPlaces,
             AgeRating = excluded.AgeRating,
-            SupportedDevices = excluded.SupportedDevices;
+            SupportedDevices = excluded.SupportedDevices,
+            VoiceChatEnabled = excluded.VoiceChatEnabled;
     )");
     miscStmt.Bind(1, id);
     miscStmt.Bind(2, genre);
@@ -485,6 +499,7 @@ bool ItemDialog::Universe_OnSave() {
     miscStmt.Bind(8, allowDirectAccess);
     miscStmt.Bind(9, ageRating);
     miscStmt.Bind(10, supportedDevices);
+    miscStmt.Bind(11, voiceChatEnabled);
     if (miscStmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
