@@ -140,8 +140,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
     Registry *reg = mEmu->GetCore()->GetRegistry();
     bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
 
-    auto servers = mEmu->GetRunningGameServers();
-    if (servers.empty()) {
+    auto sendWaiting = [&]() {
         // Keep the authentication gate intact even while there is no server. Otherwise an
         // unauthenticated caller could distinguish "waiting" from "authentication required".
         if (authEnabled && !mEmu->ResolveJoiningUser(req)
@@ -165,14 +164,14 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
             return;
         }
 
-        Out("GameJoinHandler", "No running game server for placeId={}; returning waiting status", placeId);
+        Out("GameJoinHandler", "No ready game server for placeId={}; returning waiting status", placeId);
         nlohmann::json waiting = {
             {"jobId", gameJoinAttemptId},
             {"status", 0}, // Waiting: the client may poll again, but must not start a game DataModel.
             {"joinScriptUrl", nullptr},
             {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
             {"authenticationTicket", nullptr},
-            {"message", "Waiting for a game server"},
+            {"message", "Waiting for an available server..."},
             {"joinScript", nullptr},
         };
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
@@ -181,6 +180,11 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         evbuffer_add(reply, body.data(), body.size());
         evhttp_send_reply(req, 200, nullptr, reply);
         evbuffer_free(reply);
+    };
+
+    auto servers = mEmu->GetRunningGameServers();
+    if (servers.empty()) {
+        sendWaiting();
         return;
     }
 
@@ -188,14 +192,23 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
     uint16_t port = 53640;
     const RunningInstance* chosen = nullptr;
     for (const auto &s : servers) {
-        if (placeId != 0 && s.PlaceId.has_value() && s.PlaceId.value() == placeId) { chosen = &s; break; }
-        if (chosen == nullptr) chosen = &s;
+        if (!s.Port.has_value() || *s.Port == 0)
+            continue;
+        if (placeId == 0 || (s.PlaceId.has_value() && *s.PlaceId == placeId)) {
+            chosen = &s;
+            break;
+        }
     }
-    if (chosen != nullptr) {
-        if (!chosen->Ip.empty()) address = chosen->Ip;
-        if (chosen->Port.has_value()) port = chosen->Port.value();
-        if (placeId == 0 && chosen->PlaceId.has_value()) placeId = chosen->PlaceId.value();
+    if (chosen == nullptr) {
+        // Teleport authorization may have just launched this place. Never fall back to a server for
+        // another place while the destination Studio process is still starting; status 0 makes the
+        // 0.719 place-launcher retry until the matching process registers its Hello ping.
+        sendWaiting();
+        return;
     }
+    if (!chosen->Ip.empty()) address = chosen->Ip;
+    port = *chosen->Port;
+    if (placeId == 0 && chosen->PlaceId.has_value()) placeId = chosen->PlaceId.value();
     if (!IsLoopbackOrEmpty(peer_address)) {
         std::string advertised = mEmu->ResolveAdvertisedAddress(localAddr);
         if (!advertised.empty()) address = advertised;
@@ -303,7 +316,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         {"joinScriptUrl", nullptr},
         {"authenticationUrl", "http://www.roblox.com/Login/Negotiate.ashx"},
         {"authenticationTicket", ticket},
-        {"message", nullptr},
+        {"message", "Joining server"},
         {"joinScript", joinScript},
     };
 

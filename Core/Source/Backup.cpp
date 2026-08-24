@@ -900,7 +900,7 @@ void Backup::Process::DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor
             }
             // A real carousel thumbnail's targetId is a distinct image asset id, so store it as its own
             // Image asset (carrying the rendered bytes) and link the place to it via AssetPlaceThumbnail.
-            // RetrieveImageData then previews it like any other asset.
+            // RetrievePlaceThumbnailData resolves this link without confusing it with the place icon.
             if (!db->DoesItemExist(ItemType::Asset, targetId)) {
                 SqlRow row;
                 row.push_back({"Id", targetId});

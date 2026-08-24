@@ -18,24 +18,39 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: ThumbnailHandler.h
+// File: TeleportAuthorizeHandler.h
 // Started by: Hattozo
-// Started on: 6/6/2026
-// Description: thumbnails.roblox.com batch endpoint (/v1/batch) plus the local image endpoint its
-//              imageUrls point at (/emu-thumbnail), serving type-aware images from the databases.
+// Started on: 8/24/2026
+// Description: Authorizes LocalRcc teleports and starts missing destination servers.
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
+
+#include <chrono>
+#include <cstdint>
+#include <map>
+#include <mutex>
+#include <string>
 
 namespace NoobWarrior {
-class ThumbnailHandler : public Handler {
-public:
-    ThumbnailHandler(EmuDbManager *dbm);
-    void OnRequest(evhttp_request *req, void *userdata) override;
-private:
-    void ServeBatch(evhttp_request *req);
-    void ServeImage(evhttp_request *req);
+class ServerEmulator;
 
-    EmuDbManager *mEmuDbManager;
+class TeleportAuthorizeHandler : public Handler {
+public:
+    explicit TeleportAuthorizeHandler(ServerEmulator *emu);
+    void OnRequest(evhttp_request *req, void *userdata) override;
+
+private:
+    struct PendingLaunch {
+        uint16_t Port {0};
+        std::chrono::steady_clock::time_point StartedAt;
+    };
+
+    void HandleLocally(evhttp_request *req);
+    bool EnsureDestinationServer(int64_t placeId, std::string *error);
+    std::string CreateTeleportToken(int64_t userId, int64_t placeId);
+
+    ServerEmulator *mEmu;
+    std::mutex mPendingLaunchesMutex;
+    std::map<int64_t, PendingLaunch> mPendingLaunches;
 };
 }

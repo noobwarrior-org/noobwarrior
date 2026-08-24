@@ -111,6 +111,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mLoginHandler(this),
     mLogoutHandler(this),
     mRunningGameServersHandler(this),
+    mTeleportAuthorizeHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
     mAssetBatchHandler(this),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
@@ -133,6 +134,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mUserProfilesHandler(this),
     mPlaceDetailsHandler(mCore->GetEmuDbManager()),
     mPlaceUniverseHandler(this, mCore->GetEmuDbManager()),
+    mMarketplaceProductInfoHandler(this, mCore->GetEmuDbManager()),
     mToolboxServiceHandler(this, mCore->GetEmuDbManager()),
     mIdeToolboxHandler(mCore->GetEmuDbManager()),
     mDevelopHandler(this, mCore->GetEmuDbManager()),
@@ -197,6 +199,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v2/login", &mLoginHandler);
     SetRequestHandler("/v1/logout", &mLogoutHandler);
     SetRequestHandler("/v1/running-game-servers", &mRunningGameServersHandler);
+    SetRequestHandler("/v1/teleport/authorize", &mTeleportAuthorizeHandler);
 
     SetRequestHandler("/Asset", &mAssetHandler);
     SetRequestHandler("/asset", &mAssetHandler);
@@ -277,6 +280,12 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/games/multiget-playability-status", &mPlaceDetailsHandler);
     SetRequestHandler("/universes/v1/places/:placeId/universe", &mPlaceUniverseHandler);
     SetRequestHandler("/v1/places/:placeId/universe", &mPlaceUniverseHandler);
+
+    // MarketplaceService:GetProductInfo used the api.roblox.com query endpoint in older scripts.
+    // Studio 0.719's GetProductInfoV2 path requests the same response shape from economy.roblox.com.
+    SetRequestHandler("/marketplace/productinfo", &mMarketplaceProductInfoHandler);
+    SetRequestHandler("/marketplace/productInfo", &mMarketplaceProductInfoHandler);
+    SetRequestHandler("/v2/assets/:assetId/details", &mMarketplaceProductInfoHandler);
 
     SetRequestHandler("/v1/search/universes", &mDevelopHandler);
     SetRequestHandler("/v1/gametemplates", &mDevelopHandler);
@@ -374,6 +383,7 @@ void ServerEmulator::SetupHandlers() {
 
 int ServerEmulator::Start(uint16_t port) {
     mAssetHandler.ResumeProxy();
+    mMarketplaceProductInfoHandler.ResumeProxy();
     mAuthTicketRedeemHandler.ResumeRedeems();
     mAvatarFetchHandler.ResumeFetches();
     mEmulatorProxy.Resume();
@@ -387,6 +397,7 @@ int ServerEmulator::Stop() {
     // fetch/forward replies to a freed connection.
     mVoiceChatHandler.StopTurnRelay();
     mAssetHandler.PauseProxy();
+    mMarketplaceProductInfoHandler.PauseProxy();
     mAuthTicketRedeemHandler.PauseRedeems();
     mAvatarFetchHandler.PauseFetches();
     mEmulatorProxy.Pause();
@@ -429,8 +440,10 @@ std::vector<std::pair<std::string, uint16_t>> ServerEmulator::GetProxyLayers() c
 }
 
 bool ServerEmulator::TryProxyRequest(evhttp_request *req, std::function<void(evhttp_request *)> localFallback,
-                                     EmulatorProxy::ResponseTransform responseTransform) {
-    return mEmulatorProxy.TryProxy(req, std::move(localFallback), std::move(responseTransform));
+                                     EmulatorProxy::ResponseTransform responseTransform,
+                                     EmulatorProxy::LayerPolicy layerPolicy) {
+    return mEmulatorProxy.TryProxy(req, std::move(localFallback),
+                                   std::move(responseTransform), layerPolicy);
 }
 
 void ServerEmulator::SetAvatarOverride(int64_t userId, const std::string &avatarFetchJson) {

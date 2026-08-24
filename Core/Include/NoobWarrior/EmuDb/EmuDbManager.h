@@ -101,6 +101,7 @@ public:
     // GetAssetSummary returns the first mounted database's copy of the asset.
     std::vector<int64_t> SearchAssetIds(Roblox::AssetType type, const std::string &keyword, int limit, int offset);
     std::optional<EmuDb::AssetSummary> GetAssetSummary(int64_t id);
+    std::optional<EmuDb::AssetProductInfo> GetAssetProductInfo(int64_t id);
 
     // Universe enumeration spanning every mounted database, for the develop "search/universes"
     // homepage list. ListUniverseIds merges the per-database matches (mount priority order,
@@ -113,6 +114,10 @@ public:
     // the highest-priority database, which yields a placeholder icon on a miss). Empty only when no
     // database is mounted.
     std::vector<unsigned char> RetrieveImageData(ItemType type, int64_t id);
+
+    // First available place-carousel image in mount-priority order. This deliberately does not use
+    // the place asset's ImageId, which is the separate square game icon.
+    std::vector<unsigned char> RetrievePlaceThumbnailData(int64_t placeId);
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;

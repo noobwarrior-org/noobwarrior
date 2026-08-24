@@ -498,7 +498,8 @@ TEST(Database, ToolboxAssetSearch) {
     ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::User, {{"Id", 99}, {"Name", "Hattozo"}}));
     ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
         {"Id", 101}, {"Name", "Cool Car"}, {"Description", "vroom"},
-        {"Type", static_cast<int>(Roblox::AssetType::Model)}, {"UserId", 99}, {"Created", 1420070400}
+        {"Type", static_cast<int>(Roblox::AssetType::Model)}, {"UserId", 99}, {"Created", 1420070400},
+        {"Public", true}, {"MinimumMembershipLevel", 1}, {"ContentRatingTypeId", 2}
     }));
     ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
         {"Id", 102}, {"Name", "Cool Sound"}, {"Type", static_cast<int>(Roblox::AssetType::Audio)}, {"UserId", 99}
@@ -536,7 +537,51 @@ TEST(Database, ToolboxAssetSearch) {
     EXPECT_EQ(99, summary->UserId.value());
     EXPECT_EQ(1420070400, summary->Created);
 
+    ASSERT_EQ(SqlDb::Response::Success, db.AttachHistoricalDataToAsset(101, {
+        {"IsNew", true}, {"Sales", 25}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AttachMicrotransactionDataToAsset(101, {
+        {"CurrencyType", static_cast<int>(Roblox::CurrencyType::Robux)}, {"Price", 10},
+        {"LimitedType", static_cast<int>(Roblox::LimitedType::Limited)}, {"Remaining", 5}
+    }));
+
+    auto product = db.GetAssetProductInfo(101);
+    ASSERT_TRUE(product.has_value());
+    EXPECT_EQ("Cool Car", product->Summary.Name);
+    EXPECT_TRUE(product->Public);
+    EXPECT_TRUE(product->IsNew);
+    EXPECT_EQ(25, product->Sales);
+    EXPECT_EQ(static_cast<int>(Roblox::CurrencyType::Robux), product->CurrencyType.value_or(-1));
+    EXPECT_EQ(10, product->Price.value_or(-1));
+    EXPECT_EQ(static_cast<int>(Roblox::LimitedType::Limited), product->LimitedType);
+    EXPECT_EQ(5, product->Remaining.value_or(-1));
+    EXPECT_EQ(1, product->MinimumMembershipLevel);
+    EXPECT_EQ(2, product->ContentRatingTypeId);
+
     EXPECT_FALSE(db.GetAssetSummary(999999).has_value());
+    EXPECT_FALSE(db.GetAssetProductInfo(999999).has_value());
+}
+
+TEST(Database, PlaceThumbnailRetrieval) {
+    EmuDb db(":memory:");
+    ASSERT_EQ(false, db.Fail());
+
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 1818}, {"Name", "My Place"}, {"Type", static_cast<int>(Roblox::AssetType::Place)}
+    }));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddItem(ItemType::Asset, {
+        {"Id", 2001}, {"Name", "Game Thumbnail"}, {"Type", static_cast<int>(Roblox::AssetType::Image)}
+    }));
+
+    const std::vector<unsigned char> placeholder = {1, 2, 3};
+    const std::vector<unsigned char> carousel = {4, 5, 6, 7};
+    ASSERT_EQ(SqlDb::Response::Success, db.AddPlaceholderThumbnailToPlace(1818, placeholder));
+    ASSERT_EQ(SqlDb::Response::Success, db.AttachDataToAsset(2001, 1, carousel));
+    ASSERT_EQ(SqlDb::Response::Success, db.AddThumbnailToPlace(1818, 2001));
+
+    // A creator-supplied carousel takes precedence over the wide Roblox default.
+    EXPECT_EQ(carousel, db.RetrievePlaceThumbnailData(1818));
+    EXPECT_TRUE(db.RetrievePlaceThumbnailData(999999).empty());
 }
 
 TEST(Database, DeleteAsset) {

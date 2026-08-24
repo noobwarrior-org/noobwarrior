@@ -167,7 +167,8 @@ void EmulatorProxy::OnClientDisconnect(evhttp_connection *conn, void *arg) {
     static_cast<ProxyRequest*>(arg)->ClientConnected = false;
 }
 
-bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, ResponseTransform transform) {
+bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback,
+                             ResponseTransform transform, LayerPolicy layerPolicy) {
     if (!mActive)
         return false;
 
@@ -199,6 +200,7 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback, R
     r->Connection = evhttp_request_get_connection(req);
     r->Fallback   = std::move(localFallback);
     r->Transform  = std::move(transform);
+    r->Policy     = layerPolicy;
     r->Urls.reserve(layers.size());
     r->Cookies.reserve(layers.size());
     r->ProxyChain = incomingChain;
@@ -276,8 +278,8 @@ void EmulatorProxy::RunWorker() {
         session.SetBody(cpr::Body{r->Body});
 
         ProxyResult result;
-        // Walk the stack top -> bottom. First 2xx wins; a non-2xx answer or an unreachable layer
-        // falls through to the next one down.
+        // Walk the stack top -> bottom. First 2xx wins; normally a non-2xx answer or an unreachable
+        // layer falls through. Requests using TopOnly treat the current remote as authoritative.
         for (size_t i = 0; i < r->Urls.size(); ++i) {
             if (!mPoolRunning)
                 break;
@@ -293,8 +295,11 @@ void EmulatorProxy::RunWorker() {
             cpr::Response resp = (r->Method == "GET") ? session.Get()
                                : (r->Method == "PUT") ? session.Put()
                                                       : session.Post();
-            if (resp.error.code != cpr::ErrorCode::OK)
+            if (resp.error.code != cpr::ErrorCode::OK) {
+                if (r->Policy == LayerPolicy::TopOnly)
+                    break;
                 continue; // layer unreachable -> try the one below
+            }
 
             // This layer answered. Remember it as the most recent answer in case every layer misses
             // and there's no local fallback, so the client still gets a sensible (e.g. 404) reply.
@@ -315,6 +320,8 @@ void EmulatorProxy::RunWorker() {
                 result.Served = true;
                 break; // this layer has it
             }
+            if (r->Policy == LayerPolicy::TopOnly)
+                break;
             // non-2xx (e.g. 404 "doesn't have it") -> fall through to the next layer
         }
 

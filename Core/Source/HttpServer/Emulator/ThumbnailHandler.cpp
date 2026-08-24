@@ -22,8 +22,9 @@
 // Started by: Hattozo
 // Started on: 6/6/2026
 // Description: Serves the modern thumbnails batch API (POST /v1/batch) by handing back a "Completed"
-//              entry per request whose imageUrl points at this server's /emu-thumbnail image endpoint,
-//              which streams the asset/user image straight out of the mounted databases.
+//              entry per request whose imageUrl points at this server's /emu-thumbnail image endpoint.
+//              Thumbnail types retain their Roblox meaning: GameThumbnail is a place carousel image,
+//              GameIcon is a universe icon, and asset/user/group thumbnails use their own item records.
 #include <NoobWarrior/HttpServer/Emulator/ThumbnailHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -31,8 +32,10 @@
 
 #include "../../algorithm/gzip.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <string>
+#include <utility>
 
 using namespace NoobWarrior;
 
@@ -48,14 +51,43 @@ static std::string GetQueryParam(const char* uri, const char* key) {
     return out;
 }
 
-// Roblox thumbnail "type" -> the noobWarrior item the image comes from. Avatar/headshot/bust map to
-// the user; everything else (Asset, GameIcon, BadgeIcon, GamePass, ...) is an asset.
-static ItemType ThumbnailTypeToItemType(std::string type) {
+static std::string NormalizeThumbnailType(std::string type) {
     for (char &c : type)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return type;
+}
+
+static std::vector<unsigned char> RetrieveThumbnail(EmuDbManager *dbm, std::string type, int64_t id) {
+    type = NormalizeThumbnailType(std::move(type));
+
+    // These two identifiers are deliberately different. CoreScripts requests GameThumbnail with a
+    // place id for its 768x432 loading backdrop, but GameIcon with a universe id for the square tile.
+    if (type == "gamethumbnail")
+        return dbm->RetrievePlaceThumbnailData(id);
+    if (type == "gameicon") {
+        // PlaceUniverseHandler intentionally uses place==universe as a compatibility fallback when a
+        // standalone place has no Universe row. Preserve its icon in that case instead of returning
+        // the unknown-universe placeholder.
+        const std::optional<int64_t> startPlaceId = dbm->GetStartPlaceIdForUniverse(id);
+        return dbm->RetrieveImageData(ItemType::Asset,
+            startPlaceId.has_value() && startPlaceId.value() > 0 ? startPlaceId.value() : id);
+    }
+
     if (type.find("avatar") != std::string::npos || type.find("headshot") != std::string::npos || type.find("bust") != std::string::npos)
-        return ItemType::User;
-    return ItemType::Asset;
+        return dbm->RetrieveImageData(ItemType::User, id);
+    if (type == "groupicon")
+        return dbm->RetrieveImageData(ItemType::Group, id);
+    if (type == "badgeicon")
+        return dbm->RetrieveImageData(ItemType::Badge, id);
+    if (type == "bundlethumbnail")
+        return dbm->RetrieveImageData(ItemType::Bundle, id);
+    if (type == "outfit")
+        return dbm->RetrieveImageData(ItemType::Outfit, id);
+    if (type == "gamepass")
+        return dbm->RetrieveImageData(ItemType::Pass, id);
+    if (type == "developerproduct")
+        return dbm->RetrieveImageData(ItemType::DevProduct, id);
+    return dbm->RetrieveImageData(ItemType::Asset, id);
 }
 
 ThumbnailHandler::ThumbnailHandler(EmuDbManager *dbm) : mEmuDbManager(dbm) {}
@@ -136,8 +168,7 @@ void ThumbnailHandler::ServeImage(evhttp_request *req) {
         return;
     }
 
-    ItemType type = ThumbnailTypeToItemType(GetQueryParam(uri, "type"));
-    std::vector<unsigned char> image = mEmuDbManager->RetrieveImageData(type, id);
+    std::vector<unsigned char> image = RetrieveThumbnail(mEmuDbManager, GetQueryParam(uri, "type"), id);
     if (image.empty()) {
         evhttp_send_error(req, 404, "No image");
         return;

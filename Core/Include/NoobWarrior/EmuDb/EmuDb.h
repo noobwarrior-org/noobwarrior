@@ -335,6 +335,26 @@ public:
     // Reads the descriptive columns of a single asset, or std::nullopt when it isn't in this database.
     std::optional<AssetSummary> GetAssetSummary(int64_t id);
 
+    // The persisted fields returned by MarketplaceService:GetProductInfo for an asset. The nested
+    // summary holds its identity/creator fields; the remaining values come from Asset and its
+    // historical/microtransaction rows.
+    struct AssetProductInfo {
+        AssetSummary Summary;
+        int64_t ImageId {0};
+        bool Public {false};
+        bool IsNew {false};
+        int64_t Sales {0};
+        std::optional<int> CurrencyType;
+        std::optional<int64_t> Price;
+        int LimitedType {0};
+        std::optional<int64_t> Remaining;
+        int MinimumMembershipLevel {0};
+        int ContentRatingTypeId {0};
+    };
+
+    // Reads the complete local product-info view of an asset, or std::nullopt when it is absent.
+    std::optional<AssetProductInfo> GetAssetProductInfo(int64_t id);
+
     /* Bundle functions */
     SqlDb::Response AddAssetToBundle(int64_t bundleId, int64_t assetId);
     SqlDb::Response RemoveAssetFromBundle(int64_t bundleId, int64_t assetId);
@@ -358,6 +378,11 @@ public:
     SqlDb::Response AttachBodyShotToUser(int64_t userId, const std::vector<unsigned char> &data);
 
     std::vector<unsigned char> RetrieveImageData(NoobWarrior::ItemType itemType, int64_t id);
+
+    // Returns the first real 768x432 carousel thumbnail linked to a place, falling back to Roblox's
+    // stored wide default render. Unlike RetrieveImageData(Asset, placeId), this never follows the
+    // place's square IconImageAssetId.
+    std::vector<unsigned char> RetrievePlaceThumbnailData(int64_t placeId);
 
     template<typename T>
     static T GetValueFromColumnIndex(sqlite3_stmt *stmt, int columnIndex) {

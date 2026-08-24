@@ -34,6 +34,7 @@
 #include "LoginHandler.h"
 #include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
+#include "TeleportAuthorizeHandler.h"
 #include "ClientSettingsHandler.h"
 #include "ClientSettingsV2StudioHandler.h"
 #include "NegotiateHandler.h"
@@ -65,6 +66,7 @@
 #include "UserProfilesHandler.h"
 #include "PlaceDetailsHandler.h"
 #include "PlaceUniverseHandler.h"
+#include "MarketplaceProductInfoHandler.h"
 #include "ToolboxServiceHandler.h"
 #include "IdeToolboxHandler.h"
 #include "DevelopHandler.h"
@@ -181,7 +183,9 @@ public:
     
     bool TryProxyRequest(evhttp_request *req,
                          std::function<void(evhttp_request *)> localFallback = {},
-                         EmulatorProxy::ResponseTransform responseTransform = {});
+                         EmulatorProxy::ResponseTransform responseTransform = {},
+                         EmulatorProxy::LayerPolicy layerPolicy =
+                             EmulatorProxy::LayerPolicy::FirstSuccessful);
 
     /* Avatar appearance federation. A joining client only knows its own appearance (it lives in that
      * client's local registry), so on join it POSTs that appearance to the host it's joining, keyed
@@ -263,6 +267,7 @@ private:
     LoginHandler mLoginHandler;
     LogoutHandler mLogoutHandler;
     RunningGameServersHandler mRunningGameServersHandler;
+    TeleportAuthorizeHandler mTeleportAuthorizeHandler;
     AssetHandler mAssetHandler;
     AssetBatchHandler mAssetBatchHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
@@ -285,6 +290,7 @@ private:
     UserProfilesHandler mUserProfilesHandler;
     PlaceDetailsHandler mPlaceDetailsHandler;
     PlaceUniverseHandler mPlaceUniverseHandler;
+    MarketplaceProductInfoHandler mMarketplaceProductInfoHandler;
     ToolboxServiceHandler mToolboxServiceHandler;
     IdeToolboxHandler mIdeToolboxHandler;
     DevelopHandler mDevelopHandler;

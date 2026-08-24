@@ -65,6 +65,11 @@ public:
     // local player's identity onto a join script fetched from the host. Returns the body to send.
     using ResponseTransform = std::function<std::vector<unsigned char>(std::vector<unsigned char>)>;
 
+    enum class LayerPolicy {
+        FirstSuccessful,
+        TopOnly,
+    };
+
     // A remote emulator in the stack. SessionToken is the joiner's .LOGINSESSION on that host (empty
     // when the host requires no auth); it is forwarded as a Cookie so the host can identify the joiner.
     struct Layer {
@@ -89,8 +94,11 @@ public:
     // (the reply happens later). If the stack is empty, returns false and the caller answers the
     // request locally. A request whose proxy chain already contains this emulator is also returned
     // to the caller for local handling, which terminates self-proxy and multi-host routing loops.
-    // If every layer misses, localFallback (if given) runs as the bottom layer.
-    bool TryProxy(evhttp_request *req, LocalFallback localFallback = {}, ResponseTransform transform = {});
+    // If every layer misses, localFallback (if given) runs as the bottom layer. TopOnly makes the
+    // current remote authoritative instead of trying older proxy layers after it.
+    bool TryProxy(evhttp_request *req, LocalFallback localFallback = {},
+                  ResponseTransform transform = {},
+                  LayerPolicy layerPolicy = LayerPolicy::FirstSuccessful);
 
     // Lifecycle, mirrors AssetHandler. Pause MUST run before the server's evhttp is freed so an
     // in-flight forward gives up quietly instead of replying to a destroyed connection.
@@ -113,6 +121,7 @@ private:
         std::string              ProxyChain;    // comma-separated emulator ids already traversed
         LocalFallback            Fallback;      // run on the event loop if every layer misses
         ResponseTransform        Transform;     // applied to a winning layer's body before replying
+        LayerPolicy              Policy {LayerPolicy::FirstSuccessful};
     };
 
     // The decoded result of walking the layer stack, handed back to the event loop.

@@ -330,6 +330,14 @@ std::optional<EmuDb::AssetSummary> EmuDbManager::GetAssetSummary(int64_t id) {
     return std::nullopt;
 }
 
+std::optional<EmuDb::AssetProductInfo> EmuDbManager::GetAssetProductInfo(int64_t id) {
+    for (EmuDb* db : mMountedDatabases) {
+        if (auto info = db->GetAssetProductInfo(id))
+            return info;
+    }
+    return std::nullopt;
+}
+
 std::vector<int64_t> EmuDbManager::ListUniverseIds(bool groupOwned, int limit, int offset) {
     if (limit <= 0) limit = 50;
     if (offset < 0) offset = 0;
@@ -365,5 +373,16 @@ std::vector<unsigned char> EmuDbManager::RetrieveImageData(ItemType type, int64_
     // No database actually has the item; let the highest-priority one return its placeholder icon.
     if (!mMountedDatabases.empty())
         return mMountedDatabases.front()->RetrieveImageData(type, id);
+    return {};
+}
+
+std::vector<unsigned char> EmuDbManager::RetrievePlaceThumbnailData(int64_t placeId) {
+    // An overlay database can contain the place metadata without having backed up its carousel.
+    // Continue through lower-priority mounts until one supplies the actual thumbnail bytes.
+    for (EmuDb* db : mMountedDatabases) {
+        std::vector<unsigned char> image = db->RetrievePlaceThumbnailData(placeId);
+        if (!image.empty())
+            return image;
+    }
     return {};
 }
