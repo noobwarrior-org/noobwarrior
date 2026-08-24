@@ -37,7 +37,7 @@
 namespace NoobWarrior {
 // Increment whenever mutation or bootstrap composition changes so an older prepared place is
 // never reused after an upgrade merely because its logical plugin inputs stayed the same.
-inline constexpr uint32_t kStudioServerPlaceCacheSchema = 8;
+inline constexpr uint32_t kStudioServerPlaceCacheSchema = 9;
 
 enum class StudioServerPlaceCacheResponse {
     Hit,

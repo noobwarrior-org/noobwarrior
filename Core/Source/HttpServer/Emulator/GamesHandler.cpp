@@ -23,9 +23,11 @@
 // Started on: 6/6/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/GamesHandler.h>
+#include <NoobWarrior/Roblox/Api/Universe.h>
 #include <nlohmann/json.hpp>
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -66,7 +68,14 @@ static nlohmann::json BuildGame(EmuDbManager *dbm, int64_t universeId) {
     game["updated"] = "2015-01-01T00:00:00Z";
     game["studioAccessToApisAllowed"] = true;
     game["createVipServersAllowed"] = false;
-    game["universeAvatarType"] = "MorphToR6";
+    Roblox::UniverseAvatarType avatarType = Roblox::UniverseAvatarType::MorphToR6;
+    if (const std::optional<int> stored = dbm->GetUniverseAvatarType(universeId)) {
+        if (*stored == static_cast<int>(Roblox::UniverseAvatarType::PlayerChoice))
+            avatarType = Roblox::UniverseAvatarType::PlayerChoice;
+        else if (*stored == static_cast<int>(Roblox::UniverseAvatarType::MorphToR15))
+            avatarType = Roblox::UniverseAvatarType::MorphToR15;
+    }
+    game["universeAvatarType"] = Roblox::UniverseAvatarTypeAsApiString(avatarType);
     game["genre"] = "All";
     game["isAllGenre"] = true;
     game["isFavoritedByUser"] = false;

@@ -500,8 +500,8 @@ StudioServerPlacePreparationResponse PrepareStudioServerPlace(
         SetError(error, "Studio server place bytes do not match AssetData.DataHash");
         return StudioServerPlacePreparationResponse::Failed;
     }
-
-    if (!bootstrap.Empty() && !InjectStudioServerBootstrap(place, bootstrap, error))
+    
+    if (!InjectStudioServerBootstrap(place, bootstrap, error))
         return StudioServerPlacePreparationResponse::Failed;
 
     if (publishCallback)

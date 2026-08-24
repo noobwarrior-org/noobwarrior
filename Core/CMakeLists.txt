@@ -339,6 +339,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/RolesHandler.cpp
     Source/HttpServer/Emulator/LocalesHandler.cpp
     Source/HttpServer/Emulator/GamesHandler.cpp
+    Source/HttpServer/Emulator/GameStartInfoHandler.cpp
     Source/HttpServer/Emulator/UserChannelHandler.cpp
     Source/HttpServer/Emulator/UserProfilesHandler.cpp
     Source/HttpServer/Emulator/PlaceDetailsHandler.cpp

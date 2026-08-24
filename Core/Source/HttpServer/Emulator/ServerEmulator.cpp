@@ -130,6 +130,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mRolesHandler(),
     mLocalesHandler(),
     mGamesHandler(mCore->GetEmuDbManager()),
+    mGameStartInfoHandler(this, mCore->GetEmuDbManager()),
     mUserChannelHandler(),
     mUserProfilesHandler(this),
     mPlaceDetailsHandler(mCore->GetEmuDbManager()),
@@ -274,6 +275,7 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v1/users/authenticated/roles", &mRolesHandler);
     SetRequestHandler("/v1/locales/user-localization-locus-supported-locales", &mLocalesHandler);
     SetRequestHandler("/v1/games", &mGamesHandler);
+    SetRequestHandler("/v1/game-start-info", &mGameStartInfoHandler);
     SetRequestHandler("/v2/user-channel", &mUserChannelHandler);
     SetRequestHandler("/user-profile-api/v1/user/profiles/get-profiles", &mUserProfilesHandler);
     SetRequestHandler("/v1/games/multiget-place-details", &mPlaceDetailsHandler);

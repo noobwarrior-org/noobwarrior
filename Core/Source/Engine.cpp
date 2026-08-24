@@ -537,6 +537,7 @@ EngineLaunchResponse Core::LaunchProcessThroughInjector(EngineArchitecture arch,
 
 bool Core::WriteGameServerConfig(const std::filesystem::path &engineDir, const EngineStartParameters &params) {
     int64_t placeId = params.PlaceId.value_or(0);
+    int64_t universeId = mEmuDbManager.GetUniverseIdForPlace(placeId).value_or(placeId);
     uint16_t port = params.Port.value_or(53640);
 
     nlohmann::json settings = {
@@ -553,7 +554,7 @@ bool Core::WriteGameServerConfig(const std::filesystem::path &engineDir, const E
         {"PreferredPlayerCapacity", 50},
         {"DataCenterId", "0"},
         {"PlaceVisitAccessKey", ""},
-        {"UniverseId", placeId},
+        {"UniverseId", universeId},
         {"PlaceFetchUrl", "http://www.roblox.com/asset/?id=" + std::to_string(placeId)},
         {"MatchmakingContextId", 1},
         {"PlaceVersion", 1},

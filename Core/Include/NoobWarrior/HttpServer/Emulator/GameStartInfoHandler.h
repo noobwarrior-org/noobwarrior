@@ -18,19 +18,22 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: StudioServerPlace.h
+// File: GameStartInfoHandler.h
 // Started by: Hattozo
-// Started on: 8/19/2026
-// Description: Applies launch-only settings and plugin content to a server place copy.
+// Started on: 8/24/2026
+// Description: Serves the universe avatar policy requested when a game server starts.
 #pragma once
-
-#include <NoobWarrior/PluginDataModel.h>
-
-#include <string>
-#include <vector>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/HttpServer/Base/Handler.h>
 
 namespace NoobWarrior {
-bool InjectStudioServerBootstrap(std::vector<unsigned char>& place,
-                                 const StudioServerBootstrap& bootstrap,
-                                 std::string* error = nullptr);
+class ServerEmulator;
+class GameStartInfoHandler : public Handler {
+public:
+    GameStartInfoHandler(ServerEmulator *serverEmulator, EmuDbManager *dbm);
+    void OnRequest(evhttp_request *req, void *userdata) override;
+private:
+    ServerEmulator *mServerEmulator;
+    EmuDbManager *mEmuDbManager;
+};
 }

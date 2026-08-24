@@ -267,9 +267,6 @@ void DevelopHandler::HandleUniverseConfiguration(evhttp_request *req) {
     j["creatorType"] = "User";
     j["creatorTargetId"] = creatorId;
     j["creatorName"] = selfUserName;
-    // The persistence gate: Studio only issues DataStore/HttpService calls when API access is allowed,
-    // which it learns from this field and re-checks periodically (FInt TimeBetweenCheckingApiAccessMillis).
-    // Emit both the "is"-prefixed and bare spellings so every engine build's parser finds it.
     j["isStudioAccessToApisAllowed"] = true;
     j["studioAccessToApisAllowed"] = true;
     j["permissions"] = nlohmann::json{

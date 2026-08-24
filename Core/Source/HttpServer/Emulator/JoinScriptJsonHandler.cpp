@@ -64,6 +64,8 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::string ipCppStr = ipStr == nullptr ? "localhost" : ipStr;
     int port = portStr == nullptr ? 53640 : strtol(portStr, nullptr, 10);
     int64_t placeId = placeIdStr == nullptr || *placeIdStr == '\0' ? 1818 : strtoll(placeIdStr, nullptr, 10);
+    const int64_t universeId = mEmu->GetCore()->GetEmuDbManager()
+        ->GetUniverseIdForPlace(placeId).value_or(placeId);
 
     // Resolve the joining player's identity and the ticket the game server will redeem. The legacy
     // captured sample values below are overwritten with these before the script is sent.
@@ -139,7 +141,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
     joinScript["SessionId"] = "{\"SessionId\":\"c89589f1-d1de-46e3-80e0-2703d1159409\",\"GameId\":\"29fd9df4-4c59-4d8c-8cee-8f187b09709b\",\"PlaceId\":1818,\"ClientIpAddress\":\"207.241.232.186\",\"PlatformTypeId\":5,\"SessionStarted\":\"2022-03-26T05:13:05.762819Z\",\"BrowserTrackerId\":129849985826,\"PartyId\":null,\"Age\":80.2683342765271,\"Latitude\":37.78,\"Longitude\":-122.465,\"CountryId\":1,\"PolicyCountryId\":null,\"LanguageId\":41,\"BlockedPlayerIds\":[],\"JoinType\":\"MatchMade\",\"PlaySessionFlags\":0,\"MatchmakingDecisionId\":\"a0311216-ec21-4b5d-b3c0-8538a9a4dc7d\",\"UserScoreObfuscated\":4895515560,\"UserScorePublicKey\":235,\"GameJoinMetadata\":{\"JoinSource\":0,\"RequestType\":0},\"RandomSeed2\":\"7HOfysTid4XsV/3mBPPPhKHIykE4GXSBBBzd93rplbDQ3bNSgPFcR9auB780LjNYg+4mbNQPOqTmJ2o3hUefmw==\",\"IsUserVoiceChatEnabled\":false,\"SourcePlaceId\":null}";
     joinScript["AnalyticsSessionId"] = "c89589f1-d1de-46e3-80e0-2703d1159409";
     joinScript["DataCenterId"] = 302;
-    joinScript["UniverseId"] = 994732206;
+    joinScript["UniverseId"] = universeId;
     joinScript["FollowUserId"] = 0;
     joinScript["characterAppearanceId"] = identId;
     joinScript["CountryCode"] = "US";

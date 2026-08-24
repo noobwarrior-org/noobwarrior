@@ -23,6 +23,7 @@
 // Started on: 8/18/2025
 // Description: Prepared Studio server place cache and atomic publication tests.
 #include <NoobWarrior/Roblox/FileFormat/StudioServerPlaceCache.h>
+#include <NoobWarrior/Roblox/FileFormat/StudioServerPlace.h>
 #include <NoobWarrior/Roblox/FileFormat/RobloxFile.h>
 
 #include <gtest/gtest.h>
@@ -217,6 +218,37 @@ TEST(StudioServerPlaceCache, SourceHashMatchesSha256Identity) {
     EXPECT_EQ(64u, hash.size());
     EXPECT_NE(hash, NoobWarrior::ComputeStudioServerPlaceSourceHash(
                         MinimalXmlPlace("different")));
+}
+
+TEST(StudioServerPlaceCache, EmptyBootstrapStillEnablesHttpService) {
+    TemporaryCacheDirectory temporary;
+    const std::filesystem::path launch = temporary.Path / "server.rbxl";
+    const std::vector<unsigned char> source = MinimalXmlPlace("http-enabled");
+    const std::string sourceHash =
+        NoobWarrior::ComputeStudioServerPlaceSourceHash(source);
+    NoobWarrior::StudioServerBootstrap bootstrap;
+
+    std::string error;
+    ASSERT_EQ(NoobWarrior::StudioServerPlacePreparationResponse::Built,
+              NoobWarrior::PrepareStudioServerPlace(
+                  sourceHash, bootstrap, "studio", temporary.Path / "cache", launch,
+                  [&](std::vector<unsigned char> &place, std::string *) {
+                      place = source;
+                      return true;
+                  }, nullptr, &error)) << error;
+
+    std::unique_ptr<NoobWarrior::Roblox::RobloxFile> reopened;
+    ASSERT_EQ(NoobWarrior::Roblox::FileResponse::Success,
+              NoobWarrior::Roblox::RobloxFile::Open(reopened, ReadFile(launch)));
+    NoobWarrior::Roblox::Instance *httpService = nullptr;
+    for (NoobWarrior::Roblox::Instance *instance : reopened->GetDescendants()) {
+        if (instance->ClassName == "HttpService") {
+            httpService = instance;
+            break;
+        }
+    }
+    ASSERT_NE(nullptr, httpService);
+    EXPECT_TRUE(httpService->GetPropertyValue<bool>("HttpEnabled"));
 }
 
 TEST(StudioServerPlaceCache, PreparationSkipsLoaderOnWarmHit) {

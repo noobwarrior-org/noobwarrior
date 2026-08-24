@@ -62,6 +62,7 @@
 #include "RolesHandler.h"
 #include "LocalesHandler.h"
 #include "GamesHandler.h"
+#include "GameStartInfoHandler.h"
 #include "UserChannelHandler.h"
 #include "UserProfilesHandler.h"
 #include "PlaceDetailsHandler.h"
@@ -286,6 +287,7 @@ private:
     RolesHandler mRolesHandler;
     LocalesHandler mLocalesHandler;
     GamesHandler mGamesHandler;
+    GameStartInfoHandler mGameStartInfoHandler;
     UserChannelHandler mUserChannelHandler;
     UserProfilesHandler mUserProfilesHandler;
     PlaceDetailsHandler mPlaceDetailsHandler;

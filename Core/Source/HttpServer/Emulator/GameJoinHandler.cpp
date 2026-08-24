@@ -214,6 +214,8 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         if (!advertised.empty()) address = advertised;
     }
     if (placeId == 0) placeId = 1818;
+    const int64_t universeId = mEmu->GetCore()->GetEmuDbManager()
+        ->GetUniverseIdForPlace(placeId).value_or(placeId);
 
     Out("GameJoinHandler", "Issuing joinScript -> {}:{} placeId={}", address, port, placeId);
 
@@ -254,7 +256,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         {"SessionId", gameJoinAttemptId},
         {"AnalyticsSessionId", gameJoinAttemptId},
         {"DataCenterId", 0},
-        {"UniverseId", placeId},
+        {"UniverseId", universeId},
         {"FollowUserId", 0},
         {"characterAppearanceId", 1},
         {"CountryCode", "US"},
