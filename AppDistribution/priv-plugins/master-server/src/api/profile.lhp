@@ -1,0 +1,62 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: profile.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if user == nil then
+    http_response_code(401)
+    die("You must be logged in to view your profile")
+end
+
+local m = core.GetMasterDatabase()
+if m == nil then
+    http_response_code(500)
+    die("No master database available")
+end
+
+local row = _G.MASTERSERVER_FIRST_ROW(
+    m:QueryTyped("SELECT Id, Name, DisplayName, Bio, JoinDate FROM User WHERE Id = ?;", user.Id))
+if row == nil then
+    http_response_code(404)
+    die("User not found")
+end
+
+local identity = _G.MASTERSERVER_FULL_IDENTITY(row.Name)
+
+local submissionCount = 0
+if _G.MASTERSERVER_DB ~= nil then
+    local c = _G.MASTERSERVER_FIRST_ROW(
+        _G.MASTERSERVER_DB:QueryTyped("SELECT COUNT(*) AS N FROM WorkshopSubmission WHERE UploaderId = ?;", row.Id))
+    submissionCount = c and tonumber(c.N) or 0
+end
+
+local statuses = {}
+for _, s in ipairs(_G.MASTERSERVER_FEDERATION.StatusesByAuthor(identity, 10) or {}) do
+    statuses[#statuses + 1] = {
+        Id      = tonumber(s.Id) or 0,
+        Body    = tostring(s.Body or ""),
+        Created = tonumber(s.Created) or 0,
+        IsReply = s.ParentId ~= nil,
+    }
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({
+    Id           = tonumber(row.Id) or 0,
+    Name         = tostring(row.Name or ""),
+    DisplayName  = tostring(row.DisplayName or row.Name or ""),
+    Identity     = identity,
+    Domain       = _G.MASTERSERVER_DOMAIN(),
+    -- The id a game client sees for this identity, not the master db row id.
+    OnlineUserId = _G.MASTERSERVER_ONLINE_USER_ID(identity),
+    Bio          = tostring(row.Bio or ""),
+    JoinDate     = tonumber(row.JoinDate) or 0,
+    Submissions  = submissionCount,
+    Statuses     = statuses,
+}))

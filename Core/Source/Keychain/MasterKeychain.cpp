@@ -24,6 +24,8 @@
 // Description:
 #include <NoobWarrior/Keychain/MasterKeychain.h>
 
+#include <algorithm>
+#include <cctype>
 #include <ctime>
 
 using namespace NoobWarrior;
@@ -36,6 +38,25 @@ std::string MasterKeychain::GetName() {
 
 bool MasterKeychain::HasAccountExpired(Account &acc) {
     return acc.ExpireTimestamp > -1 && time(nullptr) > acc.ExpireTimestamp;
+}
+
+static std::string NormalizeMasterUrl(std::string url) {
+    while (!url.empty() && url.back() == '/')
+        url.pop_back();
+    std::transform(url.begin(), url.end(), url.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return url;
+}
+
+Account *MasterKeychain::FindAccountByUrl(const std::string &url) {
+    const std::string target = NormalizeMasterUrl(url);
+    if (target.empty())
+        return nullptr;
+    for (Account &account : Accounts) {
+        if (NormalizeMasterUrl(account.Url) == target)
+            return &account;
+    }
+    return nullptr;
 }
 
 nlohmann::json MasterKeychain::GetJsonFromToken(const std::string &token) {

@@ -78,6 +78,14 @@ local function url_decode(str)
     return str
 end
 
+-- Route parameters come out of a path segment, and unlike a query string a "+" in a path is a
+-- literal plus, not a space. So they get percent-decoding only -- never url_decode, which would
+-- eat plus signs out of names like "c++fan".
+local function path_decode(str)
+    if str == nil then return nil end
+    return (string.gsub(str, "%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+end
+
 -- Parses a multipart/form-data body (binary-safe). Returns two tables:
 --   fields = { [name] = value }                       (plain form fields)
 --   files  = { [name] = { name=filename, type=mime, data=bytes, size=n } }
@@ -151,7 +159,7 @@ local function match_sitemap(sitemap, uri)
             if #captures > 0 then
                 local params = {}
                 for i, val in ipairs(captures) do
-                    params[names[i]] = val
+                    params[names[i]] = path_decode(val)
                 end
                 return entry, params
             end

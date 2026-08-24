@@ -9,4 +9,6 @@ die(json.stringify({
     Name      = tostring(reg.GetKeyValue("master.branding.title") or "noobWarrior Master Server"),
     Tagline   = tostring(reg.GetKeyValue("master.branding.tagline") or ""),
     PublicKey = _G.MASTERSERVER_PUBKEY or "",
+    RequiresAccountToHost = reg.GetKeyValue("master.auth.require_for_hosting") ~= false,
+    RequiresAccountToJoin = reg.GetKeyValue("master.auth.require_for_joining") == true,
 }))

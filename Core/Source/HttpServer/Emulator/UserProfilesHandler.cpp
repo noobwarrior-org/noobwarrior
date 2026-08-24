@@ -74,9 +74,7 @@ nlohmann::json MakeProfileDetail(const nlohmann::json& requestedUserId,
     if (identity) {
         username = identity->Username;
         displayName = identity->DisplayName.empty() ? username : identity->DisplayName;
-        combinedName = displayName == username
-            ? username
-            : displayName + " (@" + username + ")";
+        combinedName = displayName;
     }
 
     nlohmann::json detail;

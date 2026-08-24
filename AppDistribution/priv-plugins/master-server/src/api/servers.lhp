@@ -4,12 +4,18 @@ _G.MASTERSERVER_SWEEP_EMU_SERVERS()
 local list = {}
 for _, node in pairs(_G.EMU_SERVERS) do
     for _, s in pairs(node.Servers or {}) do
+        local emuName = (not _G.MASTERSERVER_BLANK(node.Name)) and node.Name
+            or (tostring(node.Ip) .. ":" .. tostring(node.Port))
         list[#list + 1] = {
             EmulatorIp   = node.Ip,
             EmulatorPort = node.Port,
-            EmulatorName = node.Name,
+            EmulatorName = emuName,
+            -- Who announced this emulator. Empty when the master allows anonymous hosting.
+            HostIdentity = node.HostIdentity or "",
+            HostName     = node.HostName or "",
             ServerId   = s.Pid,
             PlaceId    = s.PlaceId,
+            PlaceName  = _G.MASTERSERVER_RESOLVE_PLACE_NAME(s.PlaceId),
             GamePort   = s.Port,
             Version    = s.Version or node.Version,
             Players    = 0,   -- player counts are not reported by the emulator yet
@@ -19,6 +25,8 @@ for _, node in pairs(_G.EMU_SERVERS) do
         }
     end
 end
+
+table.sort(list, function(a, b) return (a.LastSeen or 0) > (b.LastSeen or 0) end)
 
 header("Content-Type: application/json")
 http_response_code(200)

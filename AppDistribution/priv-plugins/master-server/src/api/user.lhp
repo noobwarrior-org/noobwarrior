@@ -1,0 +1,86 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: user.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local raw = _PARAMS["username"] or _GET["username"]
+if _G.MASTERSERVER_BLANK(raw) then
+    http_response_code(400)
+    die("Missing username")
+end
+
+header("Content-Type: application/json")
+
+local username, domain = _G.MASTERSERVER_FEDERATION.ParseIdentity(raw)
+if username and domain and not _G.MASTERSERVER_FEDERATION.IsLocalDomain(domain) then
+    local profile = _G.MASTERSERVER_FEDERATION.ResolveUser(raw)
+    if not profile then
+        http_response_code(404)
+        die(json.stringify({ Error = "Could not resolve federated user " .. tostring(raw) }))
+    end
+    http_response_code(200)
+    die(json.stringify({
+        Name         = profile.Name or username,
+        DisplayName  = profile.DisplayName or profile.Name or username,
+        Identity     = profile.Identity or raw,
+        Domain       = domain,
+        OnlineUserId = profile.UserId or 0,
+        Bio          = "",
+        JoinDate     = 0,
+        Submissions  = 0,
+        Statuses     = {},
+        IsRemote     = true,
+    }))
+end
+
+local lookup = username or raw
+
+local m = core.GetMasterDatabase()
+if m == nil then
+    http_response_code(500)
+    die(json.stringify({ Error = "No master database available" }))
+end
+
+local row = _G.MASTERSERVER_FIRST_ROW(m:QueryTyped(
+    "SELECT Id, Name, DisplayName, Bio, JoinDate FROM User WHERE Name = ? COLLATE NOCASE;", lookup))
+if row == nil then
+    http_response_code(404)
+    die(json.stringify({ Error = "User not found" }))
+end
+
+local identity = _G.MASTERSERVER_FULL_IDENTITY(row.Name)
+
+local submissionCount = 0
+if _G.MASTERSERVER_DB ~= nil then
+    local c = _G.MASTERSERVER_FIRST_ROW(
+        _G.MASTERSERVER_DB:QueryTyped("SELECT COUNT(*) AS N FROM WorkshopSubmission WHERE UploaderId = ?;", row.Id))
+    submissionCount = c and tonumber(c.N) or 0
+end
+
+local statuses = {}
+for _, s in ipairs(_G.MASTERSERVER_FEDERATION.StatusesByAuthor(identity, 10) or {}) do
+    statuses[#statuses + 1] = {
+        Id      = tonumber(s.Id) or 0,
+        Body    = tostring(s.Body or ""),
+        Created = tonumber(s.Created) or 0,
+        IsReply = s.ParentId ~= nil,
+    }
+end
+
+http_response_code(200)
+die(json.stringify({
+    Name         = tostring(row.Name or ""),
+    DisplayName  = tostring(row.DisplayName or row.Name or ""),
+    Identity     = identity,
+    Domain       = _G.MASTERSERVER_DOMAIN(),
+    OnlineUserId = _G.MASTERSERVER_ONLINE_USER_ID(identity),
+    Bio          = tostring(row.Bio or ""),
+    JoinDate     = tonumber(row.JoinDate) or 0,
+    Submissions  = submissionCount,
+    Statuses     = statuses,
+    IsRemote     = false,
+}))

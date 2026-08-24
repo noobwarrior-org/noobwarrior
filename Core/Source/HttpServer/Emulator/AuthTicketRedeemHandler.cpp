@@ -32,8 +32,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include <memory>
 #include <optional>
 #include <string>
+#include <thread>
+#include <utility>
 
 using namespace NoobWarrior;
 
@@ -72,7 +75,31 @@ static std::string ExtractTicket(evhttp_request *req) {
     return "";
 }
 
-void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
+void AuthTicketRedeemHandler::PauseRedeems() {
+    // The evhttp is about to be freed. Detach every in-flight check from its connection so the
+    // worker's completion callback finds ClientConnected false and stays away from evhttp.
+    mActive = false;
+    for (auto &pending : mPending) {
+        if (pending->Connection)
+            evhttp_connection_set_closecb(pending->Connection, nullptr, nullptr);
+        pending->ClientConnected = false;
+    }
+    mPending.clear();
+}
+
+void AuthTicketRedeemHandler::ResumeRedeems() {
+    mActive = true;
+}
+
+void AuthTicketRedeemHandler::OnClientDisconnect(evhttp_connection *conn, void *arg) {
+    // The game server hung up before the master answered. Note it; FinishRedeem skips the reply.
+    // (arg stays valid: mPending holds the PendingRedeem until then.)
+    static_cast<PendingRedeem*>(arg)->ClientConnected = false;
+}
+
+void AuthTicketRedeemHandler::ReplyWithUser(evhttp_request *req,
+                                            const std::optional<AuthUtil::SessionUser> &resolvedIn,
+                                            bool allowGuests) {
     auto sendJson = [req](int code, const std::string &body) {
         evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
         evbuffer *reply = evbuffer_new();
@@ -81,42 +108,7 @@ void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
         evbuffer_free(reply);
     };
 
-    Registry *reg = mEmu->GetCore()->GetRegistry();
-    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
-
-    // Auth off: keep the historical no-op so local, non-authenticated flows are unaffected.
-    if (!authEnabled) {
-        sendJson(HTTP_OK, "{}");
-        return;
-    }
-
-    bool allowGuests = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false);
-    int64_t ttl = reg != nullptr ? reg->GetKeyValue<int64_t>("emu.auth.ticket_ttl").value_or(120) : 120;
-
-    EmuDb *master = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
-    std::string ticket = ExtractTicket(req);
-
-    std::optional<AuthUtil::SessionUser> resolved;
-
-    // A "fedvoucher." ticket is a federated join voucher riding the launch ticket (a loopback/same-machine
-    // slave join, where it can't travel as a proxied cookie). Verify it with our master. It's single-use,
-    // so if a redeem retry finds it already consumed, keep the federated identity we already established.
-    if (ticket.rfind("fedvoucher.", 0) == 0) {
-        resolved = mEmu->ResolveFederatedVoucher(ticket);
-        if (!resolved) {
-            if (auto existing = mEmu->GetCurrentLaunchUser(); existing && !existing->isGuest)
-                resolved = existing;
-        }
-    }
-    // Guests and federated users carry their identity inside the ticket itself (no DB row exists for
-    // them); a local account gets a real single-use ticket redeemed against the master DB.
-    else if (auto guest = AuthUtil::DecodeGuestTicket(ticket)) {
-        resolved = guest;
-    } else if (auto federated = AuthUtil::DecodeFederatedTicket(ticket)) {
-        resolved = federated;
-    } else if (master) {
-        resolved = AuthUtil::RedeemAuthTicket(master, ticket, ttl);
-    }
+    std::optional<AuthUtil::SessionUser> resolved = resolvedIn;
 
     // A missing/expired/used ticket is treated as a guest when guests are allowed, otherwise refused.
     if (!resolved) {
@@ -145,4 +137,85 @@ void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
     Out("AuthTicketRedeemHandler", "Redeemed ticket for {} (id {}){}",
         resolved->name, resolved->id, resolved->isGuest ? " [guest]" : "");
     sendJson(HTTP_OK, response.dump());
+}
+
+void AuthTicketRedeemHandler::FinishRedeem(std::shared_ptr<PendingRedeem> pending,
+                                           std::optional<AuthUtil::SessionUser> resolved) {
+    mPending.erase(pending);
+
+    if (!mActive)                   return; // server stopped; don't touch evhttp
+    if (!pending->ClientConnected)  return; // caller hung up; its request is already gone
+
+    if (pending->Connection)
+        evhttp_connection_set_closecb(pending->Connection, nullptr, nullptr);
+
+    // A single-use voucher that a retry finds already consumed still identifies the same player,
+    // so fall back to the identity the launch already established rather than demoting to guest.
+    if (!resolved) {
+        if (auto existing = mEmu->GetCurrentLaunchUser(); existing && !existing->isGuest)
+            resolved = existing;
+    }
+
+    ReplyWithUser(pending->Request, resolved, pending->AllowGuests);
+}
+
+void AuthTicketRedeemHandler::OnRequest(evhttp_request *req, void *userdata) {
+    Registry *reg = mEmu->GetCore()->GetRegistry();
+    bool authEnabled = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.enabled").value_or(false);
+
+    // Auth off: keep the historical no-op so local, non-authenticated flows are unaffected.
+    if (!authEnabled) {
+        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+        evbuffer *reply = evbuffer_new();
+        evbuffer_add(reply, "{}", 2);
+        evhttp_send_reply(req, HTTP_OK, nullptr, reply);
+        evbuffer_free(reply);
+        return;
+    }
+
+    bool allowGuests = reg != nullptr && reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false);
+    int64_t ttl = reg != nullptr ? reg->GetKeyValue<int64_t>("emu.auth.ticket_ttl").value_or(120) : 120;
+
+    EmuDb *master = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
+    std::string ticket = ExtractTicket(req);
+
+    // A "fedvoucher." ticket is a federated join voucher riding the launch ticket (a loopback/same-machine
+    // slave join, where it can't travel as a proxied cookie). Verifying it means an HTTP call to our
+    // master, so it goes to a worker and the reply waits — see PendingRedeem for why blocking here
+    // would deadlock against a master server hosted in this same process.
+    if (mActive && ticket.rfind("fedvoucher.", 0) == 0) {
+        auto pending = std::make_shared<PendingRedeem>();
+        pending->Request = req;
+        pending->Connection = evhttp_request_get_connection(req);
+        pending->Ticket = ticket;
+        pending->AllowGuests = allowGuests;
+
+        if (pending->Connection)
+            evhttp_connection_set_closecb(pending->Connection, &AuthTicketRedeemHandler::OnClientDisconnect,
+                                          pending.get());
+        mPending.insert(pending);
+
+        ServerEmulator *emu = mEmu;
+        std::thread([this, emu, pending]() {
+            std::optional<AuthUtil::SessionUser> resolved = emu->ResolveFederatedVoucher(pending->Ticket);
+            emu->GetCore()->RunOnEventLoop([this, pending, resolved = std::move(resolved)]() mutable {
+                FinishRedeem(pending, std::move(resolved));
+            });
+        }).detach();
+        return;
+    }
+
+    std::optional<AuthUtil::SessionUser> resolved;
+
+    // Guests and federated users carry their identity inside the ticket itself (no DB row exists for
+    // them); a local account gets a real single-use ticket redeemed against the master DB.
+    if (auto guest = AuthUtil::DecodeGuestTicket(ticket)) {
+        resolved = guest;
+    } else if (auto federated = AuthUtil::DecodeFederatedTicket(ticket)) {
+        resolved = federated;
+    } else if (master) {
+        resolved = AuthUtil::RedeemAuthTicket(master, ticket, ttl);
+    }
+
+    ReplyWithUser(req, resolved, allowGuests);
 }

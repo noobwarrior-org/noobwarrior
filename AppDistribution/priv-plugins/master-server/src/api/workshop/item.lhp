@@ -1,0 +1,66 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: item.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local id = tonumber(_GET["id"])
+if not id then
+    http_response_code(400)
+    die("Missing or invalid submission id")
+end
+
+local row = _G.MASTERSERVER_FIRST_ROW(_G.MASTERSERVER_DB:QueryTyped(
+    "SELECT Id, Name, Description, Type, Filename, SizeBytes, UploaderId, CreatedTimestamp, " ..
+    "ThumbnailHash FROM WorkshopSubmission WHERE Id = ?;", id))
+if row == nil then
+    http_response_code(404)
+    die("Submission not found")
+end
+
+-- Signed-in viewer, if any: tells the client whether to offer Edit/Delete without a second request.
+local viewer = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+
+local comments = {}
+local commentRows = _G.MASTERSERVER_DB:QueryTyped(
+    "SELECT Id, AuthorId, Body, CreatedTimestamp FROM WorkshopComment " ..
+    "WHERE SubmissionId = ? ORDER BY CreatedTimestamp DESC;", id)
+if type(commentRows) == "table" then
+    for _, c in ipairs(commentRows) do
+        comments[#comments + 1] = {
+            Id               = tonumber(c.Id) or 0,
+            AuthorId         = tonumber(c.AuthorId) or 0,
+            Author           = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(c.AuthorId),
+            Body             = tostring(c.Body or ""),
+            CreatedTimestamp = tonumber(c.CreatedTimestamp) or 0,
+            CanDelete        = viewer ~= nil and (viewer.Id == c.AuthorId or viewer.Id == row.UploaderId),
+        }
+    end
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+die(json.stringify({
+    Id               = tonumber(row.Id) or 0,
+    Name             = tostring(row.Name or "Untitled"),
+    Description      = tostring(row.Description or ""),
+    Type             = tostring(row.Type or "database"),
+    Filename         = tostring(row.Filename or ""),
+    SizeBytes        = tonumber(row.SizeBytes) or 0,
+    SizeText         = _G.MASTERSERVER_HUMAN_SIZE(row.SizeBytes),
+    UploaderId       = tonumber(row.UploaderId) or 0,
+    Uploader         = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(row.UploaderId),
+    CreatedTimestamp = tonumber(row.CreatedTimestamp) or 0,
+    HasThumbnail     = not _G.MASTERSERVER_BLANK(row.ThumbnailHash),
+    IsMine           = viewer ~= nil and viewer.Id == row.UploaderId,
+    CanComment       = viewer ~= nil,
+    Comments         = comments,
+}))

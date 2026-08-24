@@ -24,28 +24,46 @@
 // Description: Window that contains features that the master server can present
 #pragma once
 #include "OnlineSidebar.h"
+#include "ProfilePage.h"
 #include "ServerInformationSidebar.h"
 #include "ServerListWidget.h"
+#include "WorkshopPage.h"
 
 #include <QMainWindow>
+#include <QStackedWidget>
 #include <QToolBar>
-#include <QTabWidget>
-#include <QTreeView>
-#include <QVBoxLayout>
-#include <QPushButton>
+
+class QAction;
+class QLabel;
 
 namespace NoobWarrior {
 class OnlineWindow : public QMainWindow {
     Q_OBJECT
 public:
-    OnlineWindow(QWidget* parent = nullptr);
+    explicit OnlineWindow(QWidget *parent = nullptr);
+
 protected:
     void InitWidgets();
+
 private:
-    QToolBar* mToolBar;
-    OnlineSidebar* mSidebar;
-    ServerInformationSidebar* mServerInformationSidebar;
-    ServerListWidget* mServerList;
-    QTabWidget* ServersTab;
+    // Points every page at `masterUrl` and brings the one for `kind` to the front.
+    void ShowNode(OnlineNodeKind kind, const QString &masterUrl);
+    // Re-runs whatever the visible page does to load itself.
+    void RefreshCurrentPage();
+
+    QToolBar *mToolBar { nullptr };
+    QAction *mRefreshAction { nullptr };
+    OnlineSidebar *mSidebar { nullptr };
+    ServerInformationSidebar *mServerInformationSidebar { nullptr };
+
+    QStackedWidget *mPages { nullptr };
+    ServerListWidget *mServerList { nullptr };
+    ProfilePage *mProfilePage { nullptr };
+    WorkshopPage *mWorkshopPage { nullptr };
+    QWidget *mPlaceholderPage { nullptr };
+    QLabel *mPlaceholderLabel { nullptr };
+
+    OnlineNodeKind mCurrentKind { OnlineNodeKind::None };
+    QString mCurrentMaster;
 };
 }

@@ -21,30 +21,78 @@
 // File: ServerListWidget.h
 // Started by: Hattozo
 // Started on: 11/6/2025
-// Description: Widget that contains a list of servers retrieved from the master server
+// Description: Widget that contains a list of servers retrieved from one master server
 #pragma once
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QTreeView>
-#include <QStandardItemModel>
 #include <QModelIndex>
+#include <QStandardItemModel>
+#include <QString>
+#include <QTreeView>
+
+#include <cstdint>
+#include <vector>
 
 namespace NoobWarrior {
+struct GameServerInfo {
+    QString EmulatorIp;
+    int     EmulatorPort { 0 };   // the emulator's HTTPS port, which is what we connect to
+    QString EmulatorName;
+    // Who announced this emulator to the master, as name@domain. Empty when that master allows
+    // anonymous hosting (master.auth.require_for_hosting off).
+    QString HostIdentity;
+    QString HostName;
+    int64_t ServerId { 0 };
+    int64_t PlaceId { 0 };
+    QString PlaceName;
+    int     GamePort { 0 };
+    QString Version;
+    int     Players { 0 };
+    int     MaxPlayers { 0 };
+    int64_t FirstSeen { 0 };
+    int64_t LastSeen { 0 };
+    
+    int  PingMs { -1 };            // -1 when the emulator did not answer
+    bool AuthEnabled { false };
+    bool AllowGuests { false };
+    bool Reachable { false };
+
+    bool RequiresAccount() const { return AuthEnabled && !AllowGuests; }
+};
+
 class ServerListWidget : public QTreeView {
     Q_OBJECT
 public:
-    ServerListWidget(QWidget* parent = nullptr);
+    explicit ServerListWidget(QWidget *parent = nullptr);
 
-    // Kicks off an async refresh. Extracts URLs on the calling (main) thread,
-    // then does the HTTP work on a background thread and posts results back.
-    // Ignores calls that arrive while a refresh is already in flight.
-    void RefreshFromMasters();
+    // Points the list at one master server. Empty clears it.
+    void SetMaster(const QString &masterUrl);
+    const QString &Master() const { return mMasterUrl; }
+
+    void Refresh();
+
+signals:
+    void ServerSelected(const GameServerInfo &server);
+    // The user asked to see the profile of whoever is hosting a listed server.
+    void HostProfileRequested(const QString &identity);
+    void SelectionCleared();
+    // Human-readable progress ("Refreshing...", "3 servers", an error) for the window's status bar.
+    void StatusChanged(const QString &status);
+
 protected:
-    void InitWidgets();
+    void paintEvent(QPaintEvent *event) override;
+
 private slots:
     void OnDoubleClicked(const QModelIndex &index);
+    void OnContextMenu(const QPoint &pos);
+
 private:
-    QStandardItemModel* mModel;
-    bool mRefreshing {false};
+    void InitWidgets();
+    void Populate(const std::vector<GameServerInfo> &servers);
+    void SetPlaceholder(const QString &text);
+
+    QStandardItemModel *mModel { nullptr };
+    QString mMasterUrl;
+    QString mPlaceholder;
+    std::vector<GameServerInfo> mServers;
+    bool mRefreshing { false };
 };
 }

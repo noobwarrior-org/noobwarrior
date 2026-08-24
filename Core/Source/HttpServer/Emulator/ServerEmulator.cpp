@@ -374,6 +374,7 @@ void ServerEmulator::SetupHandlers() {
 
 int ServerEmulator::Start(uint16_t port) {
     mAssetHandler.ResumeProxy();
+    mAuthTicketRedeemHandler.ResumeRedeems();
     mEmulatorProxy.Resume();
     const int result = HttpServer::Start(port);
     mVoiceChatHandler.StartTurnRelay();
@@ -385,6 +386,7 @@ int ServerEmulator::Stop() {
     // fetch/forward replies to a freed connection.
     mVoiceChatHandler.StopTurnRelay();
     mAssetHandler.PauseProxy();
+    mAuthTicketRedeemHandler.PauseRedeems();
     mEmulatorProxy.Pause();
     return HttpServer::Stop();
 }
@@ -1002,14 +1004,27 @@ void ServerEmulator::SendMasterPing(const std::string &event) {
     }
     body["Servers"] = std::move(serverArr);
 
+    // The announce identifies this host to the master. A master may require an account before it
+    // will list a server, so send whatever session we hold for that master.
+    cpr::Header headers {{"Content-Type", "application/json"}};
+    if (Account *account = mCore->GetMasterKeychain()->FindAccountByUrl(url); account != nullptr)
+        headers["Cookie"] = ".LOGINSESSION=" + account->Token;
+
+    // Synchronous on purpose: this already runs on the announcer thread, never the event loop, and
+    // StopAnnouncer's farewell ping must land before the process exits.
     cpr::Response res = cpr::Post(
         cpr::Url{url + "/v1/emu-ping"},
-        cpr::Header{{"Content-Type", "application/json"}},
+        headers,
         cpr::Body{body.dump()},
-        cpr::Timeout{std::chrono::milliseconds(5000)}
+        cpr::Timeout{std::chrono::milliseconds(5000)},
+        cpr::VerifySsl{false}
     );
     if (res.error.code != cpr::ErrorCode::OK)
         Out(mLogName, "Master announce ({}) to {} failed: {}", event, url, res.error.message);
+    else if (res.status_code == 401 || res.status_code == 403)
+        Out(mLogName, "Master {} refused the announce ({}). Sign in to it on the Online window's "
+                      "Profile page, or turn off master.auth.require_for_hosting on that master.",
+            url, event);
     else if (res.status_code >= 400)
         Out(mLogName, "Master announce ({}) to {} got HTTP {}", event, url, static_cast<long>(res.status_code));
 }

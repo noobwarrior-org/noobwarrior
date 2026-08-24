@@ -62,10 +62,17 @@ private:
     QFormLayout* mServerSettingsFormLayout;
     QLabel* mServerSettingsInfoLabel;
     QLabel* mServerSettingsVcInfoLabel;
+    
+    void ApplyMasterServerSelection();
+    void RefreshMasterHostingState();
+    void ApplyMasterHostingState(bool reachable, bool requiresAccount);
+    void PromptMasterSignIn();
 
     QLineEdit* mPortInput;
     QComboBox* mMasterServerBox;
     QCheckBox* mPublicInput;
+    QLabel* mPublicHintLabel;
+    QPushButton* mMasterSignInButton;
 
     QComboBox* mEngineCombo;
     QDialogButtonBox* mButtonBox;

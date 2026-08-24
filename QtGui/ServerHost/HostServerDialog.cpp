@@ -24,8 +24,13 @@
 // Description: Dialog that allows for starting a game server
 #include "HostServerDialog.h"
 #include "../Application.h"
+#include "../OnlineWindow/MasterHttp.h"
+#include "../OnlineWindow/MasterLoginDialog.h"
+#include "../OnlineWindow/MasterServerStore.h"
 #include "PlaceInfoCardWidget.h"
 #include "Sdk/Item/UniverseTreeWidget.h"
+
+#include <nlohmann/json.hpp>
 
 #include <QLabel>
 #include <QMessageBox>
@@ -82,23 +87,53 @@ void HostServerDialog::InitWidgets() {
     mServerSettingsFormLayout->addRow("Game Server Port", mPortInput);
 
     mMasterServerBox = new QComboBox();
-    mMasterServerBox->addItem("None", -1);
+    mMasterServerBox->addItem("None", QString());
+    for (const MasterServerEntry &entry : MasterServerStore::Load())
+        mMasterServerBox->addItem(entry.Name, entry.Url);
     mServerSettingsFormLayout->addRow("Master Server", mMasterServerBox);
 
-    mPublicInput = new QCheckBox();
-    auto updatePublicInput = [this]() {
-        if (mMasterServerBox->currentData(Qt::UserRole).value<int>() == -1) {
-            mPublicInput->setChecked(false);
-            mPublicInput->setDisabled(true);
-        } else {
-            mPublicInput->setDisabled(false);
+    {
+        auto *reg = gApp->GetCore()->GetRegistry();
+        QString preselect;
+        if (reg->GetKeyValue<std::string>("emu.auth.type").value_or("master") == "slave") {
+            preselect = MasterServerStore::NormalizeUrl(QString::fromStdString(
+                reg->GetKeyValue<std::string>("emu.auth.master").value_or("")));
         }
-    };
-    updatePublicInput();
-    connect(mMasterServerBox, &QComboBox::currentIndexChanged, [updatePublicInput]() {
-        updatePublicInput();
-    });
+        if (preselect.isEmpty()) {
+            if (Account *active = gApp->GetCore()->GetMasterKeychain()->GetActiveAccount();
+                active != nullptr)
+                preselect = MasterServerStore::NormalizeUrl(QString::fromStdString(active->Url));
+        }
+        if (!preselect.isEmpty()) {
+            int index = mMasterServerBox->findData(preselect);
+            if (index >= 0)
+                mMasterServerBox->setCurrentIndex(index);
+        }
+    }
+
+    mPublicInput = new QCheckBox();
+    if (!mMasterServerBox->currentData().toString().isEmpty()) {
+        mPublicInput->setChecked(
+            gApp->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.master.announce").value_or(false));
+    }
     mServerSettingsFormLayout->addRow("Public", mPublicInput);
+
+    // A master may only list servers hosted by its own accounts. Asking it up front beats letting
+    // the user tick Public, start a server, and find out from a log line that it was never listed.
+    mPublicHintLabel = new QLabel();
+    mPublicHintLabel->setWordWrap(true);
+    mPublicHintLabel->setVisible(false);
+    mServerSettingsFormLayout->addRow("", mPublicHintLabel);
+
+    mMasterSignInButton = new QPushButton("Sign in to this master server...");
+    mMasterSignInButton->setVisible(false);
+    connect(mMasterSignInButton, &QPushButton::clicked, this, &HostServerDialog::PromptMasterSignIn);
+    mServerSettingsFormLayout->addRow("", mMasterSignInButton);
+
+    connect(mMasterServerBox, &QComboBox::currentIndexChanged, this, [this]() {
+        RefreshMasterHostingState();
+    });
+    RefreshMasterHostingState();
 
     mServerSettingsInfoLabel = new QLabel();
     mServerSettingsInfoLabel->setWordWrap(true);
@@ -209,10 +244,18 @@ void HostServerDialog::InitWidgets() {
         }
 
         if (mEngineCombo->currentData().canConvert<Engine>()) {
+            ApplyMasterServerSelection();
+
             const auto engine = mEngineCombo->currentData().value<Engine>();
+            bool portOk = false;
+            uint16_t gamePort = static_cast<uint16_t>(mPortInput->text().toUInt(&portOk));
+            if (!portOk || gamePort == 0) {
+                QMessageBox::critical(this, "Error", "Please enter a valid game server port!");
+                return;
+            }
             gApp->LaunchEngine({
                 .Engine = engine,
-                .Port = 53640,
+                .Port = gamePort,
                 .PlaceId = placeId.value(),
                 .LaunchSide = EngineSide::Server
             });
@@ -226,4 +269,126 @@ void HostServerDialog::InitWidgets() {
     connect(mCloseButton, &QPushButton::clicked, [this]() {
         close();
     });
+}
+
+void HostServerDialog::RefreshMasterHostingState() {
+    QString masterUrl = mMasterServerBox->currentData().toString();
+
+    // "None" means nothing is announced anywhere, so Public has nothing to mean.
+    if (masterUrl.isEmpty()) {
+        mPublicInput->setChecked(false);
+        mPublicInput->setEnabled(false);
+        mPublicHintLabel->setVisible(false);
+        mMasterSignInButton->setVisible(false);
+        return;
+    }
+
+    // Already signed in to it, so it will take our announce whatever its policy is.
+    if (MasterHttp::IsSignedIn(masterUrl)) {
+        mPublicInput->setEnabled(true);
+        mPublicHintLabel->setVisible(false);
+        mMasterSignInButton->setVisible(false);
+        return;
+    }
+
+    // Signed out, ask before letting the user commit to something the master will refuse.
+    mPublicInput->setEnabled(false);
+    mMasterSignInButton->setVisible(false);
+    mPublicHintLabel->setStyleSheet(QString());
+    mPublicHintLabel->setText("Checking whether this master server accepts servers from signed-out hosts...");
+    mPublicHintLabel->setVisible(true);
+
+    QString pending = masterUrl;
+    MasterHttp::Get(this, masterUrl, "/fed/v1/info", [this, pending](const MasterResponse &response) {
+        // The user may have picked a different master while this was in flight.
+        if (mMasterServerBox->currentData().toString() != pending)
+            return;
+
+        if (!response.Ok) {
+            ApplyMasterHostingState(false, false);
+            return;
+        }
+
+        nlohmann::json info = nlohmann::json::parse(response.Body, nullptr, false);
+        if (info.is_discarded() || !info.is_object()) {
+            ApplyMasterHostingState(false, false);
+            return;
+        }
+
+        ApplyMasterHostingState(true, info.value("RequiresAccountToHost", false));
+    });
+}
+
+void HostServerDialog::ApplyMasterHostingState(bool reachable, bool requiresAccount) {
+    if (!reachable) {
+        mPublicInput->setEnabled(true);
+        mPublicHintLabel->setStyleSheet("QLabel { color: orange; }");
+        mPublicHintLabel->setText("Couldn't reach that master server to check its policy. You can still "
+                                  "try to make this server public, but it may not get listed.");
+        mPublicHintLabel->setVisible(true);
+        mMasterSignInButton->setVisible(false);
+        return;
+    }
+
+    if (!requiresAccount) {
+        mPublicInput->setEnabled(true);
+        mPublicHintLabel->setVisible(false);
+        mMasterSignInButton->setVisible(false);
+        return;
+    }
+
+    // It would refuse us. Say so where the decision is being made, and offer the fix inline.
+    mPublicInput->setChecked(false);
+    mPublicInput->setEnabled(false);
+    mPublicHintLabel->setStyleSheet("QLabel { color: orange; }");
+    mPublicHintLabel->setText("This master server only lists servers hosted by its own accounts, and you "
+                              "aren't signed in to it. Sign in to make this server public.");
+    mPublicHintLabel->setVisible(true);
+    mMasterSignInButton->setVisible(true);
+}
+
+void HostServerDialog::PromptMasterSignIn() {
+    QString masterUrl = mMasterServerBox->currentData().toString();
+    if (masterUrl.isEmpty())
+        return;
+
+    MasterLoginDialog dialog(this, "Sign in to host publicly",
+                             "Signing in lets this master server list the server you are about to start.",
+                             masterUrl, false);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    mMasterSignInButton->setEnabled(false);
+    mPublicHintLabel->setStyleSheet(QString());
+    mPublicHintLabel->setText("Signing in...");
+
+    MasterHttp::SignIn(this, dialog.MasterUrl(), dialog.Username(), dialog.Password(), [this](bool ok) {
+        mMasterSignInButton->setEnabled(true);
+        if (!ok) {
+            mPublicHintLabel->setStyleSheet("QLabel { color: orange; }");
+            mPublicHintLabel->setText("That master server rejected those credentials.");
+            return;
+        }
+        RefreshMasterHostingState();
+        mPublicInput->setChecked(true);
+    });
+}
+
+void HostServerDialog::ApplyMasterServerSelection() {
+    auto *registry = gApp->GetCore()->GetRegistry();
+    QString masterUrl = mMasterServerBox->currentData().toString();
+
+    if (masterUrl.isEmpty()) {
+        registry->SetKeyValue<std::string>("emu.auth.type", "master");
+        registry->SetKeyValue<bool>("emu.master.announce", false);
+        registry->Save();
+        return;
+    }
+
+    registry->SetKeyValue<std::string>("emu.auth.type", "slave");
+    registry->SetKeyValue<std::string>("emu.auth.master", masterUrl.toStdString());
+    // Slave mode is meaningless with the auth surface bypassed, so turn it on with the mode.
+    registry->SetKeyValue<bool>("emu.auth.enabled", true);
+    registry->SetKeyValue<bool>("emu.master.announce", mPublicInput->isChecked());
+    registry->Save();
 }

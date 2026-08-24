@@ -33,6 +33,11 @@ public:
     MasterKeychain(Registry *registry);
     std::string GetName() override;
     bool HasAccountExpired(Account &acc) override;
+
+    // The account signed in to one particular master, or nullptr. Accounts are keyed by Url, so a
+    // session on one master never gets used against another. Compares case-insensitively and
+    // ignores a trailing slash, since the same master gets typed both ways.
+    Account *FindAccountByUrl(const std::string &url);
 protected:
     // Unused: master accounts are added with an already-resolved identity (see Core::LoginToMaster),
     // not from a bare token, so there is nothing to fetch here.

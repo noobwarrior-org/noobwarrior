@@ -35,6 +35,12 @@ reg.SetKeyComment("master.federation.auto", "When true, federation is automatic:
 reg.SetKeyValueIfNotSet("master.federation.banned", {})
 reg.SetKeyComment("master.federation.banned", "List of defederated (banned) master server domains. Banned masters cannot federate, message, post, or have their users join servers that trust you. Managed from the control panel's Federation tab.")
 
+reg.SetKeyValueIfNotSet("master.auth.require_for_hosting", true)
+reg.SetKeyComment("master.auth.require_for_hosting", "If true, a server emulator must be signed in to an account on this master server before it may announce itself and appear in the server list. Turn off to let anyone list a server here.")
+
+reg.SetKeyValueIfNotSet("master.auth.require_for_joining", false)
+reg.SetKeyComment("master.auth.require_for_joining", "If true, only signed-in accounts may use this master server as their identity when joining a game server that trusts it. Turn off to let people join through this master without an account (the game server still decides whether it admits guests).")
+
 reg.SetKeyValueIfNotSet("master.workshop.max_upload_mb", 4096)
 reg.SetKeyComment("master.workshop.max_upload_mb", "Maximum size in megabytes of a single .nwdb file uploaded to the workshop.")
 
@@ -298,6 +304,8 @@ local sitemap = {
     ["/v1/create-account"] = "/src/api/create_account.lhp",
     ["/v1/logout"] = "/src/api/logout.lhp",
     ["/v1/servers"] = "/src/api/servers.lhp",
+    ["/v1/profile"] = "/src/api/profile.lhp",
+    ["/v1/users/:username"] = "/src/api/user.lhp",
     ["/v1/emu-ping"] = "/src/api/emu-ping.lhp",
     ["/v1/messages/send"] = "/src/api/messages/send.lhp",
     ["/v1/forums/post"] = "/src/api/forums/post.lhp",
@@ -314,6 +322,8 @@ local sitemap = {
     ["/v1/workshop/start-upload"] = "/src/api/workshop/start_upload.lhp",
     ["/v1/workshop/stream-upload"] = "/src/api/workshop/stream_upload.lhp",
     ["/v1/workshop/end-upload"] = "/src/api/workshop/end_upload.lhp",
+    ["/v1/workshop/list"] = "/src/api/workshop/list.lhp",
+    ["/v1/workshop/item"] = "/src/api/workshop/item.lhp",
     ["/v1/workshop/download"] = "/src/api/workshop/download.lhp",
     ["/v1/workshop/delete"] = "/src/api/workshop/delete.lhp",
     ["/v1/workshop/set-thumbnail"] = "/src/api/workshop/set_thumbnail.lhp",

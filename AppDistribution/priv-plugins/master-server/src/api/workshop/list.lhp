@@ -1,0 +1,81 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Master Server
+-- File: list.lhp
+-- Description:
+-- Started by: Hattozo
+-- Started on: 8/23/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+if _G.MASTERSERVER_DB == nil then
+    http_response_code(500)
+    die("No master server database available")
+end
+
+local viewType = tostring(_GET["type"] or "all")
+local search = _GET["q"]
+if _G.MASTERSERVER_BLANK(search) then search = nil end
+
+local columns = "SELECT Id, Name, Description, Type, Filename, SizeBytes, UploaderId, " ..
+                "CreatedTimestamp, ThumbnailHash FROM WorkshopSubmission"
+local where, args = {}, {}
+
+if viewType == "mine" then
+    local user = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+    if user == nil then
+        http_response_code(401)
+        die("You must be logged in to list your own submissions")
+    end
+    where[#where + 1] = "UploaderId = ?"
+    args[#args + 1] = user.Id
+elseif viewType == "database" or viewType == "databases" then
+    where[#where + 1] = "Type = ?"
+    args[#args + 1] = "database"
+elseif viewType == "plugin" or viewType == "plugins" then
+    where[#where + 1] = "Type = ?"
+    args[#args + 1] = "plugin"
+end
+
+if search ~= nil then
+    where[#where + 1] = "(Name LIKE ? OR Description LIKE ?)"
+    local pattern = "%" .. tostring(search) .. "%"
+    args[#args + 1] = pattern
+    args[#args + 1] = pattern
+end
+
+local sql = columns
+if #where > 0 then sql = sql .. " WHERE " .. table.concat(where, " AND ") end
+sql = sql .. " ORDER BY CreatedTimestamp DESC LIMIT 500;"
+
+local unpack = unpack or table.unpack
+local rows
+if #args == 0 then
+    rows = _G.MASTERSERVER_DB:QueryTyped(sql)
+else
+    rows = _G.MASTERSERVER_DB:QueryTyped(sql, unpack(args))
+end
+if type(rows) ~= "table" then rows = {} end
+
+local list = {}
+for _, row in ipairs(rows) do
+    list[#list + 1] = {
+        Id               = tonumber(row.Id) or 0,
+        Name             = tostring(row.Name or "Untitled"),
+        Description      = tostring(row.Description or ""),
+        Type             = tostring(row.Type or "database"),
+        Filename         = tostring(row.Filename or ""),
+        SizeBytes        = tonumber(row.SizeBytes) or 0,
+        SizeText         = _G.MASTERSERVER_HUMAN_SIZE(row.SizeBytes),
+        UploaderId       = tonumber(row.UploaderId) or 0,
+        Uploader         = _G.MASTERSERVER_RESOLVE_UPLOADER_NAME(row.UploaderId),
+        CreatedTimestamp = tonumber(row.CreatedTimestamp) or 0,
+        HasThumbnail     = not _G.MASTERSERVER_BLANK(row.ThumbnailHash),
+    }
+end
+
+header("Content-Type: application/json")
+http_response_code(200)
+if #list == 0 then
+    die("[]")
+end
+die(json.stringify(list))

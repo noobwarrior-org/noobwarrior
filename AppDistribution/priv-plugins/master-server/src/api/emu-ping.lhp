@@ -12,6 +12,17 @@ end
 
 local event = body.Event or ""
 
+-- Who is announcing? The emulator sends the session of the account it is signed in to here.
+-- With master.auth.require_for_hosting on (the default), an anonymous announce is refused, so the
+-- server list only ever contains servers someone on this master stands behind.
+local host = _G.MASTERSERVER_RESOLVE_SESSION_USER(_COOKIE[".LOGINSESSION"])
+if host == nil and reg.GetKeyValue("master.auth.require_for_hosting") ~= false then
+    http_response_code(401)
+    die("This master server only lists servers hosted by its own accounts. Sign in to it in the Online window, or ask the operator to turn off master.auth.require_for_hosting.")
+end
+
+local hostIdentity = host and _G.MASTERSERVER_FULL_IDENTITY(host.Name) or ""
+
 local ip = _SERVER.REMOTE_ADDR or ""
 
 local port = tonumber(body.Port)
@@ -72,13 +83,16 @@ else
 end
 
 _G.EMU_SERVERS[key] = {
-    Ip        = ip,
-    Port      = port,
-    Name      = tostring(body.Name or ""),
-    Version   = tostring(body.Version or ""),
-    FirstSeen = existing and existing.FirstSeen or now,
-    LastSeen  = now,
-    Servers   = servers,
+    Ip           = ip,
+    Port         = port,
+    Name         = tostring(body.Name or ""),
+    Version      = tostring(body.Version or ""),
+    HostIdentity = hostIdentity,
+    HostName     = host and tostring(host.Name) or "",
+    HostUserId   = host and host.Id or nil,
+    FirstSeen    = existing and existing.FirstSeen or now,
+    LastSeen     = now,
+    Servers      = servers,
 }
 
 http_response_code(200)

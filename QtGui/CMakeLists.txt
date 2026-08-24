@@ -29,6 +29,11 @@ set(SOURCES
     OnlineWindow/OnlineSidebar.cpp
     OnlineWindow/ServerInformationSidebar.cpp
     OnlineWindow/ServerListWidget.cpp
+    OnlineWindow/ProfilePage.cpp
+    OnlineWindow/WorkshopPage.cpp
+    OnlineWindow/MasterServerStore.cpp
+    OnlineWindow/MasterHttp.cpp
+    OnlineWindow/AddMasterServerDialog.cpp
     OnlineWindow/DirectConnectDialog.cpp
     OnlineWindow/ServerLoginDialog.cpp
     OnlineWindow/MasterLoginDialog.cpp
