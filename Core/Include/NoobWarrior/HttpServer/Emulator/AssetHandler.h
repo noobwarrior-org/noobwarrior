@@ -74,6 +74,12 @@ private:
         SqlDb::Response MissResult {};        // reply code to use if the fetch fails
         bool            SaveToGrabDb {false};
         std::string     GrabDbPath;
+        // A joined federated player's worn items live on their home master, so that is tried first.
+        // It runs on the worker rather than in OnRequest because it is an HTTP call, and every
+        // server in this process shares one event loop: blocking it deadlocks against a master
+        // hosted in the same program.
+        bool            TryFederated {false};
+        bool            TryRoblox    {true};
     };
 
     void StartProxyPool();
@@ -89,7 +95,8 @@ private:
     // upstreamQuery carries the engine's content-representation parameters through to assetdelivery;
     // without them it answers with a texture pack descriptor instead of the requested texture.
     void BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult,
-                         const std::string &upstreamQuery = "");
+                         const std::string &upstreamQuery = "", bool tryFederated = false,
+                         bool tryRoblox = true);
     // Called on the event loop once a worker's network fetch finishes. The cpr result is decoded
     // into plain fields by the worker so this header doesn't depend on the HTTP client.
     void OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, long httpStatus, std::vector<unsigned char> data);

@@ -31,8 +31,10 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdlib>
+#include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 
 using namespace NoobWarrior;
 
@@ -74,26 +76,46 @@ AvatarFetchHandler::AvatarFetchHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
-void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
+void AvatarFetchHandler::PauseFetches() {
+    mActive = false;
+    for (auto &pending : mPending) {
+        if (pending->Connection)
+            evhttp_connection_set_closecb(pending->Connection, nullptr, nullptr);
+        pending->ClientConnected = false;
+    }
+    mPending.clear();
+}
+
+void AvatarFetchHandler::ResumeFetches() {
+    mActive = true;
+}
+
+void AvatarFetchHandler::OnClientDisconnect(evhttp_connection *conn, void *arg) {
+    static_cast<PendingAvatar*>(arg)->ClientConnected = false;
+}
+
+void AvatarFetchHandler::FinishFederatedFetch(std::shared_ptr<PendingAvatar> pending) {
+    mPending.erase(pending);
+
+    if (!mActive)                   return; // server stopped; don't touch evhttp
+    if (!pending->ClientConnected)  return; // engine hung up; its request is already gone
+
+    if (pending->Connection)
+        evhttp_connection_set_closecb(pending->Connection, nullptr, nullptr);
+
+    // The worker has populated the cache (or failed, in which case we fall back below).
+    if (std::optional<std::string> federated = mEmu->PeekFederatedAvatar(pending->UserId)) {
+        SendJson(pending->Request, *federated);
+        return;
+    }
+    ServeFromLocalSources(pending->Request);
+}
+
+void AvatarFetchHandler::ServeFromLocalSources(evhttp_request *req) {
     Core* core = mEmu->GetCore();
     std::optional<int64_t> userId = ParseUserId(req);
 
-    // Guests (negative id) always get a plain black/white placeholder.
-    if (userId && *userId < 0) {
-        SendJson(req, AvatarAppearance::BuildGuestAvatarFetchJson().dump());
-        return;
-    }
-
-    // Auth mode: serve the requested user's DB-stored avatar. The local registry appearance and any
-    // client-pushed override are ignored, so a joiner can't spoof or leak an appearance.
     if (core->GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
-        // A federated joiner's avatar lives on their home master and overrides the local default.
-        if (userId) {
-            if (std::optional<std::string> federated = mEmu->GetFederatedAvatar(*userId)) {
-                SendJson(req, *federated);
-                return;
-            }
-        }
         int64_t id = userId.value_or(core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000));
         SendJson(req, AvatarAppearance::BuildAvatarFetchJsonForUser(core, id).dump());
         return;
@@ -109,6 +131,50 @@ void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
         }
     }
     SendJson(req, AvatarAppearance::BuildAvatarFetchJson(core).dump());
+}
+
+void AvatarFetchHandler::ServeLocal(evhttp_request *req) {
+    Core* core = mEmu->GetCore();
+    std::optional<int64_t> userId = ParseUserId(req);
+
+    // Guests (negative id) always get a plain black/white placeholder.
+    if (userId && *userId < 0) {
+        SendJson(req, AvatarAppearance::BuildGuestAvatarFetchJson().dump());
+        return;
+    }
+
+    // Auth mode: serve the requested user's DB-stored avatar. The local registry appearance and any
+    // client-pushed override are ignored, so a joiner can't spoof or leak an appearance.
+    if (userId && core->GetRegistry()->GetKeyValue<bool>("emu.auth.enabled").value_or(false)) {
+        // A federated joiner's avatar lives on their home master and overrides the local default.
+        // Already pulled: answer straight away, no network involved.
+        if (std::optional<std::string> cached = mEmu->PeekFederatedAvatar(*userId)) {
+            SendJson(req, *cached);
+            return;
+        }
+
+        // First fetch for this joiner. Pull it on a worker rather than blocking the event loop.
+        if (mActive && mEmu->IsFederatedJoiner(*userId)) {
+            auto pending = std::make_shared<PendingAvatar>();
+            pending->Request = req;
+            pending->Connection = evhttp_request_get_connection(req);
+            pending->UserId = *userId;
+
+            if (pending->Connection)
+                evhttp_connection_set_closecb(pending->Connection,
+                                              &AvatarFetchHandler::OnClientDisconnect, pending.get());
+            mPending.insert(pending);
+
+            ServerEmulator *emu = mEmu;
+            std::thread([this, emu, pending]() {
+                emu->GetFederatedAvatar(pending->UserId); // fills the cache, or fails
+                emu->GetCore()->RunOnEventLoop([this, pending]() { FinishFederatedFetch(pending); });
+            }).detach();
+            return;
+        }
+    }
+
+    ServeFromLocalSources(req);
 }
 
 void AvatarFetchHandler::OnRequest(evhttp_request *req, void *userdata) {

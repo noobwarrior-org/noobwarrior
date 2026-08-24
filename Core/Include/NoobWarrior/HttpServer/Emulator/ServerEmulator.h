@@ -198,12 +198,22 @@ public:
      * master's base (for pulling the joiner's worn assets on demand, see TryFetchFederatedAsset). */
     void SetFederatedAvatarSource(int64_t userId, const std::string &sourceUrl, const std::string &baseUrl);
     std::optional<std::string> GetFederatedAvatar(int64_t userId);
+    /* Cache-only companions to GetFederatedAvatar, for callers running on the event-loop thread.
+     * GetFederatedAvatar blocks on an HTTP call to the joiner's home master, and every HTTP server
+     * in this process shares one event base pumped by one thread — so calling it from a handler
+     * deadlocks against a master hosted in this same program. Peek first; only hand a miss to a
+     * worker. */
+    std::optional<std::string> PeekFederatedAvatar(int64_t userId) const;
+    bool IsFederatedJoiner(int64_t userId) const;
 
     /* On-demand asset proxy: a federated player's worn items (and the mesh/texture deps the engine fetches
      * for them) live on their home master. When an asset id misses locally, this tries every joined
      * federated player's home master's /fed/v1/asset, caches a hit in the temporary db (so the engine's
      * next fetch resolves locally), and returns the bytes. false if no federated origin has it. */
     bool TryFetchFederatedAsset(int64_t id, std::vector<unsigned char> *dataOut, std::string *hashOut);
+    /* Whether any federated joiner's home master is known. Lets a caller on the event-loop thread
+     * decide whether to involve TryFetchFederatedAsset (which blocks) without calling it. */
+    bool HasFederatedOrigins() const;
 
     /* Records that OnlineUserId is held by handle this run. Returns false if that id is already bound to
      * a different handle (an identity collision/spoof), so the join can be refused. */

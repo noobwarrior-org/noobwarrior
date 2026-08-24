@@ -215,6 +215,27 @@ void AssetHandler::RunProxyWorker() {
             mProxyQueue.pop_front();
         }
 
+        // A federated joiner's home master is tried first: it holds the item they are actually
+        // wearing, and hitting Roblox for it would either miss or return the wrong thing.
+        if (fetch->TryFederated) {
+            std::vector<unsigned char> fedData;
+            std::string fedHash;
+            if (mServerEmulator->TryFetchFederatedAsset(fetch->Id, &fedData, &fedHash)) {
+                mServerEmulator->GetCore()->RunOnEventLoop(
+                    [this, fetch, body = std::move(fedData)]() mutable {
+                        OnFetchComplete(fetch, true, 200, std::move(body));
+                    });
+                continue;
+            }
+            // Nothing federated had it. Fall through to Roblox, or give up if that's disabled.
+            if (!fetch->TryRoblox) {
+                mServerEmulator->GetCore()->RunOnEventLoop([this, fetch]() {
+                    OnFetchComplete(fetch, false, 0, std::vector<unsigned char>{});
+                });
+                continue;
+            }
+        }
+
         session.SetUrl(cpr::Url{fetch->Url});
         // SetHeader replaces every header, so rebuild it fresh each time. The Accept header is what
         // makes assetdelivery hand back the right *representation* of a material/terrain texture pack
@@ -266,12 +287,14 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, l
 
     SqlDb::Response res = fetch->MissResult;
     if (ok && httpStatus == 200 && !data.empty()) {
-        Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
+        // A federated hit is already logged by TryFetchFederatedAsset, and didn't come from Roblox.
+        if (fetch->TryRoblox)
+            Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
         res = SqlDb::Response::Success;
         if (fetch->SaveToGrabDb)
             SaveGrabbedAsset(fetch->GrabDbPath, fetch->Id, fetch->Version, data);
     } else {
-        Out("AssetHandler", "Roblox fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
+        Out("AssetHandler", "Asset fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
             ok, httpStatus);
         data.clear();
     }
@@ -532,18 +555,18 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    // A joined federated player's worn items (and the meshes/textures the engine fetches for them) live on
-    // their home master. Pull the asset from there (cached in the temp db for next time) before falling
-    // back to real Roblox. Skipped for material bypass (those representations legitimately come from Roblox).
-    if (!bypassForMaterial && mServerEmulator->TryFetchFederatedAsset(id, &data, &hash)) {
-        ReplyWithAsset(req, SqlDb::Response::Success, data, hash);
-        return;
-    }
+    // A joined federated player's worn items (and the meshes/textures the engine fetches for them) live
+    // on their home master. That lookup is an HTTP call, so it happens on a proxy worker alongside the
+    // Roblox fallback rather than here — blocking the event loop would deadlock against a master server
+    // hosted in this same program. Skipped for material bypass (those representations legitimately come
+    // from Roblox).
+    bool tryFederated = !bypassForMaterial && mServerEmulator->HasFederatedOrigins();
 
     bool proxyEnabled = mServerEmulator->GetCore()->GetRegistry()->GetKeyValue<bool>("emu.enable_roblox_proxy").value_or(true);
-    auto robloxFallback = [this, id, ver, res, proxyEnabled, upstreamQuery](evhttp_request *r) {
-        if (proxyEnabled)
-            BeginProxyFetch(r, id, ver, res, upstreamQuery); // reply happens later, in OnFetchComplete
+    auto robloxFallback = [this, id, ver, res, proxyEnabled, tryFederated, upstreamQuery](evhttp_request *r) {
+        // Either source needs the worker; only give up outright when neither is available.
+        if (proxyEnabled || tryFederated)
+            BeginProxyFetch(r, id, ver, res, upstreamQuery, tryFederated, proxyEnabled); // reply happens later, in OnFetchComplete
         else
             ReplyWithAsset(r, res, std::vector<unsigned char>{}, std::string{});
     };
@@ -554,15 +577,17 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 }
 
 void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version, SqlDb::Response missResult,
-                                   const std::string &upstreamQuery) {
+                                   const std::string &upstreamQuery, bool tryFederated, bool tryRoblox) {
     Core *core = mServerEmulator->GetCore();
 
     auto fetch = std::make_shared<ProxyFetch>();
-    fetch->Request    = req;
-    fetch->Connection = evhttp_request_get_connection(req);
-    fetch->Id         = id;
-    fetch->Version    = version;
-    fetch->MissResult = missResult;
+    fetch->Request      = req;
+    fetch->Connection   = evhttp_request_get_connection(req);
+    fetch->Id           = id;
+    fetch->Version      = version;
+    fetch->MissResult   = missResult;
+    fetch->TryFederated = tryFederated;
+    fetch->TryRoblox    = tryRoblox;
 
     fetch->Url = "https://assetdelivery.roblox.com/v1/asset/?id=" + std::to_string(id);
     if (version > 0)

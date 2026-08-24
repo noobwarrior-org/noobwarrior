@@ -375,6 +375,7 @@ void ServerEmulator::SetupHandlers() {
 int ServerEmulator::Start(uint16_t port) {
     mAssetHandler.ResumeProxy();
     mAuthTicketRedeemHandler.ResumeRedeems();
+    mAvatarFetchHandler.ResumeFetches();
     mEmulatorProxy.Resume();
     const int result = HttpServer::Start(port);
     mVoiceChatHandler.StartTurnRelay();
@@ -387,6 +388,7 @@ int ServerEmulator::Stop() {
     mVoiceChatHandler.StopTurnRelay();
     mAssetHandler.PauseProxy();
     mAuthTicketRedeemHandler.PauseRedeems();
+    mAvatarFetchHandler.PauseFetches();
     mEmulatorProxy.Pause();
     return HttpServer::Stop();
 }
@@ -462,6 +464,15 @@ void ServerEmulator::SetFederatedAvatarSource(int64_t userId, const std::string 
     mFederatedAvatars[userId] = { sourceUrl, baseUrl, "" }; // fresh source: drop any stale cached body
 }
 
+bool ServerEmulator::HasFederatedOrigins() const {
+    std::lock_guard lock(mFederatedAvatarsMutex);
+    for (const auto &[uid, fa] : mFederatedAvatars) {
+        if (!fa.BaseUrl.empty())
+            return true;
+    }
+    return false;
+}
+
 bool ServerEmulator::TryFetchFederatedAsset(int64_t id, std::vector<unsigned char> *dataOut, std::string *hashOut) {
     // The home-master base URLs of joined federated players (deduped). A miss on a worn item (or a mesh/
     // texture the engine fetches for it) is served from one of these.
@@ -489,6 +500,19 @@ bool ServerEmulator::TryFetchFederatedAsset(int64_t id, std::vector<unsigned cha
         return true;
     }
     return false;
+}
+
+std::optional<std::string> ServerEmulator::PeekFederatedAvatar(int64_t userId) const {
+    std::lock_guard lock(mFederatedAvatarsMutex);
+    auto it = mFederatedAvatars.find(userId);
+    if (it == mFederatedAvatars.end() || it->second.CachedJson.empty())
+        return std::nullopt;
+    return it->second.CachedJson;
+}
+
+bool ServerEmulator::IsFederatedJoiner(int64_t userId) const {
+    std::lock_guard lock(mFederatedAvatarsMutex);
+    return mFederatedAvatars.find(userId) != mFederatedAvatars.end();
 }
 
 std::optional<std::string> ServerEmulator::GetFederatedAvatar(int64_t userId) {
