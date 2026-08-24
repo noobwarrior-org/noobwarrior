@@ -31,10 +31,10 @@
 #include "ProcessPingHandler.h"
 #include "CreateAccountHandler.h"
 #include "EmuLoginHandler.h"
+#include "EmuLogoutHandler.h"
 #include "EmuIconHandler.h"
 #include "EmuDbGamesHandler.h"
 #include "LoginHandler.h"
-#include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
 #include "TeleportAuthorizeHandler.h"
 #include "ClientSettingsHandler.h"
@@ -150,7 +150,7 @@ public:
     void SetMode(Mode mode);
     Mode GetMode();
 
-    /* Lifecycle tracking driven by /v1/process-ping.
+    /* Lifecycle tracking driven by /emu/v1/process-ping.
      * Hello/Goodbye are the primary signals, but processes can die without firing Goodbye
      * (TerminateProcess, crashes, network blips). Heartbeats from noobHook bump LastSeen;
      * SweepStaleInstances drops rows that haven't been heard from in a while. */
@@ -267,10 +267,10 @@ private:
     ProcessPingHandler mProcessPingHandler;
     CreateAccountHandler mCreateAccountHandler;
     EmuLoginHandler mEmuLoginHandler;
+    EmuLogoutHandler mEmuLogoutHandler;
     EmuIconHandler mEmuIconHandler;
     EmuDbGamesHandler mEmuDbGamesHandler;
     LoginHandler mLoginHandler;
-    LogoutHandler mLogoutHandler;
     RunningGameServersHandler mRunningGameServersHandler;
     TeleportAuthorizeHandler mTeleportAuthorizeHandler;
     AssetHandler mAssetHandler;

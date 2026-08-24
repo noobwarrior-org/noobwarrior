@@ -641,7 +641,7 @@ void Application::DoConnect(const std::string &ip, uint16_t port, const std::str
                 case ServerEmulatorConnectFailReason::TimedOut:
                     reasonMsg = "The connection timed out."; break;
                 case ServerEmulatorConnectFailReason::EndpointNotFound:
-                    reasonMsg = "The endpoint /v1/running-game-servers could not be found."; break;
+                    reasonMsg = "The endpoint /emu/v1/running-game-servers could not be found."; break;
                 case ServerEmulatorConnectFailReason::JsonFailed:
                     reasonMsg = "Failed to parse JSON."; break;
                 }

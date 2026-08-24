@@ -383,7 +383,7 @@ bool Core::IsServerEmulatorRunning() {
 void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::function<void(ServerEmulatorConnectFailReason, std::vector<EngineStartParameters>)> callback, const std::string &sessionToken) {
     std::thread([=, this]() {
         cpr::Response response = cpr::Get(
-            cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/v1/running-game-servers"},
+            cpr::Url{"https://" + ip + ":" + std::to_string(port) + "/emu/v1/running-game-servers"},
             cpr::Timeout{std::chrono::seconds(10)},
             cpr::VerifySsl{false}); // Because players will be logging into server emulators with self-signed certificates most of the time.
 
@@ -424,7 +424,7 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
         for (auto &obj : json.items()) {
             nlohmann::json gameServerArray = obj.value();
             if (!gameServerArray.contains("Port")) {
-                Out("ConnectToServerEmulator", "WARNING! Port not found in JSON object from endpoint /v1/running-game-servers. Skipping...");
+                Out("ConnectToServerEmulator", "WARNING! Port not found in JSON object from endpoint /emu/v1/running-game-servers. Skipping...");
                 continue;
             }
 
@@ -433,28 +433,28 @@ void Core::ConnectToServerEmulator(const std::string &ip, uint16_t port, std::fu
             if (gameServerArray.contains("Ip") && gameServerArray["Ip"].is_string()) {
                 params.Ip = gameServerArray["Ip"].get<std::string>();
             } else {
-                Out("ConnectToServerEmulator", "WARNING! Invalid IP address found in JSON object from endpoint /v1/running-game-servers. Skipping...");
+                Out("ConnectToServerEmulator", "WARNING! Invalid IP address found in JSON object from endpoint /emu/v1/running-game-servers. Skipping...");
                 continue;
             }
 
             try {
                 params.Port = gameServerArray["Port"].get<uint16_t>();
             } catch (nlohmann::json::exception &e) {
-                Out("ConnectToServerEmulator", "WARNING! Invalid port found in JSON object from endpoint /v1/running-game-servers. Skipping...");
+                Out("ConnectToServerEmulator", "WARNING! Invalid port found in JSON object from endpoint /emu/v1/running-game-servers. Skipping...");
                 continue;
             }
 
             if (gameServerArray.contains("EngineVersion") && gameServerArray["EngineVersion"].is_string()) {
                 params.Engine.Version = gameServerArray["EngineVersion"].get<std::string>();
             } else {
-                Out("ConnectToServerEmulator", "WARNING! Invalid engine version found in JSON object from endpoint /v1/running-game-servers. Skipping...");
+                Out("ConnectToServerEmulator", "WARNING! Invalid engine version found in JSON object from endpoint /emu/v1/running-game-servers. Skipping...");
                 continue;
             }
 
             if (gameServerArray.contains("EngineType") && gameServerArray["EngineType"].is_string()) {
                 params.Engine.Type = gameServerArray["EngineType"].get<std::string>().compare("Roblox") == 0 ? EngineType::Roblox : EngineType::Roblox; // yea kind of useless
             } else {
-                Out("ConnectToServerEmulator", "WARNING! Invalid engine type found in JSON object from endpoint /v1/running-game-servers. Skipping...");
+                Out("ConnectToServerEmulator", "WARNING! Invalid engine type found in JSON object from endpoint /emu/v1/running-game-servers. Skipping...");
                 continue;
             }
             

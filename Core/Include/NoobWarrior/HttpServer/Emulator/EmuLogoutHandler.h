@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LogoutHandler.h
+// File: EmuLogoutHandler.h
 // Started by: Hattozo
 // Started on: 5/13/2026
 // Description:
@@ -27,9 +27,9 @@
 
 namespace NoobWarrior {
 class ServerEmulator;
-class LogoutHandler : public Handler {
+class EmuLogoutHandler : public Handler {
 public:
-    LogoutHandler(ServerEmulator* emu);
+    EmuLogoutHandler(ServerEmulator* emu);
     void OnRequest(evhttp_request *req, void *userdata) override;
 private:
     ServerEmulator* mEmu;

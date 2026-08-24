@@ -62,7 +62,7 @@ end
                         AddNavbarButton("/messages", "Messages")
                         AddNavbarButton("/settings", "Settings")
                         AddNavbarButton(string.format("/users/%d/profile", _SESSION.User.Id), _SESSION.User.DisplayName or _SESSION.User.Name)
-                        AddNavbarButton("/v1/logout", "Logout")
+                        AddNavbarButton("/emu/v1/logout", "Logout")
                     else
                         AddNavbarButton("/login", "Login")
                     end

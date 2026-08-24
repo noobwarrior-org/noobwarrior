@@ -108,10 +108,10 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mProcessPingHandler(this),
     mCreateAccountHandler(this),
     mEmuLoginHandler(this),
+    mEmuLogoutHandler(this),
     mEmuIconHandler(this),
     mEmuDbGamesHandler(this),
     mLoginHandler(this),
-    mLogoutHandler(this),
     mRunningGameServersHandler(this),
     mTeleportAuthorizeHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
@@ -194,16 +194,17 @@ AssetEnricher* ServerEmulator::GetAssetEnricher() {
 void ServerEmulator::SetupHandlers() {
     HttpServer::SetupHandlers();
 
-    SetRequestHandler("/v1/process-ping", &mProcessPingHandler);
-    SetRequestHandler("/v1/create-account", &mCreateAccountHandler);
+    // all exclusive to the server eumlator, not a roblox thing
+    SetRequestHandler("/emu/v1/running-game-servers", &mRunningGameServersHandler);
+    SetRequestHandler("/emu/v1/process-ping", &mProcessPingHandler);
+    SetRequestHandler("/emu/v1/create-account", &mCreateAccountHandler);
     SetRequestHandler("/emu/v1/login", &mEmuLoginHandler);
+    SetRequestHandler("/emu/v1/logout", &mEmuLogoutHandler);
     SetRequestHandler("/emu/v1/db-games", &mEmuDbGamesHandler);
     SetRequestHandler("/emu/icon", &mEmuIconHandler);
 
     SetRequestHandler("/v1/login", &mLoginHandler);
     SetRequestHandler("/v2/login", &mLoginHandler);
-    SetRequestHandler("/v1/logout", &mLogoutHandler);
-    SetRequestHandler("/v1/running-game-servers", &mRunningGameServersHandler);
     SetRequestHandler("/v1/teleport/authorize", &mTeleportAuthorizeHandler);
 
     SetRequestHandler("/Asset", &mAssetHandler);

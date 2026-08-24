@@ -314,8 +314,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/EmuDbGamesHandler.cpp
     Source/HttpServer/Emulator/CreateAccountHandler.cpp
     Source/HttpServer/Emulator/EmuLoginHandler.cpp
+    Source/HttpServer/Emulator/EmuLogoutHandler.cpp
     Source/HttpServer/Emulator/LoginHandler.cpp
-    Source/HttpServer/Emulator/LogoutHandler.cpp
     Source/HttpServer/Emulator/RunningGameServersHandler.cpp
     Source/HttpServer/Emulator/TeleportAuthorizeHandler.cpp
     Source/HttpServer/Emulator/AssetHandler.cpp

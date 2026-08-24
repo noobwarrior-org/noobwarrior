@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: LogoutHandler.cpp
+// File: EmuLogoutHandler.cpp
 // Started by: Hattozo
 // Started on: 5/13/2026
 // Description:
-#include <NoobWarrior/HttpServer/Emulator/LogoutHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/EmuLogoutHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/Log.h>
@@ -30,11 +30,11 @@
 
 using namespace NoobWarrior;
 
-LogoutHandler::LogoutHandler(ServerEmulator* emu) : mEmu(emu) {
+EmuLogoutHandler::EmuLogoutHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
 
-void LogoutHandler::OnRequest(evhttp_request *req, void *userdata) {
+void EmuLogoutHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char* cookieHeader = evhttp_find_header(evhttp_request_get_input_headers(req), "Cookie");
     std::string token = AuthUtil::ExtractCookieValue(cookieHeader, ".LOGINSESSION");
 

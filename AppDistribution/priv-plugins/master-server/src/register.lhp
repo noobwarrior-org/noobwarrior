@@ -13,7 +13,7 @@ include("header.lhp")
 
 <h1>Register</h1>
 
-<form action="/v1/create-account" method="post">
+<form action="/emu/v1/create-account" method="post">
     <label for="username"><b>Username</b></label>
     <input type="text" placeholder="Enter Username" name="username" required>
 

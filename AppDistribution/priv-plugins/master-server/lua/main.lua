@@ -301,8 +301,8 @@ local sitemap = {
 
     -- API
     ["/v1/login"] = "/src/api/login.lhp",
-    ["/v1/create-account"] = "/src/api/create_account.lhp",
-    ["/v1/logout"] = "/src/api/logout.lhp",
+    ["/emu/v1/create-account"] = "/src/api/create_account.lhp",
+    ["/emu/v1/logout"] = "/src/api/logout.lhp",
     ["/v1/servers"] = "/src/api/servers.lhp",
     ["/v1/profile"] = "/src/api/profile.lhp",
     ["/v1/users/:username"] = "/src/api/user.lhp",

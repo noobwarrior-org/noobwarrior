@@ -22,7 +22,7 @@
 // Started by: Hattozo
 // Started on: 5/13/2026
 // Description: Lifecycle pings (Hello/Goodbye) sent to the server emulator's
-//              /v1/process-ping endpoint so the host process can track which
+//              /emu/v1/process-ping endpoint so the host process can track which
 //              Roblox instances are currently alive.
 #pragma once
 #include <cstdint>
