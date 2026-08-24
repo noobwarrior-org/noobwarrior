@@ -71,7 +71,7 @@ end
                         AddNavbarButton("/messages", "Messages")
                         AddNavbarButton("/settings", "Settings")
                         AddNavbarButton("/@" .. (_SESSION.User.Name or ""), _SESSION.User.DisplayName or _SESSION.User.Name)
-                        AddNavbarButton("/emu/v1/logout", "Logout")
+                        AddNavbarButton("/v1/logout", "Logout")
                     else
                         AddNavbarButton("/login", "Login")
                     end
