@@ -110,6 +110,11 @@ public:
     std::vector<int64_t> ListUniverseIds(bool groupOwned, int limit, int offset);
     std::optional<EmuDb::UniverseSummary> GetUniverseSummary(int64_t id);
 
+    // Every place belonging to a universe, its start place first, merged across all mounted
+    // databases (mount priority order, de-duplicated). An overlay database can add places to a
+    // universe whose row lives in a lower-priority mount, so this cannot stop at the first match.
+    std::vector<int64_t> ListUniversePlaceIds(int64_t universeId);
+
     // Image/thumbnail bytes for an item, from the first mounted database that has it (falling back to
     // the highest-priority database, which yields a placeholder icon on a miss). Empty only when no
     // database is mounted.

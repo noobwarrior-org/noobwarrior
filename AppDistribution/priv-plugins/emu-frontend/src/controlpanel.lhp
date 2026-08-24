@@ -1,6 +1,12 @@
 <?lua
 pageTitle = "Control Panel"
 include("header.lhp")
+
+cpBranding = {
+    Prefix = "emu",
+    SaveUrl = "/v1/settings/branding",
+    IconUrl = "/emu/icon"
+}
 ?>
 
 <?lua include("plugin://http-base@noobwarrior.org/src/controlpanel.lhp") ?>

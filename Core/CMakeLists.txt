@@ -310,6 +310,8 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/AuthInfoHandler.cpp
     Source/HttpServer/Emulator/ProcessPingHandler.cpp
     Source/HttpServer/Emulator/StaticJsonHandler.cpp
+    Source/HttpServer/Emulator/EmuIconHandler.cpp
+    Source/HttpServer/Emulator/EmuDbGamesHandler.cpp
     Source/HttpServer/Emulator/CreateAccountHandler.cpp
     Source/HttpServer/Emulator/EmuLoginHandler.cpp
     Source/HttpServer/Emulator/LoginHandler.cpp

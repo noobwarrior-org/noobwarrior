@@ -1757,6 +1757,36 @@ std::optional<EmuDb::UniverseSummary> EmuDb::GetUniverseSummary(int64_t id) {
 	return summary;
 }
 
+std::vector<int64_t> EmuDb::ListUniversePlaceIds(int64_t universeId) {
+	std::vector<int64_t> ids;
+	if (Fail()) return ids;
+
+	// A stored 0 means "unset" here, same as NULL, so it is not a place id.
+	{
+		Statement stmt = PrepareStatement("SELECT StartPlaceId FROM Universe WHERE Id = ?;");
+		if (!stmt.Fail()) {
+			stmt.Bind(1, universeId);
+			if (stmt.Step() == SQLITE_ROW && !stmt.IsColumnIndexNull(0)) {
+				int64_t startPlaceId = stmt.GetInt64FromColumnIndex(0);
+				if (startPlaceId != 0)
+					ids.push_back(startPlaceId);
+			}
+		}
+	}
+
+	Statement stmt = PrepareStatement("SELECT PlaceId FROM UniversePlace WHERE Id = ? ORDER BY PlaceId;");
+	if (stmt.Fail()) return ids;
+	stmt.Bind(1, universeId);
+	while (stmt.Step() == SQLITE_ROW) {
+		if (stmt.IsColumnIndexNull(0)) continue;
+		int64_t placeId = stmt.GetInt64FromColumnIndex(0);
+		if (placeId == 0) continue;
+		if (std::find(ids.begin(), ids.end(), placeId) == ids.end())
+			ids.push_back(placeId);
+	}
+	return ids;
+}
+
 SqlDb::Response EmuDb::AddAssetLink(const std::string &table, int64_t ownerId, int64_t assetId) {
 	if (Fail()) return SqlDb::Response::DatabaseFailed;
 

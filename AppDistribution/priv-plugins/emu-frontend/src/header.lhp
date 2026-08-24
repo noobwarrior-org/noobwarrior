@@ -32,7 +32,13 @@ end
         <br>
         <div class="main">
             <div class="header">
-                <span id="emu-logo"><img src="/img/icon1024.png" alt="Server emulator logo" width="64" height="64"><p>Server Emulator</p></span>
+                <?lua
+                    local brandTitle = tostring(reg.GetKeyValue("emu.branding.title") or "Server Emulator")
+                    brandTitle = (brandTitle:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"):gsub('"',"&quot;"))
+                    echo(string.format(
+                        '<span id="emu-logo"><img src="/emu/icon" alt="%s logo" width="64" height="64"><p>%s</p></span>',
+                        brandTitle, brandTitle))
+                ?>
                 <span id="brand-logo"><img src="/img/icon1024.png" alt="noobWarrior logo" width="64" height="64"><p>noobWarrior</p></span>
             </div>
             <ul class="navbar">

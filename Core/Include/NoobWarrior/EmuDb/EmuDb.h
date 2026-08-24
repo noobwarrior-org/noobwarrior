@@ -308,6 +308,11 @@ public:
     // Reads the descriptive columns of a single universe, or std::nullopt when it isn't in this database.
     std::optional<UniverseSummary> GetUniverseSummary(int64_t id);
 
+    // Ids of every place belonging to a universe, its start place first. A universe's other places
+    // live in the UniversePlace junction table, which does not necessarily list the start place, so
+    // StartPlaceId is prepended separately and duplicates are dropped.
+    std::vector<int64_t> ListUniversePlaceIds(int64_t universeId);
+
     // Returns the Name column of an item, or std::nullopt when the row is absent or its name is NULL.
     std::optional<std::string> GetItemName(ItemType type, int64_t id);
 

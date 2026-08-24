@@ -173,8 +173,6 @@ end
             ?>
         </h1>
         <?lua
-            -- The real gate. Filtering the sidebar above only removes the link; this stops somebody
-            -- who typed ?category=lua by hand, which is the case that actually matters.
             if category ~= nil and not may_open(category) then
                 http_response_code(403)
                 echo("<p>Your rank is not high enough to open this section.</p>")
@@ -183,11 +181,49 @@ end
         ?>
         <?lua if _GET["category"] == "general" then ?>
             <!-- General -->
-            <label for="name">Name</label>
-            <input type="text" id="name" name="name" size="10" placeholder="Server Emulator" />
-            <br>
-            <label for="file">Icon</label>
-            <input type="file" accept="image/*" name="file"/>
+            <?lua
+            local branding = cpBranding
+            local gesc = function(v)
+                return (tostring(v):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"):gsub('"',"&quot;"))
+            end
+
+            if branding == nil or branding.SaveUrl == nil then
+                echo("<p>This server does not expose its branding settings here.</p>")
+            else
+                local prefix = branding.Prefix or "emu"
+                if _GET["err"] then
+                    echo('<p style="color: red;">' .. gesc(_GET["err"]) .. "</p>")
+                end
+                if _GET["msg"] then
+                    echo("<p>" .. gesc(_GET["msg"]) .. "</p>")
+                end
+
+                local title = reg.GetKeyValue(prefix .. ".branding.title") or ""
+                local tagline = reg.GetKeyValue(prefix .. ".branding.tagline") or ""
+                local iconSet = tostring(reg.GetKeyValue(prefix .. ".branding.icon") or "") ~= ""
+
+                echo(string.format([[
+                    <form action="%s" method="post" enctype="multipart/form-data">
+                        <label for="branding-title">Name</label>
+                        <input type="text" id="branding-title" name="title" size="40" maxlength="100"
+                               placeholder="Server Emulator" value="%s" required>
+                        <br>
+                        <label for="branding-tagline">Tagline</label>
+                        <input type="text" id="branding-tagline" name="tagline" size="40" maxlength="200"
+                               placeholder="My noobWarrior server" value="%s">
+                        <br>
+                        <label for="branding-icon">Icon</label>
+                        <img src="%s" alt="" width="64" height="64" style="vertical-align: middle;">
+                        <input type="file" id="branding-icon" name="file" accept="image/*">
+                        <p>PNG, JPEG, GIF, BMP or WebP, up to 4 MB. A square image looks best.</p>
+                        %s
+                        <button type="submit">Save</button>
+                    </form>
+                ]], gesc(branding.SaveUrl), gesc(title), gesc(tagline),
+                    gesc(branding.IconUrl or "/emu/icon"),
+                    iconSet and [[<label><input type="checkbox" name="removeIcon" value="1"> Remove the current icon</label><br>]] or ""))
+            end
+            ?>
         <?lua elseif _GET["category"] == "items" then ?>
             <?lua include("items.lhp") ?>
         <?lua elseif _GET["category"] == "forums" then ?>

@@ -1,0 +1,105 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: Server Emulator Frontend
+-- File: api/settings/branding.lhp
+-- Description: Saves the control panel's General section: the emulator's name, tagline and icon.
+-- Started by: Hattozo
+-- Started on: 8/24/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local function enc(s)
+    return (tostring(s):gsub("[^%w%-_%.~]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+local function back(param, message)
+    header(string.format("Location: /control-panel?category=general&%s=%s", param, enc(message)))
+    http_response_code(302)
+    die("")
+end
+local function fail(message) back("err", message) end
+local function ok(message) back("msg", message) end
+
+if _SERVER.REQUEST_METHOD ~= "POST" then
+    http_response_code(405)
+    die("Request method needs to be POST")
+end
+
+local ICON_DIR = "emu-frontend".
+local ICON_TYPES = {
+    { ext = "png",  test = function(b) return b:sub(1, 4) == "\137PNG" end },
+    { ext = "jpg",  test = function(b) return b:sub(1, 3) == "\255\216\255" end },
+    { ext = "gif",  test = function(b) return b:sub(1, 4) == "GIF8" end },
+    { ext = "bmp",  test = function(b) return b:sub(1, 2) == "BM" end },
+    { ext = "webp", test = function(b) return b:sub(1, 4) == "RIFF" and b:sub(9, 12) == "WEBP" end }
+}
+local MAX_ICON_BYTES = 4 * 1024 * 1024
+
+local title = _POST["title"]
+if title ~= nil then
+    title = title:gsub("^%s+", ""):gsub("%s+$", "")
+    if title == "" then
+        fail("The server needs a name.")
+    end
+    reg.SetKeyValue("emu.branding.title", title)
+end
+
+local tagline = _POST["tagline"]
+if tagline ~= nil then
+    reg.SetKeyValue("emu.branding.tagline", (tagline:gsub("^%s+", ""):gsub("%s+$", "")))
+end
+
+local messages = { "Saved." }
+local pluginData = core.GetPluginDataDir()
+
+if _POST["removeIcon"] then
+    reg.SetKeyValue("emu.branding.icon", "")
+    messages[#messages + 1] = "Icon removed."
+end
+
+local file = _FILES["file"]
+if file and file.data and #file.data > 0 then
+    if #file.data > MAX_ICON_BYTES then
+        fail(string.format("That icon is %.1f MB; the limit is %d MB.",
+            #file.data / 1048576, MAX_ICON_BYTES / 1048576))
+    end
+
+    local ext = nil
+    for _, candidate in ipairs(ICON_TYPES) do
+        if candidate.test(file.data) then
+            ext = candidate.ext
+            break
+        end
+    end
+    if ext == nil then
+        fail("That file is not an image this server recognizes (PNG, JPEG, GIF, BMP or WebP).")
+    end
+
+    if pluginData == nil then
+        fail("The plugin data directory is unavailable, so the icon could not be stored.")
+    end
+    if not pluginData:CreateDirectories(ICON_DIR) then
+        fail("Could not create the plugin data directory for the icon.")
+    end
+
+    local path = ICON_DIR .. "/icon." .. ext
+    if not pluginData:WriteFile(path, file.data) then
+        fail("Could not write the icon to the plugin data directory.")
+    end
+
+    -- A previous icon of a different type would otherwise sit there forever, and an operator
+    -- looking in plugindata would have no way to tell which of them is the live one.
+    for _, candidate in ipairs(ICON_TYPES) do
+        local stale = ICON_DIR .. "/icon." .. candidate.ext
+        if candidate.ext ~= ext and pluginData:EntryExists(stale) then
+            pluginData:DeleteEntry(stale)
+        end
+    end
+
+    reg.SetKeyValue("emu.branding.icon", "plugindata://" .. path)
+    messages[#messages + 1] = "Icon updated."
+end
+
+reg.Save()
+ok(table.concat(messages, " "))
+?>

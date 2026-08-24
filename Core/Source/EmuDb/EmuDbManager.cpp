@@ -367,6 +367,18 @@ std::optional<EmuDb::UniverseSummary> EmuDbManager::GetUniverseSummary(int64_t i
     return std::nullopt;
 }
 
+std::vector<int64_t> EmuDbManager::ListUniversePlaceIds(int64_t universeId) {
+    std::vector<int64_t> merged;
+    std::unordered_set<int64_t> seen;
+    for (EmuDb* db : mMountedDatabases) {
+        for (int64_t placeId : db->ListUniversePlaceIds(universeId)) {
+            if (seen.insert(placeId).second)
+                merged.push_back(placeId);
+        }
+    }
+    return merged;
+}
+
 std::vector<unsigned char> EmuDbManager::RetrieveImageData(ItemType type, int64_t id) {
     if (EmuDb* db = GetFirstDbWhereItemExists(type, id))
         return db->RetrieveImageData(type, id);

@@ -40,6 +40,8 @@ local sitemap = {
     ["/library/:id/"] = "/src/asset_preview.lhp",
     ["/library/:id/:name"] = "/src/asset_preview.lhp",
     
+    ["/v1/settings/branding"] = { Page = "/src/api/settings/branding.lhp", Permission = "access.control_panel" },
+
     ["/v1/ranks/save"] = { Page = "/src/api/ranks/save.lhp", Permission = "control_panel.ranks" },
     ["/v1/ranks/delete"] = { Page = "/src/api/ranks/delete.lhp", Permission = "control_panel.ranks" },
     ["/v1/ranks/set-permission"] = { Page = "/src/api/ranks/set_permission.lhp", Permission = "control_panel.ranks" },

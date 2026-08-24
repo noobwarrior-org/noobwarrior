@@ -31,6 +31,8 @@
 #include "ProcessPingHandler.h"
 #include "CreateAccountHandler.h"
 #include "EmuLoginHandler.h"
+#include "EmuIconHandler.h"
+#include "EmuDbGamesHandler.h"
 #include "LoginHandler.h"
 #include "LogoutHandler.h"
 #include "RunningGameServersHandler.h"
@@ -265,6 +267,8 @@ private:
     ProcessPingHandler mProcessPingHandler;
     CreateAccountHandler mCreateAccountHandler;
     EmuLoginHandler mEmuLoginHandler;
+    EmuIconHandler mEmuIconHandler;
+    EmuDbGamesHandler mEmuDbGamesHandler;
     LoginHandler mLoginHandler;
     LogoutHandler mLogoutHandler;
     RunningGameServersHandler mRunningGameServersHandler;
