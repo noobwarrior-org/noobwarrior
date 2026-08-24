@@ -4,31 +4,21 @@ local function AddNavbarButton(url, name)
    echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
 end
 
+_SESSION.Token = nil
+_SESSION.User = nil
+
 local token = _COOKIE[".LOGINSESSION"]
 if token then
-    local db = core.GetMasterDatabase()
-    if db == nil then return end
-
-    local rows = db:QueryTyped(
-        "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
-        "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId " ..
-        "WHERE s.Token = ?;",
-        token
-    )
-    if rows == nil or rows[1] == nil then return end
-
-    local row = rows[1]
-    _SESSION.Token = token
-    _SESSION.User = {
-        Id = row.Id,
-        Name = row.Name,
-        DisplayName = row.DisplayName,
-    }
-
-    db:QueryTyped("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;", token)
-else
-    _SESSION.Token = nil
-    _SESSION.User = nil
+    local user = core.ResolveSession(token)
+    if user ~= nil then
+        _SESSION.Token = token
+        _SESSION.User = {
+            Id = user.Id,
+            Name = user.Name,
+            DisplayName = user.DisplayName,
+            Rank = user.Rank,
+        }
+    end
 end
 ?>
 <!DOCTYPE html>

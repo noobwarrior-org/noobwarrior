@@ -11,7 +11,9 @@ if db == nil then
     http_response_code(404)
     die("No user found!")
 end
-local userRows = db:QueryTyped("SELECT Name, DisplayName, Bio, JoinDate FROM User WHERE Id = ?;", id)
+local userRows = db:QueryTyped(
+    "SELECT Name, COALESCE(NULLIF(DisplayName, ''), Name) AS DisplayName, Bio, JoinDate " ..
+    "FROM User WHERE Id = ?;", id)
 if userRows == nil then
     http_response_code(404)
     die("No user found!")
@@ -21,7 +23,7 @@ elseif userRows == false then
 end
 local userRow = userRows[1]
 local name = userRow["Name"]
-local displayname = userRow["DisplayName"] or name
+local displayname = userRow["DisplayName"]
 local bio = userRow["Bio"]
 local joindate = userRow["JoinDate"]
 

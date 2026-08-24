@@ -159,6 +159,9 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("emu.auth.password_based", true);
     SetKeyComment("emu.auth.password_based", "If true, enables password-based authentication. If set to false, then the only way the user will be allowed to login is if they use OAuth2 based services.");
 
+    SetKeyValueIfNotSet("emu.auth.allow_accounts_from_all_mounted_databases", false);
+    SetKeyComment("emu.auth.allow_accounts_from_all_mounted_databases", "If true, allows users in any mounted database to be logged into. This is a security risk if enabled because you could import databases from others and they'd be able to login to your server with admin permissions.");
+
     SetKeyValueIfNotSet("emu.auth.enable_login_filter", false);
     SetKeyComment("emu.auth.enable_login_filter", "Makes it so that any users who are blacklisted or not whitelisted will not be able to log in.");
 

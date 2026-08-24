@@ -44,7 +44,7 @@ function forumCurrentUser(db)
     local token = _COOKIE[".LOGINSESSION"]
     if not token then return nil end
     local rows = db:QueryTyped(
-        "SELECT u.Id AS Id, u.Name AS Name, COALESCE(u.DisplayName, u.Name) AS DisplayName " ..
+        "SELECT u.Id AS Id, u.Name AS Name, COALESCE(NULLIF(u.DisplayName, ''), u.Name) AS DisplayName " ..
         "FROM LoginSession s INNER JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;",
         token)
     if not rows or not rows[1] then return nil end

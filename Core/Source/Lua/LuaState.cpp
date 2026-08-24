@@ -1005,15 +1005,16 @@ int LuaState::Open() {
         return mCore->GetEmuDbManager()->GetMasterDatabase();
     });
     coreLib.set_function("ResolveSession", [this](sol::this_state state, const std::string &token) -> sol::object {
-        EmuDb *master = mCore->GetEmuDbManager()->GetMasterDatabase();
-        if (master == nullptr)
+        EmuDbManager *mgr = mCore->GetEmuDbManager();
+        if (mgr == nullptr)
             return sol::nil;
 
+        Registry *reg = mCore->GetRegistry();
         int64_t ttlSeconds = 0;
-        if (Registry *reg = mCore->GetRegistry())
+        if (reg != nullptr)
             ttlSeconds = reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
 
-        std::optional<AuthUtil::SessionUser> user = AuthUtil::ResolveSessionUser(master, token, ttlSeconds);
+        std::optional<AuthUtil::SessionUser> user = AuthUtil::ResolveSessionUser(mgr, reg, token, ttlSeconds);
         if (!user.has_value())
             return sol::nil;
 

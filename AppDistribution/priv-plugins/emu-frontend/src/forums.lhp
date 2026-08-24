@@ -67,7 +67,7 @@ if threadId ~= nil then
         local me = _SESSION.User
         local posts = db:QueryTyped([[
             SELECT p.Id AS Id, p.Created AS Created, p.Edited AS Edited, p.Content AS Content,
-                   u.Id AS PosterId, COALESCE(u.DisplayName, u.Name) AS PosterName
+                   u.Id AS PosterId, COALESCE(NULLIF(u.DisplayName, ''), u.Name) AS PosterName
             FROM ForumPost p
             JOIN User u ON p.Poster = u.Id
             WHERE p.ThreadId = ?
@@ -154,11 +154,11 @@ elseif forumId ~= nil then
 
         local threads = db:QueryTyped([[
             SELECT t.Id AS Id, t.Subject AS Subject, t.Views AS Views,
-                   u.Id AS PosterId, COALESCE(u.DisplayName, u.Name) AS PosterName,
+                   u.Id AS PosterId, COALESCE(NULLIF(u.DisplayName, ''), u.Name) AS PosterName,
                    (SELECT COUNT(*) FROM ForumPost p WHERE p.ThreadId = t.Id) AS PostCount,
                    (SELECT p.Created FROM ForumPost p WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastCreated,
                    (SELECT pu.Id FROM ForumPost p JOIN User pu ON p.Poster = pu.Id WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastPosterId,
-                   (SELECT COALESCE(pu.DisplayName, pu.Name) FROM ForumPost p JOIN User pu ON p.Poster = pu.Id WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastPosterName
+                   (SELECT COALESCE(NULLIF(pu.DisplayName, ''), pu.Name) FROM ForumPost p JOIN User pu ON p.Poster = pu.Id WHERE p.ThreadId = t.Id ORDER BY p.Created DESC, p.Id DESC LIMIT 1) AS LastPosterName
             FROM ForumThread t
             JOIN User u ON t.Poster = u.Id
             WHERE t.ForumId = ?
@@ -212,7 +212,7 @@ else
             ]], f.Id)[1].C
             local lastRows = db:QueryTyped([[
                 SELECT p.Created AS Created, u.Id AS PosterId,
-                       COALESCE(u.DisplayName, u.Name) AS PosterName
+                       COALESCE(NULLIF(u.DisplayName, ''), u.Name) AS PosterName
                 FROM ForumPost p
                 JOIN ForumThread t ON p.ThreadId = t.Id
                 JOIN User u ON p.Poster = u.Id

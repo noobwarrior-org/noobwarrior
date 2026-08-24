@@ -29,6 +29,7 @@
 
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/EmuDb/UserRank.h>
+#include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 
 #include <QRegularExpressionValidator>
 #include <QDoubleValidator>
@@ -47,8 +48,9 @@ void ItemDialog::User_AddFields() {
     int64_t friendCount = 0;
     int64_t followersCount = 0;
     int64_t followingCount = 0;
+    mUser_HasPassword = false;
     if (mId.has_value()) {
-        Statement stmt = GetDatabase()->PrepareStatement("SELECT DisplayName, Status, Bio, Email, JoinDate, LastOnline, PlaceVisits, Rank, Historical_FriendCount, Historical_FollowersCount, Historical_FollowingCount FROM User WHERE Id = ?");
+        Statement stmt = GetDatabase()->PrepareStatement("SELECT DisplayName, Status, Bio, Email, JoinDate, LastOnline, PlaceVisits, Rank, Historical_FriendCount, Historical_FollowersCount, Historical_FollowingCount, PasswordHash, PasswordSalt FROM User WHERE Id = ?");
         stmt.Bind(1, mId.value());
         if (stmt.Step() == SQLITE_ROW) {
             displayName = stmt.GetStringFromColumnIndex(0);
@@ -58,15 +60,14 @@ void ItemDialog::User_AddFields() {
             joinDate = stmt.GetInt64FromColumnIndex(4);
             lastOnline = stmt.GetInt64FromColumnIndex(5);
             placeVisits = stmt.GetInt64FromColumnIndex(6);
-            // A NULL Rank means "never set", which resolves to the default rank - not to 0.
-            // Reading it as 0 would show every existing account as a Guest, and saving would then
-            // persist that 0 as a deliberate choice. AuthUtil::ResolveStoredRank does the same on
-            // the web side; the two must agree or the SDK and the site disagree about who somebody is.
             if (!stmt.IsColumnIndexNull(7))
                 rank = ClampUserRank(stmt.GetInt64FromColumnIndex(7));
             friendCount = stmt.GetInt64FromColumnIndex(8);
             followersCount = stmt.GetInt64FromColumnIndex(9);
             followingCount = stmt.GetInt64FromColumnIndex(10);
+            mUser_HasPassword = !stmt.IsColumnIndexNull(11) && !stmt.IsColumnIndexNull(12) &&
+                                !stmt.GetStringFromColumnIndex(11).empty() &&
+                                !stmt.GetStringFromColumnIndex(12).empty();
         }
     }
 
@@ -96,6 +97,39 @@ void ItemDialog::User_AddFields() {
     mUser_LastOnlineInput->setDateTime(mId.has_value() ? QDateTime::fromSecsSinceEpoch(lastOnline) : QDateTime::currentDateTime());
     mContentLayout->addRow("Last Online", mUser_LastOnlineInput);
     
+    AddSectionHeader("Password");
+
+    mUser_PasswordStatusLabel = new QLabel(!mId.has_value()
+        ? "The password is stored hashed and cannot be read back afterwards."
+        : (mUser_HasPassword
+            ? "This account has a password. Enter a new one below to replace it."
+            : "This account has no password."));
+    mUser_PasswordStatusLabel->setWordWrap(true);
+    mContentLayout->addRow(mUser_PasswordStatusLabel);
+
+    mUser_PasswordInput = new QLineEdit();
+    mUser_PasswordInput->setEchoMode(QLineEdit::Password);
+    mUser_PasswordInput->setPlaceholderText(mUser_HasPassword ? "Leave blank to keep the current password" : "Leave blank for no password");
+    mContentLayout->addRow("New Password", mUser_PasswordInput);
+
+    mUser_PasswordConfirmInput = new QLineEdit();
+    mUser_PasswordConfirmInput->setEchoMode(QLineEdit::Password);
+    mUser_PasswordConfirmInput->setPlaceholderText("Repeat the new password");
+    mContentLayout->addRow("Confirm Password", mUser_PasswordConfirmInput);
+
+    mUser_ClearPasswordInput = new QCheckBox("Remove the password from this account");
+    mUser_ClearPasswordInput->setToolTip("The account stays, but nobody can log in to it until a new password is set.");
+    mUser_ClearPasswordInput->setEnabled(mUser_HasPassword);
+    connect(mUser_ClearPasswordInput, &QCheckBox::toggled, [this](bool checked) {
+        mUser_PasswordInput->setEnabled(!checked);
+        mUser_PasswordConfirmInput->setEnabled(!checked);
+        if (checked) {
+            mUser_PasswordInput->clear();
+            mUser_PasswordConfirmInput->clear();
+        }
+    });
+    mContentLayout->addRow(mUser_ClearPasswordInput);
+
     AddSectionHeader("Permissions");
     mUser_RankInput = new QComboBox();
     bool rankIsNamed = false;
@@ -109,11 +143,6 @@ void ItemDialog::User_AddFields() {
                 const std::string roleName = role->get_or<std::string>("name", "");
                 if (roleName.empty())
                     continue;
-                // Rank 0 is the rank of having no account at all - it is what an unauthenticated
-                // visitor is judged as, which is why emu.permissions.connect_to_server defaults to
-                // it. A row in the User table is by definition an account, so 0 is not offered here.
-                // It is still shown if some row already holds it, so opening and saving such a user
-                // does not quietly move them.
                 if (roleRank <= kUserRankGuest && rank != roleRank)
                     continue;
                 mUser_RankInput->addItem(QString("%1 (%2)").arg(QString::fromStdString(roleName)).arg(roleRank),
@@ -249,6 +278,13 @@ static constexpr const char* sUserChildTables[] = {
 bool ItemDialog::User_OnSave() {
     auto *db = GetDatabase();
 
+    const std::string newPassword = mUser_PasswordInput->text().toStdString();
+    const bool clearPassword = mUser_ClearPasswordInput->isChecked();
+    if (!clearPassword && !newPassword.empty() && mUser_PasswordInput->text() != mUser_PasswordConfirmInput->text()) {
+        QMessageBox::critical(this, "Cannot Save", "The two passwords do not match.");
+        return false;
+    }
+
     int64_t id = mIdInput->text().toLongLong();
     int64_t oldId = mId.has_value() ? mId.value() : id;
     bool idChanged = mId.has_value() && oldId != id;
@@ -331,6 +367,39 @@ bool ItemDialog::User_OnSave() {
     if (stmt.Step() != SQLITE_DONE) {
         QMessageBox::critical(this, "Failed to Save Changes", QString("Saving changes to the database failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
         return false;
+    }
+
+    if (clearPassword || !newPassword.empty()) {
+        std::string hashHex;
+        std::string saltHex;
+        if (!newPassword.empty()) {
+            std::vector<unsigned char> salt(AuthUtil::kSaltLength);
+            if (AuthUtil::RandomBytes(salt.data(), salt.size()))
+                hashHex = AuthUtil::HashPassword(newPassword, salt);
+            if (hashHex.empty()) {
+                QMessageBox::critical(this, "Failed to Save Changes", "Could not hash the new password. The password was not changed.", QMessageBox::Ok);
+                return false;
+            }
+            saltHex = AuthUtil::ToHex(salt.data(), salt.size());
+        }
+
+        Statement pw = db->PrepareStatement("UPDATE User SET PasswordHash = ?, PasswordSalt = ? WHERE Id = ?;");
+        if (hashHex.empty()) {
+            pw.Bind(1);
+            pw.Bind(2);
+        } else {
+            pw.Bind(1, hashHex);
+            pw.Bind(2, saltHex);
+        }
+        pw.Bind(3, id);
+        if (pw.Step() != SQLITE_DONE) {
+            QMessageBox::critical(this, "Failed to Save Changes", QString("Saving the password failed.\nLast error message: %1").arg(QString::fromStdString(db->GetLastErrorMsg())), QMessageBox::Ok);
+            return false;
+        }
+
+        Statement sessions = db->PrepareStatement("DELETE FROM LoginSession WHERE UserId = ?;");
+        sessions.Bind(1, id);
+        sessions.Step();
     }
 
     for (int64_t assetId : mUser_PendingDeleteCharacterItems) {

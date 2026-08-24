@@ -34,6 +34,7 @@
 
 namespace NoobWarrior {
 class EmuDb;
+class EmuDbManager;
 class Registry;
 
 namespace AuthUtil {
@@ -83,6 +84,17 @@ bool Ed25519Verify(const std::string &pubHex, std::string_view message, const st
 // > 0, a session idle (unused) for longer than that is treated as expired (nullopt); the lookup also
 // refreshes LastUsedTimestamp so an active session never expires. ttlSeconds <= 0 disables expiry.
 std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &token, int64_t ttlSeconds = 0);
+
+// The database a login session lives in. Master, unless emu.auth.allow_accounts_from_all_mounted_databases
+// is set - EmuLoginHandler creates the session in whichever mounted database held the account, so that
+// is where it has to be looked for again. Falls back to master when no database claims the token, so
+// the caller still gets the usual "unknown session" answer rather than a null database.
+EmuDb *FindSessionDatabase(EmuDbManager *mgr, Registry *reg, const std::string &token);
+
+// ResolveSessionUser against FindSessionDatabase's answer. Prefer this over the EmuDb overload
+// anywhere a session may belong to an account outside the master database.
+std::optional<SessionUser> ResolveSessionUser(EmuDbManager *mgr, Registry *reg, const std::string &token,
+                                              int64_t ttlSeconds = 0);
 
 // Deletes login sessions idle for >= ttlSeconds. Returns how many were reaped (0 when ttlSeconds <= 0).
 int ReapExpiredSessions(EmuDb *master, int64_t ttlSeconds);

@@ -37,6 +37,7 @@
 #include <QListWidget>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QLabel>
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QScrollArea>
@@ -218,6 +219,11 @@ protected:
     QLineEdit* mUser_StatusInput;
     QLineEdit* mUser_BioInput;
     QLineEdit* mUser_EmailInput;
+    QLabel* mUser_PasswordStatusLabel;
+    QLineEdit* mUser_PasswordInput;
+    QLineEdit* mUser_PasswordConfirmInput;
+    QCheckBox* mUser_ClearPasswordInput;
+    bool mUser_HasPassword {false};
     QDateTimeEdit* mUser_JoinDateInput;
     QDateTimeEdit* mUser_LastOnlineInput;
     QLineEdit* mUser_PlaceVisitsInput;

@@ -31,6 +31,16 @@
 
 using namespace NoobWarrior;
 
+static bool UserExistsIn(EmuDb *db, const std::string &username) {
+    if (db == nullptr || db->Fail())
+        return false;
+    Statement stmt = db->PrepareStatement(
+        "SELECT EXISTS(SELECT 1 FROM User WHERE Name = ? COLLATE NOCASE);"
+    );
+    stmt.Bind(1, username);
+    return stmt.Step() == SQLITE_ROW && stmt.GetIntFromColumnIndex(0) != 0;
+}
+
 EmuLoginHandler::EmuLoginHandler(ServerEmulator* emu) : mEmu(emu) {
 
 }
@@ -63,14 +73,28 @@ void EmuLoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_FORBIDDEN, "Password-based login is disabled on this server");
         return;
     }
+
+    const bool allowAccountsFromAllMountedDbs = registry != nullptr &&
+        registry->GetKeyValue<bool>("emu.auth.allow_accounts_from_all_mounted_databases").value_or(false);
+
+    EmuDbManager* dbManager = mEmu->GetCore()->GetEmuDbManager();
+    EmuDb* master = dbManager->GetMasterDatabase();
+    EmuDb* db = master;
     
-    EmuDb* masterDb = mEmu->GetCore()->GetEmuDbManager()->GetMasterDatabase();
-    if (masterDb == nullptr || masterDb->Fail()) {
+    if (allowAccountsFromAllMountedDbs && !UserExistsIn(master, username)) {
+        for (EmuDb* otherDb : dbManager->GetMountedDatabases()) {
+            if (otherDb != master && UserExistsIn(otherDb, username)) {
+                db = otherDb;
+                break;
+            }
+        }
+    }
+    if (db == nullptr || db->Fail()) {
         evhttp_send_error(req, HTTP_INTERNAL, "No usable master database is mounted");
         return;
     }
 
-    Statement lookupStmt = masterDb->PrepareStatement(
+    Statement lookupStmt = db->PrepareStatement(
         "SELECT Id, PasswordHash, PasswordSalt FROM User WHERE Name = ? COLLATE NOCASE;"
     );
     lookupStmt.Bind(1, username);
@@ -96,7 +120,7 @@ void EmuLoginHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     const char* userAgent = evhttp_find_header(evhttp_request_get_input_headers(req), "User-Agent");
 
-    std::string token = AuthUtil::CreateLoginSession(masterDb, userId,
+    std::string token = AuthUtil::CreateLoginSession(db, userId,
         peerAddress ? peerAddress : "", userAgent ? userAgent : "");
     if (token.empty()) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create session");
@@ -107,7 +131,7 @@ void EmuLoginHandler::OnRequest(evhttp_request *req, void *userdata) {
     // Opportunistically sweep sessions idle past the TTL so the table doesn't grow without bound.
     if (registry != nullptr) {
         int64_t ttlSeconds = registry->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
-        int reaped = AuthUtil::ReapExpiredSessions(masterDb, ttlSeconds);
+        int reaped = AuthUtil::ReapExpiredSessions(db, ttlSeconds);
         if (reaped > 0)
             Out("EmuLoginHandler", "Reaped {} expired login session(s)", reaped);
     }

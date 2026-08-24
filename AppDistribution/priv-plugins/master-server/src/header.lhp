@@ -12,11 +12,12 @@ local function AddNavbarButton(url, name)
    echo(string.format([[<li class="navbar-button"><a href="%s">%s</a></li>]], url, name, name))
 end
 
-local token = _COOKIE[".LOGINSESSION"]
-if token then
-    local db = core.GetMasterDatabase()
-    if db == nil then return end
+_SESSION.Token = nil
+_SESSION.User = nil
 
+local token = _COOKIE[".LOGINSESSION"]
+local db = token and core.GetMasterDatabase() or nil
+if db ~= nil then
     local ttl = (tonumber(reg.GetKeyValue("emu.auth.session_ttl_days")) or 30) * 86400
     local rows = db:QueryTyped(
         "SELECT u.Id AS Id, u.Name AS Name, u.DisplayName AS DisplayName " ..
@@ -24,20 +25,17 @@ if token then
         "WHERE s.Token = ? AND (? <= 0 OR (unixepoch() - s.LastUsedTimestamp) < ?);",
         token, ttl, ttl
     )
-    if rows == nil or rows[1] == nil then return end
+    if rows ~= nil and rows[1] ~= nil then
+        local row = rows[1]
+        _SESSION.Token = token
+        _SESSION.User = {
+            Id = row.Id,
+            Name = row.Name,
+            DisplayName = row.DisplayName,
+        }
 
-    local row = rows[1]
-    _SESSION.Token = token
-    _SESSION.User = {
-        Id = row.Id,
-        Name = row.Name,
-        DisplayName = row.DisplayName,
-    }
-
-    db:QueryTyped("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;", token)
-else
-    _SESSION.Token = nil
-    _SESSION.User = nil
+        db:QueryTyped("UPDATE LoginSession SET LastUsedTimestamp = unixepoch() WHERE Token = ?;", token)
+    end
 end
 ?>
 <!DOCTYPE html>

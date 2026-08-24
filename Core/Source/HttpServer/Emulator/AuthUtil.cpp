@@ -24,6 +24,7 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Registry.h>
 
@@ -277,6 +278,40 @@ std::optional<SessionUser> ResolveSessionUser(EmuDb *master, const std::string &
         master->MarkDirty();
 
     return user;
+}
+
+static bool SessionExistsIn(EmuDb *db, const std::string &token) {
+    if (db == nullptr || db->Fail())
+        return false;
+    Statement stmt = db->PrepareStatement(
+        "SELECT 1 FROM LoginSession s JOIN User u ON u.Id = s.UserId WHERE s.Token = ?;"
+    );
+    stmt.Bind(1, token);
+    return stmt.Step() == SQLITE_ROW;
+}
+
+EmuDb *FindSessionDatabase(EmuDbManager *mgr, Registry *reg, const std::string &token) {
+    if (mgr == nullptr || token.empty())
+        return nullptr;
+
+    EmuDb *master = mgr->GetMasterDatabase();
+    const bool allMounted = reg != nullptr &&
+        reg->GetKeyValue<bool>("emu.auth.allow_accounts_from_all_mounted_databases").value_or(false);
+    if (!allMounted)
+        return master;
+    
+    if (SessionExistsIn(master, token))
+        return master;
+    for (EmuDb *db : mgr->GetMountedDatabases()) {
+        if (db != master && SessionExistsIn(db, token))
+            return db;
+    }
+    return master;
+}
+
+std::optional<SessionUser> ResolveSessionUser(EmuDbManager *mgr, Registry *reg, const std::string &token,
+                                              int64_t ttlSeconds) {
+    return ResolveSessionUser(FindSessionDatabase(mgr, reg, token), token, ttlSeconds);
 }
 
 int ReapExpiredSessions(EmuDb *master, int64_t ttlSeconds) {
