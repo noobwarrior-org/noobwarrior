@@ -44,15 +44,25 @@ void EmuDbComboBox::Refresh() {
     clear();
 
     if (mMode == Mode::ShowEntriesInDir) {
-        std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
-        QDir directory(QString::fromStdString(dbPath.string()));
+        std::filesystem::path installDbPath = gApp->GetCore()->GetInstallDataDir() / NW_PATH_DATABASES;
+        std::filesystem::path userDbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
+
+        QDir installDir(QString::fromStdString(installDbPath.string()));
+        QDir userDir(QString::fromStdString(userDbPath.string()));
         
         QStringList filters;
         filters << "*.nwdb";
-        directory.setNameFilters(filters);
+        installDir.setNameFilters(filters);
+        userDir.setNameFilters(filters);
 
-        QFileInfoList fileList = directory.entryInfoList(QDir::Files);
-        for (const QFileInfo& fileInfo : fileList) {
+        QFileInfoList installFileList = userDir.entryInfoList(QDir::Files);
+        for (const QFileInfo& fileInfo : installFileList) {
+            EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
+            AddDatabase(&db, true);
+        }
+
+        QFileInfoList userFileList = userDir.entryInfoList(QDir::Files);
+        for (const QFileInfo& fileInfo : userFileList) {
             EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
             AddDatabase(&db, true);
         }
@@ -66,15 +76,28 @@ void EmuDbComboBox::Refresh() {
         EmuDbManager *manager = gApp->GetCore()->GetEmuDbManager();
         std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
 
-        std::filesystem::path dbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
-        QDir directory(QString::fromStdString(dbPath.string()));
+        std::filesystem::path installDbPath = gApp->GetCore()->GetInstallDataDir() / NW_PATH_DATABASES;
+        std::filesystem::path userDbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
+
+        QDir installDir(QString::fromStdString(installDbPath.string()));
+        QDir userDir(QString::fromStdString(userDbPath.string()));
         
         QStringList filters;
         filters << "*.nwdb";
-        directory.setNameFilters(filters);
+        installDir.setNameFilters(filters);
+        userDir.setNameFilters(filters);
 
-        QFileInfoList fileList = directory.entryInfoList(QDir::Files);
-        for (const QFileInfo& fileInfo : fileList) {
+        QFileInfoList installFileList = installDir.entryInfoList(QDir::Files);
+        for (const QFileInfo& fileInfo : installFileList) {
+            EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
+            EmuDb* otherDb = manager->GetDbFromFilePath(fileInfo.absoluteFilePath().toStdString());
+            if (otherDb == nullptr) {
+                AddDatabase(&db, true);
+            }
+        }
+
+        QFileInfoList userFileList = userDir.entryInfoList(QDir::Files);
+        for (const QFileInfo& fileInfo : userFileList) {
             EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
             EmuDb* otherDb = manager->GetDbFromFilePath(fileInfo.absoluteFilePath().toStdString());
             if (otherDb == nullptr) {

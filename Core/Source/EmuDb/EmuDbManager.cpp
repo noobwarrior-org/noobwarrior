@@ -93,6 +93,7 @@ void EmuDbManager::ClearTemporaryDatabase() {
 int64_t EmuDbManager::MaterializeAsset(const std::string &originKey, int assetType, const std::string &name,
                                        const std::vector<unsigned char> &assetData) {
     // Idempotent: the same source item always maps to the same synthetic id.
+    // WTF is an "Idempotent"?
     if (auto it = mMaterializedIds.find(originKey); it != mMaterializedIds.end())
         return it->second;
 
