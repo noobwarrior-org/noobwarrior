@@ -239,6 +239,20 @@ EmuDb* EmuDbManager::GetFirstDbWhereItemExists(ItemType type, int64_t id) {
     return nullptr;
 }
 
+SqlDb::Response EmuDbManager::RetrieveAssetDataHash(int64_t id, int version, std::string *hashOutput) {
+    for (EmuDb* db : mMountedDatabases) {
+        SqlDb::Response res = db->RetrieveAssetDataHash(id, version, hashOutput);
+        if (res == SqlDb::Response::Success)
+            return res;
+    }
+    if (mTemporaryDatabase != nullptr) {
+        SqlDb::Response res = mTemporaryDatabase->RetrieveAssetDataHash(id, version, hashOutput);
+        if (res == SqlDb::Response::Success)
+            return res;
+    }
+    return SqlDb::Response::NotFound;
+}
+
 SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {
     for (EmuDb* db : mMountedDatabases) {
         SqlDb::Response res = db->RetrieveAssetData(id, version, dataOutput, hashOutput);

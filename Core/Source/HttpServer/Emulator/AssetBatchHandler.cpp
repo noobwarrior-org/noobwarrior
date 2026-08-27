@@ -24,6 +24,7 @@
 // Description: Implements POST /v1/assets/batch and /v2/assets/batch for modern Roblox clients.
 #include <NoobWarrior/HttpServer/Emulator/AssetBatchHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
+#include <NoobWarrior/HttpServer/Emulator/VideoHandler.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include "../../algorithm/gzip.h"
@@ -106,6 +107,59 @@ AssetBatchHandler::AssetBatchHandler(ServerEmulator* emu) :
 {}
 
 void AssetBatchHandler::OnRequest(evhttp_request *req, void *userdata) {
+    if (evhttp_request_get_command(req) == EVHTTP_REQ_POST) {
+        std::string peek;
+        if (evbuffer* input = evhttp_request_get_input_buffer(req)) {
+            const size_t length = evbuffer_get_length(input);
+            peek.resize(length);
+            if (length != 0)
+                evbuffer_copyout(input, peek.data(), length); // copyout, so the body survives for us
+        }
+        GunzipIfNeeded(peek);
+
+        const nlohmann::json parsed = nlohmann::json::parse(peek, nullptr, false);
+        bool mentionsVideo = false;
+
+        const char *acrKind = "absent";
+        std::string acrSample;
+
+        if (parsed.is_array()) {
+            for (const nlohmann::json& entry : parsed) {
+                if (!entry.is_object())
+                    continue;
+                const auto field = entry.find("contentRepresentationPriorityList");
+                if (field == entry.end())
+                    continue;
+                if (std::string_view(acrKind) == "absent") {
+                    acrKind = field->type_name();
+                    acrSample = field->is_string() ? field->get<std::string>() : field->dump();
+                    if (acrSample.size() > 96)
+                        acrSample.resize(96);
+                }
+                const std::string acr = ReadString(entry, "contentRepresentationPriorityList");
+                if (!acr.empty() && VideoHandler::AcrRequestsHls(acr.c_str())) {
+                    mentionsVideo = true;
+                    break;
+                }
+            }
+        }
+
+        const size_t layerCount = mEmu->GetProxyLayers().size();
+        Out("AssetBatchHandler",
+            "batch: {} entries, mentionsVideo={}, layers={}, proxying={}, acr={}:\"{}\"",
+            parsed.is_array() ? parsed.size() : 0, mentionsVideo, layerCount,
+            mentionsVideo && layerCount > 0, acrKind, acrSample);
+
+        if (mentionsVideo &&
+            mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); })) {
+            return;
+        }
+    }
+
+    HandleLocally(req);
+}
+
+void AssetBatchHandler::HandleLocally(evhttp_request *req) {
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_add_header(evhttp_request_get_output_headers(req), "Allow", "POST");
         evhttp_send_error(req, HTTP_BADMETHOD, "POST required");
@@ -184,6 +238,18 @@ void AssetBatchHandler::OnRequest(evhttp_request *req, void *userdata) {
             location += "&doNotFallbackToBaselineRepresentation=" + UriEncode(doNotFallback);
         if (!resolutionMode.empty())
             location += "&assetResolutionMode=" + UriEncode(resolutionMode);
+        
+        if (VideoHandler::AcrRequestsHls(contentRepList.c_str())) {
+            const std::string playlist = VideoHandler::ResolvePlaylistPath(mEmu, *assetId, version);
+            if (!playlist.empty()) {
+                location = "https://assetdelivery.roblox.com" + playlist;
+                Out("AssetBatchHandler", "  video asset {} -> {}", *assetId, location);
+            } else {
+                // The counterpart line. Silence here used to be indistinguishable from "not a video".
+                Out("AssetBatchHandler", "  video asset {} kept the PLAIN location {} "
+                                         "(no local blob, or not segmented yet)", *assetId, location);
+            }
+        }
 
         nlohmann::json result;
         result["location"] = std::move(location);
@@ -218,8 +284,6 @@ void AssetBatchHandler::OnRequest(evhttp_request *req, void *userdata) {
             }
             Out("AssetBatchHandler", "  ids: {}", ids);
         }
-
-        Out("AssetBatchHandler", "Resolved {} asset requests", response.size());
     }
     
     SendJson(req, HTTP_OK, response);

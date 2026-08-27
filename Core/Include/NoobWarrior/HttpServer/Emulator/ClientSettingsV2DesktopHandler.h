@@ -25,8 +25,6 @@
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
-#include <string>
-#include <vector>
 
 namespace NoobWarrior {
 class ServerEmulator;

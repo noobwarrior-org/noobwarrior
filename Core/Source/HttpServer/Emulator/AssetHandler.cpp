@@ -29,6 +29,11 @@
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
 
+#include <NoobWarrior/HttpServer/Emulator/VideoHandler.h>
+#include <NoobWarrior/HttpServer/Base/HttpRange.h>
+#include <NoobWarrior/HttpServer/Emulator/EmulatorProxy.h>
+
+
 #include "../../algorithm/gzip.h"
 
 #include <curl/curl.h>
@@ -370,9 +375,32 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
 
         contentDispositionVal = std::format("attachment; filename=\"{}\"", !hash.empty() ? hash : "asset");
 
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/octet-stream");
-        evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Disposition", contentDispositionVal.c_str());
+        evkeyvalq *outHeaders = evhttp_request_get_output_headers(req);
+        evhttp_add_header(outHeaders, "Content-Type", "application/octet-stream");
+        evhttp_add_header(outHeaders, "Content-Disposition", contentDispositionVal.c_str());
         AddPlaceIdHeader(req);
+
+        const uint64_t bodySize = static_cast<uint64_t>(out->size());
+        evhttp_add_header(outHeaders, "Accept-Ranges", "bytes");
+
+        const char *rangeHeader = evhttp_find_header(evhttp_request_get_input_headers(req), "Range");
+        uint64_t start = 0, end = bodySize > 0 ? bodySize - 1 : 0;
+
+        if (rangeHeader != nullptr && ParseHttpRange(rangeHeader, bodySize, &start, &end)) {
+            const std::string contentRange = "bytes " + std::to_string(start) + "-"
+                                           + std::to_string(end) + "/" + std::to_string(bodySize);
+            evhttp_add_header(outHeaders, "Content-Range", contentRange.c_str());
+            evbuffer_add(buf, out->data() + start, static_cast<size_t>(end - start + 1));
+            Out("AssetHandler", "  served {} of {} bytes for range {}", end - start + 1, bodySize,
+                rangeHeader);
+            evhttp_send_reply(req, 206, "Partial Content", buf);
+            break;
+        }
+
+        if (rangeHeader != nullptr && IsUnsatisfiableSingleRange(rangeHeader)) {
+            evhttp_send_error(req, 416, "Requested Range Not Satisfiable");
+            break;
+        }
 
         evbuffer_add(buf, out->data(), out->size());
         evhttp_send_reply(req, 200, NULL, buf);
@@ -457,6 +485,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
      * blob cache, which is keyed by id alone and cannot tell one representation from another. */
     std::string upstreamQuery;
     bool hasRepresentation = false;
+    bool wantsHlsVideo = false;
     for (const char *param : {"contentRepresentationPriorityList",
                               "doNotFallbackToBaselineRepresentation",
                               "assetResolutionMode"}) {
@@ -468,6 +497,17 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
             continue;
         upstreamQuery += std::string("&") + param + "=" + encoded;
         free(encoded);
+
+        /* A video asks for the "hls" representation, and unlike a material texture that request can be
+         * answered locally -- one video id has one body, not one per representation. Letting it set
+         * hasRepresentation would force needFetch below and send every locally stored video straight
+         * past the database to Roblox, so the bypass stays material-only. The parameter is still
+         * forwarded upstream, because the Roblox fallback does need it. */
+        if (std::string_view(param) == "contentRepresentationPriorityList" && VideoHandler::AcrRequestsHls(value)) {
+            wantsHlsVideo = true;
+            continue;
+        }
+
         if (std::string_view(param) != "doNotFallbackToBaselineRepresentation")
             hasRepresentation = true;
     }
@@ -541,6 +581,34 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
+    /* A video the engine wants as HLS gets sent to VideoHandler instead of answered here.
+     *
+     * The redirect is not cosmetic: HlsInputFormat resolves every relative URI in a playlist against
+     * the URL the playlist arrived from, so a playlist served from /v1/asset/?id=N would make "seg0.ts"
+     * resolve to /v1/asset/seg0.ts and lose the id. Redirecting first means the segment names resolve
+     * against /video/v1/{id}/{hash}/ and come back addressable. RedirectToSelfForResolution above
+     * already relies on the engine following a 302 on this endpoint.
+     *
+     * ResolvePlaylistPath only names a playlist whose segments already exist, so this never redirects
+     * the engine at work that has not been done; a video that is not ready yet falls through and is
+     * served whole below, which the engine can still demux. If the asset is not here at all we also
+     * fall through and the proxy/Roblox chain answers it -- a remote host issues its own redirect,
+     * which reaches the client through the proxy unchanged. */
+    if (wantsHlsVideo) {
+        const std::string location = VideoHandler::ResolvePlaylistPath(mServerEmulator, id, ver);
+        if (!location.empty()) {
+            Out("AssetHandler", "  video asset {} -> {}", id, location);
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Location", location.c_str());
+            // The redirect target embeds the blob hash, so it changes whenever the video does -- and a
+            // cached redirect would send the engine to segments that no longer exist. The playlist it
+            // lands on is served no-store for the same reason.
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Cache-Control",
+                              "no-store, no-cache, must-revalidate");
+            evhttp_send_reply(req, 302, "Found", nullptr);
+            return;
+        }
+    }
+
     std::vector<unsigned char> data;
     std::string hash;
     SqlDb::Response res = mEmuDbManager->RetrieveAssetData(id, ver, &data, &hash);
@@ -571,7 +639,26 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
             ReplyWithAsset(r, res, std::vector<unsigned char>{}, std::string{});
     };
 
-    if (mServerEmulator->TryProxyRequest(req, robloxFallback))
+    /* For a video, log what the host's emulator actually relayed back.
+     *
+     * A joiner cannot resolve a remote video locally -- the blob lives on the host, so the hash lookup
+     * above fails and no redirect is issued -- which means the whole thing rides on the host answering
+     * this proxied request with a playlist. cpr follows the host's 302 to /video/v1/... and the layer
+     * reports 200, so a failure here is otherwise completely silent: no /video/v1/ request ever appears
+     * in the joiner's log and there is nothing to distinguish "the host sent a playlist we mishandled"
+     * from "the host sent something else entirely". The body is passed through untouched. */
+    EmulatorProxy::ResponseTransform videoProbe;
+    if (wantsHlsVideo) {
+        videoProbe = [id](std::vector<unsigned char> body) {
+            const std::string head(reinterpret_cast<const char*>(body.data()),
+                                   std::min<size_t>(body.size(), 7));
+            Out("AssetHandler", "  proxied video asset {}: {} bytes, {}", id, body.size(),
+                head == "#EXTM3U" ? "an HLS playlist" : "NOT a playlist (head=\"" + head + "\")");
+            return body;
+        };
+    }
+
+    if (mServerEmulator->TryProxyRequest(req, robloxFallback, std::move(videoProbe)))
         return;
     robloxFallback(req);
 }

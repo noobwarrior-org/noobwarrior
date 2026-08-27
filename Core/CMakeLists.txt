@@ -318,7 +318,9 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/HttpServer/Emulator/LoginHandler.cpp
     Source/HttpServer/Emulator/RunningGameServersHandler.cpp
     Source/HttpServer/Emulator/TeleportAuthorizeHandler.cpp
+    Source/Video/VideoTranscoder.cpp
     Source/HttpServer/Emulator/AssetHandler.cpp
+    Source/HttpServer/Emulator/VideoHandler.cpp
     Source/HttpServer/Emulator/AssetBatchHandler.cpp
     Source/HttpServer/Emulator/AssetThumbnailJsonHandler.cpp
     Source/HttpServer/Emulator/ClientSettingsHandler.cpp

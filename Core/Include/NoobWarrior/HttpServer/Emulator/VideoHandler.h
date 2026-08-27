@@ -18,17 +18,37 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: AssetPermissionsHandler.h
+// File: VideoHandler.h
 // Started by: Hattozo
-// Started on: 6/7/2026
-// Description:
+// Started on: 8/26/2026
+// Description: Serves the HLS playlist and segments of a video asset, from /video/v1/{assetId}/{hash}/{file}.
+// This handler only sends files. Cutting the video into segments is VideoTranscoder's job.
 #pragma once
 #include <NoobWarrior/HttpServer/Base/Handler.h>
 
+#include <cstdint>
+#include <filesystem>
+#include <string>
+
 namespace NoobWarrior {
-class AssetPermissionsHandler : public Handler {
+class ServerEmulator;
+
+class VideoHandler : public Handler {
 public:
-    AssetPermissionsHandler() = default;
+    explicit VideoHandler(ServerEmulator *srv);
+
     void OnRequest(evhttp_request *req, void *userdata) override;
+
+    static std::string ResolvePlaylistPath(ServerEmulator *emu, int64_t assetId, int64_t version);
+
+    static std::string BuildPlaylistPath(int64_t assetId, const std::string &hash);
+    static std::string BuildUriPrefix(int64_t assetId, const std::string &hash);
+
+    static bool AcrRequestsHls(const char *encoded);
+private:
+    void ServeFile(evhttp_request *req, const std::filesystem::path &path, const std::string &fileName,
+                   const std::string &uriPrefix);
+
+    ServerEmulator *mServerEmulator;
 };
 }

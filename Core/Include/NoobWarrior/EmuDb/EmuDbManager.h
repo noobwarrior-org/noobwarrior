@@ -87,6 +87,9 @@ public:
 
     SqlDb::Response RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput = nullptr);
 
+    // The blob key alone
+    SqlDb::Response RetrieveAssetDataHash(int64_t id, int version, std::string *hashOutput);
+
     // Universe/place lookups across every mounted database, honoring mount priority (the first
     // database with a match wins). Each returns std::nullopt when no mounted database knows about it.
     std::optional<int64_t> GetUniverseIdForPlace(int64_t placeId);

@@ -116,11 +116,6 @@ void EmulatorProxy::ClearLayers() {
     mLayers.clear();
 }
 
-bool EmulatorProxy::HasLayers() const {
-    std::lock_guard lock(mLayersMutex);
-    return !mLayers.empty();
-}
-
 std::vector<EmulatorProxy::Layer> EmulatorProxy::GetLayers() const {
     std::lock_guard lock(mLayersMutex);
     return mLayers;
@@ -233,6 +228,8 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback,
 
     if (const char *accept = evhttp_find_header(inHeaders, "Accept"))
         r->Accept = accept;
+    if (const char *range = evhttp_find_header(inHeaders, "Range"))
+        r->Range = range;
     if (const char *ct = evhttp_find_header(inHeaders, "Content-Type"))
         r->ContentType = ct;
 
@@ -255,7 +252,7 @@ void EmulatorProxy::RunWorker() {
     // self-signed certificate, so verification is disabled (same as Core::ConnectToServerEmulator).
     cpr::Session session;
     session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
-    session.SetTimeout(cpr::Timeout{20000});             // 20s per attempt
+    session.SetTimeout(cpr::Timeout{30000});
     session.SetConnectTimeout(cpr::ConnectTimeout{10000});
     session.SetVerifySsl(cpr::VerifySsl{false});
 
@@ -275,6 +272,7 @@ void EmulatorProxy::RunWorker() {
         cpr::Header baseHeaders;
         if (!r->Accept.empty())      baseHeaders["Accept"]       = r->Accept;
         if (!r->ContentType.empty()) baseHeaders["Content-Type"] = r->ContentType;
+        if (!r->Range.empty())       baseHeaders["Range"]        = r->Range;
         session.SetBody(cpr::Body{r->Body});
 
         ProxyResult result;
@@ -309,12 +307,18 @@ void EmulatorProxy::RunWorker() {
             result.ContentType.clear();
             result.ContentDisposition.clear();
             result.PlaceId.clear();
+            result.ContentRange.clear();
+            result.AcceptRanges.clear();
             if (auto it = resp.header.find("Content-Type"); it != resp.header.end())
                 result.ContentType = it->second;
             if (auto it = resp.header.find("Content-Disposition"); it != resp.header.end())
                 result.ContentDisposition = it->second;
             if (auto it = resp.header.find("Roblox-Place-Id"); it != resp.header.end())
                 result.PlaceId = it->second;
+            if (auto it = resp.header.find("Content-Range"); it != resp.header.end())
+                result.ContentRange = it->second;
+            if (auto it = resp.header.find("Accept-Ranges"); it != resp.header.end())
+                result.AcceptRanges = it->second;
 
             if (resp.status_code >= 200 && resp.status_code < 300) {
                 result.Served = true;
@@ -337,7 +341,12 @@ void EmulatorProxy::OnComplete(std::shared_ptr<ProxyRequest> r, ProxyResult resu
     mActiveRequests.erase(r); // this forward is finished, one way or another
 
     if (!mActive)            return; // server stopped; don't touch evhttp
-    if (!r->ClientConnected) return; // client hung up; its request is already gone
+    if (!r->ClientConnected) {
+        Out("EmulatorProxy", "DROPPED {} -- client hung up before the forward finished "
+                             "(served={}, status={})",
+            r->Urls.empty() ? std::string("?") : r->Urls[0], result.Served, result.Status);
+        return;
+    }
 
     // Done with the disconnect notification now that we're about to hand off / reply.
     if (r->Connection)
@@ -355,6 +364,11 @@ void EmulatorProxy::OnComplete(std::shared_ptr<ProxyRequest> r, ProxyResult resu
         // this header would leave the joining client with an unstamped asset.
         if (!result.PlaceId.empty())
             evhttp_add_header(outHeaders, "Roblox-Place-Id", result.PlaceId.c_str());
+        // A relayed 206 is meaningless without its Content-Range.
+        if (!result.ContentRange.empty())
+            evhttp_add_header(outHeaders, "Content-Range", result.ContentRange.c_str());
+        if (!result.AcceptRanges.empty())
+            evhttp_add_header(outHeaders, "Accept-Ranges", result.AcceptRanges.c_str());
 
         evbuffer *buf = evbuffer_new();
         if (!body.empty())

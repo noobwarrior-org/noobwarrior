@@ -23,9 +23,9 @@
 // Started on: 5/18/2026
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsV2StudioHandler.h>
+#include <NoobWarrior/HttpServer/Emulator/DesktopSettingsFrame.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/NoobWarrior.h>
-#include <NoobWarrior/Paths.h>
 #include <NoobWarrior/Log.h>
 
 #include "FFlagJson/PCStudioAppV2.json.inc.cpp"
@@ -33,13 +33,8 @@
 #include "FFlagJson/PCDesktopClientV2.json.inc.cpp"
 
 #include <nlohmann/json.hpp>
-#include <zstd.h>
 
-#include <cstddef>
 #include <cstdlib>
-#include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <vector>
@@ -53,59 +48,17 @@ static int StudioEngineGeneration(const std::string& version) {
     return static_cast<int>(std::strtol(version.c_str() + firstDot + 1, nullptr, 10));
 }
 
-constexpr const char* kDesktopDictionaryName =
-    "881010b3c0e6682563bcca18fa7e762b3dae2e81e7b5dc72cc01aa2d26aca6b5.dict";
-
-static std::optional<std::vector<char>> FindCompressionDictionary(Core* core) {
-    if (core == nullptr)
-        return std::nullopt;
-
-    std::error_code error;
-    const std::filesystem::path enginesDir = core->GetUserDataDir() / NW_PATH_ENGINES;
-    if (!std::filesystem::exists(enginesDir, error))
-        return std::nullopt;
-
-    for (const auto& entry : std::filesystem::directory_iterator(enginesDir, error)) {
-        if (!entry.is_directory(error))
-            continue;
-
-        const std::filesystem::path path = entry.path() / "PlatformContent" / "pc" /
-            "shared_compression_dictionaries" / kDesktopDictionaryName;
-        std::ifstream file(path, std::ios::binary);
-        if (!file)
-            continue;
-
-        return std::vector<char>{
-            std::istreambuf_iterator<char>(file),
-            std::istreambuf_iterator<char>()};
-    }
-    return std::nullopt;
-}
-
 static std::optional<nlohmann::json> DecodeArchivedDesktopSettings(Core* core) {
-    const std::optional<std::vector<char>> dictionary = FindCompressionDictionary(core);
+    const std::optional<std::vector<char>> dictionary = FindDesktopSettingsDictionary(core);
     if (!dictionary)
         return std::nullopt;
 
-    const unsigned long long contentSize =
-        ZSTD_getFrameContentSize(PCDesktopClientV2_dcz, PCDesktopClientV2_dcz_size);
-    if (contentSize == ZSTD_CONTENTSIZE_ERROR || contentSize == ZSTD_CONTENTSIZE_UNKNOWN)
+    const std::optional<std::string> plain =
+        DecompressWithDictionary(PCDesktopClientV2_dcz, PCDesktopClientV2_dcz_size, *dictionary);
+    if (!plain)
         return std::nullopt;
 
-    std::string plain(static_cast<std::size_t>(contentSize), '\0');
-    ZSTD_DCtx* context = ZSTD_createDCtx();
-    if (context == nullptr)
-        return std::nullopt;
-
-    const std::size_t result = ZSTD_decompress_usingDict(
-        context, plain.data(), plain.size(),
-        PCDesktopClientV2_dcz, PCDesktopClientV2_dcz_size,
-        dictionary->data(), dictionary->size());
-    ZSTD_freeDCtx(context);
-    if (ZSTD_isError(result) || result != plain.size())
-        return std::nullopt;
-
-    nlohmann::json parsed = nlohmann::json::parse(plain, nullptr, false);
+    nlohmann::json parsed = nlohmann::json::parse(*plain, nullptr, false);
     if (!parsed.is_object() || !parsed.contains("applicationSettings") ||
         !parsed["applicationSettings"].is_object())
         return std::nullopt;
@@ -116,12 +69,22 @@ static nlohmann::json GetStudioSettings(ServerEmulator* emu) {
     Core* core = emu != nullptr ? emu->GetCore() : nullptr;
     const std::string version = emu != nullptr ? emu->GetLaunchedStudioVersion().first : std::string();
 
-    if (StudioEngineGeneration(version) < 700) // old versions of studio get a hardcoded fflag dump from 0.574 era
-        return nlohmann::json::parse(PCStudioAppV2_json);
+    if (StudioEngineGeneration(version) < 700) { // old versions of studio get a hardcoded fflag dump from 0.574 era
+        nlohmann::json legacy = nlohmann::json::parse(PCStudioAppV2_json);
+        legacy["applicationSettings"]["FFlagEnableVideoPlaybackOnServer"] = "True";
+        return legacy;
+    }
 
     const std::optional<nlohmann::json> archived = DecodeArchivedDesktopSettings(core);
     nlohmann::json settings = archived.value_or(nlohmann::json::parse(PCDesktopClientV2_json));
     
+    {
+        nlohmann::json& flags = settings["applicationSettings"];
+        flags["FFlagVideoRegisterMpegTs"] = "True";
+        flags["FFlagVideoRegisterNewWebm"] = "True";
+        flags["FFlagEnableVideoPlaybackOnServer"] = "True";
+    }
+
     if (core != nullptr &&
         core->GetRegistry()->GetKeyValue<bool>("debug.log_http_server_requests").value_or(false)) {
         nlohmann::json& flags = settings["applicationSettings"];

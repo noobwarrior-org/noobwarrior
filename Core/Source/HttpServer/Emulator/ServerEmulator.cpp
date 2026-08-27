@@ -115,6 +115,7 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mRunningGameServersHandler(this),
     mTeleportAuthorizeHandler(this),
     mAssetHandler(this, mCore->GetEmuDbManager()),
+    mVideoHandler(this),
     mAssetBatchHandler(this),
     mAssetThumbnailJsonHandler(this, mCore->GetEmuDbManager()),
     mClientSettingsHandler(this),
@@ -176,7 +177,8 @@ ServerEmulator::ServerEmulator(Core *core) : HttpServer(core, "ServerEmulator"),
     mSignalRCoreHandler(mCore->GetRegistry()),
     mInstanceId(CreateEmulatorInstanceId(this)),
     mEmulatorProxy(this),
-    mAssetEnricher(mCore)
+    mAssetEnricher(mCore),
+    mVideoTranscoder(mCore)
 {
     mAssetEnricher.Start();
     StartAnnouncer();
@@ -189,6 +191,10 @@ ServerEmulator::~ServerEmulator() {
 
 AssetEnricher* ServerEmulator::GetAssetEnricher() {
     return &mAssetEnricher;
+}
+
+VideoTranscoder* ServerEmulator::GetVideoTranscoder() {
+    return &mVideoTranscoder;
 }
 
 void ServerEmulator::SetupHandlers() {
@@ -217,6 +223,8 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v2/assets/batch", &mAssetBatchHandler);
     SetRequestHandler("/v2/assets/batch/", &mAssetBatchHandler);
 
+    SetRequestHandler("/video/v1/:assetId/:hash/:file", &mVideoHandler);
+
     SetRequestHandler("/asset-thumbnail/json", &mAssetThumbnailJsonHandler);
 
     SetRequestHandler("/v1/settings/application", &mClientSettingsHandler);
@@ -226,6 +234,9 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/v2/settings-compressed/application/PCDesktopClient/bucket/:bucket/:dictionary", &mClientSettingsV2DesktopHandler);
     SetRequestHandler("/v2/settings-compressed/application/PCDesktopClient.zst", &mClientSettingsV2DesktopHandler);
     SetRequestHandler("/v2/settings/application/PCStudioApp", &mClientSettingsV2StudioHandler);
+    SetRequestHandler("/v2/settings/application/PCStudioApp/bucket/:bucket", &mClientSettingsV2StudioHandler);
+    SetRequestHandler("/v2/settings/application/PCStudioAppCJV", &mClientSettingsV2StudioHandler);
+    SetRequestHandler("/v2/settings/application/PCStudioAppCJV/bucket/:bucket", &mClientSettingsV2StudioHandler);
 
     SetRequestHandler("/v2/client-version/WindowsStudio64", &mClientVersionStudioHandler);
     SetRequestHandler("/v2/client-version/WindowsPlayer", &mClientVersionStudioHandler);
@@ -307,8 +318,13 @@ void ServerEmulator::SetupHandlers() {
     SetRequestHandler("/toolbox-service/v1/items/details", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/marketplace/:categoryId", &mToolboxServiceHandler);
     SetRequestHandler("/toolbox-service/v1/:category", &mToolboxServiceHandler);
-
+    
     SetRequestHandler("/asset-permissions-api/v1/assets/check-permissions", &mAssetPermissionsHandler);
+    SetRequestHandler("/asset-permissions-api/v1/rcc/assets/check-permissions", &mAssetPermissionsHandler);
+    SetRequestHandler("/asset-permissions-api/v1/assets/permissions", &mAssetPermissionsHandler);
+    SetRequestHandler("/asset-permissions-api/v1/assets/:assetId/permissions", &mAssetPermissionsHandler);
+    SetRequestHandler("/asset-permissions-api/v1/universes/:universeId/permissions:copyInto", &mAssetPermissionsHandler);
+    SetRequestHandler("/asset-permissions-api/v1/operations/:operationId", &mAssetPermissionsHandler);
 
     SetRequestHandler("/IDE/Toolbox/Items.aspx", &mIdeToolboxHandler);
     SetRequestHandler("/ide/toolbox/items.aspx", &mIdeToolboxHandler);
@@ -772,6 +788,7 @@ void ServerEmulator::SetMode(Mode mode) {
 }
 
 ServerEmulator::Mode ServerEmulator::GetMode() {
+    return mMode;
 }
 
 void ServerEmulator::SweepStaleInstancesLocked() {

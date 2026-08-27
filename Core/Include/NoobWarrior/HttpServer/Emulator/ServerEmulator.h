@@ -53,6 +53,7 @@
 #include "RequestAuthHandler.h"
 #include "StudioEditHandler.h"
 #include "AssetHandler.h"
+#include "VideoHandler.h"
 #include "AssetBatchHandler.h"
 #include "AssetThumbnailJsonHandler.h"
 #include "GameIconHandler.h"
@@ -100,6 +101,8 @@
 #include "AuthInfoHandler.h"
 #include "AuthUtil.h"
 #include "EmulatorProxy.h"
+
+#include <NoobWarrior/Video/VideoTranscoder.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -259,8 +262,12 @@ public:
 
     // Background worker that fills in metadata + thumbnails for assets captured by assetGrabMode.
     AssetEnricher* GetAssetEnricher();
+
+    // Shared by AssetHandler (which redirects video requests) and VideoHandler (which segments and
+    // serves them). Owned here so both see the same resolved ffmpeg paths and the same cache layout.
+    VideoTranscoder* GetVideoTranscoder();
 private:
-    Mode mMode;
+    Mode mMode {Mode::Local};
     std::optional<Engine> mCurrentEngine;
 
     //////////////// Handlers ////////////////
@@ -274,6 +281,7 @@ private:
     RunningGameServersHandler mRunningGameServersHandler;
     TeleportAuthorizeHandler mTeleportAuthorizeHandler;
     AssetHandler mAssetHandler;
+    VideoHandler mVideoHandler;
     AssetBatchHandler mAssetBatchHandler;
     AssetThumbnailJsonHandler mAssetThumbnailJsonHandler;
     ClientSettingsHandler mClientSettingsHandler;
@@ -385,6 +393,7 @@ private:
     std::optional<AuthUtil::SessionUser> mCurrentLaunchUser;
 
     AssetEnricher mAssetEnricher;
+    VideoTranscoder mVideoTranscoder;
 
     /* Master-list announcer. When emu.master.announce is enabled, a background
      * thread periodically POSTs a Hello/Heartbeat to emu.auth.master/v1/emu-ping

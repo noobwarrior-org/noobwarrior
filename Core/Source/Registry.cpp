@@ -23,15 +23,11 @@
 // Started on: 3/8/2025
 // Description: Tweaks various parameters of noobWarrior functionality
 #include <NoobWarrior/Registry.h>
-#include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/EmuDb/UserRank.h>
 #include <NoobWarrior/Macros.h>
 
 #include <cstdint>
-#include <fstream>
-#include <nlohmann/json_fwd.hpp>
 #include <random>
-#include <unistd.h>
 
 using namespace NoobWarrior;
 
@@ -219,6 +215,30 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("emu.asset_grab_db", "");
     SetKeyComment("emu.asset_grab_db", "Where should the Asset Grab Mode save its assets to?");
+
+    SetKeyValueIfNotSet("emu.video.transcode", true);
+    SetKeyComment("emu.video.transcode", "Convert uploaded videos into a format the Roblox engine can play. Requires ffmpeg; if it is missing, videos are stored exactly as uploaded and will only play if they already happen to be readable.");
+
+    SetKeyValueIfNotSet("emu.video.ffmpeg_path", "");
+    SetKeyComment("emu.video.ffmpeg_path", "Path to the ffmpeg executable, or to the directory holding ffmpeg and ffprobe. Leave empty to look next to the program first and then on PATH.");
+
+    SetKeyValueIfNotSet("emu.video.format", "auto");
+    SetKeyComment("emu.video.format", "How videos are delivered to the engine. The stored asset is never modified; this only chooses what is served from it. \"auto\", the default, serves HLS: the first request for a video queues background segmenting and is answered with the stored file, and later requests get the segments once they are ready. \"mp4\" always serves the stored file, which needs no segment requests but cannot be seeked before it has downloaded.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.video.max_height", 720);
+    SetKeyComment("emu.video.max_height", "Videos taller than this are scaled down. Set to 0 to keep the original resolution.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.video.bitrate_kbps", 2000);
+    SetKeyComment("emu.video.bitrate_kbps", "Target video bitrate in kbit/s when re-encoding.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.video.audio_kbps", 128);
+    SetKeyComment("emu.video.audio_kbps", "Target audio bitrate in kbit/s when re-encoding.");
+
+    SetKeyValueIfNotSet<int64_t>("emu.video.segment_seconds", 6);
+    SetKeyComment("emu.video.segment_seconds", "Target length of each HLS segment, in seconds. Shorter segments start playing sooner and seek more precisely, at the cost of more requests.");
+
+    SetKeyValueIfNotSet("emu.video.allow_remux", true);
+    SetKeyComment("emu.video.allow_remux", "If the uploaded video is already H.264 and small enough, repackage it without re-encoding. Much faster and lossless, but relies on the file being correctly described by its own headers.");
 
     sol::table proxies_tbl = mLua->create_table();
     SetKeyValueIfNotSet("emu.proxies", proxies_tbl);

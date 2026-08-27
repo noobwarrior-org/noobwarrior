@@ -86,7 +86,6 @@ public:
     bool PopLayer();                                         // remove the top layer; false if empty
     void RemoveLayer(const std::string &host, uint16_t port);
     void ClearLayers();
-    bool HasLayers() const;
     std::vector<Layer> GetLayers() const; // top-first
 
     // Event-loop thread. If the stack has at least one layer (and proxying is active), takes
@@ -118,6 +117,7 @@ private:
         std::string              Body;          // request body (non-GET)
         std::string              ContentType;   // forwarded request Content-Type
         std::string              Accept;        // forwarded request Accept (asset content negotiation)
+        std::string              Range;
         std::string              ProxyChain;    // comma-separated emulator ids already traversed
         LocalFallback            Fallback;      // run on the event loop if every layer misses
         ResponseTransform        Transform;     // applied to a winning layer's body before replying
@@ -132,6 +132,8 @@ private:
         std::string                ContentType;
         std::string                ContentDisposition;
         std::string                PlaceId;        // the host's Roblox-Place-Id, if it sent one
+        std::string                ContentRange;   // relayed so a 206 stays a valid partial reply
+        std::string                AcceptRanges;
         std::vector<unsigned char> Body;
     };
 
