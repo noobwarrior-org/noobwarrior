@@ -188,6 +188,16 @@ EmuDb* AssetEnricher::GetConnection(const std::string &dbFilePath) {
     if (it != mConnections.end())
         return it->second;
 
+    // This is a second, private connection to the same file, so a read-only mount does not constrain
+    // it. Honor the database's own Mutable flag here or enrichment would quietly write name, type and
+    // thumbnails into a database that asked not to be modified. Probing is safe from this thread: it
+    // opens its own read-only connection and touches no shared state.
+    if (!EmuDb::ProbeIsMutable(dbFilePath)) {
+        Out("AssetEnricher", "Refusing to enrich \"{}\" because its Mutable setting is off", dbFilePath);
+        mConnections[dbFilePath] = nullptr;
+        return nullptr;
+    }
+
     auto *db = new EmuDb(dbFilePath, true);
     if (db->Fail()) {
         Out("AssetEnricher", "Failed to open enrichment connection to \"{}\"", dbFilePath);

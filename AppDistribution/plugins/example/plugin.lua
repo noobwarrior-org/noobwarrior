@@ -19,6 +19,13 @@ return {
             "engine_scripts/shared.lua"
         }
     },
+    databases = {
+        {
+            url = "/databases/example_database.nwdb", -- The file of the database.
+            required = false, -- Forces the database to be mounted if this plugin is enabled.
+            writable = false, -- Read-only unless this is true
+        }
+    },
     datamodel = {
         { -- Inserting instances into the client side is currently unsupported for now.
             dir = "datamodel_client",

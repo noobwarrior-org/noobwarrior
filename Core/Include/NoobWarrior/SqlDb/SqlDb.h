@@ -62,10 +62,21 @@ public:
         CantOpen,
         TransactionFailed,
         MigrationFailed,
-        FeatureUnavailable
+        FeatureUnavailable,
+        // Opened read-only, but the file's schema is behind the current one. Migrating it would mean
+        // writing to it, which a read-only open exists specifically to avoid.
+        ReadOnlyOutOfDate
     };
 
-    SqlDb(const std::string &path = ":memory:", const std::string &logName = "SqlDb");
+    // Read-only never creates the file and never writes to it, so a plugin's shipped database can
+    // be mounted without being touched. Note that a read-only EmuDb cannot run migrations.
+    enum class OpenMode {
+        ReadWrite,
+        ReadOnly
+    };
+
+    SqlDb(const std::string &path = ":memory:", const std::string &logName = "SqlDb",
+          OpenMode openMode = OpenMode::ReadWrite);
     virtual ~SqlDb();
 
     inline sqlite3 *Get() { return mDb; }
@@ -78,6 +89,11 @@ public:
      * @brief Returns true if this database is not yet a tangible file and only exists within memory.
      */
     bool IsMemory();
+
+    /**
+     * @brief True if opened read-only, in which case every write fails with SQLITE_READONLY.
+     */
+    bool IsReadOnly();
 
     int GetLastError();
 
@@ -124,6 +140,7 @@ protected:
     sqlite3 *mDb;
     FailReason mFailReason;
     std::string mPath;
+    OpenMode mOpenMode;
 
     bool mThisIsANewFileOnDisk;
 };

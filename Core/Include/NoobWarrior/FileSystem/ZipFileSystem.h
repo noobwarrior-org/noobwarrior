@@ -51,6 +51,16 @@ public:
     Response DeleteEntry(const std::string &path) override;
 protected:
     zip_t *mArchive;
+    // Index of an entry by virtual path, or -1. Tolerates archives that separate directories with
+    // backslashes: the spec mandates forward slashes, but Windows' own Compress-Archive emits
+    // backslashes, so plugins packaged with it would otherwise appear to contain nothing but their
+    // root-level files.
+    zip_int64_t LocateEntry(const std::string &path);
+
     std::unordered_map<int, zip_file_t*> mHandles;
+    // Bytes left to read in each open handle's entry. A deflated entry cannot be seeked
+    // (zip_fseek only works on stored entries), so end-of-file has to be tracked by counting
+    // rather than by reading a byte and rewinding.
+    std::unordered_map<int, zip_uint64_t> mHandleRemaining;
 };
 }

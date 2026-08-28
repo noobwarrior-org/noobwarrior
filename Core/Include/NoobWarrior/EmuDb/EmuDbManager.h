@@ -35,6 +35,15 @@ namespace NoobWarrior {
 class Core;
 class EmuDbManager {
 public:
+    // Where a mounted database came from. Only user mounts are persisted to databases.mounted; a
+    // plugin's database must never leak into the user's list, or opening the Database dialog once
+    // would adopt it permanently and mount it twice on the next launch.
+    struct MountInfo {
+        std::string OwnerPluginId;  // empty means the user chose this database themselves
+        std::string SourceUrl;      // the plugin:// URL it was declared with; empty for user mounts
+        bool Locked { false };      // a required plugin entry: the user may not unmount or delete it
+    };
+
     EmuDbManager(Core *core);
 
     void MountDatabases();
@@ -48,7 +57,25 @@ public:
     SqlDb::FailReason Mount(const std::filesystem::path &filePath, unsigned int priority);
     SqlDb::FailReason Mount(const std::string &fileName, unsigned int priority);
     bool Mount(EmuDb* database, unsigned int priority);
+
+    // The mount every other overload funnels into. openMode is honored as given, so a caller that
+    // must not write to the file can guarantee that at the SQLite level.
+    SqlDb::FailReason MountOwned(const std::filesystem::path &filePath, unsigned int priority,
+                                 const MountInfo &info, SqlDb::OpenMode openMode);
+
     bool Unmount(EmuDb* database);
+
+    const MountInfo* GetMountInfo(EmuDb* database) const;
+    bool IsLocked(EmuDb* database) const;
+
+    // The subset DatabaseDialog may write back to databases.mounted.
+    std::vector<EmuDb*> GetUserMountedDatabases();
+
+    // Finds a mount by the URL it was declared with; a plugin entry's staged copy may live
+    // anywhere, so it cannot be de-duplicated by path.
+    EmuDb* GetDbFromSourceUrl(const std::string &sourceUrl);
+
+    void UnmountDatabasesForPlugin(const std::string &identifier);
 
     EmuDb* GetMasterDatabase();
     std::vector<EmuDb*> GetMountedDatabases();
@@ -56,6 +83,18 @@ public:
     EmuDb* GetDbFromFilePath(const std::filesystem::path &path);
     EmuDb* GetDbFromFileName(const std::string &name);
     EmuDb* GetFirstDbWhereItemExists(ItemType type, int64_t id);
+
+    /**
+     * @brief The database a runtime write made on a player's behalf should go to: the one that owns
+     * the item, or the master database when that one refuses runtime writes (mounted read-only, or
+     * Mutable turned off).
+     *
+     * Falling back rather than failing is what makes read-only content usable: the write lands in the
+     * master database, which sits at index 0 and therefore shadows the original, so a plugin's
+     * shipped place can be published over and a shipped game can still use DataStores without its own
+     * file ever being touched. Null only when nothing mounted can accept the write.
+     */
+    EmuDb* GetWritableDbForItem(ItemType type, int64_t id);
 
     // hidden in-memory database that is lowest priority in asset lookups
     // used for adding temporary federated catalog items to the database
@@ -129,6 +168,7 @@ public:
 private:
     Core* mCore;
     std::vector<EmuDb*> mMountedDatabases;
+    std::map<EmuDb*, MountInfo> mMountInfo;         // parallel to mMountedDatabases; see MountInfo
     EmuDb* mTemporaryDatabase { nullptr };           // hidden lowest-priority scratch db (see GetTemporaryDatabase)
     std::map<std::string, int64_t> mMaterializedIds; // originKey -> synthetic id in the scratch db
     int64_t mNextSynthId { 1LL << 48 };              // synthetic-id allocator, well above any real Roblox asset id

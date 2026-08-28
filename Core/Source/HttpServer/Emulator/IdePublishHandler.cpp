@@ -127,13 +127,18 @@ void IdePublishHandler::HandleUploadNewAsset(evhttp_request *req) {
 
     EmuDbManager* dbm = mServer->GetCore()->GetEmuDbManager();
 
-    // Publish into the same database as the game currently being edited (set when its place was opened).
+    // Publish into the same database as the game currently being edited (set when its place was
+    // opened), unless it refuses writes, in which case the master database takes it and shadows it.
     EmuDb* db = nullptr;
     std::string activeDb = mServer->GetActiveEditDbFile();
     if (!activeDb.empty())
         db = dbm->GetDbFromFileName(activeDb);
+    if (db != nullptr && !db->AllowsRuntimeWrites())
+        db = nullptr;
     if (db == nullptr)
         db = dbm->GetMasterDatabase();
+    if (db != nullptr && !db->AllowsRuntimeWrites())
+        db = nullptr;
     if (db == nullptr) {
         evhttp_send_error(req, 500, "No database to publish to");
         return;
@@ -189,13 +194,19 @@ void IdePublishHandler::HandleUploadExistingAsset(evhttp_request *req) {
 
     EmuDbManager* dbm = mServer->GetCore()->GetEmuDbManager();
     EmuDb* db = dbm->GetFirstDbWhereItemExists(ItemType::Asset, assetId);
+    if (db != nullptr && !db->AllowsRuntimeWrites())
+        db = nullptr; // shipped read-only: overlay the new version from the master database instead
     if (db == nullptr) {
         std::string activeDb = mServer->GetActiveEditDbFile();
         if (!activeDb.empty())
             db = dbm->GetDbFromFileName(activeDb);
+        if (db != nullptr && !db->AllowsRuntimeWrites())
+            db = nullptr;
     }
     if (db == nullptr)
         db = dbm->GetMasterDatabase();
+    if (db != nullptr && !db->AllowsRuntimeWrites())
+        db = nullptr;
     if (db == nullptr) {
         evhttp_send_error(req, 500, "No database to publish to");
         return;

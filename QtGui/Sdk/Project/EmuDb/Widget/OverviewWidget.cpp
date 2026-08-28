@@ -174,7 +174,17 @@ void OverviewWidget::InitWidgets() {
     settingsMainLayout->addWidget(settingsLabel);
 
     auto *settingsContainerLayout = new QGridLayout();
-    settingsContainerLayout->addWidget(new QCheckBox("Mutable"), 0, 0);
+    mMutableCheckBox = new QCheckBox("Mutable");
+    mMutableCheckBox->setToolTip(
+        "Allow this database to be modified at runtime.\n\n"
+        "When off, the emulator mounts this database read-only: places published over it and any "
+        "DataStore writes go to the master database instead, which takes priority over this one. "
+        "The file itself is never written to.\n\n"
+        "This only affects the emulator. You can still edit the database here.");
+    connect(mMutableCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        mDatabase->SetMutable(checked);
+    });
+    settingsContainerLayout->addWidget(mMutableCheckBox, 0, 0);
     settingsMainLayout->addLayout(settingsContainerLayout);
 
     settingsBox->setLayout(settingsMainLayout);
@@ -227,5 +237,9 @@ void OverviewWidget::Refresh() {
     if (mAuthorField != nullptr) {
         QSignalBlocker blocker(mAuthorField);
         mAuthorField->setText(QString::fromStdString(mDatabase->GetAuthor()));
+    }
+    if (mMutableCheckBox != nullptr) {
+        QSignalBlocker blocker(mMutableCheckBox);
+        mMutableCheckBox->setChecked(mDatabase->IsMutable());
     }
 }

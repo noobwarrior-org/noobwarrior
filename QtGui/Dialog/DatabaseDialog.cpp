@@ -25,6 +25,7 @@
 #include "DatabaseDialog.h"
 #include "Application.h"
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/PluginManager.h>
 #include <filesystem>
 
 #include <QCloseEvent>
@@ -126,6 +127,19 @@ void DatabaseDialog::InitWidgets() {
     mGridLayout->addLayout(mBottomLayout, 1, 0, 1, 3);
 }
 
+// Mounts one row of the available list. A row carrying a source url is a database a plugin offered,
+// which the plugin manager has to mount so that the manifest decides how it is staged and opened;
+// everything else is a plain file the user picked.
+static void MountListItem(QListWidgetItem* item, unsigned int priority) {
+    Core* core = gApp->GetCore();
+    QVariant sourceUrl = item->data(EmuDbListWidget::SourceUrlRole);
+    if (sourceUrl.isValid() && !sourceUrl.toString().isEmpty()) {
+        core->GetPluginManager()->MountDeclaredDatabase(sourceUrl.toString().toStdString(), priority);
+        return;
+    }
+    core->GetEmuDbManager()->Mount(std::filesystem::path(item->toolTip().toStdString()), priority);
+}
+
 void DatabaseDialog::OnMoveOneRight() {
     QList<QListWidgetItem*> items = mAvailableList->selectedItems();
     if (items.isEmpty())
@@ -134,10 +148,8 @@ void DatabaseDialog::OnMoveOneRight() {
     mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
-    for (auto* item : items) {
-        std::filesystem::path filePath(item->toolTip().toStdString());
-        manager->Mount(filePath, priority++);
-    }
+    for (auto* item : items)
+        MountListItem(item, priority++);
 
     mAvailableList->Refresh();
     mSelectedList->Refresh();
@@ -149,10 +161,8 @@ void DatabaseDialog::OnMoveAllRight() {
     mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     unsigned int priority = static_cast<unsigned int>(manager->GetMountedDatabases().size());
-    for (int i = 0; i < mAvailableList->count(); i++) {
-        std::filesystem::path filePath(mAvailableList->item(i)->toolTip().toStdString());
-        manager->Mount(filePath, priority++);
-    }
+    for (int i = 0; i < mAvailableList->count(); i++)
+        MountListItem(mAvailableList->item(i), priority++);
 
     mAvailableList->Refresh();
     mSelectedList->Refresh();
@@ -167,6 +177,8 @@ void DatabaseDialog::OnMoveOneLeft() {
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     for (auto* db : dbs) {
         if (!db) continue;
+        if (manager->IsLocked(db))
+            continue; // a plugin requires this one; it is not the user's to unmount
         manager->Unmount(db);
         delete db;
     }
@@ -182,6 +194,8 @@ void DatabaseDialog::OnMoveAllLeft() {
         return;
     mDirty = true;
     for (auto* db : dbs) {
+        if (manager->IsLocked(db))
+            continue;
         manager->Unmount(db);
         delete db;
     }
@@ -194,10 +208,21 @@ void DatabaseDialog::OnSelectedOrderChanged() {
     mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     std::vector<EmuDb*> newOrder;
+    std::vector<EmuDb*> pluginOwned;
     for (int i = 0; i < mSelectedList->count(); i++) {
         EmuDb* db = reinterpret_cast<EmuDb*>(mSelectedList->item(i)->data(Qt::UserRole).value<quintptr>());
-        if (db) newOrder.push_back(db);
+        if (db == nullptr)
+            continue;
+        const EmuDbManager::MountInfo* info = manager->GetMountInfo(db);
+        if (info != nullptr && !info->OwnerPluginId.empty())
+            pluginOwned.push_back(db);
+        else
+            newOrder.push_back(db);
     }
+    // Plugin databases always sort after the user's, matching how they are mounted at startup. This
+    // is what keeps a plugin from ending up at index 0, where GetMasterDatabase() reads users, login
+    // sessions and forums from.
+    newOrder.insert(newOrder.end(), pluginOwned.begin(), pluginOwned.end());
     manager->SetMountOrder(newOrder);
 }
 
@@ -266,13 +291,26 @@ void DatabaseDialog::OnContextMenuRequested(const QPoint& pos) {
         list->clearSelection();
         clicked->setSelected(true);
     }
-    QList<QListWidgetItem*> items = list->selectedItems();
+    // A plugin's database is not the user's file to delete: it lives inside the plugin (or in a
+    // staged copy we own and would just recreate), so deleting it here is never the right action.
+    // Offer Delete only for the rows it can actually apply to, rather than showing a permanent-delete
+    // confirmation that then quietly does nothing.
+    QList<QListWidgetItem*> deletable;
+    for (auto* item : list->selectedItems()) {
+        if (!item->data(EmuDbListWidget::SourceUrlRole).isValid())
+            deletable.append(item);
+    }
 
     QMenu menu;
     QAction* deleteAction = menu.addAction(QIcon(":/images/silk/cross.png"), "Delete");
-    connect(deleteAction, &QAction::triggered, this, [this, items]() {
-        DeleteDatabases(items);
-    });
+    if (deletable.isEmpty()) {
+        deleteAction->setEnabled(false);
+        deleteAction->setText("Delete (provided by a plugin)");
+    } else {
+        connect(deleteAction, &QAction::triggered, this, [this, deletable]() {
+            DeleteDatabases(deletable);
+        });
+    }
     menu.exec(list->viewport()->mapToGlobal(pos));
 }
 
@@ -296,11 +334,18 @@ void DatabaseDialog::DeleteDatabases(const QList<QListWidgetItem*>& items) {
     mDirty = true;
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
     for (auto* item : items) {
+        EmuDb* db = reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>());
+        // A plugin's database is not the user's file to delete, and a required one is not theirs to
+        // unmount either. Its real file lives in the plugin (or a staged copy we own).
+        if (item->data(EmuDbListWidget::SourceUrlRole).isValid())
+            continue;
+        if (db != nullptr && manager->IsLocked(db))
+            continue;
+
         std::filesystem::path path(item->toolTip().toStdString());
         if (path.empty())
             continue;
 
-        EmuDb* db = reinterpret_cast<EmuDb*>(item->data(Qt::UserRole).value<quintptr>());
         if (db) {
             manager->Unmount(db);
             delete db;
@@ -363,17 +408,30 @@ void DatabaseDialog::RevertManager() {
     manager->UnmountDatabases();
     manager->MountDatabases();
     manager->MountMasterDbIfNotAlreadyMounted();
+    // UnmountDatabases() dropped the plugins' required databases along with everything else, and
+    // MountDatabases() only restores what the registry lists, so put them back.
+    gApp->GetCore()->GetPluginManager()->MountRequiredDatabases();
 }
 
 void DatabaseDialog::SaveToRegistry() {
     EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
-    std::vector<EmuDb*> mounted = manager->GetMountedDatabases();
 
     LuaState* lua = gApp->GetCore()->GetLuaState();
     sol::table mountedTbl = lua->create_table();
     int i = 1;
-    for (auto* db : mounted)
-        mountedTbl[i++] = db->GetFilePath().string();
+    // Walk the mount order once so the order the user dragged into is preserved. Only what the user
+    // actually chose is written: a plugin's required databases are skipped entirely (the plugin
+    // re-mounts them every launch), and an optional one the user opted into is stored as the url it
+    // was declared with rather than the path of its staged copy.
+    for (auto* db : manager->GetMountedDatabases()) {
+        const EmuDbManager::MountInfo* info = manager->GetMountInfo(db);
+        if (info == nullptr || info->OwnerPluginId.empty()) {
+            mountedTbl[i++] = db->GetFilePath().string();
+            continue;
+        }
+        if (!info->Locked)
+            mountedTbl[i++] = info->SourceUrl;
+    }
 
     gApp->GetCore()->GetRegistry()->SetKeyValue("databases.mounted", mountedTbl);
 }

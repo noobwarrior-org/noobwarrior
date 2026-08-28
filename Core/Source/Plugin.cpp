@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <fstream>
 #include <iterator>
 #include <limits>
 
@@ -209,6 +210,119 @@ std::string Plugin::GetFileName() {
 
 std::string Plugin::GetIdentifier() {
     return mManifestTbl.get_or<std::string>("identifier", "");
+}
+
+std::vector<Plugin::DeclaredDatabase> Plugin::GetDeclaredDatabases() {
+    std::vector<DeclaredDatabase> databases;
+    if (Fail())
+        return databases;
+
+    const std::string identifier = GetIdentifier();
+    auto databasesTbl = mManifestTbl.get<std::optional<sol::table>>("databases");
+    if (!databasesTbl)
+        return databases;
+
+    for (std::size_t i = 1; i <= databasesTbl->size(); i++) {
+        sol::object value = databasesTbl->get<sol::object>(i);
+        if (!value.is<sol::table>()) {
+            PLUGIN_OUT("Value in index {} in databases is not a table!", i)
+            continue;
+        }
+
+        sol::table entry = value.as<sol::table>();
+        auto url = entry.get<std::optional<std::string>>("url");
+        if (!url || url->empty()) {
+            PLUGIN_OUT("Value in index {} in databases has no url string!", i)
+            continue;
+        }
+
+        // Same resolution autorun uses, so a bare "databases/x.nwdb" means this plugin's own file
+        // while a full URL (userdata://...) still addresses whatever it names.
+        Url resolved(*url, {
+            .DefaultProtocolType = ProtocolType::Plugin,
+            .DefaultHostName = identifier
+        });
+        if (resolved.Fail()) {
+            PLUGIN_OUT("Url \"{}\" in databases index {} is not valid!", *url, i)
+            continue;
+        }
+
+        DeclaredDatabase declared;
+        declared.SourceUrl = resolved.Resolve();
+        declared.OwnerIdentifier = identifier;
+        declared.Required = entry.get<sol::optional<bool>>("required").value_or(false);
+        declared.Writable = entry.get<sol::optional<bool>>("writable").value_or(false);
+        databases.push_back(std::move(declared));
+    }
+
+    return databases;
+}
+
+bool Plugin::IsDirectoryBacked() {
+    // Matches how VirtualFileSystem::GetFormatFromPath picks a backend: a directory gets
+    // StdFileSystem (real paths on disk), anything else is treated as a zip.
+    std::error_code ec;
+    return std::filesystem::is_directory(mFilePath, ec) && !ec;
+}
+
+bool Plugin::ExtractFile(const std::string &path, const std::filesystem::path &destination) {
+    if (Fail() || mVfs == nullptr)
+        return false;
+
+    // Same normalization and traversal rejection as ReadFile; only the destination differs.
+    std::string normalized = path;
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    if (!normalized.starts_with('/'))
+        normalized.insert(normalized.begin(), '/');
+    if (normalized.find("/../") != std::string::npos || normalized.ends_with("/..") ||
+        !mVfs->EntryExists(normalized)) {
+        return false;
+    }
+
+    FSEntryInfo info = mVfs->GetEntryFromPath(normalized);
+    if (info.Failed || info.Type != FSEntryInfo::Type::File)
+        return false;
+
+    std::error_code ec;
+    std::filesystem::create_directories(destination.parent_path(), ec);
+
+    FSEntryHandle handle = mVfs->OpenHandle(normalized);
+    if (handle == 0)
+        return false;
+
+    std::ofstream out(destination, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        mVfs->CloseHandle(handle);
+        return false;
+    }
+
+    // Stream it: a shipped database can be hundreds of megabytes and there is no reason to hold a
+    // second copy of it in memory just to write it back out.
+    constexpr unsigned int kChunkSize = 1u << 20;
+    bool ok = true;
+    std::uintmax_t remaining = info.Size;
+    std::vector<unsigned char> chunk;
+    while (remaining > 0) {
+        unsigned int want = static_cast<unsigned int>(std::min<std::uintmax_t>(remaining, kChunkSize));
+        chunk.clear();
+        if (!mVfs->ReadHandleChunk(handle, &chunk, want) || chunk.empty()) {
+            ok = false;
+            break;
+        }
+        out.write(reinterpret_cast<const char*>(chunk.data()), static_cast<std::streamsize>(chunk.size()));
+        if (!out) {
+            ok = false;
+            break;
+        }
+        remaining -= chunk.size();
+    }
+
+    out.close();
+    mVfs->CloseHandle(handle);
+
+    if (!ok) // never leave a half-written database behind for something else to try to open
+        std::filesystem::remove(destination, ec);
+    return ok;
 }
 
 bool Plugin::ReadFile(const std::string &path, std::vector<unsigned char> *data) {

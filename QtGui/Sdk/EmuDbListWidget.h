@@ -37,11 +37,20 @@ public:
         Manual // Shows nothing, you add stuff manually
     };
 
+    static constexpr int SourceUrlRole = Qt::UserRole + 1;
+    static constexpr int LockedRole = Qt::UserRole + 2;
+
     EmuDbListWidget(Mode mode = Mode::ShowEntriesInDir, QWidget* parent = nullptr);
     ~EmuDbListWidget();
 
     void Refresh();
     void AddDatabase(EmuDb* db, bool isTemp = false);
+
+    // Adds a row for a database a plugin offers but has not mounted. Its title and icon are read
+    // out of the file by the caller, since there is no open EmuDb to ask.
+    void AddOfferedDatabase(const QString& title, const QString& sourceUrl, const QString& pluginTitle,
+                            const std::vector<unsigned char>& iconData = {});
+
     EmuDb* GetSelectedDatabase();
     QList<EmuDb*> GetSelectedDatabases();
 signals:

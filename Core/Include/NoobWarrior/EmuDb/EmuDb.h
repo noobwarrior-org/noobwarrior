@@ -58,7 +58,11 @@
  * version of the file format, but a set value by the author in order to
  * denote the version of the users project.
  * (Icon) A Base64 encoded string that contains a valid image file.
- * (Mutable) Allows the database to be modified by players during runtime.
+ * (Mutable) Allows the database to be modified by players during runtime. This is a policy flag,
+ * not a file permission: the emulator refuses runtime writes when it is off (see
+ * AllowsRuntimeWrites), and EmuDbManager opens such a database read-only when mounting it. The
+ * project editor deliberately opens its own read-write connection, so turning this off never locks
+ * you out of turning it back on.
  * (CompressionType) A boolean that corresponds to CompressionType enum.
  * If set with API, it will compress all binary blobs in the database using the
  * specified compression algorithm.
@@ -142,10 +146,54 @@ public:
 
     /**
      * @param autocommit Will enable SQLite's auto-commit feature if true; any writes you do to the database are immediately saved to disk. Set this to false if you are not using this in the context of a rapidly changing online database.
+     * @param openMode Opening read-only guarantees the file on disk is never touched. Migrations
+     * cannot run in that mode, so a read-only database whose schema is behind the current one fails
+     * with FailReason::ReadOnlyOutOfDate rather than being silently upgraded.
      */
-    EmuDb(const std::string &path = ":memory:", bool autocommit = true);
+    EmuDb(const std::string &path = ":memory:", bool autocommit = true,
+          OpenMode openMode = OpenMode::ReadWrite);
+
+    /**
+     * @brief Reads one Meta value straight out of a database file, without opening it as an EmuDb.
+     *
+     * Deliberately lighter than a real open: no migration, no FTS5 check, and a read-only connection,
+     * so it works on a database this build would refuse to mount and never modifies the file. Callers
+     * use it to describe a database they are not opening -- one a plugin is merely offering, or one
+     * whose open mode has not been decided yet. Empty when the file or key cannot be read.
+     */
+    static std::string ProbeMetaValue(const std::filesystem::path &path, const std::string &key);
+
+    /**
+     * @brief The title a database calls itself, for listing one that is not open. Empty if it has none.
+     */
+    static std::string ProbeTitle(const std::filesystem::path &path);
+
+    /**
+     * @brief The icon a database carries, decoded, for listing one that is not open. Empty if it has none.
+     */
+    static std::vector<unsigned char> ProbeIcon(const std::filesystem::path &path);
+
+    /**
+     * @brief Reads the Mutable meta flag of a database file without holding it open, so a caller can
+     * pick an open mode before opening it for real. Returns true (the permissive default) for
+     * anything it cannot read.
+     */
+    static bool ProbeIsMutable(const std::filesystem::path &path);
+
+    /**
+     * @brief The 256x256 image a database gets as its icon when it has none of its own. Exposed
+     * because a read-only database cannot be given one (writing is the whole thing it will not do),
+     * so callers that display an icon have to supply the same default themselves.
+     */
+    static std::vector<unsigned char> GetDefaultIconData();
 
     int GetMigrationVersion();
+
+    /**
+     * @brief True when every migration this build knows about is already recorded in the file.
+     * Used to decide whether a read-only database is safe to use, since it cannot be migrated.
+     */
+    bool IsSchemaUpToDate();
 
     SqlDb::Response SaveAs(const std::string &path);
 
@@ -162,6 +210,19 @@ public:
     void UnmarkDirty();
 
     std::string GetMigrationFailMsg();
+
+    /**
+     * @brief The Mutable meta flag: whether players are allowed to modify this database at runtime.
+     * Absent or unparseable means mutable, so databases predating the flag keep working.
+     */
+    bool IsMutable();
+    SqlDb::Response SetMutable(bool value);
+
+    /**
+     * @brief The single predicate emulator handlers should consult before writing to a database on a
+     * player's behalf: false when the database is opened read-only or has Mutable turned off.
+     */
+    bool AllowsRuntimeWrites();
 
     /* Meta functions */
     std::string GetMetaKeyValue(const std::string &key);

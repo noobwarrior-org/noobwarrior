@@ -75,9 +75,9 @@ void DataUploadHandler::OnRequest(evhttp_request *req, void *userdata) {
     // Studio may gzip the upload; store the raw rbxl (what /v1/asset must serve back).
     GunzipIfNeeded(body);
 
-    EmuDb* db = mEmuDbManager->GetFirstDbWhereItemExists(ItemType::Asset, assetId);
-    if (db == nullptr)
-        db = mEmuDbManager->GetMasterDatabase();
+    // Publishing over a place shipped read-only by a plugin writes the new version into the master
+    // database, which outranks the plugin's copy, so the original file is left alone.
+    EmuDb* db = mEmuDbManager->GetWritableDbForItem(ItemType::Asset, assetId);
     if (db == nullptr) {
         evhttp_send_error(req, 500, "No database to publish to");
         return;

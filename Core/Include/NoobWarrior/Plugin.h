@@ -56,6 +56,23 @@ public:
         bool IsPrivileged;
     };
 
+    /**
+     * @brief One entry of the manifest's `databases` array: an EmuDb the plugin ships or points at.
+     *
+     * A required entry is mounted for as long as the plugin is enabled and is locked in the Database
+     * dialog. A non-required entry is only *offered*: it shows up in the dialog's available list and
+     * the user opts in, which is then remembered by SourceUrl in databases.mounted.
+     */
+    struct DeclaredDatabase {
+        std::string SourceUrl;        // fully resolved, e.g. plugin://mygame@example.org/databases/x.nwdb
+        std::string OwnerIdentifier;  // the declaring plugin's identifier
+        bool Required { false };
+        // Writable entries are staged into plugindata so the emulator can write to them (a game
+        // database needs DataStore and publish writes); everything else mounts read-only, which for
+        // a directory plugin means straight off disk with no copy at all.
+        bool Writable { false };
+    };
+
     enum class Permission {
         NoSandbox
     };
@@ -90,7 +107,26 @@ public:
     std::string GetIdentifier();
 
     StudioServerBootstrap BuildStudioServerBootstrap(int64_t placeId, int64_t universeId);
+
+    /**
+     * @brief Parses the manifest's `databases` array. Malformed entries are logged and skipped rather
+     * than failing the plugin, matching how `datamodel` entries are handled.
+     */
+    std::vector<DeclaredDatabase> GetDeclaredDatabases();
+
     bool ReadFile(const std::string &path, std::vector<unsigned char> *data);
+
+    /**
+     * @brief Copies a file out of the plugin into a real path on disk, streaming it rather than
+     * buffering the whole thing, so that a large database does not have to fit in memory. Needed
+     * because SQLite cannot read out of a zipped plugin's virtual filesystem.
+     */
+    bool ExtractFile(const std::string &path, const std::filesystem::path &destination);
+
+    /**
+     * @brief True when the plugin is a directory, so its files are real paths SQLite can open.
+     */
+    bool IsDirectoryBacked();
 
     const Properties GetProperties();
 protected:

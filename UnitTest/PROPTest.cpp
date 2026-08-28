@@ -183,8 +183,8 @@ TEST(PROP, SequenceAndOptionalColumnsRoundTrip) {
     auto numberColumn = MakeColumn(PropertyType::NumberSequence, {numbers});
     ASSERT_TRUE(RoundTrip(numberColumn, decoded));
     ExpectValues<NumberSequence>(decoded, {numbers});
-
-    ColorSequence colors({{0.0f, Color3(1, 0, 0), 0.0f}, {1.0f, Color3(0, 0, 1), 0.0f}});
+    
+    ColorSequence colors({{0.0f, Color3(1, 0, 0), 0}, {1.0f, Color3(0, 0, 1), 0}});
     auto colorColumn = MakeColumn(PropertyType::ColorSequence, {colors});
     ASSERT_TRUE(RoundTrip(colorColumn, decoded));
     ExpectValues<ColorSequence>(decoded, {colors});

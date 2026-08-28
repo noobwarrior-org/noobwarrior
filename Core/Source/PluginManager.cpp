@@ -24,6 +24,7 @@
 // Description:
 #include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Paths.h>
 
@@ -142,12 +143,180 @@ void PluginManager::MountPlugins() {
     if (loaded > 0)
         Out("PluginManager", "Loaded all enabled plugins");
 
-    ExecutePlugins();
+    // Do not call ExecutePlugins() here. Core mounts the databases the manifests
+    // declare between the two steps, because plugin code expects to find them already mounted.
 }
 
 void PluginManager::ExecutePlugins() {
     for (Plugin* plugin : mMountedPlugins)
         plugin->Execute();
+}
+
+// Turns a declared entry into a real path SQLite can open, without ever modifying the plugin.
+// A writable copy is made exactly once and never refreshed afterwards, because by then it holds
+// things the user generated (DataStore values, published places) that a plugin update must not wipe.
+// Where a declared entry's file already is, without creating or extracting anything. Empty when
+// nothing exists yet, which is the normal case for a zip plugin nobody has mounted from.
+std::filesystem::path PluginManager::ResolveDeclaredDatabasePath(const Plugin::DeclaredDatabase &declared) {
+    Url url(declared.SourceUrl);
+    if (url.GetProtocol() != ProtocolType::Plugin) {
+        std::filesystem::path resolved = url.ResolveAsLocalPath(mCore);
+        return std::filesystem::exists(resolved) ? resolved : std::filesystem::path();
+    }
+
+    const std::string innerPath = url.ResolveAsPath();
+    Plugin *plugin = GetPluginFromIdentifier(declared.OwnerIdentifier);
+    if (plugin != nullptr && plugin->IsDirectoryBacked() && !declared.Writable) {
+        std::filesystem::path inPlace = plugin->GetFilePath() / std::filesystem::path(innerPath).relative_path();
+        if (std::filesystem::exists(inPlace))
+            return inPlace;
+    }
+
+    // Otherwise it only exists if it has been staged before.
+    std::filesystem::path staged = mCore->GetUserDataDir() / NW_PATH_PLUGINDATA /
+        declared.OwnerIdentifier / "db" / std::filesystem::path(innerPath).filename();
+    return std::filesystem::exists(staged) ? staged : std::filesystem::path();
+}
+
+static bool StageDatabase(Core *core, Plugin *plugin, const Plugin::DeclaredDatabase &declared,
+                          std::filesystem::path *pathOutput, SqlDb::OpenMode *openModeOutput) {
+    Url url(declared.SourceUrl);
+    const std::string innerPath = url.ResolveAsPath();
+
+    // Anything that is not addressing the plugin's own contents (userdata://, file://, ...) already
+    // names a real file, so there is nothing to stage.
+    if (url.GetProtocol() != ProtocolType::Plugin) {
+        std::filesystem::path resolved = url.ResolveAsLocalPath(core);
+        if (resolved.empty() || !std::filesystem::exists(resolved))
+            return false;
+        *pathOutput = resolved;
+        *openModeOutput = declared.Writable ? SqlDb::OpenMode::ReadWrite : SqlDb::OpenMode::ReadOnly;
+        return true;
+    }
+
+    if (plugin == nullptr || plugin->GetVfs() == nullptr || !plugin->GetVfs()->EntryExists(innerPath)) {
+        Out("PluginManager", "Plugin \"{}\" declares database \"{}\" but it does not exist in the plugin",
+            declared.OwnerIdentifier, declared.SourceUrl);
+        return false;
+    }
+
+    if (plugin->IsDirectoryBacked() && !declared.Writable) {
+        // The whole point of the read-only default: no copy, no disk cost, file untouched.
+        *pathOutput = plugin->GetFilePath() / std::filesystem::path(innerPath).relative_path();
+        *openModeOutput = SqlDb::OpenMode::ReadOnly;
+        return true;
+    }
+
+    // Everything else needs a real file of its own in the user's data directory. SQLite cannot read
+    // out of a zip at all, and a writable database must not be the plugin's own copy.
+    std::filesystem::path staged = core->GetUserDataDir() / NW_PATH_PLUGINDATA /
+        declared.OwnerIdentifier / "db" / std::filesystem::path(innerPath).filename();
+
+    bool needsExtract = !std::filesystem::exists(staged);
+    if (!needsExtract && !declared.Writable) {
+        // Safe to refresh a read-only staged copy, since nothing the user cares about lives in it.
+        std::error_code ec;
+        auto stagedTime = std::filesystem::last_write_time(staged, ec);
+        auto sourceTime = std::filesystem::last_write_time(plugin->GetFilePath(), ec);
+        if (!ec && sourceTime > stagedTime)
+            needsExtract = true;
+    }
+
+    if (needsExtract) {
+        Out("PluginManager", "Staging database \"{}\" for plugin \"{}\"",
+            std::filesystem::path(innerPath).filename().string(), declared.OwnerIdentifier);
+        if (!plugin->ExtractFile(innerPath, staged)) {
+            Out("PluginManager", "Failed to stage database \"{}\" for plugin \"{}\"",
+                declared.SourceUrl, declared.OwnerIdentifier);
+            return false;
+        }
+    }
+
+    *pathOutput = staged;
+    *openModeOutput = declared.Writable ? SqlDb::OpenMode::ReadWrite : SqlDb::OpenMode::ReadOnly;
+    return true;
+}
+
+// Mounts one already-resolved entry. Shared by the required pass and the opt-in registry path.
+static bool MountDeclared(Core *core, Plugin *plugin, const Plugin::DeclaredDatabase &declared,
+                          unsigned int priority) {
+    EmuDbManager *manager = core->GetEmuDbManager();
+    if (manager->GetDbFromSourceUrl(declared.SourceUrl) != nullptr)
+        return false; // already mounted
+
+    std::filesystem::path path;
+    SqlDb::OpenMode openMode = SqlDb::OpenMode::ReadOnly;
+    if (!StageDatabase(core, plugin, declared, &path, &openMode))
+        return false;
+
+    // A database asking not to be written to at runtime overrides the plugin's writable request.
+    if (openMode == SqlDb::OpenMode::ReadWrite && !EmuDb::ProbeIsMutable(path))
+        openMode = SqlDb::OpenMode::ReadOnly;
+
+    EmuDbManager::MountInfo info;
+    info.OwnerPluginId = declared.OwnerIdentifier;
+    info.SourceUrl = declared.SourceUrl;
+    info.Locked = declared.Required;
+
+    SqlDb::FailReason reason = manager->MountOwned(path, priority, info, openMode);
+    if (reason != SqlDb::FailReason::None) {
+        Out("PluginManager", "Failed to mount database \"{}\" declared by plugin \"{}\"{}",
+            declared.SourceUrl, declared.OwnerIdentifier,
+            reason == SqlDb::FailReason::ReadOnlyOutOfDate
+                ? ": its schema is out of date and it was mounted read-only. Set writable = true in "
+                  "the manifest, or open it once in noobWarrior to upgrade it."
+                : "");
+        return false;
+    }
+    return true;
+}
+
+void PluginManager::MountRequiredDatabases() {
+    EmuDbManager *manager = mCore->GetEmuDbManager();
+    for (Plugin *plugin : mMountedPlugins) {
+        for (const Plugin::DeclaredDatabase &declared : plugin->GetDeclaredDatabases()) {
+            if (!declared.Required)
+                continue;
+            // Append, so a plugin database can never displace the master database at index 0.
+            MountDeclared(mCore, plugin, declared,
+                static_cast<unsigned int>(manager->GetMountedDatabases().size()));
+        }
+    }
+}
+
+bool PluginManager::MountDeclaredDatabase(const std::string &sourceUrl, unsigned int priority) {
+    Plugin *plugin = GetPluginFromUrl(Url(sourceUrl));
+    if (plugin == nullptr) {
+        Out("PluginManager", "Ignoring mounted database \"{}\": no such plugin is enabled", sourceUrl);
+        return false;
+    }
+
+    for (const Plugin::DeclaredDatabase &declared : plugin->GetDeclaredDatabases()) {
+        if (declared.SourceUrl != sourceUrl)
+            continue;
+        if (declared.Required)
+            return false; // MountRequiredDatabases() owns these; do not mount one twice
+        return MountDeclared(mCore, plugin, declared, priority);
+    }
+
+    Out("PluginManager", "Ignoring mounted database \"{}\": plugin \"{}\" no longer declares it",
+        sourceUrl, plugin->GetIdentifier());
+    return false;
+}
+
+std::vector<Plugin::DeclaredDatabase> PluginManager::GetOfferedDatabases() {
+    std::vector<Plugin::DeclaredDatabase> offered;
+    EmuDbManager *manager = mCore->GetEmuDbManager();
+    for (Plugin *plugin : mMountedPlugins) {
+        for (const Plugin::DeclaredDatabase &declared : plugin->GetDeclaredDatabases()) {
+            if (declared.Required)
+                continue;
+            if (manager->GetDbFromSourceUrl(declared.SourceUrl) != nullptr)
+                continue;
+            offered.push_back(declared);
+        }
+    }
+    return offered;
 }
 
 StudioServerBootstrap PluginManager::BuildStudioServerBootstrap(int64_t placeId, int64_t universeId) {

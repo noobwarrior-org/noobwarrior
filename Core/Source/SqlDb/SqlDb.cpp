@@ -30,22 +30,29 @@
 
 using namespace NoobWarrior;
 
-SqlDb::SqlDb(const std::string &path, const std::string &logName) :
+SqlDb::SqlDb(const std::string &path, const std::string &logName, OpenMode openMode) :
     mLogName(logName),
     mDb(nullptr),
     mFailReason(FailReason::Uninitialized),
     mPath(path),
+    mOpenMode(openMode),
     mThisIsANewFileOnDisk(false)
 {
     if (!IsMemory() && !std::filesystem::exists(path)) {
+        if (mOpenMode == OpenMode::ReadOnly) {
+            Out("Failed to open: file does not exist and the database was opened read-only");
+            mFailReason = FailReason::CantOpen;
+            return;
+        }
         std::ofstream out(path, std::ios::app); // create dummy file
         if (out.is_open()) {
             mThisIsANewFileOnDisk = true;
             out.close();
         }
     }
-
-    int val = sqlite3_open_v2(path.c_str(), &mDb, SQLITE_OPEN_READWRITE, nullptr);
+    
+    int val = sqlite3_open_v2(path.c_str(), &mDb,
+        mOpenMode == OpenMode::ReadOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE, nullptr);
 
     switch (val) {
     case SQLITE_OK: Out("Opened"); break;
@@ -78,6 +85,10 @@ bool SqlDb::SetPragma(const std::string &key, const std::string &val) {
 
 bool SqlDb::IsMemory() {
 	return mPath.compare(":memory:") == 0;
+}
+
+bool SqlDb::IsReadOnly() {
+    return mOpenMode == OpenMode::ReadOnly;
 }
 
 int SqlDb::GetLastError() {

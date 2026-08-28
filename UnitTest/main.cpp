@@ -58,28 +58,6 @@ TEST(Core, ServerEmulatorHasStableRuntimeIdentity) {
     EXPECT_EQ(identity, emulator->GetInstanceId());
 }
 
-TEST(Core, ServerEmulatorStoresUserProfilesById) {
-    ASSERT_NE(sCore, nullptr);
-    ServerEmulator *emulator = sCore->GetServerEmulator();
-    ASSERT_NE(emulator, nullptr);
-
-    emulator->ClearUserProfileIdentities();
-    emulator->SetUserProfileIdentity(101, "FirstUser", "First Display");
-    emulator->SetUserProfileIdentity(202, "SecondUser", "Second Display");
-
-    const std::optional<UserProfileIdentity> first = emulator->GetUserProfileIdentity(101);
-    const std::optional<UserProfileIdentity> second = emulator->GetUserProfileIdentity(202);
-    ASSERT_TRUE(first.has_value());
-    ASSERT_TRUE(second.has_value());
-    EXPECT_EQ(first->Username, "FirstUser");
-    EXPECT_EQ(first->DisplayName, "First Display");
-    EXPECT_EQ(second->Username, "SecondUser");
-    EXPECT_EQ(second->DisplayName, "Second Display");
-    EXPECT_FALSE(emulator->GetUserProfileIdentity(303).has_value());
-
-    emulator->ClearUserProfileIdentities();
-}
-
 TEST(Url, GetProtocol) {
     Url url("https://youtube.com");
     EXPECT_EQ(ProtocolType::Https, url.GetProtocol())

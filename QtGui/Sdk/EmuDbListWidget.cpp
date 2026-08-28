@@ -27,7 +27,11 @@
 #include "../Application.h"
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
+#include <NoobWarrior/Plugin.h>
+#include <NoobWarrior/PluginManager.h>
+#include <NoobWarrior/Url.h>
 #include <QDir>
+#include <QFont>
 #include <QFileInfo>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
@@ -36,6 +40,18 @@
 #include <QUrl>
 
 using namespace NoobWarrior;
+
+static QIcon DatabaseIcon(const std::vector<unsigned char> &iconData) {
+    QPixmap pixmap;
+    if (!iconData.empty() &&
+        pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size())))
+        return QIcon(pixmap);
+
+    const std::vector<unsigned char> fallback = EmuDb::GetDefaultIconData();
+    if (pixmap.loadFromData(fallback.data(), static_cast<uint>(fallback.size())))
+        return QIcon(pixmap);
+    return QIcon(":/images/silk/database.png");
+}
 
 EmuDbListWidget::EmuDbListWidget(Mode mode, QWidget* parent) : QListWidget(parent),
     mMode(mode)
@@ -68,7 +84,7 @@ void EmuDbListWidget::Refresh() {
         installDir.setNameFilters(filters);
         userDir.setNameFilters(filters);
 
-        QFileInfoList installFileList = userDir.entryInfoList(QDir::Files);
+        QFileInfoList installFileList = installDir.entryInfoList(QDir::Files);
         for (const QFileInfo& fileInfo : installFileList) {
             EmuDb db(fileInfo.absoluteFilePath().toStdString(), false);
             AddDatabase(&db, true);
@@ -87,7 +103,24 @@ void EmuDbListWidget::Refresh() {
         }
     } else if (mMode == Mode::ShowNotMounted) {
         EmuDbManager *manager = gApp->GetCore()->GetEmuDbManager();
-        std::vector<EmuDb*> dbs = manager->GetMountedDatabases();
+        PluginManager *plugins = gApp->GetCore()->GetPluginManager();
+
+        // Databases a plugin offers but that nobody has opted into yet. Listed first because they
+        // have no file in the databases folder for the loops below to find.
+        for (const Plugin::DeclaredDatabase &offered : plugins->GetOfferedDatabases()) {
+            Plugin *owner = plugins->GetPluginFromIdentifier(offered.OwnerIdentifier);
+            // The database is not mounted, so read its title and icon straight out of the file. A
+            // zip plugin nobody has mounted from has nothing on disk yet; that falls back to the
+            // file name.
+            std::filesystem::path path = plugins->ResolveDeclaredDatabasePath(offered);
+            QString title = QString::fromStdString(EmuDb::ProbeTitle(path));
+            if (title.isEmpty())
+                title = QString::fromStdString(Url(offered.SourceUrl).GetFileName());
+            QString pluginTitle = QString::fromStdString(
+                owner != nullptr ? owner->GetProperties().Title : offered.OwnerIdentifier);
+            AddOfferedDatabase(title, QString::fromStdString(offered.SourceUrl), pluginTitle,
+                               EmuDb::ProbeIcon(path));
+        }
 
         std::filesystem::path installDbPath = gApp->GetCore()->GetInstallDataDir() / NW_PATH_DATABASES;
         std::filesystem::path userDbPath = gApp->GetCore()->GetUserDataDir() / NW_PATH_DATABASES;
@@ -125,18 +158,14 @@ void EmuDbListWidget::Refresh() {
 void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
     if (db->Fail())
         return;
-    QIcon icon;
-    std::vector<unsigned char> iconData = db->GetIcon();
-    if (!iconData.empty()) {
-        QPixmap pixmap;
-        pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
-        icon = QIcon(pixmap);
-    } else {
-        icon = QIcon(":/images/silk/database.png");
-    }
+    QIcon icon = DatabaseIcon(db->GetIcon());
 
     QString fileName = QString::fromStdString(db->GetFileName());
     QString filePath = QString::fromStdString(db->GetFilePath().string());
+
+    // A throwaway EmuDb is not mounted, so it has no ownership to look up.
+    EmuDbManager *manager = gApp->GetCore()->GetEmuDbManager();
+    const EmuDbManager::MountInfo *info = isTemp ? nullptr : manager->GetMountInfo(db);
 
     QString title = QString::fromStdString(db->GetTitle());
     if (title.isEmpty())
@@ -146,6 +175,36 @@ void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
     if (!isTemp)
         item->setData(Qt::UserRole, QVariant::fromValue(reinterpret_cast<quintptr>(db)));
     item->setToolTip(filePath);
+
+    if (info == nullptr || info->OwnerPluginId.empty())
+        return;
+
+    item->setData(SourceUrlRole, QString::fromStdString(info->SourceUrl));
+    item->setData(LockedRole, info->Locked);
+    item->setToolTip(QString("%1\n\nProvided by plugin \"%2\"%3")
+        .arg(filePath)
+        .arg(QString::fromStdString(info->OwnerPluginId))
+        .arg(info->Locked ? "\nThis plugin requires it, so it cannot be removed here." : ""));
+
+    if (info->Locked) {
+        // Same treatment PluginListWidget gives privileged plugins: visible, but not the user's to
+        // move or delete.
+        QFont itemFont = item->font();
+        itemFont.setItalic(true);
+        item->setFont(itemFont);
+        item->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
+        item->setFlags(item->flags() & ~Qt::ItemIsDragEnabled);
+    }
+}
+
+void EmuDbListWidget::AddOfferedDatabase(const QString& title, const QString& sourceUrl,
+                                         const QString& pluginTitle,
+                                         const std::vector<unsigned char>& iconData) {
+    auto* item = new QListWidgetItem(DatabaseIcon(iconData), title, this);
+    // No Qt::UserRole: nothing is mounted yet, so there is no EmuDb to point at. DatabaseDialog
+    // mounts these through the source url instead.
+    item->setData(SourceUrlRole, sourceUrl);
+    item->setToolTip(QString("%1\n\nOffered by plugin \"%2\"").arg(sourceUrl).arg(pluginTitle));
 }
 
 EmuDb* EmuDbListWidget::GetSelectedDatabase() {

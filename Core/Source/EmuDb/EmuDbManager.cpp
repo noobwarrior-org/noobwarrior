@@ -29,12 +29,15 @@
 #include "NoobWarrior/EmuDb/ContentImages.h"
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
+#include <NoobWarrior/PluginManager.h>
 #include <NoobWarrior/Registry.h>
+#include <NoobWarrior/Url.h>
 #include <NoobWarrior/NoobWarrior.h>
 
 #include <sol/sol.hpp>
 
 #include <algorithm>
+#include <format>
 #include <unordered_set>
 #include <vector>
 
@@ -56,9 +59,21 @@ void EmuDbManager::MountDatabases() {
             break;
         if (!val.is<std::string>())
             continue;
-        if (!std::filesystem::exists(val.as<std::string>()))
+        std::string entry = val.as<std::string>();
+
+        // An entry carrying a protocol is a database a plugin offered and the user opted into. It is
+        // stored as a URL rather than a path because the file it resolves to may be a staged copy,
+        // and because the plugin can move between the install and user directories.
+        if (Url(entry).DoesStringHaveProtocol()) {
+            if (mCore->GetPluginManager()->MountDeclaredDatabase(entry, filePriority))
+                filePriority++;
             continue;
-        Mount(std::filesystem::path(val.as<std::string>()), filePriority++);
+        }
+
+        if (!std::filesystem::exists(entry))
+            continue;
+        if (Mount(std::filesystem::path(entry), filePriority) == SqlDb::FailReason::None)
+            filePriority++;
     }
 }
 
@@ -68,6 +83,7 @@ void EmuDbManager::UnmountDatabases() {
         NOOBWARRIOR_FREE_PTR(db)
     }
     mMountedDatabases.clear();
+    mMountInfo.clear();
     ClearTemporaryDatabase(); // the scratch db's materialized items are meaningless without the mount set
 }
 
@@ -158,25 +174,38 @@ SqlDb::Response EmuDbManager::MountMasterDbIfNotAlreadyMounted() {
     return SqlDb::Response::DidNothing;
 }
 
-SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
-    auto *database = new EmuDb(filePath.string(), true);
-    if (database->Fail()) return database->GetFailReason();
+SqlDb::FailReason EmuDbManager::MountOwned(const std::filesystem::path &filePath, unsigned int priority,
+                                           const MountInfo &info, SqlDb::OpenMode openMode) {
+    auto *database = new EmuDb(filePath.string(), true, openMode);
+    if (database->Fail()) {
+        SqlDb::FailReason reason = database->GetFailReason();
+        NOOBWARRIOR_FREE_PTR(database)
+        return reason;
+    }
     mMountedDatabases.insert(
         mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
         database);
-    Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
-    return database->GetFailReason();
+    mMountInfo[database] = info;
+    Out("EmuDbManager", "Mounted database \"{}\"{}{}", database->GetFileName(),
+        database->IsReadOnly() ? " (read-only)" : "",
+        info.OwnerPluginId.empty() ? "" : std::format(" for plugin \"{}\"", info.OwnerPluginId));
+    return SqlDb::FailReason::None;
+}
+
+// A database whose Mutable flag is off asks not to be written to at runtime, so honor that at the
+// SQLite level rather than trusting every write path to check. The flag lives inside the file, so it
+// has to be probed on a separate connection before deciding how to open it for real.
+static SqlDb::OpenMode OpenModeForUserMount(const std::filesystem::path &filePath) {
+    return EmuDb::ProbeIsMutable(filePath) ? SqlDb::OpenMode::ReadWrite : SqlDb::OpenMode::ReadOnly;
+}
+
+SqlDb::FailReason EmuDbManager::Mount(const std::filesystem::path &filePath, unsigned int priority) {
+    return MountOwned(filePath, priority, MountInfo {}, OpenModeForUserMount(filePath));
 }
 
 SqlDb::FailReason EmuDbManager::Mount(const std::string &dbName, unsigned int priority) {
     std::filesystem::path absolutePath = mCore->GetUserDataDir() / NW_PATH_DATABASES / (dbName + ".nwdb");
-    auto *database = new EmuDb(absolutePath.string(), true);
-    if (database->Fail()) return database->GetFailReason();
-    mMountedDatabases.insert(
-        mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
-        database);
-    Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
-    return database->GetFailReason();
+    return MountOwned(absolutePath, priority, MountInfo {}, OpenModeForUserMount(absolutePath));
 }
 
 bool EmuDbManager::Mount(EmuDb* database, unsigned int priority) {
@@ -186,6 +215,7 @@ bool EmuDbManager::Mount(EmuDb* database, unsigned int priority) {
     mMountedDatabases.insert(
         mMountedDatabases.begin() + std::min(static_cast<size_t>(priority), mMountedDatabases.size()),
         database);
+    mMountInfo[database] = MountInfo {};
     Out("EmuDbManager", "Mounted database \"{}\"", database->GetFileName());
     return true;
 }
@@ -195,8 +225,54 @@ bool EmuDbManager::Unmount(EmuDb* database) {
     if (it == mMountedDatabases.end())
         return false;
     mMountedDatabases.erase(it);
+    mMountInfo.erase(database);
     Out("EmuDbManager", "Unmounted database \"{}\"", database->GetFileName());
     return true;
+}
+
+const EmuDbManager::MountInfo* EmuDbManager::GetMountInfo(EmuDb* database) const {
+    auto it = mMountInfo.find(database);
+    return it != mMountInfo.end() ? &it->second : nullptr;
+}
+
+bool EmuDbManager::IsLocked(EmuDb* database) const {
+    const MountInfo *info = GetMountInfo(database);
+    return info != nullptr && info->Locked;
+}
+
+std::vector<EmuDb*> EmuDbManager::GetUserMountedDatabases() {
+    std::vector<EmuDb*> databases;
+    for (auto *db : mMountedDatabases) {
+        const MountInfo *info = GetMountInfo(db);
+        if (info == nullptr || info->OwnerPluginId.empty())
+            databases.push_back(db);
+    }
+    return databases;
+}
+
+EmuDb* EmuDbManager::GetDbFromSourceUrl(const std::string &sourceUrl) {
+    if (sourceUrl.empty())
+        return nullptr;
+    for (auto *db : mMountedDatabases) {
+        const MountInfo *info = GetMountInfo(db);
+        if (info != nullptr && info->SourceUrl == sourceUrl)
+            return db;
+    }
+    return nullptr;
+}
+
+void EmuDbManager::UnmountDatabasesForPlugin(const std::string &identifier) {
+    // Collect first: Unmount() erases from the vector we would otherwise be iterating.
+    std::vector<EmuDb*> owned;
+    for (auto *db : mMountedDatabases) {
+        const MountInfo *info = GetMountInfo(db);
+        if (info != nullptr && info->OwnerPluginId == identifier)
+            owned.push_back(db);
+    }
+    for (auto *db : owned) {
+        Unmount(db);
+        NOOBWARRIOR_FREE_PTR(db)
+    }
 }
 
 EmuDb *EmuDbManager::GetMasterDatabase() {
@@ -209,6 +285,11 @@ std::vector<EmuDb*> EmuDbManager::GetMountedDatabases() {
 
 void EmuDbManager::SetMountOrder(const std::vector<EmuDb*>& order) {
     mMountedDatabases = order;
+    // Anything the caller dropped is no longer mounted, and a stale entry would make
+    // GetMountInfo() answer for a database that is not in the list.
+    std::erase_if(mMountInfo, [&order](const auto &entry) {
+        return std::find(order.begin(), order.end(), entry.first) == order.end();
+    });
 }
 
 EmuDb* EmuDbManager::GetDbFromFilePath(const std::filesystem::path &path) {
@@ -252,6 +333,22 @@ SqlDb::Response EmuDbManager::RetrieveAssetDataHash(int64_t id, int version, std
             return res;
     }
     return SqlDb::Response::NotFound;
+}
+
+EmuDb* EmuDbManager::GetWritableDbForItem(ItemType type, int64_t id) {
+    EmuDb *owner = GetFirstDbWhereItemExists(type, id);
+    if (owner != nullptr && owner->AllowsRuntimeWrites())
+        return owner;
+
+    EmuDb *master = GetMasterDatabase();
+    if (master != nullptr && !master->AllowsRuntimeWrites())
+        return nullptr;
+
+    if (owner != nullptr && master != nullptr && owner != master) {
+        Out("EmuDbManager", "Database \"{}\" does not accept runtime writes; writing to \"{}\" instead",
+            owner->GetFileName(), master->GetFileName());
+    }
+    return master;
 }
 
 SqlDb::Response EmuDbManager::RetrieveAssetData(int64_t id, int version, std::vector<unsigned char> *dataOutput, std::string *hashOutput) {

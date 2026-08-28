@@ -6,6 +6,7 @@ add_executable(NoobWarrior.UnitTest)
 target_sources(NoobWarrior.UnitTest PRIVATE
     main.cpp
     PluginDataModelTest.cpp
+    PluginDatabaseTest.cpp
     BinaryFileIoTest.cpp
     BinaryFileChunkTest.cpp
     BinaryRobloxFileTest.cpp
@@ -16,6 +17,7 @@ target_sources(NoobWarrior.UnitTest PRIVATE
     PluginPlanFidelityTest.cpp
     XmlPropertyTokensTest.cpp
     XmlRobloxFileTest.cpp
+    ZipFileSystemTest.cpp
     ChunkTableTest.cpp
     INSTTest.cpp
     PRNTTest.cpp

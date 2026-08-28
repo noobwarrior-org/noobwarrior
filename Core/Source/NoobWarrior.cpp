@@ -135,8 +135,16 @@ Core::Core(Init init) :
         Out("Core", "One of the virtual file systems failed to initialize. Continuing...");
     }
 
+    // Manifests are parsed first so a plugin:// entry in databases.mounted can resolve, but plugin
+    // databases mount after the user's so none can take index 0 from the master database.
+    if (mInit.LoadPlugins)
+        GetPluginManager()->MountPlugins();
+
     GetEmuDbManager()->MountDatabases();
     GetEmuDbManager()->MountMasterDbIfNotAlreadyMounted();
+
+    if (mInit.LoadPlugins)
+        GetPluginManager()->MountRequiredDatabases();
 
     mServerEmulator = new ServerEmulator(this);
     mLuaState->set("emu", mServerEmulator);
@@ -152,8 +160,8 @@ Core::Core(Init init) :
         AutocreateCert();
 
     if (mInit.LoadPlugins)
-        GetPluginManager()->MountPlugins();
-    
+        GetPluginManager()->ExecutePlugins();
+
     if (mInit.AutoStartServerEmulator &&
         (GetRegistry() == nullptr || GetRegistry()->GetKeyValue<bool>("emu.autostart").value_or(true)))
         StartServerEmulator();

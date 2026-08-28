@@ -43,15 +43,51 @@ public:
 
     void Unmount(Plugin* plugin);
 
+    /**
+     * @brief Mounts every enabled plugin, which parses their manifests but does not run any of their
+     * code. Core calls ExecutePlugins() separately and later, so that the databases the manifests
+     * declare can be mounted in between (plugin code expects them to already be there).
+     */
     void MountPlugins();
     void UnmountPlugins();
 
     /**
      * @brief Runs the autorun code of every currently-mounted plugin, in the order they were
-     * mounted. Called by MountPlugins() once all plugins are mounted so that plugin code can rely on
-     * every other plugin already being available.
+     * mounted. Called once all plugins are mounted so that plugin code can rely on every other
+     * plugin already being available.
      */
     void ExecutePlugins();
+
+    /**
+     * @brief Mounts every `required` database declared by a mounted plugin that is not already
+     * mounted, appending each at the end of the mount order.
+     *
+     * Appending matters: GetMasterDatabase() is the mount at index 0 and holds users, login sessions
+     * and forums, so a plugin's database must never land ahead of it. Call this only after
+     * EmuDbManager::MountDatabases() and MountMasterDbIfNotAlreadyMounted().
+     */
+    void MountRequiredDatabases();
+
+    /**
+     * @brief Mounts one declared database by the url it was declared with, used for the optional
+     * entries a user has opted into via databases.mounted. The entry is looked up in the owning
+     * plugin's manifest rather than trusted from the registry, so a stale entry for a database the
+     * plugin no longer declares is skipped instead of being mounted with the wrong settings.
+     */
+    bool MountDeclaredDatabase(const std::string &sourceUrl, unsigned int priority);
+
+    /**
+     * @brief Every non-required declared database that is not currently mounted, i.e. the ones to
+     * offer the user in the Database dialog.
+     */
+    std::vector<Plugin::DeclaredDatabase> GetOfferedDatabases();
+
+    /**
+     * @brief Where a declared database's file already is on disk, without staging or creating
+     * anything. Empty when nothing exists yet -- normal for a zip plugin nobody has mounted from.
+     * Lets a caller describe an offered database without mounting it.
+     */
+    std::filesystem::path ResolveDeclaredDatabasePath(const Plugin::DeclaredDatabase &declared);
 
     StudioServerBootstrap BuildStudioServerBootstrap(int64_t placeId, int64_t universeId);
 

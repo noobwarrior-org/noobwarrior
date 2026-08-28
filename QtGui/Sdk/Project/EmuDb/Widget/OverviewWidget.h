@@ -28,6 +28,7 @@
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <QWidget>
 
+class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
@@ -51,5 +52,6 @@ private:
     QPlainTextEdit *mDescriptionField = nullptr;
     QLineEdit *mVersionField = nullptr;
     QLineEdit *mAuthorField = nullptr;
+    QCheckBox *mMutableCheckBox = nullptr;
 };
 }

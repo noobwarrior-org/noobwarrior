@@ -446,10 +446,9 @@ DataStorePersistenceHandler::DataStorePersistenceHandler(HttpServer *srv, EmuDbM
     : mHttpServer(srv), mEmuDbManager(dbm) {}
 
 EmuDb *DataStorePersistenceHandler::SelectDb(int64_t universeId) {
-    EmuDb *db = mEmuDbManager->GetFirstDbWhereItemExists(ItemType::Universe, universeId);
-    if (db == nullptr)
-        db = mEmuDbManager->GetMasterDatabase();
-    return db;
+    // Player data must never be written into a database that refuses runtime writes, so a universe
+    // shipped read-only by a plugin stores its DataStore values in the master database instead.
+    return mEmuDbManager->GetWritableDbForItem(ItemType::Universe, universeId);
 }
 
 int64_t DataStorePersistenceHandler::ResolveUniverseFromHeaders(evhttp_request *req) {

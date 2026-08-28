@@ -312,6 +312,13 @@ void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, i
     EmuDb* db = mServerEmulator->GetCore()->GetEmuDbManager()->GetDbFromFilePath(std::filesystem::path(dbFilePath));
     if (db == nullptr)
         return;
+    
+    if (!db->AllowsRuntimeWrites()) {
+        Out("AssetHandler", "Asset Grab Mode target \"{}\" cannot be written to ({}). Pick a different "
+            "database, or turn its Mutable setting back on in the database editor's Overview tab.",
+            dbFilePath, db->IsReadOnly() ? "it is mounted read-only" : "its Mutable setting is off");
+        return;
+    }
 
     Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
 

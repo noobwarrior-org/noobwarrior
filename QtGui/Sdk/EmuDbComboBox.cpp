@@ -25,6 +25,8 @@
 #include "EmuDbComboBox.h"
 #include "Application.h"
 
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
+
 #include <QDir>
 #include <QFileInfoList>
 
@@ -111,15 +113,13 @@ void EmuDbComboBox::Refresh() {
 void EmuDbComboBox::AddDatabase(EmuDb* db, bool isTemp) {
     if (db->Fail())
         return;
-    QIcon icon;
+    QIcon icon(":/images/silk/database.png");
     std::vector<unsigned char> iconData = db->GetIcon();
-    if (!iconData.empty()) {
-        QPixmap pixmap;
-        pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size()));
+    if (iconData.empty())
+        iconData = EmuDb::GetDefaultIconData();
+    QPixmap pixmap;
+    if (pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size())))
         icon = QIcon(pixmap);
-    } else {
-        icon = QIcon(":/images/silk/database.png");
-    }
 
     QString fileName = QString::fromStdString(db->GetFileName());
     QString filePath = QString::fromStdString(db->GetFilePath().string());

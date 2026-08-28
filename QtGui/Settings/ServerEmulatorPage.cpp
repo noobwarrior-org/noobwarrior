@@ -27,8 +27,10 @@
 #include "Sdk/EmuDbComboBox.h"
 
 #include <NoobWarrior/NoobWarrior.h>
+#include <NoobWarrior/EmuDb/EmuDbManager.h>
 
 #include <QLabel>
+#include <QMessageBox>
 #include <QScrollArea>
 #include <QWidget>
 
@@ -169,6 +171,19 @@ void ServerEmulatorPage::Serialize(Registry* reg) {
     reg->SetKeyValue<bool>("emu.asset_grab_mode", mAssetGrabInput->isChecked());
     EmuDb* db = mSaveDbDropdown->GetSelectedDatabase();
     if (db != nullptr) {
+        if (mAssetGrabInput->isChecked() && !db->AllowsRuntimeWrites()) {
+            EmuDbManager* manager = gApp->GetCore()->GetEmuDbManager();
+            const EmuDbManager::MountInfo* info = manager->GetMountInfo(db);
+            QString reason = info != nullptr && !info->OwnerPluginId.empty()
+                ? QString("it is provided read-only by the plugin \"%1\"")
+                      .arg(QString::fromStdString(info->OwnerPluginId))
+                : QString("its Mutable setting is turned off");
+            QMessageBox::warning(this, "Asset Grab Mode",
+                QString("\"%1\" cannot be used as the Asset Grab Mode target because %2.\n\n"
+                        "Nothing would be saved. Pick a different database.")
+                    .arg(QString::fromStdString(db->GetTitle().empty() ? db->GetFileName() : db->GetTitle()))
+                    .arg(reason));
+        }
         reg->SetKeyValue<std::string>("emu.asset_grab_db", db->GetFilePath().string());
     }
 

@@ -95,8 +95,8 @@ bool EmuDb::IsZstdCompressed(const std::vector<unsigned char>& data) {
     return data[0] == 0x28 && data[1] == 0xB5 && data[2] == 0x2F && data[3] == 0xFD;
 }
 
-EmuDb::EmuDb(const std::string &path, bool autocommit) :
-	SqlDb(path, "EmuDb"),
+EmuDb::EmuDb(const std::string &path, bool autocommit, OpenMode openMode) :
+	SqlDb(path, "EmuDb", openMode),
 	mAutoCommit(autocommit),
 	mDirty(false),
 	mMigrationFailMsg("no failure detected")
@@ -120,6 +120,18 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 	}
 
+	if (IsReadOnly()) {
+		if (!IsSchemaUpToDate()) {
+			mMigrationFailMsg = "the database was opened read-only and its schema is out of date";
+			Out("Refusing to open read-only: schema is out of date and migrations cannot run. "
+			    "Open it once in noobWarrior to upgrade it, or mark it writable.");
+			mFailReason = FailReason::ReadOnlyOutOfDate;
+			return;
+		}
+		mFailReason = FailReason::None;
+		return;
+	}
+
 	// if auto-commit is disabled, explicitly initiate a transaction
 	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION")) {
 		Out("Failed to begin new transaction. Aborting!");
@@ -133,11 +145,8 @@ EmuDb::EmuDb(const std::string &path, bool autocommit) :
 		return;
 	}
 
-	if (GetMetaKeyValue("Icon").empty()) {
-		std::vector<unsigned char> imgData;
-		imgData.assign(g_database_png, g_database_png + g_database_png_size);
-		SetIcon(imgData);
-	}
+	if (GetMetaKeyValue("Icon").empty())
+		SetIcon(GetDefaultIconData());
 
 	if (mThisIsANewFileOnDisk && !mAutoCommit) {
 		// Remember that we just migrated the database and everything in this new file, so the DB is already dirty if auto-commit is disabled.
@@ -308,11 +317,8 @@ bool EmuDb::MigrateToLatestVersion() {
 	/* V22: added the per-universe voice-chat opt-in to UniverseMisc */
 	MIGRATE(v22)
 
-	// TODO: only do this when we migrate to zstandard
-	/* V4: Sets CompressionType value in Meta table to 1, which corresponds to CompressionType::ZStandard.
-	   In other words, the default for compressing files has changed to the zstandard format.
-	   Note that zstd was not implemented in noobWarrior by the time this change was created.
-	MIGRATE(v4) */
+	/* !!! When you append a MIGRATE() above, bump kLatestMigrationName below to match. It is what
+	   IsSchemaUpToDate() checks, and a read-only database is refused when it lacks that migration. !!! */
 
 #undef MIGRATE
 #undef CREATE_TABLE
@@ -332,6 +338,66 @@ bool EmuDb::MigrateToLatestVersion() {
 	return true;
 }
 
+// The newest migration this build knows about. Kept beside the MIGRATE() list in
+// MigrateToLatestVersion() so the two are edited together.
+static const char *kLatestMigrationName = "v22";
+
+bool EmuDb::IsSchemaUpToDate() {
+	Statement stmt(this, "SELECT 1 FROM Migration WHERE Version = ?;");
+	if (stmt.Fail()) // no Migration table at all: this is not a database we have ever migrated
+		return false;
+	stmt.Bind(1, std::string(kLatestMigrationName));
+	return stmt.Step() == SQLITE_ROW;
+}
+
+std::vector<unsigned char> EmuDb::GetDefaultIconData() {
+	std::vector<unsigned char> imgData;
+	imgData.assign(g_database_png, g_database_png + g_database_png_size);
+	return imgData;
+}
+
+std::string EmuDb::ProbeMetaValue(const std::filesystem::path &path, const std::string &key) {
+	// Deliberately its own throwaway connection. Callers need this before deciding how (or whether)
+	// to open the database for real, so it must never create or modify the file.
+	if (path.empty() || !std::filesystem::exists(path))
+		return "";
+
+	sqlite3 *db = nullptr;
+	if (sqlite3_open_v2(path.string().c_str(), &db, SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+		sqlite3_close_v2(db);
+		return "";
+	}
+
+	std::string result;
+	sqlite3_stmt *stmt = nullptr;
+	if (sqlite3_prepare_v2(db, "SELECT Value FROM Meta WHERE Key = ?;", -1, &stmt, nullptr) == SQLITE_OK) {
+		sqlite3_bind_text(stmt, 1, key.c_str(), -1, SQLITE_TRANSIENT);
+		if (sqlite3_step(stmt) == SQLITE_ROW) {
+			const unsigned char *text = sqlite3_column_text(stmt, 0);
+			if (text != nullptr)
+				result = reinterpret_cast<const char*>(text);
+		}
+	}
+	sqlite3_finalize(stmt);
+	sqlite3_close_v2(db);
+	return result;
+}
+
+std::string EmuDb::ProbeTitle(const std::filesystem::path &path) {
+	return ProbeMetaValue(path, "Title");
+}
+
+std::vector<unsigned char> EmuDb::ProbeIcon(const std::filesystem::path &path) {
+	return base64_decode(ProbeMetaValue(path, "Icon"));
+}
+
+bool EmuDb::ProbeIsMutable(const std::filesystem::path &path) {
+	// Absent or unreadable counts as mutable, matching IsMutable(); the real open reports failures.
+	if (!std::filesystem::exists(path))
+		return true;
+	return ProbeMetaValue(path, "Mutable") != "0";
+}
+
 int EmuDb::GetMigrationVersion() {
     int val = -1;
     sqlite3_stmt *stmt;
@@ -346,6 +412,19 @@ cleanup:
 
 std::string EmuDb::GetMigrationFailMsg() {
 	return mMigrationFailMsg;
+}
+
+bool EmuDb::IsMutable() {
+	std::string value = GetMetaKeyValue("Mutable");
+	return value != "0";
+}
+
+SqlDb::Response EmuDb::SetMutable(bool value) {
+	return SetMetaKeyValue("Mutable", value ? "1" : "0");
+}
+
+bool EmuDb::AllowsRuntimeWrites() {
+	return !IsReadOnly() && IsMutable();
 }
 
 SqlDb::Response EmuDb::SaveAs(const std::string &path) {
