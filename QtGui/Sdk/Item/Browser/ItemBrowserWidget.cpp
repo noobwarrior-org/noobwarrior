@@ -108,6 +108,17 @@ void ItemBrowserWidget::Refresh() {
     RefreshEx(mCurrentItemType);
 }
 
+void ItemBrowserWidget::ShowItemType(ItemType type) {
+    const int index = static_cast<int>(type);
+    if (index < 0 || index >= ItemTypeDropdown->count())
+        return;
+
+    if (ItemTypeDropdown->currentIndex() == index)
+        RefreshEx(type);
+    else
+        ItemTypeDropdown->setCurrentIndex(index);
+}
+
 void ItemBrowserWidget::RefreshEx(ItemType type) {
     auto editor = dynamic_cast<Sdk*>(parent());
     Project* proj = editor->GetFocusedProject();

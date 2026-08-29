@@ -26,14 +26,33 @@
 #include <QDialog>
 #include <QWidget>
 
+class QLabel;
+class QPlainTextEdit;
+class QPushButton;
+class QTableWidget;
+
 namespace NoobWarrior {
-class Sdk;
+class EmuDb;
 class ExecuteSqlDialog : public QDialog {
     Q_OBJECT
 public:
-    ExecuteSqlDialog(QWidget *parent = nullptr);
+    static constexpr int kMaxDisplayedRows = 1000;
+
+    ExecuteSqlDialog(EmuDb *db, QWidget *parent = nullptr);
+
     void Refresh();
 private:
-    Sdk* mSdk;
+    void InitWidgets();
+    void Execute();
+
+    void ShowStatus(const QString &message, bool isError);
+    void ClearResults();
+
+    EmuDb *mDatabase;
+
+    QPlainTextEdit *mEditor;
+    QTableWidget *mResults;
+    QLabel *mStatusLabel;
+    QPushButton *mExecuteButton;
 };
 }

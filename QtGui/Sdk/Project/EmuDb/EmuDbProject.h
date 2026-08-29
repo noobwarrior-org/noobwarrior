@@ -35,6 +35,7 @@ public:
     ~EmuDbProject();
 
     EmuDb* GetDb();
+    OverviewWidget* GetOverviewWidget();
 
     bool Fail() override;
     QString GetFailMsg() override;

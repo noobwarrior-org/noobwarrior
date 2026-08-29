@@ -70,7 +70,7 @@ public:
     QAction* GetNewProjectAction();
     QAction* GetOpenProjectAction();
     QAction* GetBackupAction();
-    
+
     static QStringList GetRecentProjects();
     static void SetRecentProjects(const QStringList &paths);
     static void AddRecentProject(const std::filesystem::path &path);
@@ -111,6 +111,8 @@ private:
 
     QAction* mItemBrowserViewAction;
     QAction* mFileManagerViewAction;
+
+    QAction* mExecuteSqlAction;
 
     QAction* mAboutQtButton;
     QAction* mAboutButton;

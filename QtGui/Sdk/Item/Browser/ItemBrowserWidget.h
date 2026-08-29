@@ -50,6 +50,7 @@ public:
 
     EmuDb* GetDatabase();
     void Refresh();
+    void ShowItemType(ItemType type);
 protected:
     void RefreshAssetCategory();
     void RefreshEx(ItemType type);

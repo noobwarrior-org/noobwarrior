@@ -239,7 +239,85 @@ public:
     SqlDb::Response SetVersion(const std::string &ver);
     SqlDb::Response SetAuthor(const std::string &author);
     SqlDb::Response SetIcon(const std::vector<unsigned char> &icon);
-    
+
+    /* Statistics & maintenance */
+
+    /**
+     * @brief How many rows of an item type this database holds.
+     */
+    int64_t CountItems(ItemType type);
+
+    /**
+     * @brief What the database costs, and how much of that is currently dead weight.
+     *
+     * Sizes come from SQLite's own page accounting rather than the file system, so they describe the
+     * database rather than the file around it and stay meaningful for an in-memory one.
+     */
+    struct StorageStats {
+        int64_t PageSize {0};
+        int64_t PageCount {0};
+        int64_t FreePages {0};   // on the freelist: allocated to the file, holding nothing
+        int64_t BlobCount {0};   // rows in BlobStorage
+        int64_t BlobBytes {0};   // what those rows weigh, which is the bulk of any content database
+
+        int64_t TotalBytes() const { return PageSize * PageCount; }
+        int64_t FreeBytes() const { return PageSize * FreePages; }
+    };
+    StorageStats GetStorageStats();
+
+    enum class AutoVacuumMode {
+        None = 0,
+        Full = 1,
+        Incremental = 2
+    };
+    AutoVacuumMode GetAutoVacuumMode();
+
+    /**
+     * @brief Switches the auto-vacuum mode.
+     *
+     * SQLite fixes this when the database is created, so changing it on a file that already has
+     * content means rewriting the whole thing: this runs a Vacuum(), and everything said there about
+     * committing first applies here too.
+     */
+    SqlDb::Response SetAutoVacuumMode(AutoVacuumMode mode);
+
+    /**
+     * @brief Rebuilds the database, reclaiming every free page and defragmenting what is left.
+     *
+     * VACUUM cannot run inside a transaction, and an EmuDb opened with autocommit off holds one for
+     * its entire session, so this commits first. Pending edits therefore reach disk whether or not
+     * the vacuum itself then succeeds, which anything offering this to a user has to say out loud.
+     */
+    SqlDb::Response Vacuum();
+
+    /**
+     * @brief Hands free pages back to the file system without rewriting the database.
+     *
+     * The cheap counterpart to Vacuum(), and the whole reason to turn Incremental auto-vacuum on.
+     * In any other mode SQLite treats it as a no-op rather than an error, so this reports
+     * DidNothing instead of pretending it shrank something.
+     *
+     * Commits first for the same reason Vacuum() does: pages released inside the session's
+     * transaction do not leave the file until that transaction ends.
+     * @param pages How many pages to release, or 0 for all of them.
+     */
+    SqlDb::Response TrimFreePages(int pages = 0);
+
+    /**
+     * @brief Runs SQLite's own consistency check across the database.
+     * @param messageOutput Set to what SQLite reported: "ok", or the list of problems it found.
+     */
+    bool CheckIntegrity(std::string *messageOutput = nullptr);
+
+    /**
+     * @brief Deletes every blob that nothing references any more, returning how many it freed.
+     *
+     * Where GarbageCollectBlobIfOrphaned() checks a single hash against a fixed list of referencing
+     * columns, this sweeps the whole table and finds those columns from the schema itself (every
+     * foreign key pointing at BlobStorage) so it stays correct as later migrations add more.
+     */
+    int64_t GarbageCollectOrphanedBlobs();
+
     /* Generic item functions */
     SqlDb::Response AddBlob(const std::vector<unsigned char> &data, std::string *hashOutput = nullptr);
     SqlDb::Response AddBlob(const std::filesystem::path &path, std::string *hashOutput = nullptr);

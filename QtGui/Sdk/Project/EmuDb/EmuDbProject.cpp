@@ -60,6 +60,10 @@ EmuDb* EmuDbProject::GetDb() {
     return mDb;
 }
 
+OverviewWidget* EmuDbProject::GetOverviewWidget() {
+    return mOverviewWidget;
+}
+
 bool EmuDbProject::Fail() {
     return mDb->Fail();
 }

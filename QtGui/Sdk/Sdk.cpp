@@ -32,6 +32,7 @@
 #include "Application.h"
 #include "Dialog/AuthTokenDialog.h"
 #include "Dialog/AboutDialog.h"
+#include "ExecuteSqlDialog.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 
@@ -467,7 +468,11 @@ void Sdk::InitMenus() {
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
 
-    // mToolsMenu = menuBar()->addMenu(tr("&Tools"));
+    mToolsMenu = menuBar()->addMenu(tr("&Tools"));
+
+    mExecuteSqlAction = new QAction(QIcon(":/images/silk/database_gear.png"), "Execute SQL");
+    mExecuteSqlAction->setObjectName("RequireProjectButton");
+    mToolsMenu->addAction(mExecuteSqlAction);
 
     // mPluginsMenu = menuBar()->addMenu(tr("&Plugins"));
 
@@ -534,6 +539,24 @@ launchdialog:
             backupDialog.exec();
         }
     });
+
+    connect(mExecuteSqlAction, &QAction::triggered, [this]() {
+        Project* proj = GetFocusedProject();
+        if (proj == nullptr) {
+            QMessageBox::critical(this, "Cannot Open Dialog", "A project is not open!");
+            return;
+        }
+        auto emuDbProj = dynamic_cast<EmuDbProject*>(proj);
+        if (emuDbProj == nullptr) {
+            QMessageBox::critical(this, "Cannot Open Dialog", "This project is not a database!");
+            return;
+        }
+        ExecuteSqlDialog dialog(emuDbProj->GetDb(), this);
+        dialog.exec();
+        if (OverviewWidget *overview = emuDbProj->GetOverviewWidget(); overview != nullptr)
+            overview->RefreshAll();
+        Refresh();
+    });
 }
 
 void Sdk::InitWidgets() {
@@ -543,7 +566,7 @@ void Sdk::InitWidgets() {
     connect(mTabWidget, &QTabWidget::currentChanged, [this](int index) {
         Refresh();
     });
-    
+
     mWelcomeWidget = new WelcomeWidget(this);
     mTabWidget->addTab(mWelcomeWidget, QIcon(":/images/icon16_aa.png"), "Welcome");
 

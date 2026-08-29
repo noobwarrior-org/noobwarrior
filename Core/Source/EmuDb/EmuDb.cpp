@@ -554,6 +554,179 @@ SqlDb::Response EmuDb::SetIcon(const std::vector<unsigned char> &icon) {
 	return SetMetaKeyValue("Icon", base64_encode(icon.data(), icon.size()));
 }
 
+int64_t EmuDb::CountItems(ItemType type) {
+	if (Fail()) return 0;
+	Statement stmt = PrepareStatement(std::format("SELECT COUNT(*) FROM \"{}\";", GetTableNameFromItemType(type)));
+	if (stmt.Fail()) return 0;
+	if (stmt.Step() != SQLITE_ROW) return 0;
+	return stmt.GetInt64FromColumnIndex(0);
+}
+
+static int64_t ReadIntPragma(EmuDb *db, const std::string &name, int64_t fallback = 0) {
+	Statement stmt = db->PrepareStatement("PRAGMA " + name + ";");
+	if (stmt.Fail() || stmt.Step() != SQLITE_ROW)
+		return fallback;
+	return stmt.GetInt64FromColumnIndex(0);
+}
+
+EmuDb::StorageStats EmuDb::GetStorageStats() {
+	StorageStats stats;
+	if (Fail()) return stats;
+
+	stats.PageSize = ReadIntPragma(this, "page_size");
+	stats.PageCount = ReadIntPragma(this, "page_count");
+	stats.FreePages = ReadIntPragma(this, "freelist_count");
+
+	Statement stmt = PrepareStatement("SELECT COUNT(*), COALESCE(SUM(LENGTH(Blob)), 0) FROM BlobStorage;");
+	if (!stmt.Fail() && stmt.Step() == SQLITE_ROW) {
+		stats.BlobCount = stmt.GetInt64FromColumnIndex(0);
+		stats.BlobBytes = stmt.GetInt64FromColumnIndex(1);
+	}
+	return stats;
+}
+
+EmuDb::AutoVacuumMode EmuDb::GetAutoVacuumMode() {
+	int64_t mode = ReadIntPragma(this, "auto_vacuum", 0);
+	if (mode == 1) return AutoVacuumMode::Full;
+	if (mode == 2) return AutoVacuumMode::Incremental;
+	return AutoVacuumMode::None;
+}
+
+SqlDb::Response EmuDb::SetAutoVacuumMode(AutoVacuumMode mode) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	if (IsReadOnly()) return SqlDb::Response::Failed;
+	if (GetAutoVacuumMode() == mode) return SqlDb::Response::DidNothing;
+	
+	if (!ExecStatement(std::format("PRAGMA auto_vacuum = {};", static_cast<int>(mode))))
+		return SqlDb::Response::Failed;
+
+	return Vacuum();
+}
+
+SqlDb::Response EmuDb::Vacuum() {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	if (IsReadOnly()) return SqlDb::Response::Failed;
+
+	// VACUUM refuses to run inside a transaction, and a non-autocommit EmuDb has held one open since
+	// it was constructed. Commit it, vacuum outside any transaction, then put the session's
+	// transaction back so the caller's editing model is exactly as it was.
+	if (!mAutoCommit) {
+		if (!ExecStatement("COMMIT;"))
+			return SqlDb::Response::Failed;
+		UnmarkDirty();
+	}
+
+	bool vacuumed = ExecStatement("VACUUM;");
+	if (!vacuumed)
+		Out("Failed to vacuum database: \"{}\"", GetLastErrorMsg());
+
+	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION;")) {
+		// Losing the session transaction would silently turn every later edit into its own
+		// autocommitted write, so this is worth shouting about even though the vacuum itself worked.
+		Out("Failed to reopen the session transaction after vacuuming: \"{}\"", GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+
+	return vacuumed ? SqlDb::Response::Success : SqlDb::Response::Failed;
+}
+
+SqlDb::Response EmuDb::TrimFreePages(int pages) {
+	if (Fail()) return SqlDb::Response::DatabaseFailed;
+	if (IsReadOnly()) return SqlDb::Response::Failed;
+
+	// SQLite silently ignores this outside incremental mode. Saying so is more useful than reporting
+	// a success that freed nothing.
+	if (GetAutoVacuumMode() != AutoVacuumMode::Incremental)
+		return SqlDb::Response::DidNothing;
+
+	// Trimming inside the session's transaction would only move pages within it: the file does not
+	// actually shrink until that transaction commits, so a caller measuring the database before and
+	// after would be told nothing had happened. Commit first for the same reason Vacuum() does.
+	if (!mAutoCommit) {
+		if (!ExecStatement("COMMIT;"))
+			return SqlDb::Response::Failed;
+		UnmarkDirty();
+	}
+
+	const std::string stmtStr = pages > 0
+		? std::format("PRAGMA incremental_vacuum({});", pages)
+		: std::string("PRAGMA incremental_vacuum;");
+
+	bool trimmed = ExecStatement(stmtStr);
+	if (!trimmed)
+		Out("Failed to trim free pages: \"{}\"", GetLastErrorMsg());
+
+	if (!mAutoCommit && !ExecStatement("BEGIN TRANSACTION;")) {
+		Out("Failed to reopen the session transaction after trimming: \"{}\"", GetLastErrorMsg());
+		return SqlDb::Response::Failed;
+	}
+
+	return trimmed ? SqlDb::Response::Success : SqlDb::Response::Failed;
+}
+
+bool EmuDb::CheckIntegrity(std::string *messageOutput) {
+	if (Fail()) {
+		if (messageOutput != nullptr) *messageOutput = "The database is not open.";
+		return false;
+	}
+
+	// integrity_check answers with the single row "ok", or one row per problem it found.
+	Statement stmt = PrepareStatement("PRAGMA integrity_check;");
+	if (stmt.Fail()) {
+		if (messageOutput != nullptr) *messageOutput = GetLastErrorMsg();
+		return false;
+	}
+
+	std::vector<std::string> lines;
+	while (stmt.Step() == SQLITE_ROW)
+		lines.push_back(stmt.GetStringFromColumnIndex(0));
+
+	bool ok = lines.size() == 1 && lines[0] == "ok";
+	if (messageOutput != nullptr) {
+		*messageOutput = lines.empty() ? "SQLite returned no result." : "";
+		for (std::size_t i = 0; i < lines.size(); i++) {
+			if (i) *messageOutput += "\n";
+			*messageOutput += lines[i];
+		}
+	}
+	return ok;
+}
+
+int64_t EmuDb::GarbageCollectOrphanedBlobs() {
+	if (Fail() || IsReadOnly()) return 0;
+
+	// Every column that can hold a BlobStorage key, discovered from the schema's foreign keys rather
+	// than listed here, so a migration that adds one is picked up without touching this code.
+	std::string referenced;
+	for (const std::string &table : GetTableNames()) {
+		if (table == "BlobStorage") continue;
+		for (const std::string &column : GetBlobHashColumns(table)) {
+			if (!referenced.empty()) referenced += " UNION ";
+			referenced += std::format("SELECT \"{}\" FROM \"{}\" WHERE \"{}\" IS NOT NULL", column, table, column);
+		}
+	}
+
+	// No column references blobs at all. Deleting everything not in an empty set would wipe the
+	// table, so treat this as "nothing is known to be orphaned" instead.
+	if (referenced.empty())
+		return 0;
+
+	Statement del = PrepareStatement(std::format("DELETE FROM BlobStorage WHERE Hash NOT IN ({});", referenced));
+	if (del.Fail()) {
+		Out("Failed to prepare the orphaned blob sweep: \"{}\"", GetLastErrorMsg());
+		return 0;
+	}
+	if (del.Step() != SQLITE_DONE) {
+		Out("Failed to sweep orphaned blobs: \"{}\"", GetLastErrorMsg());
+		return 0;
+	}
+
+	int64_t removed = sqlite3_changes64(mDb);
+	if (removed > 0)
+		MarkDirty();
+	return removed;
+}
+
 #define CHECK_STMT(stmt) \
 	if (stmt.Fail()) { \
 		Out("Failed to prepare SQL statement. Message: \"{}\"", GetLastErrorMsg()); \
