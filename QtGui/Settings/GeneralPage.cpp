@@ -42,6 +42,10 @@ GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
 }
 
 void GeneralPage::InitWidgets() {
+    mWipLabel = new QLabel("Right now, this page is currently a work in progress. Expect a setting to change the language and UI in here soon.");
+    mWipLabel->setWordWrap(true);
+    Layout->addWidget(mWipLabel);
+    /*
     auto uiBox = new QGroupBox("User Interface");
     auto uiLayout = new QFormLayout(uiBox);
     uiBox->setLayout(uiLayout);
@@ -55,6 +59,7 @@ void GeneralPage::InitWidgets() {
     uiLayout->addRow(new QLabel("Theme"), mTheme);
 
     Layout->addWidget(uiBox);
+    */
 }
 
 const QString GeneralPage::GetTitle() {

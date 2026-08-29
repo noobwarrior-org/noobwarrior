@@ -25,6 +25,7 @@
 #pragma once
 #include "SettingsPage.h"
 
+#include <QLabel>
 #include <QComboBox>
 
 namespace NoobWarrior {
@@ -38,6 +39,7 @@ public:
     void Deserialize(Registry* reg) override;
     void Serialize(Registry* reg) override;
 private:
+    QLabel* mWipLabel;
     QComboBox* mLanguage;
     QComboBox* mTheme;
 };
