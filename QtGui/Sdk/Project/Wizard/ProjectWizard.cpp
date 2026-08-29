@@ -27,6 +27,7 @@
 #include "Sdk/Project/Wizard/Template/EmuDbEmpty.h"
 #include "Sdk/Project/Wizard/Template/EmuDbGameBackup.h"
 #include "Sdk/Project/Wizard/Template/PluginEmpty.h"
+#include "Sdk/Project/Wizard/Template/WipPage.h"
 
 #include <QListWidget>
 #include <QLabel>
@@ -47,7 +48,8 @@ void ProjectWizard::InitWidgets() {
     SetPage(PageId::Intro, intro);
     intro->AddTemplate(PageId::EmuDbEmptyIntro, new EmuDbEmptyIntroPage);
     intro->AddTemplate(PageId::EmuDbGameBackupIntro, new EmuDbGameBackupIntroPage);
-    intro->AddTemplate(PageId::PluginEmptyIntro, new PluginEmptyIntroPage);
+    // intro->AddTemplate(PageId::PluginEmptyIntro, new PluginEmptyIntroPage); // TODO: Comment this out when plugins in SDK are ready.
+    intro->AddTemplate(PageId::PluginEmptyIntro, new WipPage);
 }
 
 void ProjectWizard::SetPage(ProjectWizard::PageId id, QWizardPage* page) {

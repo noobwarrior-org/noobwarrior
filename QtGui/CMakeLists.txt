@@ -80,6 +80,7 @@ set(SOURCES
     Sdk/Project/Wizard/Template/EmuDbEmpty.cpp
     Sdk/Project/Wizard/Template/EmuDbGameBackup.cpp
     Sdk/Project/Wizard/Template/PluginEmpty.cpp
+    Sdk/Project/Wizard/Template/WipPage.cpp
     Sdk/Notification/Notification.cpp
     Ui/Launcher.ui
     Resources/resources.qrc
