@@ -356,7 +356,7 @@ void Sdk::InitMenus() {
     mFileMenu->addSeparator();
         mFileMenu->addAction(mExitAction);
 
-    mEditMenu = menuBar()->addMenu(tr("&Edit"));
+    // mEditMenu = menuBar()->addMenu(tr("&Edit"));
 
     mItemBrowserViewAction = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content Browser");
     mFileManagerViewAction = new QAction(QIcon(":/images/silk/folder_page.png"), "File Manager");
@@ -365,13 +365,13 @@ void Sdk::InitMenus() {
     mViewMenu->addAction(mItemBrowserViewAction);
     mViewMenu->addAction(mFileManagerViewAction);
 
-    mProjectMenu = menuBar()->addMenu(tr("&Project"));
+    // mProjectMenu = menuBar()->addMenu(tr("&Project"));
 
     mInsertMenu = menuBar()->addMenu(tr("&Insert"));
 
-    mToolsMenu = menuBar()->addMenu(tr("&Tools"));
+    // mToolsMenu = menuBar()->addMenu(tr("&Tools"));
 
-    mPluginsMenu = menuBar()->addMenu(tr("&Plugins"));
+    // mPluginsMenu = menuBar()->addMenu(tr("&Plugins"));
 
     mHelpMenu = menuBar()->addMenu(tr("&Help"));
 
