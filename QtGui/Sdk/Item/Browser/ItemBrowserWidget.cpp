@@ -35,11 +35,23 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-#define ADD_ITEMTYPE(type) \
-    QString type##_Str = QString::fromStdString(#type); \
-    ItemTypeDropdown->addItem(QIcon(), type##_Str);
-
 using namespace NoobWarrior;
+
+static QString GetIconFileFromItemType(ItemType type) {
+    switch (type) {
+    case ItemType::Asset: return ":/images/silk/brick.png";
+    case ItemType::Badge: return ":/images/silk/medal_gold_1.png";
+    case ItemType::Bundle: return ":/images/silk/package.png";
+    case ItemType::DevProduct: return ":/images/silk/key.png";
+    case ItemType::Group: return ":/images/silk/group.png";
+    case ItemType::Outfit: return ":/images/silk/user_female.png";
+    case ItemType::Pass: return ":/images/silk/vcard.png";
+    case ItemType::Set: return ":/images/silk/bricks.png";
+    case ItemType::Universe: return ":/images/silk/world.png";
+    case ItemType::User: return ":/images/silk/user.png";
+    default: return ":/images/silk/page_white.png";
+    }
+};
 
 ItemBrowserWidget::ItemBrowserWidget(QWidget *parent) : QDockWidget(parent),
     mAssetCategory(AssetCategory::DevelopmentItem),
@@ -138,7 +150,7 @@ void ItemBrowserWidget::InitWidgets() {
     for (int i = 0; i < ItemTypeCount; i++) {
         auto itemType = static_cast<ItemType>(i);
         QString itemTypeStr = QString::fromStdString(GetTableNameFromItemType(itemType)); // TODO: make a translatable version
-        ItemTypeDropdown->addItem(itemTypeStr, i);
+        ItemTypeDropdown->addItem(QIcon(GetIconFileFromItemType(itemType)), itemTypeStr, i);
     }
 
     AssetFilterDropdownLayout = new QHBoxLayout(MainWidget);
@@ -176,9 +188,6 @@ void ItemBrowserWidget::InitWidgets() {
 
     mPage = new ItemBrowserPage(this);
     MainLayout->addWidget(mPage);
-
-    ADD_ITEMTYPE(Asset)
-    ADD_ITEMTYPE(Badge)
 
     connect(ItemTypeDropdown, &QComboBox::currentIndexChanged, this, [this](int index) {
         RefreshEx(static_cast<ItemType>(index));
