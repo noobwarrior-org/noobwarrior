@@ -200,9 +200,6 @@ void ItemBrowserWidget::InitWidgets() {
     });
 
     InitPageCounter();
-    // RefreshAssetCategory() -> Refresh() -> RefreshEx() already drives the initial population (and,
-    // when a database is focused, GoToPage(1)). Calling GoToPage(1) here unconditionally would page a
-    // possibly-null database and crash on launch.
     RefreshAssetCategory();
 }
 

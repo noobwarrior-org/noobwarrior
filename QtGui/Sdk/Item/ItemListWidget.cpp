@@ -176,7 +176,7 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         return;
     std::string tableName = GetTableNameFromItemType(options.ItemType);
 
-    std::string stmtStr = "SELECT Id, Name FROM " + tableName;
+    std::string stmtStr = "SELECT Id, Name FROM \"" + tableName + "\"";
     bool hasWhere = false;
 
     if (!options.Query.empty()) {
@@ -187,8 +187,6 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmtStr += hasWhere ? " AND " : " WHERE ";
         stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
     }
-    // Page the results when a limit is enforced. Offset/Limit are integers from code, so they're
-    // safe to inline. Order by Id for a stable page ordering across queries.
     if (options.EnforceLimit) {
         stmtStr += " ORDER BY Id LIMIT " + std::to_string(options.Limit) +
                    " OFFSET " + std::to_string(options.Offset);
