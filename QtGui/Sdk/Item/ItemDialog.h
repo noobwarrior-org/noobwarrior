@@ -81,10 +81,9 @@ protected:
     void Asset_AddFields_AssetType();
     void Asset_AddFields_Place();
     void Asset_AddFields_MediaPreview();
-    // Loads the asset's latest saved data (or the most recent pending file) into the media player so
-    // Audio/Video assets can be played back. Lazy: only reads/decodes once per dialog.
     void Asset_LoadMediaPreview();
     void Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd);
+    void Asset_RenumberPendingDataRows();
     void Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type);
     Roblox::AssetType Asset_GetAssetTypeFromFileType(const std::filesystem::path &path);
     bool Asset_OnSave();

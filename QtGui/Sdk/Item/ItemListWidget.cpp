@@ -91,7 +91,7 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
         QAction* copyId = menu->addAction(QIcon(":/images/silk/page_white_copy.png"), "Copy ID");
 
         if (item && item->GetType() == ItemType::Asset) {
-            QAction* download = menu->addAction(QIcon(":/images/silk/disk.png"), "Download Asset Data");
+            QAction* download = menu->addAction(QIcon(":/images/silk/disk.png"), "Export Asset Data");
             connect(download, &QAction::triggered, [this]() {
                 DownloadSelectedAssetData();
             });
@@ -371,7 +371,7 @@ void ItemListWidget::DownloadSelectedAssetData() {
         QString startPath = lastDir.isEmpty() ? suggested : QDir(lastDir).filePath(suggested);
 
         QString fullPath = QFileDialog::getSaveFileName(this,
-            QString("Save Asset %1").arg(id), startPath, "All Files (*)");
+            QString("Export Asset %1").arg(id), startPath, "All Files (*)");
         if (fullPath.isEmpty())
             continue;
 

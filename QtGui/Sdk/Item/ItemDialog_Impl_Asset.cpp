@@ -38,6 +38,19 @@
 
 using namespace NoobWarrior;
 
+static QString SanitizeFileName(const QString &name) {
+    QString result;
+    for (QChar c : name) {
+        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' ||
+            c == '"' || c == '<' || c == '>' || c == '|' || c.unicode() < 0x20)
+            result += '_';
+        else
+            result += c;
+    }
+    result = result.trimmed();
+    return result;
+}
+
 void ItemDialog::Asset_AddFields() {
     AddOwnedItemFields();
     Asset_AddFields_AssetType();
@@ -182,34 +195,93 @@ void ItemDialog::Asset_AddFields() {
         QPoint globalPos = mAsset_DataView->viewport()->mapToGlobal(point);
 
         QMenu myMenu;
-        QAction* del = myMenu.addAction(QIcon(":/images/silk/cross.png"), "Delete Item");
+        QAction* save = myMenu.addAction(QIcon(":/images/silk/disk.png"), "Export");
+        QAction* del = myMenu.addAction(QIcon(":/images/silk/cross.png"), "Delete");
+
+        connect(save, &QAction::triggered, [this, index]() {
+            if (!mId.has_value()) {
+                QMessageBox::critical(this, "Cannot Export Version", "Cannot export data when the item is not saved yet!");
+                return;
+            }
+            int row = index.row();
+            QStandardItem* versionColumn = mAsset_DataModel->item(row, 1);
+            
+            if (versionColumn->data(Qt::UserRole).toBool()) {
+                QMessageBox::critical(this, "Cannot Export Version", "Cannot export a pending version. Save the item first.");
+                return;
+            }
+
+            bool ok;
+            int version = versionColumn->text().toInt(&ok);
+
+            if (!ok) {
+                QMessageBox::critical(this, "Cannot Export Version", "Failed to export because the version column is an invalid integer.");
+                return;
+            }
+
+            std::vector<unsigned char> data;
+            SqlDb::Response res = GetDatabase()->RetrieveAssetData(mId.value(), version, &data);
+            if (res != SqlDb::Response::Success || data.empty()) {
+                QMessageBox::critical(this, "Cannot Export Version", "Data for this asset version could not be retrieved.");
+                return;
+            }
+
+            QString baseName;
+            Statement nameStmt = GetDatabase()->PrepareStatement("SELECT Name FROM Asset WHERE Id = ?;");
+            nameStmt.Bind(1, mId.value());
+            if (nameStmt.Step() == SQLITE_ROW)
+                baseName = SanitizeFileName(QString::fromStdString(nameStmt.GetStringFromColumnIndex(0)));
+            if (baseName.isEmpty())
+                baseName = QString::number(mId.value());
+
+            QString ext = DetectAssetExtension(data);
+            QString suggested = QString("%1_%2_%3.%4").arg(baseName).arg(mId.value()).arg(version).arg(ext);
+
+            QString fullPath = QFileDialog::getSaveFileName(this,
+                QString("Export Asset %1 Version %2").arg(mId.value()).arg(version), suggested, "All Files (*)");
+            if (fullPath.isEmpty())
+                return;
+
+            QFile file(fullPath);
+            if (!file.open(QIODevice::WriteOnly)) {
+                QMessageBox::critical(this, "Cannot Export Version", "Failed to export because the file could not be opened.");
+                return;
+            }
+            qint64 written = file.write(reinterpret_cast<const char*>(data.data()), static_cast<qint64>(data.size()));
+            file.close();
+            if (written != static_cast<qint64>(data.size())) {
+                QMessageBox::critical(this, "Cannot Export Version", "Failed to export because the file could not be written to.");
+                return;
+            }
+        });
 
         connect(del, &QAction::triggered, [this, index]() {
-            QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Item", "Are you sure you want to delete this item?", QMessageBox::Yes | QMessageBox::No);
+            QMessageBox::StandardButton button = QMessageBox::warning(this, "Delete Version", "Are you sure you want to delete this version of the item?", QMessageBox::Yes | QMessageBox::No);
             if (button != QMessageBox::Yes)
                 return;
 
             int row = index.row();
             QStandardItem* versionColumn = mAsset_DataModel->item(row, 1);
-            QStandardItem* hashColumn = mAsset_DataModel->item(row, 2);
 
-            bool ok;
-            int version = versionColumn->text().toLongLong(&ok);
-            QString hash = hashColumn->text();
-
-            // Some data like PendingAdd and file paths are located in the data of the Version field.
             bool isPendingAdd = versionColumn->data(Qt::UserRole).toBool();
             if (isPendingAdd) {
-                // find and remove from mAsset_DataPendingFiles by matching the filepath
-                // we stored filepath in Qt::UserRole+1 on the version column when you create the row
                 QString filePath = versionColumn->data(Qt::UserRole + 1).toString();
                 auto it = std::find(mAsset_DataPendingFiles.begin(), mAsset_DataPendingFiles.end(), filePath);
                 if (it != mAsset_DataPendingFiles.end())
                     mAsset_DataPendingFiles.erase(it);
+                mAsset_MediaPreviewLoaded = false;
             } else {
+                bool ok;
+                int version = versionColumn->text().toInt(&ok);
+                if (!ok) {
+                    QMessageBox::critical(this, "Cannot Delete Version", "Failed to delete because the version column is an invalid integer.");
+                    return;
+                }
+
                 mAsset_DataPendingDeleteVersions.push_back(version);
             }
             mAsset_DataModel->removeRow(row);
+            Asset_RenumberPendingDataRows();
         });
 
         myMenu.exec(globalPos);
@@ -256,9 +328,9 @@ void ItemDialog::Asset_AddFields() {
             // Let the preview pick up this newly-added file the next time a media type is shown.
             mAsset_MediaPreviewLoaded = false;
 
-            // Placeholder row to visualize what it will look like to the user before clicking Save
-            int previewVersion = mAsset_DataModel->rowCount() + 1;
-            auto *versionItem = new QStandardItem("(Pending) " + QString::number(previewVersion));
+            // Placeholder row to visualize what it will look like to the user before clicking Save.
+            // The label is filled in by the renumber pass below.
+            auto *versionItem = new QStandardItem();
             versionItem->setData(true, Qt::UserRole); // true = pending-add
             versionItem->setData(filePath, Qt::UserRole + 1); // also include file path lol
             QList<QStandardItem*> row;
@@ -268,6 +340,7 @@ void ItemDialog::Asset_AddFields() {
                 << new QStandardItem("N/A")
                 << new QStandardItem("N/A");
             mAsset_DataModel->appendRow(row);
+            Asset_RenumberPendingDataRows();
 
             // Auto set the Asset Type field to the appropriate type according to the file type
             const std::filesystem::path &stdPath = filePath.toStdString();
@@ -504,6 +577,27 @@ void ItemDialog::Asset_AddFields_Place() {
     attrForm->addRow(gearGroup);
 
     mContentLayout->addRow(mAsset_Place_AttributesGroup);
+}
+
+void ItemDialog::Asset_RenumberPendingDataRows() {
+    int highest = 0;
+    for (int version : mAsset_DataPendingDeleteVersions)
+        highest = std::max(highest, version);
+    for (int row = 0; row < mAsset_DataModel->rowCount(); row++) {
+        QStandardItem *item = mAsset_DataModel->item(row, 1);
+        if (item->data(Qt::UserRole).toBool())
+            continue; // Pending rows have no version number of their own yet.
+        highest = std::max(highest, item->text().toInt());
+    }
+
+    int next = highest + 1;
+    for (int row = 0; row < mAsset_DataModel->rowCount(); row++) {
+        QStandardItem *item = mAsset_DataModel->item(row, 1);
+        if (!item->data(Qt::UserRole).toBool())
+            continue;
+        item->setText("(Pending) " + QString::number(next));
+        next++;
+    }
 }
 
 void ItemDialog::Asset_AddThumbnailToList(int64_t thumbnailId, bool pendingAdd) {
