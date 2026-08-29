@@ -80,7 +80,12 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("backup.max_depth", 6);
     SetKeyComment("backup.max_depth", "How many levels deep a backup follows related items. Higher captures more related items but is slower; it is clamped to a safe maximum (20) to avoid recursion/stack overflow.");
-    
+
+    SetKeyValueIfNotSet("sdk.recent_projects", mLua->create_table());
+    SetKeyComment("sdk.recent_projects", "Paths of the projects most recently opened in the SDK, most recent first. The SDK's welcome page reads this list; deleting it just empties that list.");
+    SetKeyValueIfNotSet("sdk.max_recent_projects", 10);
+    SetKeyComment("sdk.max_recent_projects", "How many entries sdk.recent_projects keeps before the oldest is dropped.");
+
     {
         std::random_device rd;
         std::mt19937_64 gen(rd());

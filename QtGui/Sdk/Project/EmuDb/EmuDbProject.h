@@ -45,6 +45,8 @@ public:
     QIcon GetIcon() override;
     bool IsDirty() override;
 
+    std::filesystem::path GetFilePath() override;
+
     bool Save() override;
 
     void OnShown() override;

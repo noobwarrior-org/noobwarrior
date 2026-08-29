@@ -185,6 +185,8 @@ bool Sdk::AddProject(Project* project) {
     mProjects.push_back(project);
     mFocusedProject = project;
 
+    AddRecentProject(project->GetFilePath());
+
     mTabWidget->setCurrentIndex(mTabWidget->addTab(project->mTabWidget, project->GetTitle()));
     project->OnShown();
     Refresh();
@@ -192,6 +194,11 @@ bool Sdk::AddProject(Project* project) {
 }
 
 bool Sdk::AddProjectFromPath(const std::filesystem::path &path) {
+    if (Project* existing = GetProjectFromPath(path); existing != nullptr) {
+        FocusProject(existing);
+        return true;
+    }
+
     std::ifstream file(path, std::ios::binary);
     if (file.fail())
         return false;
@@ -200,11 +207,42 @@ bool Sdk::AddProjectFromPath(const std::filesystem::path &path) {
     file.close();
     if (header.compare("SQLite") == 0) {
         auto *project = new EmuDbProject(path.string());
-        AddProject(project);
+        if (!AddProject(project)) {
+            NOOBWARRIOR_FREE_PTR(project)
+            return false;
+        }
         return true;
     }
     QMessageBox::critical(this, "Cannot Open Project", "The file could not be read as a valid project.", QMessageBox::Ok);
     return false;
+}
+
+Project* Sdk::GetProjectFromPath(const std::filesystem::path &path) {
+    if (path.empty())
+        return nullptr;
+
+    for (Project* project : mProjects) {
+        std::filesystem::path openPath = project->GetFilePath();
+        if (openPath.empty())
+            continue;
+        std::error_code ec;
+        if (std::filesystem::equivalent(openPath, path, ec))
+            return project;
+        if (ec && openPath == path)
+            return project;
+    }
+    return nullptr;
+}
+
+bool Sdk::FocusProject(Project* project) {
+    if (project == nullptr || mTabWidget == nullptr)
+        return false;
+    int index = mTabWidget->indexOf(project->mTabWidget);
+    if (index == -1)
+        return false;
+    mTabWidget->setCurrentIndex(index);
+    Refresh();
+    return true;
 }
 
 /* Note: this function doesnt free it from memory. Call the C++ destructor on the project itself if you want that */
@@ -308,6 +346,66 @@ ItemBrowserWidget *Sdk::GetItemBrowser() {
 
 NotificationManager *Sdk::GetNotifications() {
     return mNotifications;
+}
+
+QAction* Sdk::GetNewProjectAction() {
+    return mNewProjectAction;
+}
+
+QAction* Sdk::GetOpenProjectAction() {
+    return mOpenProjectAction;
+}
+
+QAction* Sdk::GetBackupAction() {
+    return mBackupAction;
+}
+
+QStringList Sdk::GetRecentProjects() {
+    QStringList paths;
+    auto recent = gApp->GetCore()->GetRegistry()->GetKeyValue<sol::table>("sdk.recent_projects");
+    if (!recent.has_value())
+        return paths;
+    for (std::size_t index = 1; index <= recent->size(); index++) {
+        sol::optional<std::string> path = recent->get<sol::optional<std::string>>(index);
+        if (path.has_value() && !path->empty())
+            paths << QString::fromStdString(*path);
+    }
+    return paths;
+}
+
+void Sdk::SetRecentProjects(const QStringList &paths) {
+    Registry* registry = gApp->GetCore()->GetRegistry();
+
+    int max = registry->GetKeyValue<int>("sdk.max_recent_projects").value_or(10);
+    if (max < 0)
+        max = 0;
+
+    sol::table tbl = gApp->GetCore()->GetLuaState()->create_table();
+    for (const QString &path : paths) {
+        if (tbl.size() >= static_cast<std::size_t>(max))
+            break;
+        tbl.add(path.toStdString());
+    }
+
+    registry->SetKeyValue<sol::table>("sdk.recent_projects", tbl);
+    registry->Save();
+}
+
+void Sdk::AddRecentProject(const std::filesystem::path &path) {
+    if (path.empty())
+        return;
+
+    QString entry = QString::fromStdString(path.string());
+    QStringList paths = GetRecentProjects();
+#if defined(_WIN32)
+    const Qt::CaseSensitivity sensitivity = Qt::CaseInsensitive;
+#else
+    const Qt::CaseSensitivity sensitivity = Qt::CaseSensitive;
+#endif
+    paths.removeIf([&](const QString &other) { return other.compare(entry, sensitivity) == 0; });
+    paths.prepend(entry);
+
+    SetRecentProjects(paths);
 }
 
 void Sdk::InitMenus() {
@@ -445,9 +543,9 @@ void Sdk::InitWidgets() {
     connect(mTabWidget, &QTabWidget::currentChanged, [this](int index) {
         Refresh();
     });
-
-    mWelcomeWidget = new WelcomeWidget();
-    mTabWidget->addTab(mWelcomeWidget, "Welcome");
+    
+    mWelcomeWidget = new WelcomeWidget(this);
+    mTabWidget->addTab(mWelcomeWidget, QIcon(":/images/icon16_aa.png"), "Welcome");
 
     mStandardToolBar = new QToolBar("Standard", this);
     // mFileToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);

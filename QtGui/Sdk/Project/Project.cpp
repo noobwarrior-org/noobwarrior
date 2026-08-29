@@ -46,6 +46,10 @@ QString Project::GetSaveFailMsg() {
     return "N/A";
 }
 
+std::filesystem::path Project::GetFilePath() {
+    return {};
+}
+
 void Project::OnShown() { }
 void Project::OnHidden() { }
 

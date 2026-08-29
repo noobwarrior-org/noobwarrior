@@ -27,6 +27,8 @@
 #include <QTabWidget>
 #include <QMenu>
 
+#include <filesystem>
+
 namespace NoobWarrior {
 class Sdk;
 class Project {
@@ -43,6 +45,8 @@ public:
     virtual QString GetTitle() = 0;
     virtual QIcon GetIcon() = 0;
     virtual bool IsDirty() = 0;
+    
+    virtual std::filesystem::path GetFilePath();
 
     virtual bool Save() = 0;
 

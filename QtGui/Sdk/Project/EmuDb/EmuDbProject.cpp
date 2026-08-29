@@ -101,6 +101,10 @@ bool EmuDbProject::IsDirty() {
     return mDb->IsDirty();
 }
 
+std::filesystem::path EmuDbProject::GetFilePath() {
+    return !mDb->IsMemory() ? mDb->GetFilePath() : std::filesystem::path {};
+}
+
 bool EmuDbProject::Save() {
     SqlDb::Response res = mDb->WriteChangesToDisk();
     mLastSaveRes = res;

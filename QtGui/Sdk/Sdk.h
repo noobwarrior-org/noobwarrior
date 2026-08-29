@@ -60,9 +60,20 @@ public:
     void Refresh();
 
     Project* GetFocusedProject();
+    Project* GetProjectFromPath(const std::filesystem::path &path);
+
+    bool FocusProject(Project* project);
 
     ItemBrowserWidget *GetItemBrowser();
     NotificationManager *GetNotifications();
+
+    QAction* GetNewProjectAction();
+    QAction* GetOpenProjectAction();
+    QAction* GetBackupAction();
+    
+    static QStringList GetRecentProjects();
+    static void SetRecentProjects(const QStringList &paths);
+    static void AddRecentProject(const std::filesystem::path &path);
 protected:
     void closeEvent(QCloseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;

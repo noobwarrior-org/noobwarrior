@@ -39,9 +39,12 @@ public:
 
     static constexpr int SourceUrlRole = Qt::UserRole + 1;
     static constexpr int LockedRole = Qt::UserRole + 2;
+    static constexpr int FilePathRole = Qt::UserRole + 3;
 
     EmuDbListWidget(Mode mode = Mode::ShowEntriesInDir, QWidget* parent = nullptr);
     ~EmuDbListWidget();
+    
+    static QIcon IconFromData(const std::vector<unsigned char>& iconData);
 
     void Refresh();
     void AddDatabase(EmuDb* db, bool isTemp = false);

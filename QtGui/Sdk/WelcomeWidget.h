@@ -25,17 +25,39 @@
 #pragma once
 #include <QWidget>
 #include <QGridLayout>
+#include <QVBoxLayout>
+#include <QFrame>
 #include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+
+#include <filesystem>
 
 namespace NoobWarrior {
+class Sdk;
+class EmuDbListWidget;
 class WelcomeWidget : public QWidget {
     Q_OBJECT
 public:
-    WelcomeWidget(QWidget *parent = nullptr);
+    WelcomeWidget(Sdk* sdk = nullptr, QWidget *parent = nullptr);
     void InitWidgets();
+    void Refresh();
+protected:
+    void showEvent(QShowEvent *event) override;
 private:
+    void InitStartSection();
+    void InitRecentSection();
+    void InitDatabasesSection();
+    void RefreshRecent();
+    void OpenPath(const QString &path, bool isRecentEntry);
+    void OnRecentContextMenu(const QPoint &pos);
+    void RemoveRecentEntry(const QString &path);
+
+    Sdk* mSdk;
+
     QGridLayout* mLayout;
     QLabel* mHeader;
+    QLabel* mSubHeader;
 
     QFrame* mStartFrame;
     QVBoxLayout* mStartLayout;
@@ -44,9 +66,13 @@ private:
     QFrame* mRecentFrame;
     QVBoxLayout* mRecentLayout;
     QLabel* mRecentLabel;
+    QListWidget* mRecentList;
 
     QFrame* mDatabasesFrame;
     QVBoxLayout* mDatabasesLayout;
     QLabel* mDatabasesLabel;
+    EmuDbListWidget* mDatabasesList;
+    QLabel* mDatabasesHint;
+    QPushButton* mOpenFolderButton;
 };
 }

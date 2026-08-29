@@ -41,7 +41,7 @@
 
 using namespace NoobWarrior;
 
-static QIcon DatabaseIcon(const std::vector<unsigned char> &iconData) {
+QIcon EmuDbListWidget::IconFromData(const std::vector<unsigned char> &iconData) {
     QPixmap pixmap;
     if (!iconData.empty() &&
         pixmap.loadFromData(iconData.data(), static_cast<uint>(iconData.size())))
@@ -158,7 +158,7 @@ void EmuDbListWidget::Refresh() {
 void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
     if (db->Fail())
         return;
-    QIcon icon = DatabaseIcon(db->GetIcon());
+    QIcon icon = IconFromData(db->GetIcon());
 
     QString fileName = QString::fromStdString(db->GetFileName());
     QString filePath = QString::fromStdString(db->GetFilePath().string());
@@ -174,6 +174,7 @@ void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
     auto* item = new QListWidgetItem(icon, title, this);
     if (!isTemp)
         item->setData(Qt::UserRole, QVariant::fromValue(reinterpret_cast<quintptr>(db)));
+    item->setData(FilePathRole, filePath);
     item->setToolTip(filePath);
 
     if (info == nullptr || info->OwnerPluginId.empty())
@@ -200,7 +201,7 @@ void EmuDbListWidget::AddDatabase(EmuDb* db, bool isTemp) {
 void EmuDbListWidget::AddOfferedDatabase(const QString& title, const QString& sourceUrl,
                                          const QString& pluginTitle,
                                          const std::vector<unsigned char>& iconData) {
-    auto* item = new QListWidgetItem(DatabaseIcon(iconData), title, this);
+    auto* item = new QListWidgetItem(IconFromData(iconData), title, this);
     // No Qt::UserRole: nothing is mounted yet, so there is no EmuDb to point at. DatabaseDialog
     // mounts these through the source url instead.
     item->setData(SourceUrlRole, sourceUrl);
