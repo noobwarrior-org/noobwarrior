@@ -28,6 +28,12 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Roblox/Api/Asset.h>
 #include <NoobWarrior/Roblox/DataType/BrickColor.h>
+#include <NoobWarrior/EmuDb/AssetEnricher.h> // AssetTypeFromApiString
+#include <NoobWarrior/Roblox/FileFormat/RobloxFile.h>
+#include <NoobWarrior/Roblox/FileFormat/DataTypes/Content.h>
+#include <NoobWarrior/Roblox/FileFormat/DataTypes/ContentId.h>
+#include <NoobWarrior/Roblox/FileFormat/DataTypes/ProtectedString.h>
+#include <NoobWarrior/Roblox/FileFormat/DataTypes/SharedString.h>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -36,26 +42,25 @@
 
 #include <iostream>
 #include <filesystem>
+#include <memory>
 #include <sstream>
 #include <utility>
 #include <thread>
 #include <chrono>
 #include <vector>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
+#include <string_view>
 #include <algorithm>
 
 using namespace NoobWarrior;
 using json = nlohmann::json;
 
-// Safety limits for the phase-1 discovery walk. The asset/creator/avatar graph is deeply connected
-// (an asset's creator is a user whose avatar has more assets with more creators...), so without caps
-// the recursion can run away and overflow the stack. The avatar sub-graph is additionally gated to
-// the root item (see the User case), so these are mostly a backstop. The effective depth is the
-// user's `backup.max_depth` registry setting clamped to [1, kBackupDepthHardCap].
 static constexpr int kBackupDepthHardCap = 20;
-static constexpr std::size_t kMaxBackupNodes = 1500;
+static constexpr std::size_t kMaxBackupNodes = 10000;
 
 static const std::map<long, std::string> sHttpStatusMessages = {
     {100, "Continue"},
@@ -76,45 +81,6 @@ static const std::map<long, std::string> sHttpStatusMessages = {
     {503, "Service Unavailable"}
 };
 
-static long ConvertISO8601ToTimestamp(const std::string& iso8601_string) {
-    if (iso8601_string.empty())
-        return -1;
-
-    int year, mon, day, hour = 0, min = 0;
-    double sec = 0.0;
-    if (std::sscanf(iso8601_string.c_str(), "%d-%d-%dT%d:%d:%lf", &year, &mon, &day, &hour, &min, &sec) < 3)
-        return -1;
-
-    std::tm t{};
-    t.tm_year = year - 1900;
-    t.tm_mon  = mon - 1;
-    t.tm_mday = day;
-    t.tm_hour = hour;
-    t.tm_min  = min;
-    t.tm_sec  = static_cast<int>(sec);
-
-#if defined(_WIN32)
-    std::time_t epoch = _mkgmtime(&t);
-#else
-    std::time_t epoch = timegm(&t);
-#endif
-    if (epoch == -1)
-        return -2;
-
-    size_t tpos = iso8601_string.find('T');
-    if (tpos != std::string::npos) {
-        size_t off = iso8601_string.find_first_of("+-", tpos);
-        if (off != std::string::npos) {
-            int oh = 0, om = 0;
-            std::sscanf(iso8601_string.c_str() + off + 1, "%2d:%2d", &oh, &om);
-            int offsetSec = (oh * 3600 + om * 60) * (iso8601_string[off] == '-' ? -1 : 1);
-            epoch -= offsetSec; // shift the local-offset time back to UTC
-        }
-    }
-
-    return static_cast<long>(epoch);
-}
-
 static std::string FileNameFromContentDisposition(const std::string &header) {
     const std::string key = "filename=";
     size_t pos = header.find(key);
@@ -132,9 +98,17 @@ static std::string FileNameFromContentDisposition(const std::string &header) {
         if (end != std::string::npos)
             name.erase(end);
     }
+    // The header is server-controlled: keep only the basename so "..\\evil" can't escape the
+    // output directory.
+    size_t slash = name.find_last_of("/\\");
+    if (slash != std::string::npos)
+        name.erase(0, slash + 1);
+    if (name.find_first_not_of('.') == std::string::npos)
+        return {};
     return name;
 }
 
+// 8/30/26: This is old as shit. Does this even work anymore?? Do we even need this??
 int Core::DownloadAssets(DownloadAssetArgs args) {
     if (args.OutStream == nullptr) args.OutStream = &std::cout;
     if (!std::filesystem::is_directory(args.OutDir)) {
@@ -183,6 +157,7 @@ int Core::DownloadAssets(DownloadAssetArgs args) {
         }
 
         std::string fileDir = args.OutDir + "/" + fileName;
+        // 8/30/26: Why are we not using ofstream?
         FILE* filePointer = fopen(fileDir.c_str(), "wb");
         if (filePointer == NULL) {
             OutEx(args.OutStream, "AssetRequest", "Failed to download ID {}: Failed to create file", id);
@@ -242,8 +217,8 @@ int Core::GetAssetDetails(int64_t id, Roblox::AssetDetails *details) {
         details->CreatorTargetId = getInt(creator, "CreatorTargetId");
         details->CreatorHasVerifiedBadge = getBool(creator, "HasVerifiedBadge");
         details->IconImageAssetId = getInt(data, "IconImageAssetId");
-        details->Created = getStr(data, "Created").empty() ? 0 : ConvertISO8601ToTimestamp(getStr(data, "Created"));
-        details->Updated = getStr(data, "Updated").empty() ? 0 : ConvertISO8601ToTimestamp(getStr(data, "Updated"));
+        details->Created = getStr(data, "Created").empty() ? 0 : ParseIso8601Utc(getStr(data, "Created"));
+        details->Updated = getStr(data, "Updated").empty() ? 0 : ParseIso8601Utc(getStr(data, "Updated"));
         details->PriceInRobux = data.contains("PriceInRobux") && data["PriceInRobux"].is_number() ? data["PriceInRobux"].get<int>() : -1;
         details->PriceInTickets = data.contains("PriceInTickets") && data["PriceInTickets"].is_number() ? data["PriceInTickets"].get<int>() : -1;
         details->Sales = getInt(data, "Sales");
@@ -311,16 +286,27 @@ Backup::Process::Process(Core* core, const ProcessOptions options) {
     
     mAuthCookie = GetRbxCookie(core);
 
-    // User-tunable discovery depth, clamped so a huge value can't overflow the stack.
     mMaxDepth = std::clamp(core->GetRegistry()->GetKeyValue<int>("backup.max_depth").value_or(6),
                            1, kBackupDepthHardCap);
 
     ItemDescriptor* root = new ItemDescriptor();
     mRoot = root;
-    // Give it something to start off
-    mRoot->Type = options.TargetItemType;
-    mRoot->Id = options.TargetId;
-    mRoot->Version = 0;
+    if (mOptions.TargetSource == ItemSource::LocalFile) {
+        std::filesystem::path filePath(mOptions.TargetFilePath);
+        mRoot->Type = ItemType::Asset;
+        mRoot->Id = 0;
+        mRoot->Name = filePath.filename().string();
+        std::string ext = filePath.extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (ext == ".rbxl" || ext == ".rbxlx")
+            mRoot->AssetType = Roblox::AssetType::Place;
+        else if (ext == ".rbxm" || ext == ".rbxmx")
+            mRoot->AssetType = Roblox::AssetType::Model;
+    } else {
+        // Give it something to start off
+        mRoot->Type = options.TargetItemType;
+        mRoot->Id = options.TargetId;
+    }
 }
 
 Backup::Process::~Process() {
@@ -329,8 +315,17 @@ Backup::Process::~Process() {
     }
 }
 
+Backup::ItemDescriptor* Backup::Process::ReleaseRoot() {
+    ItemDescriptor* root = mRoot;
+    mRoot = nullptr;
+    return root;
+}
 
-static cpr::Response BackupHttpGet(const std::string& url, const std::string& cookie) {
+
+// `cancelled` aborts in-flight transfers via the curl progress callback, skips retries and
+// cuts backoff sleeps short.
+static cpr::Response BackupHttpGet(const std::string& url, const std::string& cookie,
+                                   const std::atomic<bool>* cancelled = nullptr) {
     cpr::Session session;
     session.SetUrl(cpr::Url{url});
     session.SetUserAgent(cpr::UserAgent{"Roblox/WinINet"});
@@ -338,27 +333,39 @@ static cpr::Response BackupHttpGet(const std::string& url, const std::string& co
     session.SetConnectTimeout(cpr::ConnectTimeout{10000});
     if (!cookie.empty())
         session.SetHeader(cpr::Header{{"Cookie", cookie}});
+    if (cancelled != nullptr)
+        session.SetProgressCallback(cpr::ProgressCallback{
+            [cancelled](cpr::cpr_pf_arg_t, cpr::cpr_pf_arg_t, cpr::cpr_pf_arg_t, cpr::cpr_pf_arg_t,
+                        intptr_t) { return !cancelled->load(); }});
     curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
 
     cpr::Response res;
     const int kMaxAttempts = 5;
     for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
         res = session.Get();
+        if (cancelled != nullptr && cancelled->load())
+            break;
         bool transient = res.error.code != cpr::ErrorCode::OK || res.status_code == 429 ||
                          res.status_code == 500 || res.status_code == 502 ||
                          res.status_code == 503 || res.status_code == 504;
         if (!transient || attempt == kMaxAttempts - 1)
             break;
 
-        // avatar.roblox.com (and friends) rate-limit hard; honor Retry-After when present, otherwise
-        // back off exponentially.
+        // Honor Retry-After when present, else back off exponentially.
         long waitMs = 400L * (1L << attempt); // 400, 800, 1600, 3200
         if (auto it = res.header.find("Retry-After"); it != res.header.end()) {
             long secs = std::strtol(it->second.c_str(), nullptr, 10);
             if (secs > 0)
                 waitMs = std::min<long>(secs * 1000L, 10000L);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(waitMs));
+        // Sleep in slices so a Cancel doesn't have to wait out the whole backoff.
+        for (long slept = 0; slept < waitMs; slept += 50) {
+            if (cancelled != nullptr && cancelled->load())
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(std::min<long>(50, waitMs - slept)));
+        }
+        if (cancelled != nullptr && cancelled->load())
+            break;
     }
 
     if (res.text.size() >= 2 && static_cast<unsigned char>(res.text[0]) == 0x1f && static_cast<unsigned char>(res.text[1]) == 0x8b) {
@@ -384,13 +391,37 @@ Backup::Response Backup::Process::Start() {
         }
     }
 
-    mProgress = 0;
+    // Negative progress renders the indeterminate bar; discovery has no percentage yet.
+    mProgress = -1;
     Report(State::Started, "Started backup process");
+    mDiscoveredItems.clear();
 
-    // Phase 1: walk the Roblox endpoints to discover everything that needs backing up.
-    std::map<std::pair<ItemType, int64_t>, bool> discoveredItems;
-    PopulateItemDescriptor(mRoot, discoveredItems);
-    if (discoveredItems.size() >= kMaxBackupNodes)
+    // Phase 1: discover everything that needs backing up.
+    if (mOptions.TargetSource == ItemSource::LocalFile) {
+        std::vector<unsigned char> data;
+        if (FILE* fp = fopen(mOptions.TargetFilePath.c_str(), "rb")) {
+            fseek(fp, 0, SEEK_END);
+            long size = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            if (size > 0) {
+                data.resize(static_cast<size_t>(size));
+                if (fread(data.data(), 1, data.size(), fp) != data.size())
+                    data.clear();
+            }
+            fclose(fp);
+        }
+        if (data.empty()) {
+            Report(State::Failed, "Could not read the source file.");
+            return Response::SourceInvalid;
+        }
+        if (!ParseFileForAssetReferences(mRoot, data)) {
+            Report(State::Failed, "The source file is not a readable Roblox place or model.");
+            return Response::SourceInvalid;
+        }
+    } else {
+        PopulateItemDescriptor(mRoot);
+    }
+    if (mDiscoveredItems.size() >= kMaxBackupNodes)
         Report(State::Populating, "Reached the backup item limit (" + std::to_string(kMaxBackupNodes) +
                                   "); some related items were skipped.");
     if (mCancelled) {
@@ -399,6 +430,7 @@ Backup::Response Backup::Process::Start() {
     }
 
     // Phase 2: download and persist each discovered item.
+    mProgress = 0;
     mTotalNodes = CountDescriptors(mRoot);
     mDoneNodes = 0;
     DownloadItemDescriptorRecursively(mRoot);
@@ -407,12 +439,21 @@ Backup::Response Backup::Process::Start() {
         return Response::Cancelled;
     }
 
-    // Phase 3: optionally stamp the database's own metadata from the captured target.
-    if (mOptions.SetDestinationMetaFromTarget && !mCancelled)
+    // Phase 3: stamp the database's own metadata. Not at progress 1.0, completing the toast arms
+    // auto-dismiss, and dismissal doubles as cancel.
+    if (mOptions.SetDestinationMetaFromTarget && !mCancelled) {
+        mProgress = -1;
+        Report(State::Finalizing, "Writing destination metadata");
         SetDestinationMeta();
+    }
 
     mProgress = 1.0;
-    Report(State::Success, "Backup complete.");
+    const int failed = mFailedDownloads.load() + mFailedWrites.load();
+    if (failed > 0)
+        Report(State::Success, "Backup finished with " + std::to_string(failed) + " errors (" +
+                               std::to_string(mTotalNodes) + " items).");
+    else
+        Report(State::Success, "Backup complete.");
     return Response::Ok;
 }
 
@@ -452,28 +493,31 @@ Backup::ItemDescriptor* Backup::Process::GetRoot() {
     return mRoot;
 }
 
-void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, std::map<std::pair<ItemType, int64_t>, bool> &discoveredItems, int depth) {
+void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor, int depth) {
     if (descriptor == nullptr || mCancelled)
         return;
 
-    discoveredItems[{ descriptor->Type, descriptor->Id }] = true;
+    mDiscoveredItems.insert({ descriptor->Type, descriptor->Id });
 
     auto FetchJson = [&](const std::string& url, const std::string& description, nlohmann::json& out) -> bool {
-        cpr::Response res = BackupHttpGet(url, mAuthCookie);
+        cpr::Response res = BackupHttpGet(url, mAuthCookie, &mCancelled);
         if (res.error.code != cpr::ErrorCode::OK) {
+            mFailedDownloads++;
             Report(State::DownloadingFailed, "Failed to download " + description);
             return false;
         }
-        // A non-200 (notably 429 Too Many Requests) still returns a valid JSON error body like
-        // {"errors":[...]}, which would otherwise parse as a "successful" object with none of the
-        // expected fields, silently backing up nothing. Treat it as a failure.
+        // A non-200 (notably 429) still returns a JSON error body that would parse as a "successful"
+        // object with no fields; treat it as failure.
         if (res.status_code != 200) {
+            if (res.status_code == 429) mRatelimitedHits++;
+            mFailedDownloads++;
             Report(res.status_code == 429 ? State::Ratelimited : State::DownloadingFailed,
                    "HTTP " + std::to_string(res.status_code) + " while downloading " + description);
             return false;
         }
         out = nlohmann::json::parse(res.text, nullptr, false);
         if (out.is_discarded()) {
+            mFailedDownloads++;
             Report(State::ParsingJsonFailed, "Failed to parse JSON for " + description);
             return false;
         }
@@ -492,25 +536,23 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
     auto jTs = [](const nlohmann::json& j, const char* key) -> int64_t {
         auto it = j.find(key);
         if (it == j.end() || !it->is_string()) return 0;
-        long ts = ConvertISO8601ToTimestamp(it->get<std::string>());
-        return ts < 0 ? 0 : static_cast<int64_t>(ts);
+        int64_t ts = ParseIso8601Utc(it->get<std::string>());
+        return ts < 0 ? 0 : ts;
     };
 
     auto MakeChild = [&](ItemType type, int64_t id, Roblox::AssetType assetType = Roblox::AssetType::None) -> ItemDescriptor* {
-        if (id <= 0 || discoveredItems.contains({ type, id }) || discoveredItems.size() >= kMaxBackupNodes)
+        if (id <= 0 || mDiscoveredItems.contains({ type, id }) || mDiscoveredItems.size() >= kMaxBackupNodes)
             return nullptr;
         auto* child = new ItemDescriptor();
         child->Type = type;
         child->Id = id;
-        child->Version = 0;
         child->AssetType = assetType;
         // Mark discovered up-front so a depth-capped (unpopulated) child still de-duplicates.
-        discoveredItems[{ type, id }] = true;
+        mDiscoveredItems.insert({ type, id });
         descriptor->AddChild(child);
-        // Past the depth cap the child is still recorded and downloaded, but we stop descending so a
-        // deeply-connected graph can't overflow the stack.
+        // Past the depth cap the child is still recorded and downloaded, but descent stops.
         if (depth + 1 < mMaxDepth)
-            PopulateItemDescriptor(child, discoveredItems, depth + 1);
+            PopulateItemDescriptor(child, depth + 1);
         return child;
     };
 
@@ -550,9 +592,8 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
         }
         if (mCancelled) return;
 
-        // Each place is an asset of type Place; develop's listing doesn't give the type, so force it.
-        // This endpoint is public, so it also doubles as the fallback source for the universe's name,
-        // description and start place when the authenticated games endpoint above returned nothing.
+        // develop's listing gives no type, so force Place; this public endpoint also doubles as the
+        // fallback for the universe's name/description/start place.
         if (FetchJson(placesUrl, "universe places for " + idStr, json) && json.contains("data") && json["data"].is_array()) {
             bool firstPlace = true;
             for (auto& entry : json["data"]) {
@@ -572,6 +613,52 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
             for (auto& entry : json["data"])
                 MakeChild(ItemType::Badge, jNum(entry, "id"));
         }
+        if (mCancelled) return;
+
+        // Game passes; the listing's name/price stand in when the stingier per-pass endpoint fails.
+        std::string passesUrl = std::vformat(Reg("internet.roblox.universe_passes", "https://games.roblox.com/v1/games/{}/game-passes?limit=100&sortOrder=Asc"), std::make_format_args(idStr));
+        if (FetchJson(passesUrl, "universe game passes for " + idStr, json) && json.contains("data") && json["data"].is_array()) {
+            for (auto& entry : json["data"]) {
+                ItemDescriptor* pass = MakeChild(ItemType::Pass, jNum(entry, "id"));
+                if (pass != nullptr) {
+                    if (pass->Name.empty()) pass->Name = jStr(entry, "name");
+                    if (pass->Price == 0)   pass->Price = jNum(entry, "price");
+                }
+                if (mCancelled) return;
+            }
+        }
+
+        // Developer products: paginated, shapes vary (bare array vs wrappers, camelCase vs PascalCase).
+        std::string dpTmpl = Reg("internet.roblox.universe_devproducts", "https://apis.roblox.com/developer-products/v1/universes/{}/developerproducts?pageNumber={}&pageSize=50");
+        for (int page = 1; page <= 4 && !mCancelled; page++) {
+            std::string pageStr = std::to_string(page);
+            nlohmann::json dpJson;
+            if (!FetchJson(std::vformat(dpTmpl, std::make_format_args(idStr, pageStr)), "developer products for " + idStr, dpJson))
+                break;
+            const nlohmann::json* list = nullptr;
+            if (dpJson.is_array())
+                list = &dpJson;
+            else if (auto it = dpJson.find("developerProducts"); it != dpJson.end() && it->is_array())
+                list = &*it;
+            else if (auto it = dpJson.find("data"); it != dpJson.end() && it->is_array())
+                list = &*it;
+            if (list == nullptr || list->empty())
+                break;
+            for (auto& entry : *list) {
+                ItemDescriptor* product = MakeChild(ItemType::DevProduct, jNum(entry, "id"));
+                if (product != nullptr) {
+                    if (product->Name.empty())        product->Name = !jStr(entry, "name").empty() ? jStr(entry, "name") : jStr(entry, "Name");
+                    if (product->Description.empty()) product->Description = !jStr(entry, "description").empty() ? jStr(entry, "description") : jStr(entry, "Description");
+                    if (product->Price == 0)          product->Price = jNum(entry, "price") != 0 ? jNum(entry, "price") : jNum(entry, "PriceInRobux");
+                    if (product->ImageId == 0)        product->ImageId = jNum(entry, "iconImageAssetId") != 0 ? jNum(entry, "iconImageAssetId") : jNum(entry, "IconImageAssetId");
+                    if (product->ImageId > 0)
+                        MakeChild(ItemType::Asset, product->ImageId);
+                }
+                if (mCancelled) return;
+            }
+            if (list->size() < 50)
+                break; // short page = last page
+        }
         break;
     }
     case ItemType::Asset: {
@@ -582,8 +669,7 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
             descriptor->Created = jTs(json, "Created");
             descriptor->Updated = jTs(json, "Updated");
 
-            // Keep a type we were given when discovered (e.g. Place from a universe); otherwise adopt
-            // the economy endpoint's AssetTypeId.
+            // Keep a type we were given at discovery; otherwise adopt the economy endpoint's AssetTypeId.
             int64_t assetTypeId = jNum(json, "AssetTypeId");
             if (assetTypeId > 0 && descriptor->AssetType == Roblox::AssetType::None)
                 descriptor->AssetType = static_cast<Roblox::AssetType>(assetTypeId);
@@ -610,8 +696,7 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
             descriptor->Description = jStr(json, "description");
             descriptor->Created = jTs(json, "created");
             descriptor->Updated = jTs(json, "updated");
-            // The badge's icon is a child image asset; point the badge's ImageId at it so the SDK's
-            // RetrieveImageData (which resolves a badge's preview by following ImageId) finds it.
+            // Point the badge's ImageId at its child image asset so RetrieveImageData resolves it.
             descriptor->ImageId = jNum(json, "iconImageId");
             MakeChild(ItemType::Asset, descriptor->ImageId);
         }
@@ -626,20 +711,20 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
         }
         if (mCancelled) return;
 
-        // Only the explicitly-targeted user (the backup root) pulls in the heavy avatar sub-graph.
-        // Users discovered transitively as asset creators must NOT fetch avatars, or the worn-asset
-        // -> creator -> their-worn-assets -> ... chain explodes and overflows the stack.
+        // Only the backup root pulls the avatar sub-graph; transitive creators must not, or the
+        // worn-asset -> creator -> worn-assets chain overflows the stack.
         if (descriptor == mRoot) {
-        // Worn assets, body colors, scales and rig type come from the avatar API. Prefer the v2
-        // game-server fetch endpoint: v1 users/{id}/avatar 429s extremely aggressively (often a single
-        // request, and the penalty persists for minutes), while v2 has far higher limits. Both shapes
-        // are parsed, so a v1 fallback still works.
+        // Prefer the v2 endpoint: v1 users/{id}/avatar 429s aggressively with a minutes-long penalty;
+        // both response shapes are parsed.
         std::string fetchUrl = std::vformat(Reg("internet.roblox.avatar_fetch", "https://avatar.roblox.com/v2/avatar/avatar-fetch?userId={}&placeId=1"), std::make_format_args(idStr));
         std::string v1Url    = std::vformat(Reg("internet.roblox.user_avatar_details", "https://avatar.roblox.com/v1/users/{}/avatar"), std::make_format_args(idStr));
         nlohmann::json avatar;
+        int failedBeforeAvatar = mFailedDownloads.load();
         bool gotAvatar = FetchJson(fetchUrl, "avatar for user " + idStr, avatar) && avatar.is_object();
         if (!gotAvatar)
             gotAvatar = FetchJson(v1Url, "avatar (v1) for user " + idStr, avatar) && avatar.is_object();
+        if (gotAvatar)
+            mFailedDownloads.store(failedBeforeAvatar); // a v2 miss recovered by the v1 fallback is not a loss
         if (gotAvatar) {
             descriptor->HasAvatar = true;
 
@@ -751,6 +836,84 @@ void Backup::Process::PopulateItemDescriptor(Backup::ItemDescriptor* descriptor,
         }
         break;
     }
+    case ItemType::Pass: {
+        // Same PascalCase shape as the economy asset-details endpoint.
+        std::string detailsUrl = std::vformat(Reg("internet.roblox.pass_details", "https://apis.roblox.com/game-passes/v1/game-passes/{}/product-info"), std::make_format_args(idStr));
+        if (FetchJson(detailsUrl, "game pass " + idStr, json) && json.is_object()) {
+            descriptor->Name = jStr(json, "Name");
+            descriptor->Description = jStr(json, "Description");
+            descriptor->Created = jTs(json, "Created");
+            descriptor->Updated = jTs(json, "Updated");
+            descriptor->Price = jNum(json, "PriceInRobux");
+
+            auto creatorIt = json.find("Creator");
+            if (creatorIt != json.end() && creatorIt->is_object()) {
+                int64_t creatorId = jNum(*creatorIt, "CreatorTargetId");
+                if (creatorId <= 0) creatorId = jNum(*creatorIt, "Id");
+                bool isGroup = jStr(*creatorIt, "CreatorType") == "Group";
+                descriptor->CreatorId = creatorId;
+                descriptor->CreatorType = isGroup ? Roblox::CreatorType::Group : Roblox::CreatorType::User;
+                MakeChild(isGroup ? ItemType::Group : ItemType::User, creatorId);
+            }
+
+            descriptor->ImageId = jNum(json, "IconImageAssetId");
+            MakeChild(ItemType::Asset, descriptor->ImageId);
+        }
+        break;
+    }
+    case ItemType::DevProduct: {
+        // A standalone dev-product backup asks the per-product endpoint; field casing differs
+        // between API generations.
+        std::string detailsUrl = std::vformat(Reg("internet.roblox.devproduct_details", "https://apis.roblox.com/developer-products/v1/developer-products/{}"), std::make_format_args(idStr));
+        if (FetchJson(detailsUrl, "developer product " + idStr, json) && json.is_object()) {
+            if (descriptor->Name.empty())
+                descriptor->Name = !jStr(json, "name").empty() ? jStr(json, "name") : jStr(json, "Name");
+            if (descriptor->Description.empty())
+                descriptor->Description = !jStr(json, "description").empty() ? jStr(json, "description") : jStr(json, "Description");
+            if (descriptor->Price == 0)
+                descriptor->Price = jNum(json, "price") != 0 ? jNum(json, "price") : jNum(json, "PriceInRobux");
+            if (descriptor->ImageId == 0)
+                descriptor->ImageId = jNum(json, "iconImageAssetId") != 0 ? jNum(json, "iconImageAssetId") : jNum(json, "IconImageAssetId");
+            MakeChild(ItemType::Asset, descriptor->ImageId);
+        }
+        break;
+    }
+    case ItemType::Outfit: {
+        // Same family as the v1 avatar endpoint; it carries no owner, so the Outfit row's UserId
+        // stays unset.
+        std::string detailsUrl = std::vformat(Reg("internet.roblox.outfit_details", "https://avatar.roblox.com/v1/outfits/{}/details"), std::make_format_args(idStr));
+        if (FetchJson(detailsUrl, "outfit " + idStr, json) && json.is_object()) {
+            descriptor->Name = jStr(json, "name");
+            descriptor->HasAvatar = true;
+
+            if (auto it = json.find("assets"); it != json.end() && it->is_array()) {
+                for (auto& e : *it) {
+                    int64_t assetId = jNum(e, "id");
+                    if (assetId <= 0)
+                        continue;
+                    int64_t typeId = 0;
+                    if (auto t = e.find("assetType"); t != e.end() && t->is_object())
+                        typeId = jNum(*t, "id");
+                    descriptor->WornAssetIds.push_back(assetId);
+                    MakeChild(ItemType::Asset, assetId, static_cast<Roblox::AssetType>(typeId));
+                    if (mCancelled) return;
+                }
+            }
+
+            if (auto scalesIt = json.find("scale"); scalesIt != json.end() && scalesIt->is_object()) {
+                auto jDbl = [](const nlohmann::json& j, const char* key) -> double {
+                    auto it = j.find(key);
+                    return (it != j.end() && it->is_number()) ? it->get<double>() : 0.0;
+                };
+                descriptor->AvatarWidth       = jDbl(*scalesIt, "width");
+                descriptor->AvatarHeight      = jDbl(*scalesIt, "height");
+                descriptor->AvatarHead        = jDbl(*scalesIt, "head");
+                descriptor->AvatarProportions = jDbl(*scalesIt, "proportion");
+            }
+            descriptor->AvatarBodyType = jStr(json, "playerAvatarType") == "R15" ? 1 : 0;
+        }
+        break;
+    }
     default:
         Report(State::Failed, "Unsupported item type for backup (id " + idStr + ")");
         break;
@@ -761,17 +924,17 @@ bool Backup::Process::DownloadAssetData(int64_t id, const std::string& cookie, s
     std::string deliveryUrl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_delivery")
         .value_or("https://assetdelivery.roblox.com/v1/asset/?id={}");
     std::string idStr = std::to_string(id);
-    cpr::Response res = BackupHttpGet(std::vformat(deliveryUrl, std::make_format_args(idStr)), cookie);
+    cpr::Response res = BackupHttpGet(std::vformat(deliveryUrl, std::make_format_args(idStr)), cookie, &mCancelled);
     if (res.error.code != cpr::ErrorCode::OK || res.status_code != 200 || res.text.empty())
         return false;
     out.assign(res.text.begin(), res.text.end());
     return true;
 }
 
-// Resolves a thumbnails.roblox.com JSON endpoint of the shape {"data":[{"state","imageUrl",...}]} to
-// the first Completed entry's image bytes. Shared by the asset-thumbnail and game-icon fetchers.
-static bool FetchRenderedThumbnail(const std::string& jsonUrl, std::vector<unsigned char>& out) {
-    cpr::Response res = BackupHttpGet(jsonUrl, "");
+// Resolves a thumbnails.roblox.com endpoint to the first Completed entry's image bytes.
+static bool FetchRenderedThumbnail(const std::string& jsonUrl, std::vector<unsigned char>& out,
+                                   const std::atomic<bool>* cancelled = nullptr) {
+    cpr::Response res = BackupHttpGet(jsonUrl, "", cancelled);
     if (res.error.code != cpr::ErrorCode::OK || res.status_code != 200)
         return false;
 
@@ -787,7 +950,7 @@ static bool FetchRenderedThumbnail(const std::string& jsonUrl, std::vector<unsig
     if (urlIt == first.end() || !urlIt->is_string())
         return false;
 
-    cpr::Response img = BackupHttpGet(urlIt->get<std::string>(), "");
+    cpr::Response img = BackupHttpGet(urlIt->get<std::string>(), "", cancelled);
     if (img.error.code != cpr::ErrorCode::OK || img.status_code != 200 || img.text.empty())
         return false;
 
@@ -799,28 +962,28 @@ bool Backup::Process::DownloadAssetThumbnail(int64_t id, std::vector<unsigned ch
     std::string thumbTmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.asset_thumbnail")
         .value_or("https://thumbnails.roblox.com/v1/assets?assetIds={}&size=420x420&format=Png&isCircular=false");
     std::string idStr = std::to_string(id);
-    return FetchRenderedThumbnail(std::vformat(thumbTmpl, std::make_format_args(idStr)), out);
+    return FetchRenderedThumbnail(std::vformat(thumbTmpl, std::make_format_args(idStr)), out, &mCancelled);
 }
 
 bool Backup::Process::DownloadGameIcon(int64_t universeId, std::vector<unsigned char>& out) {
     std::string tmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.universe_icon")
         .value_or("https://thumbnails.roblox.com/v1/games/icons?universeIds={}&size=512x512&format=Png&isCircular=false");
     std::string idStr = std::to_string(universeId);
-    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out);
+    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out, &mCancelled);
 }
 
 bool Backup::Process::DownloadUserThumbnail(int64_t userId, std::vector<unsigned char>& out) {
     std::string tmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.user_thumbnail")
         .value_or("https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={}&size=420x420&format=Png&isCircular=false");
     std::string idStr = std::to_string(userId);
-    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out);
+    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out, &mCancelled);
 }
 
 bool Backup::Process::DownloadUserAvatar(int64_t userId, std::vector<unsigned char>& out) {
     std::string tmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.user_avatar")
         .value_or("https://thumbnails.roblox.com/v1/users/avatar?userIds={}&size=420x420&format=Png&isCircular=false");
     std::string idStr = std::to_string(userId);
-    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out);
+    return FetchRenderedThumbnail(std::vformat(tmpl, std::make_format_args(idStr)), out, &mCancelled);
 }
 
 int64_t Backup::Process::ResolveUniverseForPlace(Backup::ItemDescriptor* descriptor) {
@@ -833,7 +996,7 @@ int64_t Backup::Process::ResolveUniverseForPlace(Backup::ItemDescriptor* descrip
     std::string tmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.place_universe")
         .value_or("https://apis.roblox.com/universes/v1/places/{}/universe");
     std::string idStr = std::to_string(descriptor->Id);
-    cpr::Response res = BackupHttpGet(std::vformat(tmpl, std::make_format_args(idStr)), mAuthCookie);
+    cpr::Response res = BackupHttpGet(std::vformat(tmpl, std::make_format_args(idStr)), mAuthCookie, &mCancelled);
     if (res.error.code != cpr::ErrorCode::OK || res.status_code != 200)
         return 0;
     nlohmann::json j = nlohmann::json::parse(res.text, nullptr, false);
@@ -856,7 +1019,7 @@ void Backup::Process::DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor
         std::string tmpl = mCore->GetRegistry()->GetKeyValue<std::string>("internet.roblox.universe_thumbnails")
             .value_or("https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds={}&size=768x432&format=Png&countPerUniverse=25&defaults=true");
         std::string idStr = std::to_string(universeId);
-        cpr::Response res = BackupHttpGet(std::vformat(tmpl, std::make_format_args(idStr)), "");
+        cpr::Response res = BackupHttpGet(std::vformat(tmpl, std::make_format_args(idStr)), "", &mCancelled);
         if (res.error.code == cpr::ErrorCode::OK && res.status_code == 200) {
             nlohmann::json root = nlohmann::json::parse(res.text, nullptr, false);
             if (!root.is_discarded() && root.contains("data") && root["data"].is_array() && !root["data"].empty()) {
@@ -875,7 +1038,7 @@ void Backup::Process::DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor
                         if (targetId == 0)
                             continue; // need the thumbnail's image id as the table key
 
-                        cpr::Response img = BackupHttpGet(urlIt->get<std::string>(), "");
+                        cpr::Response img = BackupHttpGet(urlIt->get<std::string>(), "", &mCancelled);
                         if (img.error.code == cpr::ErrorCode::OK && img.status_code == 200 && !img.text.empty())
                             carousel.emplace_back(targetId, std::vector<unsigned char>(img.text.begin(), img.text.end()));
                     }
@@ -891,16 +1054,10 @@ void Backup::Process::DownloadPlaceThumbnails(Backup::ItemDescriptor* descriptor
         if (blob.empty() || targetId == 0)
             continue;
         RunDb([&]() {
-            // Roblox serves a default placeholder carousel image (the wide GameMediaItem render) for a
-            // game with no thumbnails of its own; its targetId is the place itself, not a real image
-            // asset id. Store that as a placeholder blob rather than a self-referential Image asset.
             if (targetId == descriptor->Id) {
                 db->AddPlaceholderThumbnailToPlace(descriptor->Id, blob);
                 return;
             }
-            // A real carousel thumbnail's targetId is a distinct image asset id, so store it as its own
-            // Image asset (carrying the rendered bytes) and link the place to it via AssetPlaceThumbnail.
-            // RetrievePlaceThumbnailData resolves this link without confusing it with the place icon.
             if (!db->DoesItemExist(ItemType::Asset, targetId)) {
                 SqlRow row;
                 row.push_back({"Id", targetId});
@@ -919,19 +1076,21 @@ void Backup::Process::SetDestinationMeta() {
     if (mOptions.DestinationType != DestinationType::Database || mOptions.Destination == nullptr || mRoot == nullptr)
         return;
     EmuDb* db = static_cast<EmuDb*>(mOptions.Destination);
-    
+
     std::vector<unsigned char> icon;
-    switch (mRoot->Type) {
-    case ItemType::Universe:
-        DownloadGameIcon(mRoot->Id, icon);
-        break;
-    case ItemType::User:
-        if (!DownloadUserAvatar(mRoot->Id, icon))
-            DownloadUserThumbnail(mRoot->Id, icon);
-        break;
-    default: // Asset (place/model), Badge, Bundle, ...
-        DownloadAssetThumbnail(mRoot->Id, icon);
-        break;
+    if (mRoot->Id > 0) {
+        switch (mRoot->Type) {
+        case ItemType::Universe:
+            DownloadGameIcon(mRoot->Id, icon);
+            break;
+        case ItemType::User:
+            if (!DownloadUserAvatar(mRoot->Id, icon))
+                DownloadUserThumbnail(mRoot->Id, icon);
+            break;
+        default: // Asset (place/model), Badge, Bundle, ...
+            DownloadAssetThumbnail(mRoot->Id, icon);
+            break;
+        }
     }
 
     const std::string title = mRoot->Name;
@@ -957,13 +1116,17 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
     if (includeId)
         row.push_back({"Id", static_cast<int64_t>(d->Id)});
 
+    const bool update = !includeId;
     const std::string name = d->Name.empty() ? std::to_string(d->Id) : d->Name;
     const char* creatorCol = d->CreatorType == Roblox::CreatorType::Group ? "GroupId" : "UserId";
+    const int64_t parentUniverseId = FindParentUniverseId(d);
 
     switch (d->Type) {
     case ItemType::Asset:
-        row.push_back({"Name", name});
-        row.push_back({"Type", static_cast<int>(d->AssetType)});
+        if (!update || !d->Name.empty())
+            row.push_back({"Name", name});
+        if (!update || d->AssetType != Roblox::AssetType::None)
+            row.push_back({"Type", static_cast<int>(d->AssetType)});
         if (!d->Description.empty())
             row.push_back({"Description", d->Description});
         if (d->Created > 0)
@@ -972,7 +1135,8 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
             row.push_back({"Updated", d->Updated});
         if (d->ImageId > 0)
             row.push_back({"ImageId", d->ImageId});
-        if (d->CreatorId > 0)
+        // A file-found asset never backs up its creator; don't write a dangling creator id.
+        if (d->CreatorId > 0 && !d->FoundInFile)
             row.push_back({creatorCol, d->CreatorId});
         break;
     case ItemType::Universe:
@@ -989,7 +1153,8 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
             row.push_back({creatorCol, d->CreatorId});
         break;
     case ItemType::Badge:
-        row.push_back({"Name", name});
+        if (!update || !d->Name.empty())
+            row.push_back({"Name", name});
         if (!d->Description.empty())
             row.push_back({"Description", d->Description});
         if (d->Created > 0)
@@ -998,7 +1163,8 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
             row.push_back({"Updated", d->Updated});
         if (d->ImageId > 0)
             row.push_back({"ImageId", d->ImageId});
-        row.push_back({"UniverseId", FindParentUniverseId(d)});
+        if (!update || parentUniverseId != 0)
+            row.push_back({"UniverseId", parentUniverseId}); // NOT NULL; 0 = unknown
         break;
     case ItemType::User:
         row.push_back({"Name", name});
@@ -1021,6 +1187,41 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
         if (!d->Description.empty()) row.push_back({"Description", d->Description});
         row.push_back({"Type", 0}); // Bundle.Type (bundleType) is NOT NULL
         break;
+    case ItemType::Pass:
+        if (!update || !d->Name.empty())
+            row.push_back({"Name", name});
+        if (!d->Description.empty()) row.push_back({"Description", d->Description});
+        if (d->Created > 0)          row.push_back({"Created", d->Created});
+        if (d->Updated > 0)          row.push_back({"Updated", d->Updated});
+        if (d->ImageId > 0)          row.push_back({"ImageId", d->ImageId});
+        if (d->CreatorId > 0)        row.push_back({creatorCol, d->CreatorId});
+        if (!update || parentUniverseId != 0)
+            row.push_back({"UniverseId", parentUniverseId});     // NOT NULL; 0 = unknown
+        if (!update || d->Price != 0)
+            row.push_back({"PriceInRobux", d->Price});           // NOT NULL
+        break;
+    case ItemType::DevProduct:
+        if (!update || !d->Name.empty())
+            row.push_back({"Name", name});
+        if (!d->Description.empty()) row.push_back({"Description", d->Description});
+        if (d->ImageId > 0)          row.push_back({"ImageId", d->ImageId});
+        if (!update || parentUniverseId != 0)
+            row.push_back({"UniverseId", parentUniverseId});     // NOT NULL; 0 = unknown
+        if (!update || d->Price != 0)
+            row.push_back({"Price", d->Price});                  // NOT NULL
+        if (!update)
+            row.push_back({"CurrencyType", 1});                  // NOT NULL; 1 = Robux
+        break;
+    case ItemType::Outfit:
+        row.push_back({"Name", name}); // NOT NULL
+        if (d->HasAvatar) {
+            row.push_back({"BodyType", d->AvatarBodyType});
+            row.push_back({"Width", d->AvatarWidth});
+            row.push_back({"Height", d->AvatarHeight});
+            row.push_back({"Head", d->AvatarHead});
+            row.push_back({"Proportions", d->AvatarProportions});
+        }
+        break;
     default:
         return {};
     }
@@ -1028,6 +1229,10 @@ SqlRow Backup::Process::BuildItemRow(Backup::ItemDescriptor* d, bool includeId) 
 }
 
 void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor) {
+    // A LocalFile root has no online id; only its children are real items.
+    if (descriptor->Id <= 0)
+        return;
+
     const std::string idStr = std::to_string(descriptor->Id);
     const std::string label = (descriptor->Name.empty() ? idStr : descriptor->Name) + " (" + idStr + ")";
     Report(State::Downloading, "Backing up " + label);
@@ -1037,49 +1242,98 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
     if (mOptions.DestinationType == DestinationType::Database) {
         EmuDb* db = static_cast<EmuDb*>(mOptions.Destination);
 
-        // 1. metadata row (insert or update if the item is already present)
-        if (mOptions.DownloadMetadata) {
+        // 1. metadata row. File-found assets defer it until the download outcome is known, so a
+        // moderated/deleted reference leaves no stub row.
+        bool metadataWritten = false;
+        auto writeMetadataRow = [&]() {
+            if (!mOptions.DownloadMetadata)
+                return;
             SqlRow insertRow = BuildItemRow(descriptor, true);
-            if (!insertRow.empty()) {
-                bool ok = true;
-                RunDb([&]() {
-                    SqlDb::Response res = db->DoesItemExist(descriptor->Type, descriptor->Id)
-                        ? db->UpdateItem(descriptor->Type, descriptor->Id, BuildItemRow(descriptor, false))
-                        : db->AddItem(descriptor->Type, insertRow);
-                    if (res == SqlDb::Response::Success) db->MarkDirty();
-                    else ok = false;
-                });
-                if (!ok)
-                    Report(State::AddingToDatabaseFailed, "Failed to write metadata for " + label);
+            if (insertRow.empty())
+                return;
+            bool ok = true;
+            RunDb([&]() {
+                SqlDb::Response res;
+                if (db->DoesItemExist(descriptor->Type, descriptor->Id)) {
+                    // The update row omits placeholders (see BuildItemRow) and may then be empty.
+                    SqlRow updateRow = BuildItemRow(descriptor, false);
+                    res = updateRow.empty() ? SqlDb::Response::Success
+                                            : db->UpdateItem(descriptor->Type, descriptor->Id, updateRow);
+                } else {
+                    res = db->AddItem(descriptor->Type, insertRow);
+                }
+                if (res == SqlDb::Response::Success) db->MarkDirty();
+                else ok = false;
+            });
+            if (!ok) {
+                mFailedWrites++;
+                Report(State::AddingToDatabaseFailed, "Failed to write metadata for " + label);
+                return;
             }
-        }
+            metadataWritten = true;
+        };
+        const bool deferMetadata = descriptor->Type == ItemType::Asset && descriptor->FoundInFile;
+        if (!deferMetadata)
+            writeMetadataRow();
 
         // 2. only assets carry downloadable binary content and thumbnails
         if (descriptor->Type == ItemType::Asset) {
             std::vector<unsigned char> data;
-            if (DownloadAssetData(descriptor->Id, cookie, data) && !data.empty()) {
+            const bool dataOk = DownloadAssetData(descriptor->Id, cookie, data) && !data.empty();
+
+            // Only materialize a file-found row that verifiably exists (bytes downloaded or enrichment
+            // recognized the id).
+            if (deferMetadata && !mCancelled) {
+                const bool enriched = !descriptor->Name.empty() || descriptor->AssetType != Roblox::AssetType::None;
+                if (dataOk || enriched)
+                    writeMetadataRow();
+            }
+
+            if (dataOk) {
                 bool ok = true;
                 RunDb([&]() {
                     if (db->AttachDataToAsset(descriptor->Id, 0, data) == SqlDb::Response::Success) db->MarkDirty();
                     else ok = false;
                 });
-                if (!ok)
+                if (!ok) {
+                    mFailedWrites++;
                     Report(State::AddingToDatabaseFailed, "Failed to store data for " + label);
-            } else {
+                }
+                if (mOptions.ParseFilesAndBackupFoundAssets && !mCancelled)
+                    ParseFileForAssetReferences(descriptor, data);
+            } else if (!mCancelled) {
+                mFailedDownloads++;
                 Report(State::DownloadingFailed, "Could not download data for " + label);
             }
-            
-            if (descriptor->AssetType == Roblox::AssetType::Place) {
+
+            // A file-found place is a referenced asset, not one of the target's own places, no universe
+            // link or carousel.
+            if (descriptor->AssetType == Roblox::AssetType::Place && !descriptor->FoundInFile) {
                 int64_t universeId = FindParentUniverseId(descriptor);
                 if (universeId != 0)
                     RunDb([&]() { db->AddPlaceToUniverse(universeId, descriptor->Id); });
             }
 
-            // Only attach a thumbnail to AutogeneratedThumbnailHash if Roblox returns imageId of 0, because
-            // that means its one of those stupid placeholder thumbnails.
-            if (mOptions.DownloadAutoGeneratedThumbnails && !mCancelled && descriptor->ImageId == 0) {
+            // imageId 0 = Roblox's placeholder render -> AutogeneratedThumbnailHash. File-found assets use
+            // the enrichment URL (per-asset fetch when the CDN link went stale).
+            if (mOptions.DownloadAutoGeneratedThumbnails && !mCancelled && descriptor->ImageId == 0 &&
+                (!deferMetadata || metadataWritten)) {
                 std::vector<unsigned char> thumb;
-                if (DownloadAssetThumbnail(descriptor->Id, thumb) && !thumb.empty()) {
+                bool got = false;
+                if (descriptor->FoundInFile) {
+                    if (!descriptor->ThumbnailUrl.empty()) {
+                        cpr::Response img = BackupHttpGet(descriptor->ThumbnailUrl, "", &mCancelled);
+                        if (img.error.code == cpr::ErrorCode::OK && img.status_code == 200 && !img.text.empty()) {
+                            thumb.assign(img.text.begin(), img.text.end());
+                            got = true;
+                        }
+                        if (!got && !mCancelled)
+                            got = DownloadAssetThumbnail(descriptor->Id, thumb);
+                    }
+                } else {
+                    got = DownloadAssetThumbnail(descriptor->Id, thumb);
+                }
+                if (got && !thumb.empty()) {
                     RunDb([&]() {
                         if (db->AttachThumbnailDataToAsset(descriptor->Id, thumb) == SqlDb::Response::Success)
                             db->MarkDirty();
@@ -1087,7 +1341,8 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
                 }
             }
 
-            if (descriptor->AssetType == Roblox::AssetType::Place && mOptions.DownloadAutoGeneratedThumbnails && !mCancelled)
+            if (descriptor->AssetType == Roblox::AssetType::Place && !descriptor->FoundInFile &&
+                mOptions.DownloadAutoGeneratedThumbnails && !mCancelled)
                 DownloadPlaceThumbnails(descriptor, db);
         }
 
@@ -1110,14 +1365,22 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
             }
         }
 
-        // 4. a user's worn avatar: link each worn asset to the user's character and store its body
-        // colors. The scales went into the User row via BuildItemRow.
+        // 4. a user's worn avatar: link worn assets to the character and store body colors.
         if (descriptor->Type == ItemType::User && descriptor->HasAvatar && mOptions.DownloadMetadata && !mCancelled) {
             RunDb([&]() {
                 for (int64_t assetId : descriptor->WornAssetIds)
                     db->AddAssetToUserCharacter(descriptor->Id, assetId);
                 for (const auto& [part, color] : descriptor->BodyColors)
                     db->SetUserCharacterBodyColor(descriptor->Id, part, color);
+                db->MarkDirty();
+            });
+        }
+
+        // 5. an outfit's contents: link each worn asset to the outfit.
+        if (descriptor->Type == ItemType::Outfit && descriptor->HasAvatar && mOptions.DownloadMetadata && !mCancelled) {
+            RunDb([&]() {
+                for (int64_t assetId : descriptor->WornAssetIds)
+                    db->AddAssetToOutfit(descriptor->Id, assetId);
                 db->MarkDirty();
             });
         }
@@ -1132,9 +1395,13 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
                     fwrite(data.data(), 1, data.size(), fp);
                     fclose(fp);
                 } else {
-                    Report(State::Failed, "Could not write file for " + label);
+                    mFailedWrites++;
+                    Report(State::AddingToDatabaseFailed, "Could not write file for " + label);
                 }
-            } else {
+                if (mOptions.ParseFilesAndBackupFoundAssets && !mCancelled)
+                    ParseFileForAssetReferences(descriptor, data);
+            } else if (!mCancelled) {
+                mFailedDownloads++;
                 Report(State::DownloadingFailed, "Could not download data for " + label);
             }
         }
@@ -1155,6 +1422,283 @@ void Backup::Process::DownloadItemDescriptor(Backup::ItemDescriptor* descriptor)
             }
         }
     }
+}
+
+static void CollectAssetIdsFromText(std::string_view text, std::vector<int64_t>& out) {
+    auto digitsAt = [](std::string_view s, size_t pos) -> int64_t {
+        int64_t value = 0;
+        bool any = false;
+        while (pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos]))) {
+            value = value * 10 + (s[pos] - '0');
+            any = true;
+            pos++;
+            if (value > 999999999999999LL) return 0; // absurdly long digit run: not an asset id
+        }
+        return any ? value : 0;
+    };
+
+    constexpr std::string_view kScheme = "rbxassetid://";
+    for (size_t pos = text.find(kScheme); pos != std::string_view::npos; pos = text.find(kScheme, pos + 1)) {
+        int64_t id = digitsAt(text, pos + kScheme.size());
+        if (id > 0) out.push_back(id);
+    }
+
+    // The URL starting at pos, ended at the first character a URL cannot contain.
+    auto urlAt = [&](size_t pos) -> std::string_view {
+        size_t end = pos;
+        while (end < text.size()) {
+            unsigned char c = static_cast<unsigned char>(text[end]);
+            if (c <= ' ' || c == '"' || c == '\'' || c == '<' || c == '>' || c == ')' || c == '\\' || c >= 0x7F)
+                break;
+            end++;
+        }
+        return text.substr(pos, end - pos);
+    };
+    auto collectIdParam = [&](std::string_view url) {
+        constexpr std::string_view kIdParam = "id=";
+        for (size_t pos = url.find(kIdParam); pos != std::string_view::npos; pos = url.find(kIdParam, pos + 1)) {
+            // Require ?id= or &id= so userId=/universeId=/placeId= and friends don't match.
+            if (pos == 0 || (url[pos - 1] != '?' && url[pos - 1] != '&'))
+                continue;
+            int64_t id = digitsAt(url, pos + kIdParam.size());
+            if (id > 0) out.push_back(id);
+        }
+    };
+
+    constexpr std::string_view kThumb = "rbxthumb://";
+    for (size_t pos = text.find(kThumb); pos != std::string_view::npos; pos = text.find(kThumb, pos + 1)) {
+        std::string_view url = urlAt(pos);
+        if (url.find("type=Asset") != std::string_view::npos)
+            collectIdParam(url);
+    }
+
+    constexpr std::string_view kDomain = "roblox.com";
+    for (size_t pos = text.find(kDomain); pos != std::string_view::npos; pos = text.find(kDomain, pos + 1))
+        collectIdParam(urlAt(pos));
+}
+
+bool Backup::Process::ParseFileForAssetReferences(Backup::ItemDescriptor* descriptor, const std::vector<unsigned char>& data) {
+    constexpr std::string_view kMagic = "<roblox";
+    std::string_view head(reinterpret_cast<const char*>(data.data()), std::min<size_t>(data.size(), 256));
+    bool looksLikeRobloxFile = head.starts_with(kMagic);
+    if (!looksLikeRobloxFile) {
+        size_t offset = head.starts_with("\xef\xbb\xbf") ? 3 : 0;
+        while (offset < head.size() &&
+               (head[offset] == ' ' || head[offset] == '\t' || head[offset] == '\r' || head[offset] == '\n'))
+            offset++;
+        looksLikeRobloxFile = offset < head.size() && head[offset] == '<' &&
+                              head.find(kMagic) != std::string_view::npos;
+    }
+    if (!looksLikeRobloxFile)
+        return false;
+
+    const std::string idStr = std::to_string(descriptor->Id);
+    const std::string label = descriptor->Name.empty() ? idStr : descriptor->Name;
+    Report(State::ParsingFile, "Scanning " + label + " for asset references");
+
+    // A throw escaping the worker thread would std::terminate; parse failures stay contained here.
+    std::vector<int64_t> ids;
+    try {
+        std::unique_ptr<Roblox::RobloxFile> file;
+        if (Roblox::RobloxFile::Open(file, data) != Roblox::FileResponse::Success || file == nullptr) {
+            Report(State::ParsingFileFailed, "Could not parse the file of " + label);
+            return false;
+        }
+
+        for (Roblox::Instance* inst : file->GetDescendants()) {
+            if (mCancelled)
+                return true;
+            for (const auto& [name, prop] : inst->GetProperties()) {
+                if (const auto* str = prop.CastValue<std::string>())
+                    CollectAssetIdsFromText(*str, ids);
+                else if (const auto* contentId = prop.CastValue<Roblox::DataTypes::ContentId>())
+                    CollectAssetIdsFromText(contentId->Uri, ids);
+                else if (const auto* content = prop.CastValue<Roblox::DataTypes::Content>()) {
+                    if (content->SourceType == Roblox::DataTypes::ContentSourceType::Uri)
+                        CollectAssetIdsFromText(content->Uri, ids);
+                }
+                // ProtectedString sources and SharedString blobs regularly embed asset references; scan them too.
+                else if (const auto* script = prop.CastValue<Roblox::DataTypes::ProtectedString>())
+                    CollectAssetIdsFromText(std::string_view(
+                        reinterpret_cast<const char*>(script->RawBuffer.data()), script->RawBuffer.size()), ids);
+                else if (const auto* shared = prop.CastValue<Roblox::DataTypes::SharedString>())
+                    CollectAssetIdsFromText(std::string_view(
+                        reinterpret_cast<const char*>(shared->Value.data()), shared->Value.size()), ids);
+            }
+        }
+    } catch (...) {
+        Report(State::ParsingFileFailed, "Could not parse the file of " + label);
+        return false;
+    }
+
+    int added = 0;
+    std::vector<ItemDescriptor*> newChildren;
+    RunDb([&]() {
+        for (int64_t id : ids) {
+            if (mCancelled)
+                return;
+            if (id <= 0 || mDiscoveredItems.contains({ ItemType::Asset, id }))
+                continue;
+            if (mDiscoveredItems.size() >= kMaxBackupNodes) {
+                Report(State::ParsingFile, "Reached the backup item limit (" + std::to_string(kMaxBackupNodes) +
+                                           "); skipping the remaining file references.");
+                break;
+            }
+            mDiscoveredItems.insert({ ItemType::Asset, id });
+            auto* child = new ItemDescriptor();
+            child->Type = ItemType::Asset;
+            child->Id = id;
+            child->FoundInFile = true;
+            descriptor->AddChild(child);
+            newChildren.push_back(child);
+            mTotalNodes++;
+            added++;
+        }
+    });
+    if (added > 0)
+        Report(State::ParsingFile, "Found " + std::to_string(added) + " referenced assets in " + label);
+    if (!newChildren.empty() && !mCancelled)
+        EnrichFoundAssets(newChildren);
+    return true;
+}
+
+void Backup::Process::EnrichFoundAssets(const std::vector<ItemDescriptor*>& items) {
+    // Runs even without DownloadMetadata: it is the file-found assets' only source of previews.
+    if (items.empty() || (!mOptions.DownloadMetadata && !mOptions.DownloadAutoGeneratedThumbnails))
+        return;
+
+    auto Reg = [&](const char* key, const char* fallback) -> std::string {
+        return mCore->GetRegistry()->GetKeyValue<std::string>(key).value_or(fallback);
+    };
+
+    // The per-asset economy endpoint allows roughly one request a minute; develop.roblox.com
+    // serves 50 ids per call and the thumbnails endpoint takes the same list.
+    constexpr size_t kBatch = 50;
+    size_t matched = 0; // ids the develop endpoint actually returned metadata for
+    for (size_t start = 0; start < items.size() && !mCancelled; start += kBatch) {
+        const size_t count = std::min(kBatch, items.size() - start);
+        std::string idList;
+        std::map<int64_t, ItemDescriptor*> byId;
+        for (size_t i = start; i < start + count; i++) {
+            if (!idList.empty()) idList += ",";
+            idList += std::to_string(items[i]->Id);
+            byId[items[i]->Id] = items[i];
+        }
+
+        if (!mOptions.DownloadMetadata) {
+            // Thumbnails-only run; skip the develop call entirely.
+        } else if (mAuthCookie.empty()) {
+            if (!mWarnedNoAuthForEnrich) {
+                mWarnedNoAuthForEnrich = true;
+                Report(State::ParsingFile, "Not logged into a Roblox account; file-found assets keep "
+                                           "placeholder names (thumbnails still work).");
+            }
+        } else {
+            std::string metaUrl = std::vformat(Reg("internet.roblox.asset_batch_details",
+                "https://develop.roblox.com/v1/assets?assetIds={}"), std::make_format_args(idList));
+            cpr::Response res = BackupHttpGet(metaUrl, mAuthCookie, &mCancelled);
+            if (res.error.code == cpr::ErrorCode::OK && res.status_code == 200) {
+                nlohmann::json root = nlohmann::json::parse(res.text, nullptr, false);
+                if (!root.is_discarded() && root.contains("data") && root["data"].is_array()) {
+                    // Field writes go through the UI thread like the appends did.
+                    RunDb([&]() {
+                        for (auto& a : root["data"]) {
+                            auto idIt = a.find("id");
+                            if (idIt == a.end() || !idIt->is_number())
+                                continue;
+                            auto found = byId.find(idIt->get<int64_t>());
+                            if (found == byId.end())
+                                continue;
+                            matched++;
+                            ItemDescriptor* d = found->second;
+                            if (auto it = a.find("name"); it != a.end() && it->is_string())
+                                d->Name = it->get<std::string>();
+                            if (auto it = a.find("description"); it != a.end() && it->is_string())
+                                d->Description = it->get<std::string>();
+                            if (auto it = a.find("created"); it != a.end() && it->is_string()) {
+                                int64_t ts = ParseIso8601Utc(it->get<std::string>());
+                                if (ts > 0) d->Created = ts;
+                            }
+                            if (auto it = a.find("updated"); it != a.end() && it->is_string()) {
+                                int64_t ts = ParseIso8601Utc(it->get<std::string>());
+                                if (ts > 0) d->Updated = ts;
+                            }
+                            if (auto it = a.find("type"); it != a.end() && it->is_string() &&
+                                d->AssetType == Roblox::AssetType::None)
+                                d->AssetType = AssetTypeFromApiString(it->get<std::string>());
+                            if (auto it = a.find("creator"); it != a.end() && it->is_object()) {
+                                int64_t creatorId = 0;
+                                if (auto t = it->find("targetId"); t != it->end() && t->is_number())
+                                    creatorId = t->get<int64_t>();
+                                if (creatorId == 0)
+                                    if (auto t = it->find("id"); t != it->end() && t->is_number())
+                                        creatorId = t->get<int64_t>();
+                                std::string creatorType;
+                                if (auto t = it->find("type"); t != it->end() && t->is_string())
+                                    creatorType = t->get<std::string>();
+                                if (creatorId > 0) {
+                                    d->CreatorId = creatorId;
+                                    d->CreatorType = creatorType == "Group" ? Roblox::CreatorType::Group
+                                                                            : Roblox::CreatorType::User;
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                // Count once per failed batch so a rate-limited enrichment shows in the run summary.
+                mFailedDownloads++;
+                if (res.status_code == 429) {
+                    mRatelimitedHits++;
+                    Report(State::Ratelimited, "HTTP 429 while fetching metadata for file-found assets");
+                } else {
+                    Report(State::DownloadingFailed, "Could not fetch metadata for " + std::to_string(count) +
+                                                     " file-found assets (HTTP " + std::to_string(res.status_code) + ")");
+                }
+            }
+        }
+        if (mCancelled)
+            return;
+
+        // Resolve thumbnail URLs now (one batch); the images download with their asset in phase 2.
+        if (mOptions.DownloadAutoGeneratedThumbnails) {
+            std::string thumbUrl = std::vformat(Reg("internet.roblox.asset_thumbnail",
+                "https://thumbnails.roblox.com/v1/assets?assetIds={}&size=420x420&format=Png&isCircular=false"),
+                std::make_format_args(idList));
+            cpr::Response res = BackupHttpGet(thumbUrl, "", &mCancelled);
+            if (res.status_code == 429)
+                mRatelimitedHits++;
+            if (res.error.code == cpr::ErrorCode::OK && res.status_code == 200) {
+                nlohmann::json root = nlohmann::json::parse(res.text, nullptr, false);
+                if (!root.is_discarded() && root.contains("data") && root["data"].is_array()) {
+                    RunDb([&]() {
+                        for (auto& t : root["data"]) {
+                            auto stateIt = t.find("state");
+                            auto urlIt   = t.find("imageUrl");
+                            auto tidIt   = t.find("targetId");
+                            if (stateIt == t.end() || !stateIt->is_string() || stateIt->get<std::string>() != "Completed")
+                                continue;
+                            if (urlIt == t.end() || !urlIt->is_string() || tidIt == t.end() || !tidIt->is_number())
+                                continue;
+                            auto found = byId.find(tidIt->get<int64_t>());
+                            if (found != byId.end())
+                                found->second->ThumbnailUrl = urlIt->get<std::string>();
+                        }
+                    });
+                }
+            }
+        }
+
+        // Stay comfortably under develop.roblox.com's per-minute budget between batches.
+        if (start + kBatch < items.size())
+            for (int slept = 0; slept < 700 && !mCancelled; slept += 50)
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    // "X of N": the develop endpoint omits deleted/moderated ids, so the two routinely differ.
+    if (mOptions.DownloadMetadata && !mAuthCookie.empty())
+        Report(State::ParsingFile, "Fetched metadata for " + std::to_string(matched) + " of " +
+                                   std::to_string(items.size()) + " referenced assets");
 }
 
 void Backup::Process::DownloadItemDescriptorRecursively(Backup::ItemDescriptor* descriptor) {

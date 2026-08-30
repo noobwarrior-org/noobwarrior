@@ -35,7 +35,7 @@ public:
         None,
         Intro,
         EmuDbEmptyIntro,
-        EmuDbGameBackupIntro,
+        EmuDbRobloxBackupIntro,
         PluginEmptyIntro
     };
 

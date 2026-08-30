@@ -610,6 +610,50 @@ void GenerateEnums(const json &dump, const fs::path &outputDirectory) {
     }
     output << "} // namespace " << kNamespace << "::Enums\n";
     WriteText(outputDirectory / "Enums.h", output.str());
+
+    // EnumItems.h: runtime name tables for the enums (the SDK's Properties view is the customer).
+    std::ostringstream items;
+    items << kBanner << "#pragma once\n\n"
+        << "#include <algorithm>\n#include <cstdint>\n#include <span>\n#include <string_view>\n\n"
+        << "namespace " << kNamespace << " {\n"
+        << "struct EnumItemInfo {\n"
+        << "    std::string_view Name;\n"
+        << "    int32_t Value;\n"
+        << "};\n\n"
+        << "struct EnumInfo {\n"
+        << "    std::string_view Name;\n"
+        << "    std::span<const EnumItemInfo> Items;\n"
+        << "};\n\n"
+        << "namespace EnumItemsDetail {\n";
+    for (const EnumModel &model : enums) {
+        // A zero-length array is ill-formed; empty enums get an empty span in the info row.
+        if (model.Definition->getEnumNameToValues().empty())
+            continue;
+        items << "inline constexpr EnumItemInfo kItems_" << model.Definition->getName() << "[] = {\n";
+        for (const auto &[name, value] : model.Definition->getEnumNameToValues())
+            items << "    {\"" << name << "\", " << value << "},\n";
+        items << "};\n";
+    }
+    items << "} // namespace EnumItemsDetail\n\n"
+        << "// Sorted by Name; FindEnumInfo binary-searches it.\n"
+        << "inline constexpr EnumInfo kEnumInfos[] = {\n";
+    for (const EnumModel &model : enums) {
+        if (model.Definition->getEnumNameToValues().empty())
+            items << "    {\"" << model.Definition->getName() << "\", {}},\n";
+        else
+            items << "    {\"" << model.Definition->getName() << "\", EnumItemsDetail::kItems_"
+                  << model.Definition->getName() << "},\n";
+    }
+    items << "};\n\n"
+        << "inline const EnumInfo *FindEnumInfo(std::string_view name) {\n"
+        << "    const auto it = std::lower_bound(std::begin(kEnumInfos), std::end(kEnumInfos), name,\n"
+        << "        [](const EnumInfo &info, std::string_view key) { return info.Name < key; });\n"
+        << "    if (it != std::end(kEnumInfos) && it->Name == name)\n"
+        << "        return &*it;\n"
+        << "    return nullptr;\n"
+        << "}\n"
+        << "} // namespace " << kNamespace << "\n";
+    WriteText(outputDirectory / "EnumItems.h", items.str());
 }
 
 // Emits a descriptor for a class the tree provides by hand. It has no header of its own to sit

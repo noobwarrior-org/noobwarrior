@@ -48,6 +48,7 @@ set(SOURCES
     Sdk/EmuDbListWidget.cpp
     Sdk/EmuDbComboBox.cpp
     Sdk/PluginListWidget.cpp
+    Sdk/CodeEditorWidget.cpp
     Sdk/Item/Browser/ItemBrowserWidget.cpp
     Sdk/Item/Browser/ItemBrowserPage.cpp
     Sdk/Item/ItemOpenSaveDialog.cpp
@@ -78,7 +79,12 @@ set(SOURCES
     Sdk/Project/Wizard/ProjectWizardIntroPage.cpp
     Sdk/Project/Wizard/Template/TemplatePage.cpp
     Sdk/Project/Wizard/Template/EmuDbEmpty.cpp
-    Sdk/Project/Wizard/Template/EmuDbGameBackup.cpp
+    Sdk/Project/Wizard/Template/EmuDbRobloxBackup.cpp
+    Sdk/Studio/ExplorerWidget.cpp
+    Sdk/Studio/PropertiesWidget.cpp
+    Sdk/Studio/SourceEditorContainer.cpp
+    Sdk/Studio/RobloxFilePreviewController.cpp
+    Sdk/Studio/RobloxFilePreviewWindow.cpp
     Sdk/Project/Wizard/Template/PluginEmpty.cpp
     Sdk/Project/Wizard/Template/WipPage.cpp
     Sdk/Notification/Notification.cpp

@@ -212,7 +212,10 @@ void AssetBatchHandler::HandleLocally(evhttp_request *req) {
         }
 
         int assetTypeId = 0;
-        if (const auto summary = mEmu->GetCore()->GetEmuDbManager()->GetAssetSummary(*assetId)) {
+        const auto summary = mEmu->GetCore()->GetEmuDbManager()->GetAssetSummary(*assetId);
+        // Type 0 is a not-yet-enriched stub row (grab mode / file-found backups), not a real
+        // AssetType, fall through to the client's own hint rather than serving 0.
+        if (summary && summary->Type != 0) {
             assetTypeId = summary->Type;
         } else if (const auto it = request.find("assetTypeId"); it != request.end()) {
             if (const auto value = ReadInteger(*it); value.has_value() && *value >= 0 &&
@@ -238,7 +241,7 @@ void AssetBatchHandler::HandleLocally(evhttp_request *req) {
             location += "&doNotFallbackToBaselineRepresentation=" + UriEncode(doNotFallback);
         if (!resolutionMode.empty())
             location += "&assetResolutionMode=" + UriEncode(resolutionMode);
-        
+
         if (VideoHandler::AcrRequestsHls(contentRepList.c_str())) {
             const std::string playlist = VideoHandler::ResolvePlaylistPath(mEmu, *assetId, version);
             if (!playlist.empty()) {

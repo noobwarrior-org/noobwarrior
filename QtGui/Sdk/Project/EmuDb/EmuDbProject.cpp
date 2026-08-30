@@ -26,6 +26,7 @@
 #include "NoobWarrior/EmuDb/EmuDb.h"
 #include "Sdk/Sdk.h"
 #include <NoobWarrior/Macros.h>
+#include <QTabBar>
 
 using namespace NoobWarrior;
 
@@ -49,7 +50,11 @@ EmuDbProject::EmuDbProject(const std::string &path) : Project(),
 
     // our own functions
     mOverviewWidget = new OverviewWidget(mDb);
-    mTabWidget->setCurrentIndex(mTabWidget->addTab(mOverviewWidget, "Overview"));
+    const int overviewIndex = mTabWidget->addTab(mOverviewWidget, "Overview");
+    // Overview can't be reopened once closed, so it gets no tab X.
+    mTabWidget->tabBar()->setTabButton(overviewIndex, QTabBar::LeftSide, nullptr);
+    mTabWidget->tabBar()->setTabButton(overviewIndex, QTabBar::RightSide, nullptr);
+    mTabWidget->setCurrentIndex(overviewIndex);
 }
 
 EmuDbProject::~EmuDbProject() {

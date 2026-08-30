@@ -62,6 +62,7 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("internet.roblox.asset_delivery", "https://assetdelivery.roblox.com/v1/asset/?id={}");
     SetKeyValueIfNotSet("internet.roblox.asset_details", "https://economy.roblox.com/v2/assets/{}/details");
+    SetKeyValueIfNotSet("internet.roblox.asset_batch_details", "https://develop.roblox.com/v1/assets?assetIds={}");
     SetKeyValueIfNotSet("internet.roblox.badge_details", "https://badges.roblox.com/v1/badges/{}");
     SetKeyValueIfNotSet("internet.roblox.universe_details", "https://games.roblox.com/v1/games?universeIds={}");
     SetKeyValueIfNotSet("internet.roblox.universe_places", "https://develop.roblox.com/v1/universes/{}/places");
@@ -73,6 +74,11 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("internet.roblox.user_avatar", "https://thumbnails.roblox.com/v1/users/avatar?userIds={}&size=420x420&format=Png&isCircular=false");
     SetKeyValueIfNotSet("internet.roblox.group_details", "https://groups.roblox.com/v1/groups/{}");
     SetKeyValueIfNotSet("internet.roblox.bundle_details", "https://catalog.roblox.com/v1/bundles/{}/details");
+    SetKeyValueIfNotSet("internet.roblox.pass_details", "https://apis.roblox.com/game-passes/v1/game-passes/{}/product-info");
+    SetKeyValueIfNotSet("internet.roblox.devproduct_details", "https://apis.roblox.com/developer-products/v1/developer-products/{}");
+    SetKeyValueIfNotSet("internet.roblox.outfit_details", "https://avatar.roblox.com/v1/outfits/{}/details");
+    SetKeyValueIfNotSet("internet.roblox.universe_passes", "https://games.roblox.com/v1/games/{}/game-passes?limit=100&sortOrder=Asc");
+    SetKeyValueIfNotSet("internet.roblox.universe_devproducts", "https://apis.roblox.com/developer-products/v1/universes/{}/developerproducts?pageNumber={}&pageSize=50");
     SetKeyValueIfNotSet("internet.roblox.asset_thumbnail", "https://thumbnails.roblox.com/v1/assets?assetIds={}&size=420x420&format=Png&isCircular=false");
     SetKeyValueIfNotSet("internet.roblox.universe_thumbnails", "https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds={}&size=768x432&format=Png&countPerUniverse=25&defaults=true");
     SetKeyValueIfNotSet("internet.roblox.universe_icon", "https://thumbnails.roblox.com/v1/games/icons?universeIds={}&size=512x512&format=Png&isCircular=false");
@@ -83,7 +89,7 @@ RegistryResponse Registry::Open() {
 
     SetKeyValueIfNotSet("sdk.recent_projects", mLua->create_table());
     SetKeyComment("sdk.recent_projects", "Paths of the projects most recently opened in the SDK, most recent first. The SDK's welcome page reads this list; deleting it just empties that list.");
-    SetKeyValueIfNotSet("sdk.max_recent_projects", 10);
+    SetKeyValueIfNotSet("sdk.max_recent_projects", 50);
     SetKeyComment("sdk.max_recent_projects", "How many entries sdk.recent_projects keeps before the oldest is dropped.");
 
     {

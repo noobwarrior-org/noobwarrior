@@ -31,6 +31,13 @@ Project::Project() : mSdk(nullptr),
     mTabWidget(new QTabWidget(nullptr)) // dw the sdk window will reparent it for us
 {
     mTabWidget->setProperty("Project", QVariant::fromValue(this));
+    mTabWidget->setMovable(true);
+    mTabWidget->setTabsClosable(true);
+    QObject::connect(mTabWidget, &QTabWidget::tabCloseRequested, mTabWidget,
+                     [tabs = mTabWidget](int index) {
+        if (QWidget* page = tabs->widget(index))
+            page->close();
+    });
 }
 
 Project::~Project() {

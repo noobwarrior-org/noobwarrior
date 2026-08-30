@@ -80,6 +80,11 @@ private:
         // hosted in the same program.
         bool            TryFederated {false};
         bool            TryRoblox    {true};
+        // Where the body actually came from. A federated body lives in a foreign master's id
+        // space: saving it into the grab db (or logging it as "from Roblox") would attach the
+        // wrong identity to it. Written by the worker before the completion hop; the event-loop
+        // hand-off orders the read.
+        bool            FromFederated {false};
     };
 
     void StartProxyPool();

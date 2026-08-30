@@ -26,6 +26,9 @@
 #include "ItemWidget.h"
 #include "Sdk/Item/ItemWidget.h"
 #include "Sdk/Item/AssetDataFileType.h"
+#include "Sdk/Studio/RobloxFilePreviewController.h"
+#include "Sdk/Project/EmuDb/EmuDbProject.h"
+#include "Sdk/Sdk.h"
 
 #include <QMenu>
 #include <QMessageBox>
@@ -95,6 +98,34 @@ ItemListWidget::ItemListWidget(QWidget *parent, EmuDb* db) : QListWidget(parent)
             connect(download, &QAction::triggered, [this]() {
                 DownloadSelectedAssetData();
             });
+            
+            Roblox::AssetType previewType = Roblox::AssetType::None;
+            if (mLastOptions.Database != nullptr) {
+                Statement typeStmt = mLastOptions.Database->PrepareStatement("SELECT Type FROM Asset WHERE Id = ?;");
+                typeStmt.Bind(1, item->GetId());
+                if (typeStmt.Step() == SQLITE_ROW)
+                    previewType = static_cast<Roblox::AssetType>(typeStmt.GetIntFromColumnIndex(0));
+            }
+            if (IsPreviewableAssetType(previewType)) {
+                QAction* preview = menu->addAction(QIcon(":/images/silk/zoom.png"), "Preview");
+                connect(preview, &QAction::triggered, [this, item]() {
+                    // Re-resolve through the owning project on every use; mLastOptions.Database
+                    // outlives the project's EmuDb.
+                    auto* sdk = qobject_cast<Sdk*>(window());
+                    auto* project = sdk != nullptr
+                        ? dynamic_cast<EmuDbProject*>(sdk->GetFocusedProject()) : nullptr;
+                    if (project == nullptr || project->GetDb() != mLastOptions.Database)
+                        return;
+                    QPointer<Sdk> guard(sdk);
+                    ShowDockedPreviewForDatabaseAsset(sdk,
+                        [guard, project]() -> EmuDb* {
+                            if (!guard || !guard->IsProjectOpen(project))
+                                return nullptr;
+                            return project->GetDb();
+                        },
+                        item->GetId());
+                });
+            }
         }
 
         menu->addSeparator();
@@ -183,7 +214,15 @@ void ItemListWidget::Populate(const PopulateOptions options) {
         stmtStr += " WHERE Name LIKE ? ESCAPE '\\'";
         hasWhere = true;
     }
-    if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
+    if (options.ItemType == ItemType::Asset && !options.AssetTypes.empty()) {
+        stmtStr += hasWhere ? " AND " : " WHERE ";
+        stmtStr += "Type IN (";
+        for (size_t i = 0; i < options.AssetTypes.size(); i++) {
+            if (i) stmtStr += ",";
+            stmtStr += std::to_string(static_cast<int>(options.AssetTypes[i]));
+        }
+        stmtStr += ")";
+    } else if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
         stmtStr += hasWhere ? " AND " : " WHERE ";
         stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
     }
@@ -213,7 +252,15 @@ int ItemListWidget::CountItems(const PopulateOptions &options) {
         stmtStr += " WHERE Name LIKE ? ESCAPE '\\'";
         hasWhere = true;
     }
-    if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
+    if (options.ItemType == ItemType::Asset && !options.AssetTypes.empty()) {
+        stmtStr += hasWhere ? " AND " : " WHERE ";
+        stmtStr += "Type IN (";
+        for (size_t i = 0; i < options.AssetTypes.size(); i++) {
+            if (i) stmtStr += ",";
+            stmtStr += std::to_string(static_cast<int>(options.AssetTypes[i]));
+        }
+        stmtStr += ")";
+    } else if (options.ItemType == ItemType::Asset && options.AssetType != Roblox::AssetType::None) {
         stmtStr += hasWhere ? " AND " : " WHERE ";
         stmtStr += "Type = " + std::to_string(static_cast<int>(options.AssetType));
     }
@@ -600,6 +647,8 @@ void ItemListWidget::PasteItems() {
 
     QStringList failures;
     int pasted = 0;
+    // Only snapshots that actually landed in the target may have their originals deleted.
+    std::vector<const EmuDb::ItemSnapshot*> imported;
 
     for (const EmuDb::ItemSnapshot &snap : sClipboard) {
         EmuDb::ItemSnapshot toImport = snap; // a working copy we may re-id below
@@ -683,14 +732,15 @@ void ItemListWidget::PasteItems() {
         else
             Add(toImport.Type, toImport.Id);
         pasted++;
+        imported.push_back(&snap);
     }
 
-    // Complete a cut by removing the originals from their source database (and its list, if alive).
-    if (performCutDeletion && pasted > 0) {
-        for (const EmuDb::ItemSnapshot &snap : sClipboard) {
-            if (sCutSourceDb->DeleteItem(snap.Type, snap.Id) == SqlDb::Response::Success &&
+    // Complete a cut by removing the imported originals from their source database.
+    if (performCutDeletion) {
+        for (const EmuDb::ItemSnapshot* snap : imported) {
+            if (sCutSourceDb->DeleteItem(snap->Type, snap->Id) == SqlDb::Response::Success &&
                 sCutSourceWidget && sCutSourceWidget != this) {
-                sCutSourceWidget->Remove(snap.Type, snap.Id);
+                sCutSourceWidget->Remove(snap->Type, snap->Id);
             }
         }
     }

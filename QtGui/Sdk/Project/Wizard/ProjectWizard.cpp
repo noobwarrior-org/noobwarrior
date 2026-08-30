@@ -25,7 +25,7 @@
 #include "ProjectWizard.h"
 #include "Sdk/Project/Wizard/ProjectWizardIntroPage.h"
 #include "Sdk/Project/Wizard/Template/EmuDbEmpty.h"
-#include "Sdk/Project/Wizard/Template/EmuDbGameBackup.h"
+#include "Sdk/Project/Wizard/Template/EmuDbRobloxBackup.h"
 #include "Sdk/Project/Wizard/Template/PluginEmpty.h"
 #include "Sdk/Project/Wizard/Template/WipPage.h"
 
@@ -47,7 +47,7 @@ void ProjectWizard::InitWidgets() {
     auto *intro = new ProjectWizardIntroPage();
     SetPage(PageId::Intro, intro);
     intro->AddTemplate(PageId::EmuDbEmptyIntro, new EmuDbEmptyIntroPage);
-    intro->AddTemplate(PageId::EmuDbGameBackupIntro, new EmuDbGameBackupIntroPage);
+    intro->AddTemplate(PageId::EmuDbRobloxBackupIntro, new EmuDbRobloxBackupIntroPage);
     // intro->AddTemplate(PageId::PluginEmptyIntro, new PluginEmptyIntroPage); // TODO: Comment this out when plugins in SDK are ready.
     intro->AddTemplate(PageId::PluginEmptyIntro, new WipPage);
 }

@@ -48,7 +48,7 @@ public:
                 !ParseFloat(parts[index + 4], envelope)) {
                 return false;
             }
-            sequence.Keypoints.emplace_back(time, Color3(red, green, blue), envelope);
+            sequence.Keypoints.emplace_back(time, DataTypes::Color3(red, green, blue), envelope);
         }
         property.Type = PropertyType::ColorSequence;
         property.Value = std::move(sequence);

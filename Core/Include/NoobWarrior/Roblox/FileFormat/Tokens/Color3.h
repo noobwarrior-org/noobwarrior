@@ -48,12 +48,13 @@ public:
             }
         }
         property.Type = PropertyType::Color3;
-        property.Value = Color3(ChildFloat(node, "R"), ChildFloat(node, "G"), ChildFloat(node, "B"));
+        // Qualified: bare Color3 is ambiguous in TUs that also see the emulator's Roblox::Color3.
+        property.Value = DataTypes::Color3(ChildFloat(node, "R"), ChildFloat(node, "G"), ChildFloat(node, "B"));
         return true;
     }
 
     void WriteProperty(const Property &property, pugi::xml_node node) const override {
-        if (const auto *value = property.CastValue<Color3>()) {
+        if (const auto *value = property.CastValue<DataTypes::Color3>()) {
             WriteChildFloat(node, "R", value->R);
             WriteChildFloat(node, "G", value->G);
             WriteChildFloat(node, "B", value->B);

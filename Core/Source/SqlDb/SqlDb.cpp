@@ -59,6 +59,8 @@ SqlDb::SqlDb(const std::string &path, const std::string &logName, OpenMode openM
     case SQLITE_CANTOPEN: Out("Failed to open: {}", GetLastErrorMsg()); mFailReason = FailReason::CantOpen; return;
     default: Out("Failed to open: {}", GetLastErrorMsg()); mFailReason = FailReason::Unknown; return;
     }
+    
+    sqlite3_busy_timeout(mDb, 5000);
 
     mFailReason = FailReason::None;
 }

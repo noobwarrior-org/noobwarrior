@@ -56,6 +56,9 @@ public:
         EmuDb* Database { nullptr };
         ItemType ItemType { ItemType::Asset };
         Roblox::AssetType AssetType { Roblox::AssetType::None };
+        /* Assets only: when non-empty, show every asset whose Type is IN this set (overrides the
+         * single AssetType filter above). */
+        std::vector<Roblox::AssetType> AssetTypes {};
         /* Offset and Limit have no effect if EnforceLimit is set to false */
         int Offset { 0 };
         int Limit { 100 };

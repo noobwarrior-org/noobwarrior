@@ -226,6 +226,7 @@ void AssetHandler::RunProxyWorker() {
             std::vector<unsigned char> fedData;
             std::string fedHash;
             if (mServerEmulator->TryFetchFederatedAsset(fetch->Id, &fedData, &fedHash)) {
+                fetch->FromFederated = true;
                 mServerEmulator->GetCore()->RunOnEventLoop(
                     [this, fetch, body = std::move(fedData)]() mutable {
                         OnFetchComplete(fetch, true, 200, std::move(body));
@@ -284,6 +285,15 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, l
     mActiveFetches.erase(fetch); // this request is finished, one way or another
 
     if (!mProxyActive)            return; // server stopped; don't touch evhttp
+
+    const bool fetchedOk = ok && httpStatus == 200 && !data.empty();
+
+    // Capture the bytes even when the client already hung up; its inevitable retry then hits the
+    // fresh local copy instead of paying the Roblox round-trip again. Federated bodies are never
+    // captured: they live in a foreign master's id space, and the scratch db already caches them.
+    if (fetchedOk && fetch->SaveToGrabDb && !fetch->FromFederated)
+        SaveGrabbedAsset(fetch->GrabDbPath, fetch->Id, fetch->Version, data);
+
     if (!fetch->ClientConnected)  return; // client hung up; its request is already gone
 
     // Done with the disconnect notification now that we're about to reply.
@@ -291,13 +301,11 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, l
         evhttp_connection_set_closecb(fetch->Connection, nullptr, nullptr);
 
     SqlDb::Response res = fetch->MissResult;
-    if (ok && httpStatus == 200 && !data.empty()) {
+    if (fetchedOk) {
         // A federated hit is already logged by TryFetchFederatedAsset, and didn't come from Roblox.
-        if (fetch->TryRoblox)
+        if (fetch->TryRoblox && !fetch->FromFederated)
             Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
         res = SqlDb::Response::Success;
-        if (fetch->SaveToGrabDb)
-            SaveGrabbedAsset(fetch->GrabDbPath, fetch->Id, fetch->Version, data);
     } else {
         Out("AssetHandler", "Asset fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
             ok, httpStatus);
@@ -310,9 +318,17 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, l
 void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, int version,
                                     const std::vector<unsigned char> &data) {
     EmuDb* db = mServerEmulator->GetCore()->GetEmuDbManager()->GetDbFromFilePath(std::filesystem::path(dbFilePath));
-    if (db == nullptr)
+    if (db == nullptr) {
+        // Grabs are being silently discarded otherwise, tell the user once, like the read-only
+        // case below does.
+        static std::atomic<bool> warnedUnresolvable{false};
+        if (!warnedUnresolvable.exchange(true))
+            Out("AssetHandler", "Asset Grab Mode is on but its target \"{}\" is not mounted (or no "
+                "longer exists), so grabbed assets are being discarded. Fix emu.asset_grab_db or "
+                "re-mount the database.", dbFilePath);
         return;
-    
+    }
+
     if (!db->AllowsRuntimeWrites()) {
         Out("AssetHandler", "Asset Grab Mode target \"{}\" cannot be written to ({}). Pick a different "
             "database, or turn its Mutable setting back on in the database editor's Overview tab.",
@@ -699,7 +715,16 @@ void AssetHandler::BeginProxyFetch(evhttp_request *req, int64_t id, int version,
 
     bool grabMode = core->GetRegistry()->GetKeyValue<bool>("emu.asset_grab_mode").value_or(false);
     fetch->GrabDbPath  = grabMode ? core->GetRegistry()->GetKeyValue<std::string>("emu.asset_grab_db").value_or("") : "";
-    fetch->SaveToGrabDb = grabMode && !fetch->GrabDbPath.empty();
+    // Only baseline fetches may be captured. A representation-specific response (material DXT/KTX
+    // textures negotiated via Accept or the upstream query, HLS playlists) can never legitimately
+    // be served from the id-keyed blob cache — the code that forces those fetches says as much —
+    // and an explicit-version fetch would be stored at a made-up version number that outranks the
+    // versionless "latest" grab.
+    bool representationFetch = !upstreamQuery.empty() ||
+        fetch->Accept.find("rbx-format/") != std::string::npos ||
+        fetch->Accept.find("ktx") != std::string::npos ||
+        fetch->Accept.find("dxt") != std::string::npos;
+    fetch->SaveToGrabDb = grabMode && !fetch->GrabDbPath.empty() && !representationFetch && version <= 0;
 
     // Get told if the client disconnects before the fetch finishes.
     if (fetch->Connection)

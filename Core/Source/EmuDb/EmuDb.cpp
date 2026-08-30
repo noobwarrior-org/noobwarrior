@@ -927,7 +927,9 @@ SqlDb::Response EmuDb::UpdateItem(ItemType type, int64_t id, SqlRow row) {
 	default:
 		return SqlDb::Response::Failed;
 	case SQLITE_DONE:
-		return SqlDb::Response::Success;
+		// An UPDATE that matched no row "succeeds" as far as SQLite cares; report NotFound so
+		// callers can tell a real write from a no-op on a vanished id (DeleteItem's convention).
+		return sqlite3_changes(mDb) > 0 ? SqlDb::Response::Success : SqlDb::Response::NotFound;
 	case SQLITE_BUSY:
 		return SqlDb::Response::Busy;
 	case SQLITE_MISUSE:

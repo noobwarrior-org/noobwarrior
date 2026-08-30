@@ -39,6 +39,7 @@
 
 namespace NoobWarrior {
 class ItemBrowserWidget;
+class RobloxFilePreviewController;
 class Sdk : public QMainWindow {
     Q_OBJECT
 public:
@@ -49,7 +50,9 @@ public:
     bool AddProjectFromPath(const std::filesystem::path &path);
     bool RemoveProject(Project* project);
     bool TryToRemoveProject(Project* project);
+    
     bool SaveProject(Project* project);
+    bool IsProjectOpen(Project* project);
 
     bool TryToRemoveFocusedProject();
     bool SaveFocusedProject();
@@ -111,8 +114,14 @@ private:
 
     QAction* mItemBrowserViewAction;
     QAction* mFileManagerViewAction;
+    QAction* mPreviewDockViewAction;
+
+    QAction* mOpenPreviewAction;
+    QAction* mSavePreviewAction;
+    QAction* mClosePreviewAction;
 
     QAction* mExecuteSqlAction;
+    QAction* mPreviewFileAction;
 
     QAction* mAboutQtButton;
     QAction* mAboutButton;
@@ -130,6 +139,7 @@ private:
     //////////////////// Dockable Widgets ////////////////////
     ItemBrowserWidget *mItemBrowser;
     FileManagerWidget *mFileManager;
+    RobloxFilePreviewController *mStudioPreview { nullptr };
 
     std::vector<Project*> mProjects;
     Project* mFocusedProject;

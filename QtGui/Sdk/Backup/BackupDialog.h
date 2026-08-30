@@ -24,13 +24,16 @@
 // Description:
 #include <NoobWarrior/Backup.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
+#include <QCheckBox>
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QSizePolicy>
+#include <QValidator>
 
 namespace NoobWarrior {
 class BackupDialog : public QDialog {
@@ -43,7 +46,6 @@ protected:
     bool StartBackup();
     EmuDb* GetDatabase();
 private:
-    // Local-file backup is removed for the time being, so every backup is an online item.
     Backup::ItemSource mSource;
     ItemType mItemType;
 
@@ -54,6 +56,12 @@ private:
 
     QLabel* mIdCaption;
     QLineEdit* mIdField;
+    QPushButton* mBrowseButton;
+    QValidator* mIdValidator;
+    
+    QCheckBox* mMetadataCheck;
+    QCheckBox* mThumbnailsCheck;
+    QCheckBox* mParseFilesCheck;
 
     QDialogButtonBox* mButtons;
 };

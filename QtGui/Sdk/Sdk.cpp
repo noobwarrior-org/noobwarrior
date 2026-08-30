@@ -28,6 +28,10 @@
 #include "Sdk/Item/Browser/ItemBrowserWidget.h"
 #include "Sdk/Item/ItemDialog.h"
 #include "Sdk/Backup/BackupDialog.h"
+#include "Sdk/Backup/BackupTask.h"
+#include "Sdk/Item/ItemOpenSaveDialog.h"
+#include "Sdk/Studio/RobloxFilePreviewController.h"
+#include "Sdk/Studio/RobloxFilePreviewWindow.h"
 #include "Sdk/Project/Wizard/ProjectWizard.h"
 #include "Application.h"
 #include "Dialog/AuthTokenDialog.h"
@@ -102,7 +106,14 @@ Sdk::Sdk(QWidget *parent) : QMainWindow(parent),
 }
 
 Sdk::~Sdk() {
-    for (Project* proj : mProjects) {
+    // Backup tasks write into project databases from worker threads; tear them down (their
+    // destructor cancels and drains the worker) before the databases they target are freed.
+    for (BackupTask* task : findChildren<BackupTask*>())
+        delete task;
+
+    // RemoveProject erases from mProjects, so iterate a copy rather than the live vector.
+    std::vector<Project*> projects = mProjects;
+    for (Project* proj : projects) {
         bool success = RemoveProject(proj);
         if (success) {
             NOOBWARRIOR_FREE_PTR(proj)
@@ -111,8 +122,23 @@ Sdk::~Sdk() {
 }
 
 void Sdk::closeEvent(QCloseEvent *event) {
+    // Dirty previews first: destruction delivers no closeEvent to prompt through.
+    if (mStudioPreview != nullptr && !mStudioPreview->ConfirmCloseAll()) {
+        event->ignore();
+        return;
+    }
+    for (RobloxFilePreviewWindow* previewWindow :
+         findChildren<RobloxFilePreviewWindow*>(Qt::FindDirectChildrenOnly)) {
+        if (!previewWindow->close()) {
+            event->ignore();
+            return;
+        }
+    }
+
     bool refusedCancelOnOneProject = false;
-    for (Project* proj : mProjects) {
+    // TryToRemoveProject erases from mProjects, so iterate a copy rather than the live vector.
+    std::vector<Project*> projects = mProjects;
+    for (Project* proj : projects) {
         if (TryToRemoveProject(proj)) {
             NOOBWARRIOR_FREE_PTR(proj)
         } else {
@@ -256,6 +282,13 @@ bool Sdk::RemoveProject(Project* project) {
         Out("Sdk", "Tried removing project but it isn't parented to the SDK!");
         return false;
     }
+
+    // A backup still running against this project's database must not outlive it; deleting the
+    // task cancels the run and drains its worker before we let go of the project.
+    for (BackupTask* task : findChildren<BackupTask*>())
+        if (task->GetProject() == project)
+            delete task;
+
     mProjects.erase(it);
 
     project->OnHidden();
@@ -276,6 +309,19 @@ bool Sdk::TryToRemoveProject(Project* project) {
     if (project == nullptr)
         return false;
 
+    // Hosted script editors die with the project; IsDirty() knows nothing about their text.
+    for (SourceEditorContainer* editor :
+         project->GetTabWidget()->findChildren<SourceEditorContainer*>()) {
+        if (!editor->IsDirty())
+            continue;
+        if (QMessageBox::question(this, nullptr,
+                QString("\"%1\" hosts script editors with unapplied changes that will be lost. "
+                        "Close anyway?").arg(project->GetTitle()),
+                QMessageBox::Close | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Close)
+            return false;
+        break;
+    }
+
     QMessageBox::StandardButton res;
     if (!project->IsDirty())
         goto close;
@@ -288,11 +334,16 @@ bool Sdk::TryToRemoveProject(Project* project) {
             return false;
         }
         if (res == QMessageBox::Yes)
-            mSaveProjectAction->trigger();
+            SaveProject(project);
 close:
         RemoveProject(project);
         return true;
     }
+}
+
+bool Sdk::IsProjectOpen(Project* project) {
+    return project != nullptr &&
+           std::find(mProjects.begin(), mProjects.end(), project) != mProjects.end();
 }
 
 bool Sdk::SaveProject(Project* project) {
@@ -453,16 +504,26 @@ void Sdk::InitMenus() {
     mFileMenu->addSeparator();
         mFileMenu->addAction(mCloseProjectAction);
     mFileMenu->addSeparator();
+        mOpenPreviewAction = new QAction(QIcon(":/images/silk/chart_organisation.png"), "Open Item in Explorer...");
+        mOpenPreviewAction->setObjectName("RequireProjectButton");
+        mSavePreviewAction = new QAction(QIcon(":/images/silk/disk.png"), "Save Preview to Database");
+        mClosePreviewAction = new QAction(QIcon(":/images/silk/cross.png"), "Close Preview File");
+        mFileMenu->addAction(mOpenPreviewAction);
+        mFileMenu->addAction(mSavePreviewAction);
+        mFileMenu->addAction(mClosePreviewAction);
+    mFileMenu->addSeparator();
         mFileMenu->addAction(mExitAction);
 
     // mEditMenu = menuBar()->addMenu(tr("&Edit"));
 
     mItemBrowserViewAction = new QAction(QIcon(":/images/silk/application_view_icons.png"), "Content Browser");
     mFileManagerViewAction = new QAction(QIcon(":/images/silk/folder_page.png"), "File Manager");
+    mPreviewDockViewAction = new QAction(QIcon(":/images/silk/chart_organisation.png"), "Explorer && Properties");
 
     mViewMenu = menuBar()->addMenu(tr("&View"));
     mViewMenu->addAction(mItemBrowserViewAction);
     mViewMenu->addAction(mFileManagerViewAction);
+    // The Explorer/Properties docks add their own toggle actions here (InitWidgets).
 
     // mProjectMenu = menuBar()->addMenu(tr("&Project"));
 
@@ -473,6 +534,10 @@ void Sdk::InitMenus() {
     mExecuteSqlAction = new QAction(QIcon(":/images/silk/database_gear.png"), "Execute SQL");
     mExecuteSqlAction->setObjectName("RequireProjectButton");
     mToolsMenu->addAction(mExecuteSqlAction);
+
+    // Works without a project: it previews files straight from disk, no database involved.
+    mPreviewFileAction = new QAction(QIcon(":/images/silk/zoom.png"), "Preview Roblox File...");
+    mToolsMenu->addAction(mPreviewFileAction);
 
     // mPluginsMenu = menuBar()->addMenu(tr("&Plugins"));
 
@@ -510,8 +575,9 @@ void Sdk::InitMenus() {
 
     connect(mCloseProjectAction, &QAction::triggered, [&]() {
         Project* focused = mFocusedProject; // save reference to pointer because removing it will set mFocusedProject to nullptr without freeing it
-        TryToRemoveFocusedProject();
-        NOOBWARRIOR_FREE_PTR(focused)
+        if (TryToRemoveFocusedProject()) {
+            NOOBWARRIOR_FREE_PTR(focused)
+        }
     });
 
     connect(mSaveProjectAction, &QAction::triggered, [&]() {
@@ -538,6 +604,13 @@ launchdialog:
             BackupDialog backupDialog(this);
             backupDialog.exec();
         }
+    });
+
+    connect(mPreviewFileAction, &QAction::triggered, [this]() {
+        QString path = QFileDialog::getOpenFileName(this, "Preview Roblox File", QString(),
+            "Roblox files (*.rbxl *.rbxlx *.rbxm *.rbxmx);;All files (*.*)");
+        if (!path.isEmpty())
+            RobloxFilePreviewWindow::OpenFromFile(this, path);
     });
 
     connect(mExecuteSqlAction, &QAction::triggered, [this]() {
@@ -583,6 +656,7 @@ void Sdk::InitWidgets() {
     mViewToolBar = new QToolBar("View", this);
     mViewToolBar->addAction(mItemBrowserViewAction);
     mViewToolBar->addAction(mFileManagerViewAction);
+    mViewToolBar->addAction(mPreviewDockViewAction);
 
     mInsertToolBar = new QToolBar("Insert", this);
     for (int i = 0; i < ItemTypeCount; i++) {
@@ -616,6 +690,23 @@ void Sdk::InitWidgets() {
     mFileManager->setAllowedAreas(Qt::AllDockWidgetAreas);
     addDockWidget(Qt::LeftDockWidgetArea, mFileManager);
 
+    // The docked Studio panels; files are driven by the File-menu preview actions.
+    mStudioPreview = new RobloxFilePreviewController(this);
+    mViewMenu->addAction(mStudioPreview->GetExplorerDock()->toggleViewAction());
+    mViewMenu->addAction(mStudioPreview->GetPropertiesDock()->toggleViewAction());
+    auto updatePreviewActions = [this]() {
+        mSavePreviewAction->setEnabled(mStudioPreview->CanSaveAny());
+        mClosePreviewAction->setEnabled(mStudioPreview->HasFiles());
+    };
+    connect(mStudioPreview, &RobloxFilePreviewController::FileStateChanged, this, updatePreviewActions);
+    updatePreviewActions();
+    connect(mSavePreviewAction, &QAction::triggered, this,
+            [this]() { mStudioPreview->SaveActiveFile(); });
+    connect(mClosePreviewAction, &QAction::triggered, this,
+            [this]() { mStudioPreview->CloseActiveFile(); });
+    connect(mOpenPreviewAction, &QAction::triggered, this,
+            [this]() { mStudioPreview->OpenFromDatabasePrompt(); });
+
     // The View toolbar/menu entries toggle each dock widget's visibility (and raise it when shown).
     connect(mItemBrowserViewAction, &QAction::triggered, this, [this]() {
         bool show = !mItemBrowser->isVisible();
@@ -626,6 +717,10 @@ void Sdk::InitWidgets() {
         bool show = !mFileManager->isVisible();
         mFileManager->setVisible(show);
         if (show) mFileManager->raise();
+    });
+    connect(mPreviewDockViewAction, &QAction::triggered, this, [this]() {
+        if (mStudioPreview != nullptr)
+            mStudioPreview->EnsureVisible();
     });
 }
 
