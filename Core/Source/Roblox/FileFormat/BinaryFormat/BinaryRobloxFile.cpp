@@ -775,7 +775,8 @@ bool BinaryRobloxFile::AppendLuaSourceContainers(
 
         Property source;
         source.Name = "Source";
-        source.Type = PropertyType::ProtectedString;
+        source.Type = PropertyType::String;
+        source.XmlToken = "ProtectedString";
         source.Value = DataTypes::ProtectedString(std::string(container.Source));
         script->AddProperty(std::move(source));
 

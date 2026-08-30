@@ -25,6 +25,7 @@
 #pragma once
 
 #include <NoobWarrior/Roblox/FileFormat/Interfaces/IXmlPropertyToken.h>
+#include <NoobWarrior/Roblox/FileFormat/Tokens/BinaryString.h>
 #include <NoobWarrior/Roblox/FileFormat/Utility/Formatting.h>
 #include <NoobWarrior/Roblox/FileFormat/DataTypes/DataTypes.h>
 
@@ -34,24 +35,29 @@ using namespace NoobWarrior::Roblox::DataTypes;
 class ProtectedStringToken : public IXmlPropertyToken {
 public:
     std::string_view XmlPropertyToken() const override { return "ProtectedString"; }
-
-    // ProtectedString.cs:16 sets PropertyType.String, because RobloxFiles hands the value on as a
-    // plain string. This port keeps the distinct PropertyType::ProtectedString on purpose: the
-    // binary path carries it end to end (BinaryRobloxFile's default value, PROP's own
-    // ProtectedString column case, PluginTreeMaterializer, XmlRobloxFile's Script.Source shim),
-    // and PROP writes that column from DataTypes::ProtectedString::RawBuffer rather than through
-    // the String case. Flattening it here would leave the property typed String while still
-    // holding a ProtectedString, which only survives because CoerceToColumnType converts between
-    // the two -- not a coincidence worth depending on.
+    
     bool ReadProperty(Property &property, const pugi::xml_node &node) const override {
-        property.Type = PropertyType::ProtectedString;
+        property.Type = PropertyType::String;
         property.Value = ProtectedString(std::string(node.text().as_string()));
         return true;
     }
 
     void WriteProperty(const Property &property, pugi::xml_node node) const override {
-        if (const auto *value = property.CastValue<ProtectedString>())
-            SetText(node, value->ToString());
+        const auto *value = property.CastValue<ProtectedString>();
+        if (value == nullptr)
+            return;
+        if (value->IsCompiled) {
+            // Compiled byte-code is not UTF-8, so it goes out as base64 the way
+            // ProtectedString.cs:26-31 hands it to BinaryStringToken.
+            static const BinaryStringToken kBinary;
+            Property bytes;
+            bytes.Name = property.Name;
+            bytes.Type = PropertyType::String;
+            bytes.Value = value->ToString();
+            kBinary.WriteProperty(bytes, node);
+            return;
+        }
+        SetText(node, value->ToString());
     }
 };
 }

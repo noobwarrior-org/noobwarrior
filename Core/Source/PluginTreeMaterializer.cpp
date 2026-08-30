@@ -305,7 +305,7 @@ bool NoobWarrior::ConvertPlanValue(const json &value, PropertyType &type, std::a
         type = PropertyType::Faces;
         out = Faces(static_cast<uint8_t>(inner.get<uint32_t>()));
     } else if (kind == "ProtectedString") {
-        type = PropertyType::ProtectedString;
+        type = PropertyType::String;
         out = ProtectedString(inner.is_string() ? inner.get<std::string>() : std::string());
     } else if (kind == "BinaryString") {
         // Tokens/BinaryString.h:38-46 decodes before storing, and so must this: a place saved
@@ -565,7 +565,8 @@ Instance *PluginTreeMaterializer::MountNode(const json &node, Instance *parent,
     if (node.contains("source") && node["source"].is_string()) {
         Property source;
         source.Name = "Source";
-        source.Type = PropertyType::ProtectedString;
+        source.Type = PropertyType::String;
+        source.XmlToken = "ProtectedString";
         source.Value = ProtectedString(node["source"].get<std::string>());
         target->AddProperty(std::move(source));
     }
