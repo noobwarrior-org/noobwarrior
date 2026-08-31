@@ -29,6 +29,7 @@
 #include <NoobWarrior/Log.h>
 
 #include "FFlagJson/PCStudioAppV2.json.inc.cpp"
+#include "FFlagJson/PCStudioAppV2_719.json.inc.cpp"
 #include "FFlagJson/PCDesktopClientV2.dcz.inc.cpp"
 #include "FFlagJson/PCDesktopClientV2.json.inc.cpp"
 
@@ -74,15 +75,20 @@ static nlohmann::json GetStudioSettings(ServerEmulator* emu) {
         legacy["applicationSettings"]["FFlagEnableVideoPlaybackOnServer"] = "True";
         return legacy;
     }
+    
+    nlohmann::json settings = nlohmann::json::parse(PCStudioAppV2_719_json);
 
-    const std::optional<nlohmann::json> archived = DecodeArchivedDesktopSettings(core);
-    nlohmann::json settings = archived.value_or(nlohmann::json::parse(PCDesktopClientV2_json));
+    // const std::optional<nlohmann::json> archived = DecodeArchivedDesktopSettings(core);
+    // nlohmann::json settings = archived.value_or(nlohmann::json::parse(PCDesktopClientV2_json));
     
     {
         nlohmann::json& flags = settings["applicationSettings"];
+        // stupid shit that needs be enabled for video to work
         flags["FFlagVideoRegisterMpegTs"] = "True";
         flags["FFlagVideoRegisterNewWebm"] = "True";
         flags["FFlagEnableVideoPlaybackOnServer"] = "True";
+        // stupid shit that needs to be enabled for modern explorer to work
+        flags["FFlagInstanceExtensionsServiceCountChildren"] = "True";
     }
 
     if (core != nullptr &&
@@ -92,9 +98,7 @@ static nlohmann::json GetStudioSettings(ServerEmulator* emu) {
         flags["DFLogBatchAssetApiLog"] = "7";
     }
 
-    Out("ClientSettingsV2StudioHandler", "Serving Studio \"{}\" the {} desktop snapshot ({} flags)",
-        version, archived.has_value() ? "archived frame" : "loose JSON fallback",
-        settings["applicationSettings"].size());
+    Out("ClientSettingsV2StudioHandler", "Serving Studio \"{}\" the merged 04/29/2026 14:12:10 snapshot ({} flags)", version, settings["applicationSettings"].size());
     return settings;
 }
 
