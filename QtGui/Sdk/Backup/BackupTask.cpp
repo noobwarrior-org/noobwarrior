@@ -239,12 +239,12 @@ void BackupTask::OnWorkerFinished(Backup::Response response) {
 
     if (mNotification) {
         if (response == Backup::Response::Ok) {
-            QString msg = failures > 0 ? QString("Done - %1 errors").arg(failures)
-                                       : QString("Done");
+            QString msg = failures > 0 ? QString("Done! There are %1 errors.").arg(failures)
+                                       : QString("Done!");
             if (commitLeftToUser)
-                msg += " - not saved yet: the project has other unsaved changes, use Save Project";
+                msg += " Also, the database is not not saved yet: the project has other unsaved changes, use Save Project";
             else if (!saved)
-                msg += " - saving the database FAILED, use Save Project to retry";
+                msg += " Also, saving the database failed, use Save Project to retry";
             mNotification->SetMessage(msg);
         } else if (response == Backup::Response::Cancelled) {
             mNotification->SetMessage("Cancelled");

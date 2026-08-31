@@ -1,7 +1,6 @@
-# noobWarrior
-noobWarrior is a free (as in freedom) program that emulates Roblox's online features so that you can play Roblox games and engage in their thriving communities on an independent platform.
+![noobWarrior title](./title.png)
 
-It is also focused on helping developers preserve their Roblox games (or experiences as they call it.)
+noobWarrior is a free (as in freedom) program that serves as an all-in-one toolkit for Roblox. It is a tool for archiving, viewing, editing, and playing Roblox content offline.
 
 noobWarrior tries its best to not bundle in any copyrighted works by the Roblox Corporation. The program itself comes with no Roblox items or binaries of the game engine.
 
@@ -23,8 +22,17 @@ Do note that if you want to access game and editor functionality, you will have 
 
 Anything not on this list will probably crash when you try to load it into noobWarrior.
 
+## Preview
+![noobWarrior program](./program.png)
+
+![noobWarrior SDK](./sdk.png)
+
 ## Building
 Check out [BUILDING.md](BUILDING.md).
 
 ## Contributing
 Take a look at [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Legal
+noobWarrior is not affiliated with Roblox Corporation or its subsidiaries in any way.
+Roblox Corporation does not support or endorse noobWarrior.
