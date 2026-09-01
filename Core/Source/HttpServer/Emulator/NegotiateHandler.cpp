@@ -23,7 +23,7 @@
 // Started on: 3/22/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/NegotiateHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -40,7 +40,7 @@ void NegotiateHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("NegotiateHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("NegotiateHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();

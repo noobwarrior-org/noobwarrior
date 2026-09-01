@@ -71,7 +71,7 @@ void SettingsDialog::InitWidgets() {
                 page->Serialize(gApp->GetCore()->GetRegistry());
             }
         }
-        Out("SettingsDialog", "Saved!");
+        gApp->GetCore()->Out("SettingsDialog", "Saved!");
         close();
     });
 

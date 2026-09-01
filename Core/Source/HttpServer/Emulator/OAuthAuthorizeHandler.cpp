@@ -23,7 +23,7 @@
 // Started on: 5/25/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/OAuthAuthorizeHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <event2/http.h>
 #include <event2/buffer.h>
@@ -35,7 +35,7 @@ OAuthAuthorizeHandler::OAuthAuthorizeHandler() {}
 
 void OAuthAuthorizeHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char *uri = evhttp_request_get_uri(req);
-    Out("OAuthAuthorizeHandler", "Authorize request: {}", uri ? uri : "");
+    mCore->Out("OAuthAuthorizeHandler", "Authorize request: {}", uri ? uri : "");
 
     std::string state;
     evhttp_uri *parsed = uri ? evhttp_uri_parse(uri) : nullptr;

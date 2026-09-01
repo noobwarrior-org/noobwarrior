@@ -42,7 +42,7 @@ RunningGameServersHandler::RunningGameServersHandler(ServerEmulator* emu) : mEmu
 }
 
 void RunningGameServersHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("RunningGameServersHandler", "Yes.");
+    mCore->Out("RunningGameServersHandler", "Yes.");
 
     struct evhttp_connection *evcon = evhttp_request_get_connection(req);
     struct bufferevent *bev = evhttp_connection_get_bufferevent(evcon);

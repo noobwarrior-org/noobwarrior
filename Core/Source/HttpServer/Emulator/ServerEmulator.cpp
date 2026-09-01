@@ -475,7 +475,7 @@ void ServerEmulator::SetAvatarOverride(int64_t userId, const std::string &avatar
     if (mAvatarOverrides.size() >= kMaxOverrideEntries && !mAvatarOverrides.count(userId))
         return; // bound memory against a flood of new-user overrides
     mAvatarOverrides[userId] = avatarFetchJson;
-    Out(mLogName, "Stored federated avatar override for userId={} ({} bytes)", userId, avatarFetchJson.size());
+    mCore->Out(mLogName, "Stored federated avatar override for userId={} ({} bytes)", userId, avatarFetchJson.size());
 }
 
 std::optional<std::string> ServerEmulator::GetAvatarOverride(int64_t userId) const {
@@ -532,7 +532,7 @@ bool ServerEmulator::TryFetchFederatedAsset(int64_t id, std::vector<unsigned cha
         GetCore()->GetEmuDbManager()->CacheAssetInTemporary(id, bytes); // so the next fetch is local
         if (dataOut) *dataOut = std::move(bytes);
         if (hashOut) hashOut->clear();
-        Out(mLogName, "Fetched federated asset {} from {}", id, base);
+        mCore->Out(mLogName, "Fetched federated asset {} from {}", id, base);
         return true;
     }
     return false;
@@ -644,14 +644,14 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     parts.push_back(cookieValue.substr(start));
     // 5 = signed (current); 4 = legacy unsigned, forwarded so the master returns a clear rejection.
     if (parts.size() != 5 && parts.size() != 4) {
-        Out("ResolveFederatedVoucher", "Malformed voucher ({} segments, expected 5)", parts.size());
+        mCore->Out("ResolveFederatedVoucher", "Malformed voucher ({} segments, expected 5)", parts.size());
         return std::nullopt;
     }
 
     std::optional<std::string> identity = AuthUtil::Base64UrlDecode(parts[1]);
     std::optional<std::string> body = AuthUtil::Base64UrlDecode(parts[3]);
     if (!identity || !body) {
-        Out("ResolveFederatedVoucher", "Voucher identity/body failed to base64url-decode");
+        mCore->Out("ResolveFederatedVoucher", "Voucher identity/body failed to base64url-decode");
         return std::nullopt;
     }
 
@@ -671,7 +671,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     if (res.error.code != cpr::ErrorCode::OK || res.status_code >= 400) {
         std::string reason;
         try { reason = json::parse(res.text).value("Error", ""); } catch (...) {}
-        Out("ResolveFederatedVoucher", "Master {} refused {} (HTTP {}{}): {}", masterUrl,
+        mCore->Out("ResolveFederatedVoucher", "Master {} refused {} (HTTP {}{}): {}", masterUrl,
             identity.value_or("?"), static_cast<long>(res.status_code),
             res.error.code != cpr::ErrorCode::OK ? " / network error" : "",
             reason.empty() ? res.error.message : reason);
@@ -681,7 +681,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
     try {
         json j = json::parse(res.text);
         if (!j.value("ok", false) || !j.contains("user")) {
-            Out("ResolveFederatedVoucher", "Master {} did not confirm {}: {}", masterUrl,
+            mCore->Out("ResolveFederatedVoucher", "Master {} did not confirm {}: {}", masterUrl,
                 identity.value_or("?"), j.value("Error", "no user in response"));
             return std::nullopt;
         }
@@ -706,7 +706,7 @@ std::optional<AuthUtil::SessionUser> ServerEmulator::ResolveFederatedVoucher(con
 
         // Reject if this OnlineUserId is already held by a different handle this run (identity collision).
         if (!BindFederatedHandle(user.id, user.name)) {
-            Out("ServerEmulator", "Refused federated join: OnlineUserId {} already bound to a different handle (got \"{}\")",
+            mCore->Out("ServerEmulator", "Refused federated join: OnlineUserId {} already bound to a different handle (got \"{}\")",
                 user.id, user.name);
             return std::nullopt;
         }
@@ -805,7 +805,7 @@ void ServerEmulator::SweepStaleInstancesLocked() {
             }
 #endif
             if (stale)
-                Out(mLogName, "Reaping stale instance pid={} side={} (last seen {}s ago)",
+                mCore->Out(mLogName, "Reaping stale instance pid={} side={} (last seen {}s ago)",
                     inst.Pid, EngineSideAsString(inst.Side), static_cast<long long>(now - inst.LastSeen));
             return stale;
         });
@@ -850,7 +850,7 @@ void ServerEmulator::RegisterInstance(const RunningInstance &instance) {
     if (copy.FirstSeen == 0) copy.FirstSeen = now;
     copy.LastSeen = now;
     mInstances.push_back(copy);
-    Out(mLogName, "Registered instance pid={} side={} version={}",
+    mCore->Out(mLogName, "Registered instance pid={} side={} version={}",
         copy.Pid, EngineSideAsString(copy.Side), copy.Version);
 }
 
@@ -860,7 +860,7 @@ void ServerEmulator::UnregisterInstance(int pid) {
     auto it = std::find_if(mInstances.begin(), mInstances.end(),
         [pid](const RunningInstance &i) { return i.Pid == pid; });
     if (it != mInstances.end()) {
-        Out(mLogName, "Unregistered instance pid={} side={}", it->Pid, EngineSideAsString(it->Side));
+        mCore->Out(mLogName, "Unregistered instance pid={} side={}", it->Pid, EngineSideAsString(it->Side));
         mInstances.erase(it);
     }
 }
@@ -1081,11 +1081,11 @@ void ServerEmulator::SendMasterPing(const std::string &event) {
         cpr::VerifySsl{false}
     );
     if (res.error.code != cpr::ErrorCode::OK)
-        Out(mLogName, "Master announce ({}) to {} failed: {}", event, url, res.error.message);
+        mCore->Out(mLogName, "Master announce ({}) to {} failed: {}", event, url, res.error.message);
     else if (res.status_code == 401 || res.status_code == 403)
-        Out(mLogName, "Master {} refused the announce ({}). Sign in to it on the Online window's "
+        mCore->Out(mLogName, "Master {} refused the announce ({}). Sign in to it on the Online window's "
                       "Profile page, or turn off master.auth.require_for_hosting on that master.",
             url, event);
     else if (res.status_code >= 400)
-        Out(mLogName, "Master announce ({}) to {} got HTTP {}", event, url, static_cast<long>(res.status_code));
+        mCore->Out(mLogName, "Master announce ({}) to {} got HTTP {}", event, url, static_cast<long>(res.status_code));
 }

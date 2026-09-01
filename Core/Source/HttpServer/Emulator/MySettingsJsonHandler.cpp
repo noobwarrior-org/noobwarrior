@@ -43,7 +43,7 @@ void MySettingsJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("MySettingsJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("MySettingsJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     auto* registry = mEmu->GetCore()->GetRegistry();
     auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);

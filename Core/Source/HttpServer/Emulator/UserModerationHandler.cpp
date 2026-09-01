@@ -24,7 +24,7 @@
 // Description: what roblox studio requests to see if you are banned or not.
 // obviously you can't get banned from noobWarrior, so return false always.
 #include <NoobWarrior/HttpServer/Emulator/UserModerationHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -38,7 +38,7 @@ void UserModerationHandler::OnRequest(evhttp_request *req, void *userdata) {
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("UserModerationHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("UserModerationHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

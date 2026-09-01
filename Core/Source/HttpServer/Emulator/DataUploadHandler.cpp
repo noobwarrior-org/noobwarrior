@@ -94,12 +94,12 @@ void DataUploadHandler::OnRequest(evhttp_request *req, void *userdata) {
     std::vector<unsigned char> data(body.begin(), body.end());
     SqlDb::Response res = db->AttachDataToAsset(assetId, 0, data);
     if (res != SqlDb::Response::Success) {
-        Out("DataUploadHandler", "Failed to publish place id={} (code={})", assetId, static_cast<int>(res));
+        mCore->Out("DataUploadHandler", "Failed to publish place id={} (code={})", assetId, static_cast<int>(res));
         evhttp_send_error(req, 500, "Failed to store published place");
         return;
     }
     db->MarkDirty();
-    Out("DataUploadHandler", "Published place id={} as a new version into \"{}\"", assetId, db->GetFileName());
+    mCore->Out("DataUploadHandler", "Published place id={} as a new version into \"{}\"", assetId, db->GetFileName());
     
     const std::string out = std::to_string(assetId);
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");

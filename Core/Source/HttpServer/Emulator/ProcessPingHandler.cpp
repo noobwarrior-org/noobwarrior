@@ -25,7 +25,7 @@
 //              can track which Roblox processes are currently alive.
 #include <NoobWarrior/HttpServer/Emulator/ProcessPingHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <nlohmann/json.hpp>
 
@@ -56,7 +56,7 @@ void ProcessPingHandler::OnRequest(evhttp_request *req, void *userdata) {
     try {
         json = nlohmann::json::parse(body);
     } catch (nlohmann::json::exception &ex) {
-        Out("ProcessPingHandler", "Malformed ping body: {}", ex.what());
+        mCore->Out("ProcessPingHandler", "Malformed ping body: {}", ex.what());
         evhttp_send_error(req, HTTP_BADREQUEST, "Malformed JSON");
         return;
     }

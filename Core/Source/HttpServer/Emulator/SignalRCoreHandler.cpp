@@ -24,7 +24,7 @@
 // Description: SignalR Core WebSocket transport used by recent voice-chat clients.
 // (Disclaimer: Assisted by GPT 5.6 Sol)
 #include <NoobWarrior/HttpServer/Emulator/SignalRCoreHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
 
 #include <event2/buffer.h>
@@ -126,7 +126,7 @@ SignalRCoreHandler::SignalRCoreHandler(Registry *registry) : mRegistry(registry)
 
 void SignalRCoreHandler::OnRequest(evhttp_request *req, void *userdata) {
     const char *uri = evhttp_request_get_uri(req);
-    Out("SignalRCoreHandler", "Requested {}", uri ? uri : "");
+    mCore->Out("SignalRCoreHandler", "Requested {}", uri ? uri : "");
 
     const char *upgrade = evhttp_find_header(evhttp_request_get_input_headers(req), "Upgrade");
     std::string upgradeValue = upgrade ? upgrade : "";
@@ -143,7 +143,7 @@ void SignalRCoreHandler::OnRequest(evhttp_request *req, void *userdata) {
     connection->WebSocket = evws_new_session(req, OnMessage, connection, 0);
     if (connection->WebSocket == nullptr) {
         delete connection;
-        Out("SignalRCoreHandler", "Failed to upgrade SignalR request to WebSocket");
+        mCore->Out("SignalRCoreHandler", "Failed to upgrade SignalR request to WebSocket");
         return;
     }
 
@@ -155,5 +155,5 @@ void SignalRCoreHandler::OnRequest(evhttp_request *req, void *userdata) {
         constexpr timeval interval {10, 0};
         event_add(connection->PingTimer, &interval);
     }
-    Out("SignalRCoreHandler", "SignalR client connected");
+    mCore->Out("SignalRCoreHandler", "SignalR client connected");
 }

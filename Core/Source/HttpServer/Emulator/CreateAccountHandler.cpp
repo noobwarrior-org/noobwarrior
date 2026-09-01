@@ -98,7 +98,7 @@ void CreateAccountHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create account");
         return;
     }
-    Out("CreateAccountHandler", "Created account \"{}\" with ID {}", username, *newUserId);
+    mCore->Out("CreateAccountHandler", "Created account \"{}\" with ID {}", username, *newUserId);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Location", "/login");
     evbuffer *reply = evbuffer_new();

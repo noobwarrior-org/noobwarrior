@@ -82,11 +82,11 @@ void AvatarOverrideHandler::OnRequest(evhttp_request *req, void *userdata) {
         uint16_t peerPort = 0;
         if (evhttp_connection *conn = evhttp_request_get_connection(req))
             evhttp_connection_get_peer(conn, &peer, &peerPort);
-        Out("AvatarOverrideHandler", "Stored federated avatar for userId={} from {}", userId, peer);
+        mCore->Out("AvatarOverrideHandler", "Stored federated avatar for userId={} from {}", userId, peer);
 
         evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);
     } catch (const nlohmann::json::exception &e) {
-        Out("AvatarOverrideHandler", "Malformed override body: {}", e.what());
+        mCore->Out("AvatarOverrideHandler", "Malformed override body: {}", e.what());
         evhttp_send_error(req, HTTP_BADREQUEST, "Malformed JSON");
     }
 }

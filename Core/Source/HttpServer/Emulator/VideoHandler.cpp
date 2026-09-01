@@ -215,7 +215,7 @@ std::string VideoHandler::ResolvePlaylistPath(ServerEmulator *emu, int64_t asset
         }
     }
 
-    Out("VideoHandler", "video asset {} is not segmented yet; serving it whole for now", assetId);
+    emu->GetCore()->Out("VideoHandler", "video asset {} is not segmented yet; serving it whole for now", assetId);
     return {};
 }
 
@@ -232,7 +232,7 @@ void VideoHandler::ServeFile(evhttp_request *req, const std::filesystem::path &p
     std::error_code ec;
     const auto fileSize = std::filesystem::file_size(path, ec);
     if (ec) {
-        Out("VideoHandler", "404 for \"{}\": {}", path.string(), ec.message());
+        mCore->Out("VideoHandler", "404 for \"{}\": {}", path.string(), ec.message());
         evhttp_send_error(req, 404, "Video file not found");
         return;
     }
@@ -259,7 +259,7 @@ void VideoHandler::ServeFile(evhttp_request *req, const std::filesystem::path &p
         evhttp_add_header(playlistHeaders, "Cache-Control", "no-store, no-cache, must-revalidate");
         evhttp_add_header(playlistHeaders, "Pragma", "no-cache");
 
-        Out("VideoHandler", "serving playlist for {} ({} bytes):\n{}", uriPrefix, body.size(), body);
+        mCore->Out("VideoHandler", "serving playlist for {} ({} bytes):\n{}", uriPrefix, body.size(), body);
 
         evbuffer *playlistBuf = evbuffer_new();
         evbuffer_add(playlistBuf, body.data(), body.size());
@@ -324,7 +324,7 @@ void VideoHandler::ServeFile(evhttp_request *req, const std::filesystem::path &p
         return;
     }
 
-    Out("VideoHandler", "serving {} {} bytes {}/{}{}", fileName, length, partial ? "206" : "200",
+    mCore->Out("VideoHandler", "serving {} {} bytes {}/{}{}", fileName, length, partial ? "206" : "200",
         fileSize, rangeHeader == nullptr ? std::string() : std::string(" range=") + rangeHeader);
 
     if (partial) {
@@ -344,7 +344,7 @@ void VideoHandler::OnRequest(evhttp_request *req, void *userdata) {
     const std::string fileName    = mServerEmulator->GetRouteParam("file");
 
     if (!IsSafeFileName(fileName) || !IsSafeHash(hash)) {
-        Out("VideoHandler", "rejecting unsafe video path \"{}/{}\"", hash, fileName);
+        mCore->Out("VideoHandler", "rejecting unsafe video path \"{}/{}\"", hash, fileName);
         evhttp_send_error(req, 400, "Bad video path");
         return;
     }
@@ -367,12 +367,12 @@ void VideoHandler::OnRequest(evhttp_request *req, void *userdata) {
         return;
     }
 
-    auto notFound = [assetId, fileName](evhttp_request *r) {
-        Out("VideoHandler", "no local or remote copy of {} for video asset {}", fileName, assetId);
+    auto notFound = [assetId, fileName, core = mCore](evhttp_request *r) {
+        core->Out("VideoHandler", "no local or remote copy of {} for video asset {}", fileName, assetId);
         evhttp_send_error(r, 404, "Video not found");
     };
 
-    Out("VideoHandler", "{} for asset {} is not local; forwarding to the host", fileName, assetId);
+    mCore->Out("VideoHandler", "{} for asset {} is not local; forwarding to the host", fileName, assetId);
 
     if (!mServerEmulator->TryProxyRequest(req, notFound))
         notFound(req);

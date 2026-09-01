@@ -138,6 +138,20 @@ public:
     ~Core();
 
     bool Fail();
+    static Core *GetSingleton();
+
+    std::filesystem::path GetLogPath();
+
+    template <typename... Args>
+    void OutEx(std::ostream *stream, std::string_view category, std::string_view fmt, Args...args) {
+        NoobWarrior::OutTo(stream, GetLogPath(), category, fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    void Out(std::string_view category, std::string_view fmt, Args...args) {
+        OutEx(&std::cout, category, fmt, std::forward<Args>(args)...);
+    }
+
 
     /**
      * @brief Must be called in order to poll async I/O events, like for HTTP requests.
@@ -296,5 +310,6 @@ private:
     std::vector<RccServiceManager*> mRccServiceManagers;
 
     LuaSignal                       mConsoleAddedSignal;
+    std::filesystem::path           mLogPath;
 };
 }

@@ -45,7 +45,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
     mBaseEnv(std::move(env))
 {
     if (!lua->Opened()) {
-        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
+        mLua->GetCore()->Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
@@ -55,12 +55,12 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const Url &identifier)
     FSEntryHandle scriptHandle;
     mUrl.OpenHandle(core, &vfs, &scriptHandle);
     if (vfs == nullptr) {
-        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
+        mLua->GetCore()->Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Failed to retrieve the plugin filesystem.");
         mFailReason = FailReason::UrlFailed;
         return;
     }
     if (scriptHandle == 0) {
-        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "The file handle failed to open.");
+        mLua->GetCore()->Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "The file handle failed to open.");
         mFailReason = FailReason::UrlFailed;
         return;
     }
@@ -84,7 +84,7 @@ LuaScript::LuaScript(LuaState* lua, sol::environment env, const std::string &src
     mBaseEnv(std::move(env))
 {
     if (!lua->Opened()) {
-        Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
+        mLua->GetCore()->Out("LuaScript", "[{}] (Load Failure) {}", mUrl.Resolve(), "Tried compiling script but Lua subsystem is not open!");
         mFailReason = FailReason::LuaNotOpen;
         return;
     }
@@ -106,7 +106,7 @@ LuaScript::FailReason LuaScript::GetFailReason() {
 
 LuaScript::ExecResponse LuaScript::Execute() {
     if (Fail()) {
-        Out("LuaScript", "[{}] (Execution Failure) The script failed to compile so it cannot execute.", mUrl.Resolve());
+        mLua->GetCore()->Out("LuaScript", "[{}] (Execution Failure) The script failed to compile so it cannot execute.", mUrl.Resolve());
         return ExecResponse::InitFailed;
     }
 
@@ -129,9 +129,9 @@ LuaScript::ExecResponse LuaScript::Execute() {
             }
         }
         if (!mUrl.IsBlank())
-            Out("LuaScript", "[{}] {}", mUrl.Resolve(), msg);
+            mLua->GetCore()->Out("LuaScript", "[{}] {}", mUrl.Resolve(), msg);
         else
-            Out("LuaScript", "{}", msg);
+            mLua->GetCore()->Out("LuaScript", "{}", msg);
     };
 
     sandbox["require"] = [this](sol::this_state state, const std::string& urlStr) -> sol::object {
@@ -182,7 +182,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
     sol::load_result bytecode = mLua->load(mSource);
     if (!bytecode.valid()) {
         sol::error err = bytecode;
-        Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
+        mLua->GetCore()->Out("LuaScript", "[{}] (Compile Failure) {}", mUrl.Resolve(), err.what());
         mResult = sol::lua_nil;
         return ExecResponse::Failed;
     }
@@ -192,7 +192,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
     sol::protected_function_result res = func();
     if (!res.valid()) {
         sol::error err = res;
-        Out("LuaScript", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
+        mLua->GetCore()->Out("LuaScript", "[{}] (Execution Failure) {}", mUrl.Resolve(), err.what());
         mResult = sol::lua_nil;
         return ExecResponse::Failed;
     }

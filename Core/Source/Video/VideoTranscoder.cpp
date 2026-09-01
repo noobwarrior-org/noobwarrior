@@ -353,7 +353,7 @@ void VideoTranscoder::RequestPreparation(int64_t assetId, const std::string &blo
             return; // already queued or in flight
         mPreparationQueue.push_back({assetId, cacheDir, std::move(video)});
     }
-    Out("VideoTranscoder", "queued asset {} for background preparation", assetId);
+    mCore->Out("VideoTranscoder", "queued asset {} for background preparation", assetId);
     mPreparationCv.notify_one();
 }
 
@@ -372,9 +372,9 @@ void VideoTranscoder::RunPreparationWorker() {
         Segments segments;
         const Response result = Segment(job.Video, OptionsFromRegistry(), job.CacheDir, &segments);
         if (result == Response::Success)
-            Out("VideoTranscoder", "asset {} is ready to stream", job.AssetId);
+            mCore->Out("VideoTranscoder", "asset {} is ready to stream", job.AssetId);
         else
-            Out("VideoTranscoder", "preparing asset {} failed: {}", job.AssetId, ResponseToString(result));
+            mCore->Out("VideoTranscoder", "preparing asset {} failed: {}", job.AssetId, ResponseToString(result));
 
         std::lock_guard<std::mutex> lock(mPreparationMutex);
         mPreparing.erase(job.CacheDir.string());
@@ -454,7 +454,7 @@ void VideoTranscoder::ResolveTools() {
     if (mFfprobe.empty())
         mFfprobe = kFfprobeExeName;
 
-    Out("VideoTranscoder", "ffmpeg=\"{}\" ffprobe=\"{}\"", mFfmpeg.string(), mFfprobe.string());
+    mCore->Out("VideoTranscoder", "ffmpeg=\"{}\" ffprobe=\"{}\"", mFfmpeg.string(), mFfprobe.string());
 }
 
 VideoTranscoder::Options VideoTranscoder::OptionsFromRegistry() {
@@ -678,12 +678,12 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
     // always allowed. With it off, a video the engine could not have played is refused rather than
     // silently costing an encode.
     if (!canCopy && !mCore->GetRegistry()->GetKeyValue<bool>("emu.video.transcode").value_or(true)) {
-        Out("VideoTranscoder", "{}/{} needs re-encoding but emu.video.transcode is off",
+        mCore->Out("VideoTranscoder", "{}/{} needs re-encoding but emu.video.transcode is off",
             probe.VideoCodec, probe.AudioCodec.empty() ? "none" : probe.AudioCodec);
         return Response::Disabled;
     }
 
-    Out("VideoTranscoder", "segmenting {}x{} {}/{} -> {}", probe.Width, probe.Height,
+    mCore->Out("VideoTranscoder", "segmenting {}x{} {}/{} -> {}", probe.Width, probe.Height,
         probe.VideoCodec, probe.AudioCodec.empty() ? "none" : probe.AudioCodec,
         canCopy ? "stream copy" : "re-encode to H.264 Main/3.1 + AAC");
 
@@ -770,7 +770,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
     if (!RunProcess(mFfmpeg, args, logPath, &exitCode))
         return Response::NoEncoder;
     if (exitCode != 0) {
-        Out("VideoTranscoder", "segmenting failed (exit {}): {}", exitCode, LogTail(logPath));
+        mCore->Out("VideoTranscoder", "segmenting failed (exit {}): {}", exitCode, LogTail(logPath));
         return Response::EncodeFailed;
     }
 
@@ -780,7 +780,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
 
     std::string why;
     if (!PlaylistIsAcceptable(playlist, &why)) {
-        Out("VideoTranscoder", "refusing generated playlist: {}", why);
+        mCore->Out("VideoTranscoder", "refusing generated playlist: {}", why);
         return Response::BadPlaylist;
     }
 
@@ -791,7 +791,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
             segmentCount++;
     }
     if (ec || segmentCount == 0) {
-        Out("VideoTranscoder", "segmenting produced a playlist with no segments");
+        mCore->Out("VideoTranscoder", "segmenting produced a playlist with no segments");
         return Response::OutputMissing;
     }
 
@@ -814,7 +814,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
             }
         }
         if (!unstartable.empty()) {
-            Out("VideoTranscoder",
+            mCore->Out("VideoTranscoder",
                 "stream copy left \"{}\" without parameter sets (open-GOP source); re-encoding instead",
                 unstartable);
             std::error_code cleanupEc;
@@ -839,7 +839,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
                               std::filesystem::copy_options::recursive
                             | std::filesystem::copy_options::overwrite_existing, copyEc);
         if (copyEc) {
-            Out("VideoTranscoder", "could not publish segments to \"{}\": {}",
+            mCore->Out("VideoTranscoder", "could not publish segments to \"{}\": {}",
                 outDir.string(), copyEc.message());
             return Response::TempFileFailed;
         }
@@ -848,7 +848,7 @@ VideoTranscoder::Response VideoTranscoder::Segment(const std::vector<unsigned ch
     if (!ReadExistingSegments(outDir, out))
         return Response::OutputMissing;
 
-    Out("VideoTranscoder", "segmented into {} file(s), {} bytes at \"{}\"",
+    mCore->Out("VideoTranscoder", "segmented into {} file(s), {} bytes at \"{}\"",
         out->Names.size(), out->TotalBytes, outDir.string());
     return Response::Success;
 }

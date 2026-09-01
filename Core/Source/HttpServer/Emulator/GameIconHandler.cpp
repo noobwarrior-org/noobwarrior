@@ -59,7 +59,7 @@ void GameIconHandler::OnRequest(evhttp_request *req, void *userdata) {
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("GameIconHandler", "{}:{} requested game icon {}", peer_address, peer_port, uri ? uri : "");
+    mCore->Out("GameIconHandler", "{}:{} requested game icon {}", peer_address, peer_port, uri ? uri : "");
 
     std::string path = uri ? uri : "";
     if (auto q = path.find('?'); q != std::string::npos)

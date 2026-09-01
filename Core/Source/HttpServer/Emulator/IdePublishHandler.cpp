@@ -157,7 +157,7 @@ void IdePublishHandler::HandleUploadNewAsset(evhttp_request *req) {
     row.push_back({"Type", AssetTypeIdFromName(typeName)});
     row.push_back({"UserId", creatorId});
     if (db->AddItem(ItemType::Asset, row) != SqlDb::Response::Success) {
-        Out("IdePublishHandler", "Failed to create asset row id={} in \"{}\"", assetId, db->GetFileName());
+        mCore->Out("IdePublishHandler", "Failed to create asset row id={} in \"{}\"", assetId, db->GetFileName());
         evhttp_send_error(req, 500, "Failed to create asset");
         return;
     }
@@ -168,7 +168,7 @@ void IdePublishHandler::HandleUploadNewAsset(evhttp_request *req) {
         return;
     }
     db->MarkDirty();
-    Out("IdePublishHandler", "Published new {} asset id={} into \"{}\"",
+    mCore->Out("IdePublishHandler", "Published new {} asset id={} into \"{}\"",
         typeName.empty() ? "descendant" : typeName, assetId, db->GetFileName());
 
     ReplyId(req, assetId);
@@ -226,7 +226,7 @@ void IdePublishHandler::HandleUploadExistingAsset(evhttp_request *req) {
         return;
     }
     db->MarkDirty();
-    Out("IdePublishHandler", "Published new version of asset id={} into \"{}\"", assetId, db->GetFileName());
+    mCore->Out("IdePublishHandler", "Published new version of asset id={} into \"{}\"", assetId, db->GetFileName());
 
     ReplyId(req, assetId);
 }

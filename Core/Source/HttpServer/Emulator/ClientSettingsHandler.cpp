@@ -23,7 +23,7 @@
 // Started on: 11/16/2025
 // Description: Returns a JSON object containing application settings (FFlags & DFFlags)
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 #include <event2/http.h>
 #include <nlohmann/json.hpp>
 #include <cstring>
@@ -69,7 +69,7 @@ void ClientSettingsHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("ClientSettingsHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
+    mCore->Out("ClientSettingsHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

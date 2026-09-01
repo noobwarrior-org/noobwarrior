@@ -54,7 +54,7 @@ void PlaceUniverseHandler::OnRequest(evhttp_request *req, void *userdata) {
     // engine can still proceed (the rest of the emulated flow keys off whatever we return here).
     std::optional<int64_t> universeId = mEmuDbManager->GetUniverseIdForPlace(placeId);
     if (!universeId.has_value()) {
-        Out("PlaceUniverseHandler", "No universe mapping for place {}; falling back to universeId={}", placeId, placeId);
+        mCore->Out("PlaceUniverseHandler", "No universe mapping for place {}; falling back to universeId={}", placeId, placeId);
         universeId = placeId;
     }
 

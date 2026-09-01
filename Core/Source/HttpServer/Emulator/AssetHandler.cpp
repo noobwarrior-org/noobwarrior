@@ -304,10 +304,10 @@ void AssetHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> fetch, bool ok, l
     if (fetchedOk) {
         // A federated hit is already logged by TryFetchFederatedAsset, and didn't come from Roblox.
         if (fetch->TryRoblox && !fetch->FromFederated)
-            Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
+            mCore->Out("AssetHandler", "Forwarded asset id={} ver={} from Roblox ({} bytes)", fetch->Id, fetch->Version, data.size());
         res = SqlDb::Response::Success;
     } else {
-        Out("AssetHandler", "Asset fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
+        mCore->Out("AssetHandler", "Asset fallback failed for id={} ver={}: ok={} http={}", fetch->Id, fetch->Version,
             ok, httpStatus);
         data.clear();
     }
@@ -323,20 +323,20 @@ void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, i
         // case below does.
         static std::atomic<bool> warnedUnresolvable{false};
         if (!warnedUnresolvable.exchange(true))
-            Out("AssetHandler", "Asset Grab Mode is on but its target \"{}\" is not mounted (or no "
+            mCore->Out("AssetHandler", "Asset Grab Mode is on but its target \"{}\" is not mounted (or no "
                 "longer exists), so grabbed assets are being discarded. Fix emu.asset_grab_db or "
                 "re-mount the database.", dbFilePath);
         return;
     }
 
     if (!db->AllowsRuntimeWrites()) {
-        Out("AssetHandler", "Asset Grab Mode target \"{}\" cannot be written to ({}). Pick a different "
+        mCore->Out("AssetHandler", "Asset Grab Mode target \"{}\" cannot be written to ({}). Pick a different "
             "database, or turn its Mutable setting back on in the database editor's Overview tab.",
             dbFilePath, db->IsReadOnly() ? "it is mounted read-only" : "its Mutable setting is off");
         return;
     }
 
-    Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
+    mCore->Out("AssetHandler", "Saving asset id={} to database \"{}\"", id, dbFilePath);
 
     // Save the asset + its data blob immediately with a placeholder name. The real
     // name/description/type/creator and a thumbnail are filled in asynchronously by the
@@ -349,12 +349,12 @@ void AssetHandler::SaveGrabbedAsset(const std::string &dbFilePath, int64_t id, i
 
         SqlDb::Response addRes = db->AddItem(ItemType::Asset, row);
         if (addRes != SqlDb::Response::Success)
-            Out("AssetHandler", "Failed to add asset id={} to database (code={})", id, (int)addRes);
+            mCore->Out("AssetHandler", "Failed to add asset id={} to database (code={})", id, (int)addRes);
     }
 
     SqlDb::Response attachRes = db->AttachDataToAsset(id, version, data);
     if (attachRes != SqlDb::Response::Success)
-        Out("AssetHandler", "Failed to attach data to asset id={} (code={})", id, (int)attachRes);
+        mCore->Out("AssetHandler", "Failed to attach data to asset id={} (code={})", id, (int)attachRes);
     else
         db->MarkDirty();
 
@@ -414,7 +414,7 @@ void AssetHandler::ReplyWithAsset(evhttp_request *req, SqlDb::Response res,
                                            + std::to_string(end) + "/" + std::to_string(bodySize);
             evhttp_add_header(outHeaders, "Content-Range", contentRange.c_str());
             evbuffer_add(buf, out->data() + start, static_cast<size_t>(end - start + 1));
-            Out("AssetHandler", "  served {} of {} bytes for range {}", end - start + 1, bodySize,
+            mCore->Out("AssetHandler", "  served {} of {} bytes for range {}", end - start + 1, bodySize,
                 rangeHeader);
             evhttp_send_reply(req, 206, "Partial Content", buf);
             break;
@@ -456,7 +456,7 @@ bool AssetHandler::RedirectToSelfForResolution(evhttp_request *req, const char *
     location += kResolvedParam;
     location += "=true";
 
-    Out("AssetHandler", "  resolving via redirect -> {}", location);
+    mCore->Out("AssetHandler", "  resolving via redirect -> {}", location);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Location", location.c_str());
     evhttp_send_reply(req, 302, "Found", nullptr);
@@ -472,7 +472,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
+    mCore->Out("AssetHandler", "{}:{} requested asset {}", peer_address, peer_port, uri);
 
     evkeyvalq headers;
     if (evhttp_parse_query(uri, &headers) != 0) {
@@ -620,7 +620,7 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (wantsHlsVideo) {
         const std::string location = VideoHandler::ResolvePlaylistPath(mServerEmulator, id, ver);
         if (!location.empty()) {
-            Out("AssetHandler", "  video asset {} -> {}", id, location);
+            mCore->Out("AssetHandler", "  video asset {} -> {}", id, location);
             evhttp_add_header(evhttp_request_get_output_headers(req), "Location", location.c_str());
             // The redirect target embeds the blob hash, so it changes whenever the video does -- and a
             // cached redirect would send the engine to segments that no longer exist. The playlist it
@@ -672,10 +672,10 @@ void AssetHandler::OnRequest(evhttp_request *req, void *userdata) {
      * from "the host sent something else entirely". The body is passed through untouched. */
     EmulatorProxy::ResponseTransform videoProbe;
     if (wantsHlsVideo) {
-        videoProbe = [id](std::vector<unsigned char> body) {
+        videoProbe = [id, core = mCore](std::vector<unsigned char> body) {
             const std::string head(reinterpret_cast<const char*>(body.data()),
                                    std::min<size_t>(body.size(), 7));
-            Out("AssetHandler", "  proxied video asset {}: {} bytes, {}", id, body.size(),
+            core->Out("AssetHandler", "  proxied video asset {}: {} bytes, {}", id, body.size(),
                 head == "#EXTM3U" ? "an HLS playlist" : "NOT a playlist (head=\"" + head + "\")");
             return body;
         };

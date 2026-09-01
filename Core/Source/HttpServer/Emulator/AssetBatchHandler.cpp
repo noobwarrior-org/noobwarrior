@@ -145,7 +145,7 @@ void AssetBatchHandler::OnRequest(evhttp_request *req, void *userdata) {
         }
 
         const size_t layerCount = mEmu->GetProxyLayers().size();
-        Out("AssetBatchHandler",
+        mCore->Out("AssetBatchHandler",
             "batch: {} entries, mentionsVideo={}, layers={}, proxying={}, acr={}:\"{}\"",
             parsed.is_array() ? parsed.size() : 0, mentionsVideo, layerCount,
             mentionsVideo && layerCount > 0, acrKind, acrSample);
@@ -246,10 +246,10 @@ void AssetBatchHandler::HandleLocally(evhttp_request *req) {
             const std::string playlist = VideoHandler::ResolvePlaylistPath(mEmu, *assetId, version);
             if (!playlist.empty()) {
                 location = "https://assetdelivery.roblox.com" + playlist;
-                Out("AssetBatchHandler", "  video asset {} -> {}", *assetId, location);
+                mCore->Out("AssetBatchHandler", "  video asset {} -> {}", *assetId, location);
             } else {
                 // The counterpart line. Silence here used to be indistinguishable from "not a video".
-                Out("AssetBatchHandler", "  video asset {} kept the PLAIN location {} "
+                mCore->Out("AssetBatchHandler", "  video asset {} kept the PLAIN location {} "
                                          "(no local blob, or not segmented yet)", *assetId, location);
             }
         }
@@ -269,7 +269,7 @@ void AssetBatchHandler::HandleLocally(evhttp_request *req) {
             std::string keys;
             for (auto it = requests[0].begin(); it != requests[0].end(); ++it)
                 keys += (keys.empty() ? "" : ", ") + it.key();
-            Out("AssetBatchHandler", "  request fields: {}", keys);
+            mCore->Out("AssetBatchHandler", "  request fields: {}", keys);
         }
         {
             std::string ids;
@@ -285,7 +285,7 @@ void AssetBatchHandler::HandleLocally(evhttp_request *req) {
                 if (value.has_value())
                     ids += (ids.empty() ? "" : ", ") + std::to_string(*value);
             }
-            Out("AssetBatchHandler", "  ids: {}", ids);
+            mCore->Out("AssetBatchHandler", "  ids: {}", ids);
         }
     }
     

@@ -131,7 +131,7 @@ bool EmuIconHandler::LoadConfiguredIcon(std::vector<unsigned char> *out) {
         return ReadWholeLocalFile(url.ResolveAsLocalPath(mEmu->GetCore()), out);
     default:
         // local files only for now
-        Out("EmuIconHandler", "emu.branding.icon uses a protocol that cannot be served from: {}", icon);
+        mCore->Out("EmuIconHandler", "emu.branding.icon uses a protocol that cannot be served from: {}", icon);
         return false;
     }
 }

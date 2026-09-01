@@ -118,7 +118,7 @@ int HttpServer::Start(uint16_t port) {
         ApplyHandlersToServer(mServer);
     }
 
-    Out(mLogName, "Started HTTP server on port {}", port);
+    mCore->Out(mLogName, "Started HTTP server on port {}", port);
     mRunning = true;
     mPostStartSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     return 1;
@@ -130,7 +130,7 @@ int HttpServer::Stop() {
 
     mPreStopSignal.Fire(false); // We're passing "false" because this is the insecure variant of the server
     mRunning = false;
-    Out(mLogName, "Stopping HTTP server...");
+    mCore->Out(mLogName, "Stopping HTTP server...");
 
     evhttp_free(mServer);
     mServer = nullptr;
@@ -170,13 +170,13 @@ int HttpServer::StartSecure(uint16_t port) {
     if (mSslCtx == nullptr) {
         mSslCtx = SSL_CTX_new(TLS_server_method());
         if (!mSslCtx) {
-            Out(mLogName, "Failed to initialize OpenSSL context");
+            mCore->Out(mLogName, "Failed to initialize OpenSSL context");
             return -1;
         }
 
         SSL_CTX_set_alpn_select_cb(mSslCtx, HttpServerAlpnSelectCb, nullptr); // force HTTP/1.1 (evhttp can't do h2)
 
-        // Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
+        // mCore->Out(mLogName, "OpenSSL: Using passphrase \"noobwarrior\"");
         // SSL_CTX_set_default_passwd_cb(mSslCtx, pem_passwd_cb);
         // SSL_CTX_set_default_passwd_cb_userdata(mSslCtx, (void*)"farted");
 
@@ -189,7 +189,7 @@ int HttpServer::StartSecure(uint16_t port) {
 #else
         if (!SSL_CTX_use_certificate_file(mSslCtx, certPath.c_str(), SSL_FILETYPE_PEM)) {
 #endif
-            Out(mLogName, "OpenSSL: Failed to use public key certificate \"cert.pem\"!");
+            mCore->Out(mLogName, "OpenSSL: Failed to use public key certificate \"cert.pem\"!");
             SSL_CTX_free(mSslCtx);
             mSslCtx = nullptr;
             return -2;
@@ -199,7 +199,7 @@ int HttpServer::StartSecure(uint16_t port) {
 #else
         if (!SSL_CTX_use_PrivateKey_file(mSslCtx, keyPath.c_str(), SSL_FILETYPE_PEM)) {
 #endif
-            Out(mLogName, "OpenSSL: Failed to use private key \"key.pem\"! Maybe the passphrase is incorrect?");
+            mCore->Out(mLogName, "OpenSSL: Failed to use private key \"key.pem\"! Maybe the passphrase is incorrect?");
             SSL_CTX_free(mSslCtx);
             mSslCtx = nullptr;
             return -3;
@@ -219,7 +219,7 @@ int HttpServer::StartSecure(uint16_t port) {
         ApplyHandlersToServer(mServerSecure);
     }
 
-    Out(mLogName, "Started HTTPS server on port {}", port);
+    mCore->Out(mLogName, "Started HTTPS server on port {}", port);
     mRunningSecure = true;
     mPostStartSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
     return 1;
@@ -241,7 +241,7 @@ int HttpServer::StopSecure() {
 
     mPreStopSignal.Fire(true); // We're passing "true" because this is the secure variant of the server
     mRunningSecure = false;
-    Out(mLogName, "Stopping HTTPS server...");
+    mCore->Out(mLogName, "Stopping HTTPS server...");
 
     evhttp_free(mServerSecure);
     mServerSecure = nullptr;
@@ -255,6 +255,9 @@ int HttpServer::StopSecure() {
 }
 
 void HttpServer::SetRequestHandler(const char *uri, Handler *handler, void *userdata) {
+    if (handler != nullptr)
+        handler->mCore = mCore;
+
     // allocate on heap so the pointer remains valid when libevent fires the callback later
     auto handler_userdata_pair = std::make_unique<std::tuple<Handler*, void*>>(handler, userdata);
     auto *raw = handler_userdata_pair.get();
@@ -278,7 +281,7 @@ std::string HttpServer::GetRouteParam(const std::string &name) const {
 }
 
 VirtualFileSystem::Response HttpServer::MountVolume(const std::string &root, const Url &urlPath) {
-    Out(mLogName, "Mounting {} to volume {}", urlPath.Resolve(), root);
+    mCore->Out(mLogName, "Mounting {} to volume {}", urlPath.Resolve(), root);
     std::unique_ptr<VirtualFileSystem> vfs;
     std::filesystem::path path = urlPath.ResolveAsLocalPath(mCore);
     if (path.extension().compare(".zip") == 0) {

@@ -214,7 +214,7 @@ void AssetEnricher::WorkerLoop() {
                     if (++job.Attempts < kMaxJobAttempts) {
                         mQueue.push_back(std::move(job));
                     } else {
-                        Out("AssetEnricher", "Giving up on asset {} after {} failed batches",
+                        mCore->Out("AssetEnricher", "Giving up on asset {} after {} failed batches",
                             job.AssetId, kMaxJobAttempts);
                         mPending.erase({dbFilePath, job.AssetId});
                     }
@@ -244,7 +244,7 @@ EmuDb* AssetEnricher::GetConnection(const std::string &dbFilePath) {
     // next batch, not after a restart. (The probe is one cheap read-only query per batch.)
     if (!EmuDb::ProbeIsMutable(dbFilePath)) {
         if (mWarnedImmutable.insert(dbFilePath).second)
-            Out("AssetEnricher", "Refusing to enrich \"{}\" because its Mutable setting is off", dbFilePath);
+            mCore->Out("AssetEnricher", "Refusing to enrich \"{}\" because its Mutable setting is off", dbFilePath);
         return nullptr;
     }
     mWarnedImmutable.erase(dbFilePath); // mutable again: warn afresh if it ever flips back
@@ -252,7 +252,7 @@ EmuDb* AssetEnricher::GetConnection(const std::string &dbFilePath) {
     auto *db = new EmuDb(dbFilePath, true);
     if (db->Fail()) {
         // Not cached either: this can be a transient lock race against the mounted connection.
-        Out("AssetEnricher", "Failed to open enrichment connection to \"{}\"", dbFilePath);
+        mCore->Out("AssetEnricher", "Failed to open enrichment connection to \"{}\"", dbFilePath);
         delete db;
         return nullptr;
     }
@@ -322,7 +322,7 @@ AssetEnricher::BatchResult AssetEnricher::ProcessBatch(const std::string &dbFile
     if (cookie.empty()) {
         static std::atomic<bool> warned{false};
         if (!warned.exchange(true))
-            Out("AssetEnricher", "No logged-in Roblox account; grabbed assets will keep placeholder names (thumbnails still work). Log in to fetch real names/descriptions.");
+            mCore->Out("AssetEnricher", "No logged-in Roblox account; grabbed assets will keep placeholder names (thumbnails still work). Log in to fetch real names/descriptions.");
     } else {
         std::string metaUrl = "https://develop.roblox.com/v1/assets?assetIds=" + idList;
         cpr::Response meta = fetchWithRetry(metaUrl, cookie);
@@ -331,7 +331,7 @@ AssetEnricher::BatchResult AssetEnricher::ProcessBatch(const std::string &dbFile
             json root = json::parse(meta.text, nullptr, false);
             if (root.is_discarded() || !root.contains("data") || !root["data"].is_array()) {
                 std::string preview = meta.text.substr(0, std::min<size_t>(meta.text.size(), 300));
-                Out("AssetEnricher", "Unexpected develop /v1/assets response shape: {}", preview);
+                mCore->Out("AssetEnricher", "Unexpected develop /v1/assets response shape: {}", preview);
             } else {
                 for (auto &a : root["data"]) {
                     int64_t id = a.contains("id") && a["id"].is_number() ? a["id"].get<int64_t>() : 0;
@@ -372,13 +372,13 @@ AssetEnricher::BatchResult AssetEnricher::ProcessBatch(const std::string &dbFile
                         // (NotFound) at least leaves a trace now.
                         SqlDb::Response updateRes = db->UpdateItem(ItemType::Asset, id, row);
                         if (updateRes != SqlDb::Response::Success)
-                            Out("AssetEnricher", "Metadata update for asset {} failed (code={})",
+                            mCore->Out("AssetEnricher", "Metadata update for asset {} failed (code={})",
                                 id, (int)updateRes);
                     }
                 }
             }
         } else {
-            Out("AssetEnricher", "develop /v1/assets fetch failed (curl={} http={}) for ids {}",
+            mCore->Out("AssetEnricher", "develop /v1/assets fetch failed (curl={} http={}) for ids {}",
                 (int)meta.error.code, meta.status_code, idList);
             transientFailure = true; // network blip or exhausted 429 retries: worth another pass
         }
@@ -390,14 +390,14 @@ AssetEnricher::BatchResult AssetEnricher::ProcessBatch(const std::string &dbFile
     if (thumbRes.error.code != cpr::ErrorCode::OK || thumbRes.status_code != 200) {
         // This used to bail with no log and no retry, silently skipping every thumbnail in the
         // batch forever.
-        Out("AssetEnricher", "thumbnails /v1/assets fetch failed (curl={} http={}) for ids {}",
+        mCore->Out("AssetEnricher", "thumbnails /v1/assets fetch failed (curl={} http={}) for ids {}",
             (int)thumbRes.error.code, thumbRes.status_code, idList);
         return BatchResult::RetryLater;
     }
 
     json troot = json::parse(thumbRes.text, nullptr, false);
     if (troot.is_discarded() || !troot.contains("data") || !troot["data"].is_array()) {
-        Out("AssetEnricher", "Unexpected thumbnails /v1/assets response shape for ids {}", idList);
+        mCore->Out("AssetEnricher", "Unexpected thumbnails /v1/assets response shape for ids {}", idList);
         return transientFailure ? BatchResult::RetryLater : BatchResult::Ok;
     }
 
@@ -455,7 +455,7 @@ AssetEnricher::BatchResult AssetEnricher::ProcessBatch(const std::string &dbFile
             attachFailures++;
     }
     if (attachFailures > 0)
-        Out("AssetEnricher", "{} of {} thumbnails could not be downloaded or stored for ids {}",
+        mCore->Out("AssetEnricher", "{} of {} thumbnails could not be downloaded or stored for ids {}",
             attachFailures, imageUrls.size(), idList);
 
     return transientFailure ? BatchResult::RetryLater : BatchResult::Ok;

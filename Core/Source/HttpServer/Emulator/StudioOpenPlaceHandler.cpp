@@ -57,7 +57,7 @@ void StudioOpenPlaceHandler::OnRequest(evhttp_request *req, void *userdata) {
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("StudioOpenPlaceHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("StudioOpenPlaceHandler", "{}:{} requested {}", peer_address, peer_port, uri);
     
     char* endPtr = nullptr;
     int64_t placeId = strtoll(GetQueryParam(uri, "placeId").c_str(), &endPtr, 10);

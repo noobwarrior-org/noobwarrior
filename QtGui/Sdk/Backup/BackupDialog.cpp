@@ -157,7 +157,7 @@ bool BackupDialog::StartBackup() {
         }
         opts.TargetFilePath = path;
         opts.TargetItemType = ItemType::Asset;
-        Out("BackupDialog", "Started backup of local file {}", path);
+        gApp->GetCore()->Out("BackupDialog", "Started backup of local file {}", path);
     } else {
         bool idOk = false;
         int64_t id = mIdField->text().trimmed().toLongLong(&idOk);
@@ -167,7 +167,7 @@ bool BackupDialog::StartBackup() {
         }
         opts.TargetItemType = mItemType;
         opts.TargetId = id;
-        Out("BackupDialog", "Started backup of {} id {}", GetTableNameFromItemType(mItemType), id);
+        gApp->GetCore()->Out("BackupDialog", "Started backup of {} id {}", GetTableNameFromItemType(mItemType), id);
     }
     opts.DestinationType = DestinationType::Database;
     opts.Destination = db;

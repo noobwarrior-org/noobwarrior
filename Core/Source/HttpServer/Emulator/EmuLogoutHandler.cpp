@@ -46,7 +46,7 @@ void EmuLogoutHandler::OnRequest(evhttp_request *req, void *userdata) {
             if (deleteStmt.Step() == SQLITE_DONE)
                 masterDb->MarkDirty();
             else
-                Out("LogoutHandler", "Failed to delete session: {}", masterDb->GetLastErrorMsg());
+                mCore->Out("LogoutHandler", "Failed to delete session: {}", masterDb->GetLastErrorMsg());
         }
     }
 

@@ -23,7 +23,7 @@
 // Started on: 5/18/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/UniversalAppConfigStudioHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include "UniversalAppConfigJson/StudioAppContent.json.inc.cpp"
 
@@ -42,7 +42,7 @@ void UniversalAppConfigStudioHandler::OnRequest(evhttp_request *req, void *userd
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("UniversalAppConfigStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("UniversalAppConfigStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

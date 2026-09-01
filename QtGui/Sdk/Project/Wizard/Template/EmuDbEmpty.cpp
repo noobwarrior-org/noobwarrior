@@ -128,7 +128,7 @@ bool EmuDbEmptyIntroPage::validatePage() {
     if (res) {
         Sdk* sdk = dynamic_cast<Sdk*>(wizard()->parent());
         if (sdk == nullptr) {
-            Out("EmuDbEmptyIntroPage", "Failed to create project: Sdk is not a parent of wizard");
+            gApp->GetCore()->Out("EmuDbEmptyIntroPage", "Failed to create project: Sdk is not a parent of wizard");
             return false;
         }
         auto project = new EmuDbProject(mPathEdit->text().toStdString());

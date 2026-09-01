@@ -74,7 +74,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             input.substr(i, 7).compare("]=====]") == 0
         )
         {
-            Out("Lhp", "Continued");
+            mLua->GetCore()->Out("Lhp", "Continued");
             continue;
         }
 
@@ -157,7 +157,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
     sol::load_result bytecode = mLua->load(luaBuffer);
     if (!bytecode.valid()) {
         sol::error err = bytecode;
-        Out("Lhp", "(Compile Failure) {}", err.what());
+        mLua->GetCore()->Out("Lhp", "(Compile Failure) {}", err.what());
         restoreEnv();
         return RenderResponse::LuaError;
     }
@@ -171,7 +171,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             restoreEnv();
             return RenderResponse::ExitCalled;
         }
-        Out("Lhp", "(Render Failure) {}", err.what());
+        mLua->GetCore()->Out("Lhp", "(Render Failure) {}", err.what());
         restoreEnv();
         return RenderResponse::LuaError;
     }

@@ -196,13 +196,13 @@ void MarketplaceProductInfoHandler::OnFetchComplete(std::shared_ptr<ProxyFetch> 
 
     nlohmann::json response = nlohmann::json::parse(body, nullptr, false);
     if (ok && httpStatus >= 100 && httpStatus <= 599 && !response.is_discarded()) {
-        Out("MarketplaceProductInfoHandler", "Forwarded product info for assetId={} from upstream (HTTP {})",
+        mCore->Out("MarketplaceProductInfoHandler", "Forwarded product info for assetId={} from upstream (HTTP {})",
             fetch->AssetId, httpStatus);
         SendJson(fetch->Request, static_cast<int>(httpStatus), response);
         return;
     }
 
-    Out("MarketplaceProductInfoHandler", "Product-info fallback failed for assetId={}: ok={} http={}",
+    mCore->Out("MarketplaceProductInfoHandler", "Product-info fallback failed for assetId={}: ok={} http={}",
         fetch->AssetId, ok, httpStatus);
     SendMissing(fetch->Request);
 }
@@ -227,7 +227,7 @@ void MarketplaceProductInfoHandler::BeginRobloxFetch(evhttp_request *req, int64_
     try {
         fetch->Url = std::vformat(urlTemplate, std::make_format_args(assetId));
     } catch (const std::format_error &error) {
-        Out("MarketplaceProductInfoHandler", "Invalid internet.roblox.asset_details template: {}", error.what());
+        mCore->Out("MarketplaceProductInfoHandler", "Invalid internet.roblox.asset_details template: {}", error.what());
         SendMissing(req);
         return;
     }
@@ -271,7 +271,7 @@ void MarketplaceProductInfoHandler::OnRequest(evhttp_request *req, void *userdat
 
     const std::optional<EmuDb::AssetProductInfo> info = mEmuDbManager->GetAssetProductInfo(assetId);
     if (!info.has_value()) {
-        Out("MarketplaceProductInfoHandler", "No local product info for assetId={}; trying proxy fallback", assetId);
+        mCore->Out("MarketplaceProductInfoHandler", "No local product info for assetId={}; trying proxy fallback", assetId);
         auto robloxFallback = [this, assetId](evhttp_request *request) {
             BeginRobloxFetch(request, assetId);
         };

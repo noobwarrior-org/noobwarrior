@@ -116,7 +116,7 @@ int Application::Run() {
     });
     evTimer->start(0);
 
-    Out("QtApplication", "Finished initializing core, starting Qt application");
+    mCore->Out("QtApplication", "Finished initializing core, starting Qt application");
 
     CURLcode curlRet = curl_global_init(CURL_GLOBAL_ALL);
     if (curlRet != CURLE_OK) {
@@ -210,7 +210,7 @@ int Application::Run() {
     openLauncherAction->trigger();
     ret = exec();
 cleanup:
-    Out("QtApplication", "Cleaning up!");
+    mCore->Out("QtApplication", "Cleaning up!");
 
     if (mLauncher != nullptr)
         mLauncher->deleteLater();
@@ -260,14 +260,14 @@ bool Application::CheckConfigResponse(RegistryResponse res, const QString &errSt
 }
 
 void Application::DownloadAndInstallWine(std::function<void(bool)> callback) {
-    Out("Application", "Installing wine");
+    mCore->Out("Application", "Installing wine");
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(false);
 }
 
 void Application::DownloadAndInstallEngine(const Engine &client, std::function<void(bool)> callback) {
-    Out("Application", "Installing client {}", client.Version);
+    mCore->Out("Application", "Installing client {}", client.Version);
     auto *dialog = new LoadingDialog(nullptr);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(false);
@@ -366,7 +366,7 @@ void Application::LaunchEngine(EngineStartParameters params) {
     };
 
     if (!mCore->IsEngineInManifest(params.Engine)) {
-        Out("LaunchEngine", "Engine not in manifest!");
+        mCore->Out("LaunchEngine", "Engine not in manifest!");
         DownloadAndInstallEngine(params.Engine, callback);
     } else callback(true);
     */

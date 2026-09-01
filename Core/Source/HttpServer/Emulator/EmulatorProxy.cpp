@@ -86,7 +86,7 @@ void EmulatorProxy::PushLayer(const std::string &host, uint16_t port, const std:
     if (it != mLayers.end())
         mLayers.erase(it);
     mLayers.insert(mLayers.begin(), Layer{host, port, sessionToken}); // newest layer is tried first
-    Out("EmulatorProxy", "Pushed proxy layer {}:{} (depth now {}{})", host, port, mLayers.size(),
+    mEmu->GetCore()->Out("EmulatorProxy", "Pushed proxy layer {}:{} (depth now {}{})", host, port, mLayers.size(),
         sessionToken.empty() ? "" : ", authenticated");
 }
 
@@ -94,7 +94,7 @@ bool EmulatorProxy::PopLayer() {
     std::lock_guard lock(mLayersMutex);
     if (mLayers.empty())
         return false;
-    Out("EmulatorProxy", "Popped proxy layer {}:{}", mLayers.front().Host, mLayers.front().Port);
+    mEmu->GetCore()->Out("EmulatorProxy", "Popped proxy layer {}:{}", mLayers.front().Host, mLayers.front().Port);
     mLayers.erase(mLayers.begin());
     return true;
 }
@@ -105,14 +105,14 @@ void EmulatorProxy::RemoveLayer(const std::string &host, uint16_t port) {
                            [&](const Layer &l) { return l.Host == host && l.Port == port; });
     if (it != mLayers.end()) {
         mLayers.erase(it);
-        Out("EmulatorProxy", "Removed proxy layer {}:{} (depth now {})", host, port, mLayers.size());
+        mEmu->GetCore()->Out("EmulatorProxy", "Removed proxy layer {}:{} (depth now {})", host, port, mLayers.size());
     }
 }
 
 void EmulatorProxy::ClearLayers() {
     std::lock_guard lock(mLayersMutex);
     if (!mLayers.empty())
-        Out("EmulatorProxy", "Cleared all {} proxy layer(s)", mLayers.size());
+        mEmu->GetCore()->Out("EmulatorProxy", "Cleared all {} proxy layer(s)", mLayers.size());
     mLayers.clear();
 }
 
@@ -184,7 +184,7 @@ bool EmulatorProxy::TryProxy(evhttp_request *req, LocalFallback localFallback,
         incomingChain, mEmu->GetInstanceId());
     if (incomingChain.size() > kMaxProxyChainBytes ||
         chainInfo.HopCount >= kMaxProxyHops || chainInfo.ContainsCurrent) {
-        Out("EmulatorProxy",
+        mEmu->GetCore()->Out("EmulatorProxy",
             "Stopped proxy loop for {} after {} hop(s); handling locally",
             path, chainInfo.HopCount);
         return false;
@@ -342,7 +342,7 @@ void EmulatorProxy::OnComplete(std::shared_ptr<ProxyRequest> r, ProxyResult resu
 
     if (!mActive)            return; // server stopped; don't touch evhttp
     if (!r->ClientConnected) {
-        Out("EmulatorProxy", "DROPPED {} -- client hung up before the forward finished "
+        mEmu->GetCore()->Out("EmulatorProxy", "DROPPED {} -- client hung up before the forward finished "
                              "(served={}, status={})",
             r->Urls.empty() ? std::string("?") : r->Urls[0], result.Served, result.Status);
         return;

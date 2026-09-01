@@ -64,7 +64,7 @@ void EmuDbGamesHandler::OnRequest(evhttp_request *req, void *userdata) {
     
     std::string peer = peerAddress ? peerAddress : "";
     if (peer.empty() || !IsLoopbackOrEmpty(peer)) {
-        Out("EmuDbGamesHandler", "Refused non-loopback request from {}:{}", peer, peerPort);
+        mCore->Out("EmuDbGamesHandler", "Refused non-loopback request from {}:{}", peer, peerPort);
         evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
         return;
     }

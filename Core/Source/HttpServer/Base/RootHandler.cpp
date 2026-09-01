@@ -102,7 +102,7 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
 
     auto logVal = mServer->GetCore()->GetRegistry()->GetKeyValue<bool>("debug.log_http_server_requests").value_or(false);
     if (logVal)
-        Out(mServer->mLogName, "{}:{} requested URI {}", peer_address, peer_port, uri);
+        mCore->Out(mServer->mLogName, "{}:{} requested URI {}", peer_address, peer_port, uri);
 
     std::string path = uri ? uri : "";
     if (auto q = path.find('?'); q != std::string::npos)

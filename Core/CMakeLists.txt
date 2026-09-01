@@ -294,6 +294,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/PluginTreeMaterializer.cpp
     Source/PluginManager.cpp
     Source/Log.cpp
+    Source/Date.cpp
     Source/Shell.cpp
     Source/Url.cpp
     Source/RccServiceManager.cpp

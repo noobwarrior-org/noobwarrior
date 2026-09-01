@@ -89,7 +89,7 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_add_header(evhttp_request_get_output_headers(req), "Set-Cookie",
             ".ROBLOSECURITY=noobwarrior-local-session; Domain=.roblox.com; Path=/; "
             "Max-Age=2592000; Secure; HttpOnly; SameSite=None");
-        Out("LoginHandler", "Desktop Player signed into local user \"{}\" (id {})",
+        mCore->Out("LoginHandler", "Desktop Player signed into local user \"{}\" (id {})",
             userName, userId);
         SendJson(req, HTTP_OK, {
             {"user", {{"id", userId}, {"name", userName}, {"displayName", displayName}}},
@@ -160,13 +160,13 @@ void LoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create session");
         return;
     }
-    Out("LoginHandler", "Player \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
+    mCore->Out("LoginHandler", "Player \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
     
     if (Registry *reg = mEmu->GetCore()->GetRegistry()) {
         int64_t ttlSeconds = reg->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
         int reaped = AuthUtil::ReapExpiredSessions(masterDb, ttlSeconds);
         if (reaped > 0)
-            Out("LoginHandler", "Reaped {} expired login session(s)", reaped);
+            mCore->Out("LoginHandler", "Reaped {} expired login session(s)", reaped);
     }
 
     const std::string playerCookie = std::format(

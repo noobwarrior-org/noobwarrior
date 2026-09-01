@@ -1146,7 +1146,7 @@ int LuaState::Open() {
     });
     set("url", urlLib);
     
-    Out("Lua", "Initialized Lua");
+    mCore->Out("Lua", "Initialized Lua");
     return 1;
 }
 

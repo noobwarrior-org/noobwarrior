@@ -36,7 +36,7 @@ CurrentUserHandler::CurrentUserHandler(ServerEmulator* emu) : mEmu(emu) {
 }
 
 void CurrentUserHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("CurrentUserHandler", "Sent!");
+    mCore->Out("CurrentUserHandler", "Sent!");
 
     auto* registry = mEmu->GetCore()->GetRegistry();
     auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);

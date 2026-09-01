@@ -115,7 +115,7 @@ void AuthTicketRedeemHandler::ReplyWithUser(evhttp_request *req,
         if (allowGuests) {
             resolved = AuthUtil::MakeGuestUser();
         } else {
-            Out("AuthTicketRedeemHandler", "Refused redeem of ticket (invalid/expired and guests disabled)");
+            mCore->Out("AuthTicketRedeemHandler", "Refused redeem of ticket (invalid/expired and guests disabled)");
             sendJson(HTTP_BADREQUEST, R"({"error":"Invalid authentication ticket"})");
             return;
         }
@@ -134,7 +134,7 @@ void AuthTicketRedeemHandler::ReplyWithUser(evhttp_request *req,
     nlohmann::json response;
     response["user"] = user;
 
-    Out("AuthTicketRedeemHandler", "Redeemed ticket for {} (id {}){}",
+    mCore->Out("AuthTicketRedeemHandler", "Redeemed ticket for {} (id {}){}",
         resolved->name, resolved->id, resolved->isGuest ? " [guest]" : "");
     sendJson(HTTP_OK, response.dump());
 }

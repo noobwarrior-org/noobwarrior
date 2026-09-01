@@ -23,7 +23,7 @@
 // Started on: 8/8/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/GuacBundlesStudioHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <chrono>
 #include <string>
@@ -40,7 +40,7 @@ void GuacBundlesStudioHandler::OnRequest(evhttp_request *req, void *userdata) {
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("GuacBundlesStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("GuacBundlesStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     std::string path = uri ? uri : "";
     if (const size_t query = path.find('?'); query != std::string::npos)

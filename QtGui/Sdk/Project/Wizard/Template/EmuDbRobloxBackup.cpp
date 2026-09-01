@@ -159,7 +159,7 @@ bool EmuDbRobloxBackupIntroPage::validatePage() {
 
     Sdk* sdk = dynamic_cast<Sdk*>(wizard()->parent());
     if (sdk == nullptr) {
-        Out("EmuDbRobloxBackupIntroPage", "Failed to create project: Sdk is not a parent of wizard");
+        gApp->GetCore()->Out("EmuDbRobloxBackupIntroPage", "Failed to create project: Sdk is not a parent of wizard");
         return false;
     }
 

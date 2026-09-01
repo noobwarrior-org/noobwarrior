@@ -23,7 +23,7 @@
 // Started on: 5/18/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/StaticJsonHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -40,7 +40,7 @@ void StaticJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("StaticJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("StaticJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

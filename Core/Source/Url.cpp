@@ -253,19 +253,19 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
     ProtocolType protocol = GetProtocol();
 
 #define NETWORK_UNSUPPORTED \
-    Out("Url", "Core::OpenHandle() called but submitted protocol type relies on networking!"); \
+    core->Out("Url", "Core::OpenHandle() called but submitted protocol type relies on networking!"); \
     return VirtualFileSystem::Response::Failed;
 
     switch (protocol) {
     default:
-        Out("Url", "Core::OpenHandle() called on a URL with an unsupported protocol");
+        core->Out("Url", "Core::OpenHandle() called on a URL with an unsupported protocol");
         return VirtualFileSystem::Response::Failed;
     case ProtocolType::Http: NETWORK_UNSUPPORTED
     case ProtocolType::Https: NETWORK_UNSUPPORTED
     case ProtocolType::RbxAssetId: NETWORK_UNSUPPORTED
     case ProtocolType::RbxThumb: NETWORK_UNSUPPORTED
     case ProtocolType::Database:
-        Out("Url", "Database protocol URLs are WIP");
+        core->Out("Url", "Database protocol URLs are WIP");
         return VirtualFileSystem::Response::Failed;
     case ProtocolType::File: break;
     case ProtocolType::InstallData: break;

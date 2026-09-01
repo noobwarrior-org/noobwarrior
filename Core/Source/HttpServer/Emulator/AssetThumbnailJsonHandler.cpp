@@ -41,7 +41,7 @@ void AssetThumbnailJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("AssetThumbnailJsonHandler", "{}:{} requested asset thumbnail {}", peer_address, peer_port, uri);
+    mCore->Out("AssetThumbnailJsonHandler", "{}:{} requested asset thumbnail {}", peer_address, peer_port, uri);
 
     evkeyvalq headers;
     if (evhttp_parse_query(uri, &headers) != 0) {

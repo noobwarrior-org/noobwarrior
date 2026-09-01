@@ -23,7 +23,7 @@
 // Started on: 8/8/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/StudioPbeHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -37,7 +37,7 @@ void StudioPbeHandler::OnRequest(evhttp_request *req, void *userdata) {
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("StudioPbeHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("StudioPbeHandler", "{}:{} requested {}", peer_address, peer_port, uri);
     
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
     evbuffer* reply = evbuffer_new();

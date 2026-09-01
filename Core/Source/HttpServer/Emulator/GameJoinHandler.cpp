@@ -63,7 +63,7 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
                 return std::vector<unsigned char>(merged.begin(), merged.end());
             }
         } catch (const nlohmann::json::exception &e) {
-            Out("GameJoinHandler", "Couldn't merge local identity into proxied join script: {}", e.what());
+            mCore->Out("GameJoinHandler", "Couldn't merge local identity into proxied join script: {}", e.what());
         }
         return body; // not JSON / no joinScript / host-authenticated -> forward untouched
     };
@@ -75,11 +75,11 @@ void GameJoinHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (authEnabled) {
         if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); })) {
-            Out("GameJoinHandler", "Proxying join-game to joined remote emulator (host-authenticated)");
+            mCore->Out("GameJoinHandler", "Proxying join-game to joined remote emulator (host-authenticated)");
             return;
         }
     } else if (mEmu->TryProxyRequest(req, [this](evhttp_request *r) { HandleLocally(r); }, mergeIdentity)) {
-        Out("GameJoinHandler", "Proxying join-game to joined remote emulator (with local identity)");
+        mCore->Out("GameJoinHandler", "Proxying join-game to joined remote emulator (with local identity)");
         return;
     }
     HandleLocally(req);
@@ -95,7 +95,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
 
-    Out("GameJoinHandler", "join-game requested: {}", uri ? uri : "");
+    mCore->Out("GameJoinHandler", "join-game requested: {}", uri ? uri : "");
 
     int64_t placeId = 0;
     std::string gameJoinAttemptId = "00000000-0000-0000-0000-000000000000";
@@ -111,7 +111,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
                 if (in.contains("gameJoinAttemptId") && in["gameJoinAttemptId"].is_string())
                     gameJoinAttemptId = in["gameJoinAttemptId"].get<std::string>();
             } catch (const nlohmann::json::exception &e) {
-                Out("GameJoinHandler", "Body wasn't JSON ({}), continuing with defaults", e.what());
+                mCore->Out("GameJoinHandler", "Body wasn't JSON ({}), continuing with defaults", e.what());
             }
         }
     }
@@ -145,7 +145,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
         // unauthenticated caller could distinguish "waiting" from "authentication required".
         if (authEnabled && !mEmu->ResolveJoiningUser(req)
             && !reg->GetKeyValue<bool>("emu.auth.allow_guests").value_or(false)) {
-            Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
+            mCore->Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
             nlohmann::json denied = {
                 {"jobId", gameJoinAttemptId},
                 {"status", 22},
@@ -164,7 +164,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
             return;
         }
 
-        Out("GameJoinHandler", "No ready game server for placeId={}; returning waiting status", placeId);
+        mCore->Out("GameJoinHandler", "No ready game server for placeId={}; returning waiting status", placeId);
         nlohmann::json waiting = {
             {"jobId", gameJoinAttemptId},
             {"status", 0}, // Waiting: the client may poll again, but must not start a game DataModel.
@@ -217,7 +217,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
     const int64_t universeId = mEmu->GetCore()->GetEmuDbManager()
         ->GetUniverseIdForPlace(placeId).value_or(placeId);
 
-    Out("GameJoinHandler", "Issuing joinScript -> {}:{} placeId={}", address, port, placeId);
+    mCore->Out("GameJoinHandler", "Issuing joinScript -> {}:{} placeId={}", address, port, placeId);
 
     nlohmann::json joinScript = {
         {"ClientPort", 0},
@@ -278,7 +278,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
             user = AuthUtil::MakeGuestUser();
 
         if (!user) {
-            Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
+            mCore->Out("GameJoinHandler", "Refused join: authentication required and guests disabled");
             nlohmann::json denied = {
                 {"jobId", gameJoinAttemptId},
                 {"status", 22}, // non-2: the client treats this as a failed join
@@ -307,7 +307,7 @@ void GameJoinHandler::HandleLocally(evhttp_request *req) {
             evhttp_send_error(req, HTTP_INTERNAL, "Failed to mint authentication ticket");
             return;
         }
-        Out("GameJoinHandler", "Join for \"{}\" (id {})", user->name, user->id);
+        mCore->Out("GameJoinHandler", "Join for \"{}\" (id {})", user->name, user->id);
     }
 
     joinScript["ClientTicket"] = ticket;

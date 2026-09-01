@@ -198,12 +198,12 @@ bool Sdk::AddProject(Project* project) {
 
     auto it = std::find(mProjects.begin(), mProjects.end(), project);
     if (it != mProjects.end()) {
-        Out("Sdk", "Tried adding project but it is already parented to the SDK!");
+        gApp->GetCore()->Out("Sdk", "Tried adding project but it is already parented to the SDK!");
         return false;
     }
 
     if (project->Fail()) {
-        Out("Sdk", "Tried adding project but it is in fail mode! Msg: \"{}\"", project->GetOpenFailMsg().toStdString());
+        gApp->GetCore()->Out("Sdk", "Tried adding project but it is in fail mode! Msg: \"{}\"", project->GetOpenFailMsg().toStdString());
         QMessageBox::critical(this, "Failed To Open Project", QString("The project could not be opened.\n%1").arg(project->GetOpenFailMsg()));
         return false;
     }
@@ -279,7 +279,7 @@ bool Sdk::RemoveProject(Project* project) {
 
     auto it = std::find(mProjects.begin(), mProjects.end(), project);
     if (it == mProjects.end()) {
-        Out("Sdk", "Tried removing project but it isn't parented to the SDK!");
+        gApp->GetCore()->Out("Sdk", "Tried removing project but it isn't parented to the SDK!");
         return false;
     }
 

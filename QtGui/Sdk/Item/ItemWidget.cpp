@@ -23,6 +23,7 @@
 // Started on: 2/14/2026
 // Description: An item for a QListWidget representing a Roblox ID, showing its name, id, and icon.
 #include "ItemWidget.h"
+#include "Application.h"
 #include "NoobWarrior/EmuDb/ItemType.h"
 #include "Sdk/Sdk.h"
 #include "Sdk/Item/ItemDialog.h"
@@ -77,7 +78,7 @@ void ItemWidget::Reload() {
 
     Statement stmt = mDb->PrepareStatement(std::format("SELECT Name FROM \"{}\" WHERE Id = ?;", tableName));
     if (stmt.Fail()) {
-        Out("ItemWidget", "Failed to retrieve name for ID {}", mId);
+        gApp->GetCore()->Out("ItemWidget", "Failed to retrieve name for ID {}", mId);
         return;
     }
     stmt.Bind(1, mId);

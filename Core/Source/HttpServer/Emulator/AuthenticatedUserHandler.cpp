@@ -37,7 +37,7 @@ AuthenticatedUserHandler::AuthenticatedUserHandler(ServerEmulator* emu) : mEmu(e
 }
 
 void AuthenticatedUserHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("AuthenticatedUserHandler", "Sent!");
+    mCore->Out("AuthenticatedUserHandler", "Sent!");
 
     auto* registry = mEmu->GetCore()->GetRegistry();
     auto id = registry->GetKeyValue<int64_t>("user.id").value_or(1);

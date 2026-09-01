@@ -29,6 +29,8 @@
 #include <map>
 
 namespace NoobWarrior {
+class Core;
+
 class ScopedHeaders {
 public:
     explicit ScopedHeaders(evkeyvalq *headers) : mHeaders(headers) {}
@@ -41,10 +43,13 @@ private:
 };
 
 class Handler {
+    friend class HttpServer;
 public:
     static std::map<std::string, std::string> GetPostFormParameters(evhttp_request *req);
     virtual ~Handler() = default;
 
     virtual void OnRequest(evhttp_request *req, void *userdata) = 0;
+protected:
+    Core *mCore { nullptr };
 };
 }

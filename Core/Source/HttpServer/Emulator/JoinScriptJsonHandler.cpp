@@ -48,7 +48,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("JoinScriptJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("JoinScriptJsonHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     evkeyvalq headers;
     if (evhttp_parse_query(uri, &headers) != 0) {
@@ -85,7 +85,7 @@ void JoinScriptJsonHandler::OnRequest(evhttp_request *req, void *userdata) {
             user = AuthUtil::MakeGuestUser();
 
         if (!user) {
-            Out("JoinScriptJsonHandler", "Refused join: authentication required and guests disabled");
+            mCore->Out("JoinScriptJsonHandler", "Refused join: authentication required and guests disabled");
             evhttp_send_error(req, HTTP_FORBIDDEN, "Authentication required to join this server");
             return;
         }

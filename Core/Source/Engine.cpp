@@ -712,7 +712,7 @@ EngineLaunchResponse Core::LaunchEngine(
             payload["userId"] = userId;
             payload["avatarFetch"] = AvatarAppearance::BuildAvatarFetchJson(this);
 
-            std::thread([host = *params.RemoteEmulatorHost, port = *params.RemoteEmulatorPort,
+            std::thread([core = this, host = *params.RemoteEmulatorHost, port = *params.RemoteEmulatorPort,
                          body = payload.dump()]() {
                 cpr::Response r = cpr::Post(
                     cpr::Url{"https://" + host + ":" + std::to_string(port) + "/emu/v1/avatar-override"},
@@ -721,9 +721,9 @@ EngineLaunchResponse Core::LaunchEngine(
                     cpr::Timeout{std::chrono::seconds(10)},
                     cpr::VerifySsl{false}); // remote emulators use self-signed certs
                 if (r.error.code != cpr::ErrorCode::OK)
-                    Out("LaunchEngine", "Avatar federation to {}:{} failed: {}", host, port, r.error.message);
+                    core->Out("LaunchEngine", "Avatar federation to {}:{} failed: {}", host, port, r.error.message);
                 else if (r.status_code >= 400)
-                    Out("LaunchEngine", "Avatar federation to {}:{} got HTTP {}", host, port, (long)r.status_code);
+                    core->Out("LaunchEngine", "Avatar federation to {}:{} got HTTP {}", host, port, (long)r.status_code);
             }).detach();
         }
     }

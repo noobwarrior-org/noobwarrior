@@ -27,10 +27,17 @@
 #include <iostream>
 #include <format>
 #include <mutex>
+#include <filesystem>
+#include <fstream>
+
+#include <NoobWarrior/Date.h>
 
 namespace NoobWarrior {
 extern std::mutex gLog_Mutex;
 extern bool gLog_PrintToStdOut;
+
+inline std::filesystem::path (*gLog_ResolveLogPath)() { nullptr };
+
 enum class Level {
     Info,
     Warn,
@@ -39,14 +46,25 @@ enum class Level {
 };
 
 template <typename... Args>
-void OutEx(std::ostream *stream, std::string_view category, std::string_view fmt, Args...args) {
+void OutTo(std::ostream *stream, const std::filesystem::path &logPath, std::string_view category, std::string_view fmt, Args...args) {
     std::lock_guard<std::mutex> lock(gLog_Mutex);
-    if (stream == &std::cout && !gLog_PrintToStdOut)
+    std::string fmtStr = Date::GetCurrentTimeAsString() + " " + std::vformat("[NoobWarrior::{}] ", std::make_format_args(category)) + std::vformat(fmt, std::make_format_args(args...));
+    if (stream != &std::cout || gLog_PrintToStdOut) {
+        *stream << fmtStr << std::endl;
+        if (stream != &std::cout && gLog_PrintToStdOut)
+            std::cout << fmtStr << std::endl;
+    }
+    if (logPath.empty())
         return;
-    std::string fmtStr = std::vformat("[NoobWarrior::{}] ", std::make_format_args(category)) + std::vformat(fmt, std::make_format_args(args...));
-    *stream << fmtStr << std::endl;
-    if (stream != &std::cout && gLog_PrintToStdOut)
-        std::cout << fmtStr << std::endl;
+    std::ofstream fileStream(logPath, std::ios_base::app);
+    if (fileStream.is_open())
+        fileStream << fmtStr << "\n";
+}
+
+template <typename... Args>
+void OutEx(std::ostream *stream, std::string_view category, std::string_view fmt, Args...args) {
+    OutTo(stream, gLog_ResolveLogPath != nullptr ? gLog_ResolveLogPath() : std::filesystem::path {},
+          category, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>

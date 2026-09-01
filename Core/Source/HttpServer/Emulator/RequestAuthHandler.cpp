@@ -23,7 +23,7 @@
 // Started on: 4/21/2026
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/RequestAuthHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 using namespace NoobWarrior;
 
@@ -32,7 +32,7 @@ RequestAuthHandler::RequestAuthHandler() {
 }
 
 void RequestAuthHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("RequestAuthHandler", "Authenticating...");
+    mCore->Out("RequestAuthHandler", "Authenticating...");
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer* reply = evbuffer_new();
     evbuffer_add_printf(reply, "true");

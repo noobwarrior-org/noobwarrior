@@ -39,6 +39,8 @@
 #include <event.h>
 #include <event2/thread.h>
 #include <filesystem>
+#include <atomic>
+#include <algorithm>
 #include <sqlite3.h>
 
 #include <openssl/ssl.h>
@@ -64,6 +66,30 @@ extern char** environ;
 
 using namespace NoobWarrior;
 
+static std::mutex sCoreInstancesMutex;
+static std::vector<Core*> sCoreInstances;
+static std::atomic<Core*> sCoreSingleton { nullptr };
+
+static std::filesystem::path ResolveSingletonLogPath() {
+    Core *core = Core::GetSingleton();
+    return core != nullptr ? core->GetLogPath() : std::filesystem::path {};
+}
+
+static void RegisterCoreInstance(Core *core) {
+    std::lock_guard<std::mutex> lock(sCoreInstancesMutex);
+    sCoreInstances.push_back(core);
+    sCoreSingleton.store(sCoreInstances.front(), std::memory_order_release);
+    gLog_ResolveLogPath = &ResolveSingletonLogPath;
+}
+
+static void UnregisterCoreInstance(Core *core) {
+    std::lock_guard<std::mutex> lock(sCoreInstancesMutex);
+    sCoreInstances.erase(std::remove(sCoreInstances.begin(), sCoreInstances.end(), core),
+                         sCoreInstances.end());
+    sCoreSingleton.store(sCoreInstances.empty() ? nullptr : sCoreInstances.front(),
+                         std::memory_order_release);
+}
+
 Core::Core(Init init) :
     mInitResponse(Response::Failed),
     mInit(std::move(init)),
@@ -72,6 +98,10 @@ Core::Core(Init init) :
     mServerEmulator(nullptr),
     mPluginManager(this)
 {
+    const std::filesystem::path logDirectory = GetUserDataDir() / NW_PATH_LOGS;
+    std::filesystem::create_directories(logDirectory);
+    mLogPath = logDirectory / (Date::GetCurrentTimeAsString(false) + ".log");
+
 #if defined(_WIN32)
     // https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
     WORD wVersionRequested;
@@ -167,9 +197,13 @@ Core::Core(Init init) :
         StartServerEmulator();
 
     mInitResponse = Response::Success;
+
+    RegisterCoreInstance(this);
 }
 
 Core::~Core() {
+    UnregisterCoreInstance(this);
+
     StopServerEmulator();
     NOOBWARRIOR_FREE_PTR(mServerEmulator)
 
@@ -213,6 +247,14 @@ Core::~Core() {
 
 bool Core::Fail() {
     return mInitResponse != Response::Success;
+}
+
+Core *Core::GetSingleton() {
+    return sCoreSingleton.load(std::memory_order_acquire);
+}
+
+std::filesystem::path Core::GetLogPath() {
+    return mLogPath;
 }
 
 int Core::ProcessEvents(bool block) {
@@ -336,6 +378,7 @@ void Core::CreateStandardUserDataDirectories() {
     NW_CREATE(NW_PATH_TEMP)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS)
     NW_CREATE(NW_PATH_TEMP_DOWNLOADS_ENGINES)
+    NW_CREATE(NW_PATH_LOGS)
     NW_CREATE(NW_PATH_SSL)
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
     NW_CREATE(NW_PATH_WINE)

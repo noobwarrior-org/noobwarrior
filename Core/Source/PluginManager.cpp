@@ -56,7 +56,7 @@ Plugin::Response PluginManager::Mount(const std::filesystem::path &filePath, int
 
 void PluginManager::Unmount(Plugin* plugin) {
     if (!mCore->GetLuaState()->Opened()) {
-        Out("PluginManager", "WARNING! noobWarrior tried to unmount a plugin but the Lua subsystem is not open! Perhaps it was closed too early?");
+        mCore->Out("PluginManager", "WARNING! noobWarrior tried to unmount a plugin but the Lua subsystem is not open! Perhaps it was closed too early?");
         return;
     }
 
@@ -65,7 +65,7 @@ void PluginManager::Unmount(Plugin* plugin) {
         std::string fileName = plugin->GetFileName();
         mMountedPlugins.erase(it);
         NOOBWARRIOR_FREE_PTR(plugin)
-        Out("PluginManager", "Unmounted plugin \"{}\"", fileName);
+        mCore->Out("PluginManager", "Unmounted plugin \"{}\"", fileName);
     }
 }
 
@@ -141,7 +141,7 @@ void PluginManager::MountPlugins() {
     }
     
     if (loaded > 0)
-        Out("PluginManager", "Loaded all enabled plugins");
+        mCore->Out("PluginManager", "Loaded all enabled plugins");
 
     // Do not call ExecutePlugins() here. Core mounts the databases the manifests
     // declare between the two steps, because plugin code expects to find them already mounted.
@@ -195,7 +195,7 @@ static bool StageDatabase(Core *core, Plugin *plugin, const Plugin::DeclaredData
     }
 
     if (plugin == nullptr || plugin->GetVfs() == nullptr || !plugin->GetVfs()->EntryExists(innerPath)) {
-        Out("PluginManager", "Plugin \"{}\" declares database \"{}\" but it does not exist in the plugin",
+        core->Out("PluginManager", "Plugin \"{}\" declares database \"{}\" but it does not exist in the plugin",
             declared.OwnerIdentifier, declared.SourceUrl);
         return false;
     }
@@ -223,10 +223,10 @@ static bool StageDatabase(Core *core, Plugin *plugin, const Plugin::DeclaredData
     }
 
     if (needsExtract) {
-        Out("PluginManager", "Staging database \"{}\" for plugin \"{}\"",
+        core->Out("PluginManager", "Staging database \"{}\" for plugin \"{}\"",
             std::filesystem::path(innerPath).filename().string(), declared.OwnerIdentifier);
         if (!plugin->ExtractFile(innerPath, staged)) {
-            Out("PluginManager", "Failed to stage database \"{}\" for plugin \"{}\"",
+            core->Out("PluginManager", "Failed to stage database \"{}\" for plugin \"{}\"",
                 declared.SourceUrl, declared.OwnerIdentifier);
             return false;
         }
@@ -260,7 +260,7 @@ static bool MountDeclared(Core *core, Plugin *plugin, const Plugin::DeclaredData
 
     SqlDb::FailReason reason = manager->MountOwned(path, priority, info, openMode);
     if (reason != SqlDb::FailReason::None) {
-        Out("PluginManager", "Failed to mount database \"{}\" declared by plugin \"{}\"{}",
+        core->Out("PluginManager", "Failed to mount database \"{}\" declared by plugin \"{}\"{}",
             declared.SourceUrl, declared.OwnerIdentifier,
             reason == SqlDb::FailReason::ReadOnlyOutOfDate
                 ? ": its schema is out of date and it was mounted read-only. Set writable = true in "
@@ -287,7 +287,7 @@ void PluginManager::MountRequiredDatabases() {
 bool PluginManager::MountDeclaredDatabase(const std::string &sourceUrl, unsigned int priority) {
     Plugin *plugin = GetPluginFromUrl(Url(sourceUrl));
     if (plugin == nullptr) {
-        Out("PluginManager", "Ignoring mounted database \"{}\": no such plugin is enabled", sourceUrl);
+        mCore->Out("PluginManager", "Ignoring mounted database \"{}\": no such plugin is enabled", sourceUrl);
         return false;
     }
 
@@ -299,7 +299,7 @@ bool PluginManager::MountDeclaredDatabase(const std::string &sourceUrl, unsigned
         return MountDeclared(mCore, plugin, declared, priority);
     }
 
-    Out("PluginManager", "Ignoring mounted database \"{}\": plugin \"{}\" no longer declares it",
+    mCore->Out("PluginManager", "Ignoring mounted database \"{}\": plugin \"{}\" no longer declares it",
         sourceUrl, plugin->GetIdentifier());
     return false;
 }
@@ -337,7 +337,7 @@ StudioServerBootstrap PluginManager::BuildStudioServerBootstrap(int64_t placeId,
 
 void PluginManager::UnmountPlugins() {
     if (!mCore->GetLuaState()->Opened()) {
-        Out("PluginManager", "WARNING! noobWarrior tried to unmount all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
+        mCore->Out("PluginManager", "WARNING! noobWarrior tried to unmount all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
         return;
     }
     for (Plugin* plugin : mMountedPlugins) {
@@ -451,7 +451,7 @@ void PluginManager::MountPrivilegedPlugins() {
     sol::load_result loadListBytecodeRes = mCore->GetLuaState()->load_file(loadListPath.string());
     if (!loadListBytecodeRes.valid()) {
         sol::error err = loadListBytecodeRes;
-        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to compile: {}", err.what());
+        mCore->Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to compile: {}", err.what());
         return;
     }
 
@@ -459,13 +459,13 @@ void PluginManager::MountPrivilegedPlugins() {
     sol::protected_function_result loadListExecRes = loadListFunc();
     if (!loadListExecRes.valid()) {
         sol::error err = loadListExecRes;
-        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to execute: {}", err.what());
+        mCore->Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua failed to execute: {}", err.what());
         return;
     }
 
     auto loadListObj = loadListExecRes.get<sol::object>();
     if (!loadListObj.is<sol::table>()) {
-        Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua does not return a table!");
+        mCore->Out("PluginManager", "Failed to mount privileged plugins: loadlist.lua does not return a table!");
         return;
     }
 
@@ -473,11 +473,11 @@ void PluginManager::MountPrivilegedPlugins() {
     for (int i = 1; i <= loadListTbl.size(); i++) {
         auto privPluginObj = loadListTbl.get<sol::object>(i);
         if (!privPluginObj.is<std::string>()) {
-            Out("PluginManager", "Value in index {} in loadlist.lua is not string!", i);
+            mCore->Out("PluginManager", "Value in index {} in loadlist.lua is not string!", i);
             continue;
         }
         auto privPluginName = privPluginObj.as<std::string>();
-        Out("PluginManager", "Mounting privileged plugin \"{}\"", privPluginName);
+        mCore->Out("PluginManager", "Mounting privileged plugin \"{}\"", privPluginName);
         if (Mount(privPluginsPath / privPluginName) == Plugin::Response::Success)
             loaded++;
     }

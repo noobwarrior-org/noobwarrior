@@ -161,7 +161,7 @@ void TeleportAuthorizeHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (mEmu != nullptr &&
         mEmu->TryProxyRequest(req, {}, std::move(recordSuccessfulDestination),
                               EmulatorProxy::LayerPolicy::TopOnly)) {
-        Out("TeleportAuthorizeHandler",
+        mCore->Out("TeleportAuthorizeHandler",
             "Proxying teleport authorization to the joined remote emulator");
         return;
     }
@@ -185,7 +185,7 @@ void TeleportAuthorizeHandler::HandleLocally(evhttp_request *req) {
     try {
         request = nlohmann::json::parse(body);
     } catch (const nlohmann::json::exception &error) {
-        Out("TeleportAuthorizeHandler", "Malformed request body: {}", error.what());
+        mCore->Out("TeleportAuthorizeHandler", "Malformed request body: {}", error.what());
         SendJsonError(req, HTTP_BADREQUEST, "Malformed JSON");
         return;
     }
@@ -240,7 +240,7 @@ void TeleportAuthorizeHandler::HandleLocally(evhttp_request *req) {
         teleportTokens[std::to_string(userId)] = std::move(token);
     }
 
-    Out("TeleportAuthorizeHandler", "Authorized {} player(s) for place {}",
+    mCore->Out("TeleportAuthorizeHandler", "Authorized {} player(s) for place {}",
         userIds.size(), placeId);
     SendJson(req, HTTP_OK, {{"teleportTokens", std::move(teleportTokens)}});
 }
@@ -327,7 +327,7 @@ bool TeleportAuthorizeHandler::EnsureDestinationServer(int64_t placeId, std::str
         return false;
     }
 
-    Out("TeleportAuthorizeHandler",
+    mCore->Out("TeleportAuthorizeHandler",
         "No server is running for place {}; starting {} {} on port {}",
         placeId, EngineSideAsString(engine->Side), engine->Version, port);
     const EngineLaunchResponse launch = core->LaunchEngine({

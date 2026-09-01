@@ -44,7 +44,7 @@
 
 #define ERR_LOG_TEMPLATE "Failed to load plugin \"{}\" because "
 #define PLUGIN_OUT(format, ...) \
-    Out("Plugin", "[{}] " format, identifier __VA_OPT__(,) __VA_ARGS__);
+    mCore->Out("Plugin", "[{}] " format, identifier __VA_OPT__(,) __VA_ARGS__);
 
 using namespace NoobWarrior;
 
@@ -85,7 +85,7 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     mVfs(nullptr)
 {
     if (!mCore->GetLuaState()->Opened()) {
-        Out("Plugin", ERR_LOG_TEMPLATE "the Lua subsystem is not open! Perhaps the plugin was initialized too early?", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "the Lua subsystem is not open! Perhaps the plugin was initialized too early?", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -93,13 +93,13 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     // Use a virtual filesystem so that we can use both compressed archives and regular folders.
     VirtualFileSystem::Response fsRes = VirtualFileSystem::New(&mVfs, mFilePath);
     if (fsRes != VirtualFileSystem::Response::Success || mVfs == nullptr) {
-        Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "the virtual filesystem failed to initialize.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     if (!mVfs->EntryExists("/plugin.lua")) {
-        Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -114,12 +114,12 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     sol::protected_function_result res = mCore->GetLuaState()->safe_script(pluginLuaString);
     if (!res.valid()) {
         sol::error err = res;
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), err.what());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), err.what());
         mResponse = Response::Failed;
         return;
     }
     if (res.get_type() != sol::type::table) {
-        Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a table.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a table.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -129,13 +129,13 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     auto title = mManifestTbl.get<std::optional<std::string>>("title");
 
     if (identifier == std::nullopt) {
-        Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     if (title == std::nullopt) {
-        Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -156,7 +156,7 @@ Plugin::~Plugin() {
 
 Plugin::Response Plugin::Execute() {
     if (Fail()) {
-        Out("Plugin", "Plugin::Execute() called but plugin \"{}\" failed to initialize!", GetFileName());
+        mCore->Out("Plugin", "Plugin::Execute() called but plugin \"{}\" failed to initialize!", GetFileName());
         return Plugin::Response::Failed;
     }
 
@@ -496,7 +496,7 @@ std::vector<unsigned char> Plugin::GetIconData() {
 
 const Plugin::Properties Plugin::GetProperties() {
     if (Fail()) {
-        Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
+        mCore->Out("Plugin", "Plugin::GetProperties() called but plugin \"{}\" failed to initialize!", GetFileName());
         return {};
     }
 

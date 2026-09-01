@@ -25,7 +25,7 @@
 #include <NoobWarrior/HttpServer/Emulator/ClientSettingsV2DesktopHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/DesktopSettingsFrame.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <event2/buffer.h>
 #include <event2/http.h>
@@ -66,7 +66,7 @@ static const std::string* GetPatchedCompressedSettings(Core* core) {
 
     const std::optional<std::vector<char>> dictionary = FindDesktopSettingsDictionary(core);
     if (!dictionary) {
-        Out("ClientSettingsV2DesktopHandler",
+        core->Out("ClientSettingsV2DesktopHandler",
             "No compression dictionary found; serving the stock settings frame without video flags");
         return nullptr;
     }
@@ -86,7 +86,7 @@ static const std::string* GetPatchedCompressedSettings(Core* core) {
         return nullptr;
 
     cached = std::move(*rebuilt);
-    Out("ClientSettingsV2DesktopHandler",
+    core->Out("ClientSettingsV2DesktopHandler",
         "Rebuilt the settings frame with video flags ({} flags, {} bytes)",
         settings["applicationSettings"].size(), cached->size());
     return &*cached;
@@ -119,7 +119,7 @@ void ClientSettingsV2DesktopHandler::OnRequest(evhttp_request *req, void *userda
             evbuffer_add(buf, PCDesktopClientV2_dcz, PCDesktopClientV2_dcz_size);
         evhttp_send_reply(req, HTTP_OK, nullptr, buf);
         evbuffer_free(buf);
-        Out("ClientSettingsV2DesktopHandler",
+        mCore->Out("ClientSettingsV2DesktopHandler",
             "Sent {} PCDesktopClientV2 settings frame ({} bytes)",
             patched != nullptr ? "patched" : "archived 2026-05-06",
             patched != nullptr ? patched->size() : PCDesktopClientV2_dcz_size);

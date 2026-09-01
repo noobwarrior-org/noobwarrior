@@ -126,14 +126,14 @@ void EmuLoginHandler::OnRequest(evhttp_request *req, void *userdata) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to create session");
         return;
     }
-    Out("EmuLoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
+    mCore->Out("EmuLoginHandler", "User \"{}\" (id {}) logged in from {}", username, userId, peerAddress);
 
     // Opportunistically sweep sessions idle past the TTL so the table doesn't grow without bound.
     if (registry != nullptr) {
         int64_t ttlSeconds = registry->GetKeyValue<int64_t>("emu.auth.session_ttl_days").value_or(30) * 86400;
         int reaped = AuthUtil::ReapExpiredSessions(db, ttlSeconds);
         if (reaped > 0)
-            Out("EmuLoginHandler", "Reaped {} expired login session(s)", reaped);
+            mCore->Out("EmuLoginHandler", "Reaped {} expired login session(s)", reaped);
     }
 
     std::string cookie = std::format(".LOGINSESSION={}; Path=/; HttpOnly; SameSite=Lax", token);

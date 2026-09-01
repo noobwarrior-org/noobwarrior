@@ -23,7 +23,7 @@
 // Started on: 3/22/2025
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/StudioEditHandler.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 static constexpr const char* lol = R"(--rbxsig%DPs1HxWCagA8POZ7k2EDIlc1u8OjTRR+jAoomcPSQ7LxuX+lOXeqcWa5FiJnSJt5+L9jyuNdKcH7PFWUgCxQZKhYfHFQ5s+o2Q9KxCTsgZyIRgfSyPGMlo14P7j9uCvY1SmUJ8LWZKFYBaBaT82cTnm3wPLuuZPP9fnqYLgtfj0=%
 -- Prepended to Edit.lua and Visit.lua and Studio.lua--
@@ -79,7 +79,7 @@ StudioEditHandler::StudioEditHandler() {
 }
 
 void StudioEditHandler::OnRequest(evhttp_request *req, void *userdata) {
-    Out("StudioEditHandler", "Sending lua file...");
+    mCore->Out("StudioEditHandler", "Sending lua file...");
     evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
     evbuffer *reply = evbuffer_new();
     evbuffer_add_printf(reply, "%s", lol);

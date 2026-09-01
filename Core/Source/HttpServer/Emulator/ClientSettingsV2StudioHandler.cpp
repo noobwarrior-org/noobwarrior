@@ -98,7 +98,7 @@ static nlohmann::json GetStudioSettings(ServerEmulator* emu) {
         flags["DFLogBatchAssetApiLog"] = "7";
     }
 
-    Out("ClientSettingsV2StudioHandler", "Serving Studio \"{}\" the merged 04/29/2026 14:12:10 snapshot ({} flags)", version, settings["applicationSettings"].size());
+    emu->GetCore()->Out("ClientSettingsV2StudioHandler", "Serving Studio \"{}\" the merged 04/29/2026 14:12:10 snapshot ({} flags)", version, settings["applicationSettings"].size());
     return settings;
 }
 
@@ -113,7 +113,7 @@ void ClientSettingsV2StudioHandler::OnRequest(evhttp_request *req, void *userdat
 
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("ClientSettingsV2StudioHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
+    mCore->Out("ClientSettingsV2StudioHandler", "{}:{} requested client settings {}", peer_address, peer_port, uri);
 
     const std::string body = GetStudioSettings(mEmu).dump();
 

@@ -251,7 +251,7 @@ bool VoiceChatHandler::StartTurnRelay() {
         : nullptr;
     mTurnRelay->BindHost = FindTurnIpv4Address();
     if (mTurnRelay->BindHost.empty()) {
-        Out("VoiceTurnRelay", "No usable non-loopback IPv4 interface was found");
+        mCore->Out("VoiceTurnRelay", "No usable non-loopback IPv4 interface was found");
         return false;
     }
     mTurnRelay->AdvertisedHost = mEmulator
@@ -272,7 +272,7 @@ bool VoiceChatHandler::StartTurnRelay() {
     mTurnRelay->RelayPortEnd = static_cast<uint16_t>(configuredInt(
         "emu.voice_turn.relay_port_end", 49200, 1024, 65535));
     if (mTurnRelay->RelayPortBegin > mTurnRelay->RelayPortEnd) {
-        Out("VoiceTurnRelay",
+        mCore->Out("VoiceTurnRelay",
             "Invalid relay port range {}-{}; using 49160-49200",
             mTurnRelay->RelayPortBegin, mTurnRelay->RelayPortEnd);
         mTurnRelay->RelayPortBegin = 49160;
@@ -311,12 +311,12 @@ bool VoiceChatHandler::StartTurnRelay() {
     juice_set_log_level(JUICE_LOG_LEVEL_DEBUG);
     mTurnRelay->Server = juice_server_create(&config);
     if (!mTurnRelay->Server) {
-        Out("VoiceTurnRelay", "Failed to start TURN relay on {}:{}",
+        mCore->Out("VoiceTurnRelay", "Failed to start TURN relay on {}:{}",
             mTurnRelay->BindHost, mTurnRelay->Port);
         return false;
     }
 
-    Out("VoiceTurnRelay",
+    mCore->Out("VoiceTurnRelay",
         "Started TURN relay bind={}:{} advertised={}:{} relayPorts={}-{}",
         mTurnRelay->BindHost, juice_server_get_port(mTurnRelay->Server),
         mTurnRelay->AdvertisedHost, mTurnRelay->Port,
@@ -334,13 +334,13 @@ void VoiceChatHandler::StopTurnRelay() {
 
     juice_server_destroy(mTurnRelay->Server);
     mTurnRelay->Server = nullptr;
-    Out("VoiceTurnRelay", "Stopped TURN relay");
+    mCore->Out("VoiceTurnRelay", "Stopped TURN relay");
 #endif
 }
 
 void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
     const std::string path = RequestPath(req);
-    Out("VoiceChatHandler", "Requested {}", path);
+    mCore->Out("VoiceChatHandler", "Requested {}", path);
 
     const evhttp_cmd_type method = evhttp_request_get_command(req);
     if (method != EVHTTP_REQ_GET && method != EVHTTP_REQ_POST) {
@@ -400,7 +400,7 @@ void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
             mTurnRelay->Server, &credentials,
             static_cast<unsigned long>(ttlSeconds) * 1000UL);
         if (credentialResult != JUICE_ERR_SUCCESS) {
-            Out("VoiceTurnRelay",
+            mCore->Out("VoiceTurnRelay",
                 "Could not add short-lived TURN credentials result={}",
                 credentialResult);
             evhttp_send_error(req, HTTP_INTERNAL, nullptr);
@@ -424,7 +424,7 @@ void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
             {"uris", std::move(turnUris)},
         };
         SendJson(req, response.dump());
-        Out("VoiceTurnRelay",
+        mCore->Out("VoiceTurnRelay",
             "Issued short-lived TURN auth advertisedUri={} lanFallback={} ttl={}s",
             publicTurnUri,
             mTurnRelay->BindHost != mTurnRelay->AdvertisedHost,
@@ -457,7 +457,7 @@ void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
     if (const auto universeId = TrailingPathId(
             path, "/v1/settings/universe/")) {
         const bool enabled = universeVoiceEnabled(universeId);
-        Out("VoiceChatHandler", "Universe voice setting universeId={} enabled={}",
+        mCore->Out("VoiceChatHandler", "Universe voice setting universeId={} enabled={}",
             *universeId, enabled);
         SendJson(req, UniverseSettingsJson(enabled).dump());
         return;
@@ -472,7 +472,7 @@ void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
             ? databaseManager->GetUniverseIdForPlace(*placeId)
             : std::nullopt;
         const bool enabled = universeVoiceEnabled(universeId);
-        Out("VoiceChatHandler",
+        mCore->Out("VoiceChatHandler",
             "RCC universe voice setting placeId={} universeId={} enabled={}",
             placeId.value_or(0), universeId.value_or(0), enabled);
         SendJson(req, UniverseSettingsJson(enabled).dump());
@@ -484,7 +484,7 @@ void VoiceChatHandler::OnRequest(evhttp_request *req, void *userdata) {
         // startup-order ambiguity from Team Test and gives the log an explicit
         // readiness record immediately before the Player requests TURN auth.
         const bool turnRelayReady = StartTurnRelay();
-        Out("VoiceChatHandler", "TURN relay ready for /v2/rccsettings/user: {}",
+        mCore->Out("VoiceChatHandler", "TURN relay ready for /v2/rccsettings/user: {}",
             turnRelayReady);
         SendJson(req, kUserSettings);
         return;

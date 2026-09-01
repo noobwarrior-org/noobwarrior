@@ -125,7 +125,7 @@ void AvatarFetchHandler::ServeFromLocalSources(evhttp_request *req) {
     int64_t localUserId = core->GetRegistry()->GetKeyValue<int64_t>("user.id").value_or(1000);
     if (userId && *userId != localUserId) {
         if (std::optional<std::string> federated = mEmu->GetAvatarOverride(*userId)) {
-            Out("AvatarFetchHandler", "Serving federated avatar for userId={}", *userId);
+            mCore->Out("AvatarFetchHandler", "Serving federated avatar for userId={}", *userId);
             SendJson(req, *federated);
             return;
         }

@@ -34,6 +34,8 @@
 #define NW_PATH_TEMP_DOWNLOADS NW_PATH_TEMP / "downloads"
 #define NW_PATH_TEMP_DOWNLOADS_ENGINES NW_PATH_TEMP_DOWNLOADS / "engines"
 
+#define NW_PATH_LOGS "logs"
+
 #define NW_PATH_SSL "ssl"
 
 #define NW_PATH_WINE "wine"

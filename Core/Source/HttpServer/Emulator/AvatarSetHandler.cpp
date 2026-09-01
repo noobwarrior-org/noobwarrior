@@ -137,6 +137,6 @@ void AvatarSetHandler::OnRequest(evhttp_request *req, void *userdata) {
     }
 
     master->MarkDirty();
-    Out("AvatarSetHandler", "Updated avatar for {} (id {})", user->name, userId);
+    mCore->Out("AvatarSetHandler", "Updated avatar for {} (id {})", user->name, userId);
     sendJson(200, R"({"ok":true})");
 }

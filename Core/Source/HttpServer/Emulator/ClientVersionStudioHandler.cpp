@@ -24,7 +24,7 @@
 // Description:
 #include <NoobWarrior/HttpServer/Emulator/ClientVersionStudioHandler.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
-#include <NoobWarrior/Log.h>
+#include <NoobWarrior/NoobWarrior.h>
 
 #include <nlohmann/json.hpp>
 
@@ -40,7 +40,7 @@ void ClientVersionStudioHandler::OnRequest(evhttp_request *req, void *userdata) 
     uint16_t peer_port {};
     if (conn != NULL)
         evhttp_connection_get_peer(conn, &peer_address, &peer_port);
-    Out("ClientVersionStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
+    mCore->Out("ClientVersionStudioHandler", "{}:{} requested {}", peer_address, peer_port, uri);
 
     // Answer with the version of the Studio that's actually asking, so it never self-updates.
     std::string version, hash;
