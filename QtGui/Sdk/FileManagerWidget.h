@@ -34,11 +34,16 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QPointer>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
+
+#include "Sdk/Studio/SourceEditorContainer.h"
 
 class QWidget;
 class QVBoxLayout;
@@ -70,8 +75,13 @@ public:
     // whenever the focused project changes.
     void Reload();
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void InitWidgets();
+
+    void FitDetailsColumns();
 
     EmuDb* GetDatabase();
     DatabaseFileSystem* EnsureFileSystem();
@@ -101,6 +111,7 @@ private:
     void DoPaste(const std::optional<int64_t> &destDir);
     void DoDownload(const std::vector<int64_t> &ids);
     void DoOpenDocument(int64_t id);
+    void PruneDocumentEditors(DatabaseFileSystem* fs);
     void DoProperties(int64_t id);
 
     QString NodeTypeText(const DatabaseFileSystem::Node &node);
@@ -114,6 +125,10 @@ private:
     QStringList mForwardStack;
     ViewMode mViewMode { ViewMode::Details };
     QString mSearchFilter;
+    bool mFittingColumns { false };
+
+    using DocumentKey = std::pair<EmuDb*, int64_t>;
+    std::map<DocumentKey, QPointer<SourceEditorContainer>> mOpenDocuments;
 
     std::vector<int64_t> mClipboardIds;
     EmuDb* mClipboardDb { nullptr };

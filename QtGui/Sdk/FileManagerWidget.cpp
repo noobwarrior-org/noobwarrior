@@ -30,6 +30,7 @@
 #include "Sdk/Project/EmuDb/EmuDbProject.h"
 #include "Sdk/Item/ItemDialog.h"
 #include "Sdk/Item/ItemOpenSaveDialog.h"
+#include "Sdk/CodeEditorWidget.h"
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
@@ -42,6 +43,7 @@
 #include <QTreeWidget>
 #include <QHeaderView>
 #include <QListWidget>
+#include <QTabWidget>
 #include <QLabel>
 #include <QMenu>
 #include <QAction>
@@ -49,9 +51,7 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include <QDateTime>
-#include <QDialog>
-#include <QDialogButtonBox>
-#include <QPlainTextEdit>
+#include <QEvent>
 #include <QPushButton>
 #include <QLocale>
 #include <QDir>
@@ -64,7 +64,7 @@ using namespace NoobWarrior;
 // Roles used to stash the FsNode id / type on view items.
 static constexpr int kIdRole = Qt::UserRole + 1;
 static constexpr int kTypeRole = Qt::UserRole + 2;
-// On the Date Modified (col 1) and Size (col 3) columns we also stash the raw underlying value in
+// On the Date Modified (col 2) and Size (col 4) columns we also stash the raw underlying value in
 // Qt::UserRole so the tree can sort them numerically instead of by their formatted text.
 static constexpr int kSortRole = Qt::UserRole;
 
@@ -76,14 +76,33 @@ class FmTreeItem : public QTreeWidgetItem {
 public:
     using QTreeWidgetItem::QTreeWidgetItem;
     bool operator<(const QTreeWidgetItem &other) const override {
-        const int col = treeWidget() ? treeWidget()->sortColumn() : 0;
-        if (col == 1)
-            return data(1, kSortRole).toLongLong() < other.data(1, kSortRole).toLongLong();
-        if (col == 3)
-            return data(3, kSortRole).toULongLong() < other.data(3, kSortRole).toULongLong();
+        const int col = treeWidget() ? treeWidget()->sortColumn() : 1;
+        if (col == 2)
+            return data(2, kSortRole).toLongLong() < other.data(2, kSortRole).toLongLong();
+        if (col == 4)
+            return data(4, kSortRole).toULongLong() < other.data(4, kSortRole).toULongLong();
         return text(col).compare(other.text(col), Qt::CaseInsensitive) < 0;
     }
 };
+
+void FocusEditor(SourceEditorContainer* editor) {
+    if (editor == nullptr)
+        return;
+    if (editor->isWindow()) {
+        editor->raise();
+        editor->activateWindow();
+        return;
+    }
+    QWidget* page = editor;
+    for (QWidget* w = editor->parentWidget(); w != nullptr; w = w->parentWidget()) {
+        if (auto* tabs = qobject_cast<QTabWidget*>(w)) {
+            const int index = tabs->indexOf(page);
+            if (index >= 0)
+                tabs->setCurrentIndex(index);
+            page = tabs;
+        }
+    }
+}
 }
 
 FileManagerWidget::FileManagerWidget(QWidget *parent) : QDockWidget(parent)
@@ -151,15 +170,25 @@ void FileManagerWidget::InitWidgets() {
     ViewStack = new QStackedWidget(MainWidget);
 
     DetailsView = new QTreeWidget(ViewStack);
-    DetailsView->setColumnCount(4);
-    DetailsView->setHeaderLabels({ "Name", "Date Modified", "Type", "Size" });
+    DetailsView->setColumnCount(5);
+    DetailsView->setHeaderLabels({ "", "Name", "Date Modified", "Type", "Size" });
+    DetailsView->setColumnHidden(0, true);
+    DetailsView->setTreePosition(1);
     DetailsView->setRootIsDecorated(false);
     DetailsView->setSortingEnabled(true);
-    DetailsView->sortByColumn(0, Qt::AscendingOrder);
+    DetailsView->sortByColumn(1, Qt::AscendingOrder);
     DetailsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     DetailsView->setContextMenuPolicy(Qt::CustomContextMenu);
     DetailsView->header()->setStretchLastSection(false);
-    DetailsView->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    DetailsView->header()->setSectionsMovable(true);
+    DetailsView->header()->setMinimumSectionSize(40);
+    for (int col = 1; col < DetailsView->columnCount(); ++col)
+        DetailsView->header()->setSectionResizeMode(col, QHeaderView::Interactive);
+    DetailsView->header()->resizeSection(1, 260);
+    DetailsView->header()->resizeSection(2, 130);
+    DetailsView->header()->resizeSection(3, 120);
+    DetailsView->header()->resizeSection(4, 90);
+    DetailsView->viewport()->installEventFilter(this);
 
     ListView = new QListWidget(ViewStack);
     ListView->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -303,6 +332,8 @@ void FileManagerWidget::Populate() {
         }
     }
 
+    PruneDocumentEditors(fs);
+
     DetailsView->setSortingEnabled(false);
     DetailsView->clear();
     ListView->clear();
@@ -325,14 +356,15 @@ void FileManagerWidget::Populate() {
 
         // Details (tree)
         auto treeItem = new QTreeWidgetItem(DetailsView);
-        treeItem->setIcon(0, icon);
         treeItem->setText(0, name);
-        treeItem->setText(1, dateText);
-        treeItem->setText(2, typeText);
-        treeItem->setText(3, sizeText);
+        treeItem->setIcon(1, icon);
+        treeItem->setText(1, name);
+        treeItem->setText(2, dateText);
+        treeItem->setText(3, typeText);
+        treeItem->setText(4, sizeText);
         // Right-align and sort the size column numerically rather than lexically.
-        treeItem->setTextAlignment(3, Qt::AlignRight | Qt::AlignVCenter);
-        treeItem->setData(3, Qt::InitialSortOrderRole, static_cast<qulonglong>(node.Size));
+        treeItem->setTextAlignment(4, Qt::AlignRight | Qt::AlignVCenter);
+        treeItem->setData(4, Qt::InitialSortOrderRole, static_cast<qulonglong>(node.Size));
         treeItem->setData(0, kIdRole, static_cast<qlonglong>(node.Id));
         treeItem->setData(0, kTypeRole, static_cast<int>(node.Type));
 
@@ -347,6 +379,49 @@ void FileManagerWidget::Populate() {
 
     if (ViewStack->currentWidget() == PlaceholderLabel)
         SetViewMode(mViewMode);
+}
+
+bool FileManagerWidget::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == DetailsView->viewport() && event->type() == QEvent::Resize)
+        FitDetailsColumns();
+    return QDockWidget::eventFilter(watched, event);
+}
+
+void FileManagerWidget::FitDetailsColumns() {
+    if (mFittingColumns)
+        return;
+
+    QHeaderView* header = DetailsView->header();
+    const int available = DetailsView->viewport()->width();
+    if (available <= 0)
+        return;
+
+    std::vector<int> columns;
+    int total = 0;
+    for (int i = 0; i < header->count(); ++i) {
+        if (header->isSectionHidden(i))
+            continue;
+        columns.push_back(i);
+        total += header->sectionSize(i);
+    }
+    if (columns.empty() || total <= 0 || total == available)
+        return;
+
+    const int minimum = header->minimumSectionSize();
+    if (available < static_cast<int>(columns.size()) * minimum)
+        return;
+
+    mFittingColumns = true;
+    int used = 0;
+    for (size_t n = 0; n < columns.size(); ++n) {
+        int size = n + 1 == columns.size()
+            ? available - used
+            : qRound(header->sectionSize(columns[n]) * static_cast<double>(available) / total);
+        size = qMax(size, minimum);
+        header->resizeSection(columns[n], size);
+        used += size;
+    }
+    mFittingColumns = false;
 }
 
 void FileManagerWidget::SetViewMode(ViewMode mode) {
@@ -547,10 +622,10 @@ void FileManagerWidget::ShowContextMenu(const QPoint &globalPos, bool onItem) {
                 DetailsView->sortByColumn(column, Qt::AscendingOrder);
             });
         };
-        addSort("Name", 0);
-        addSort("Date Modified", 1);
-        addSort("Type", 2);
-        addSort("Size", 3);
+        addSort("Name", 1);
+        addSort("Date Modified", 2);
+        addSort("Type", 3);
+        addSort("Size", 4);
 
         menu.addSeparator();
         QAction* refreshAct = menu.addAction(QIcon(":/images/silk/arrow_refresh.png"), "Refresh");
@@ -645,6 +720,8 @@ void FileManagerWidget::DoRename(int64_t id) {
         QMessageBox::warning(this, "Rename", "Could not rename (a file with that name may already exist).");
         return;
     }
+    if (auto it = mOpenDocuments.find(DocumentKey { mFsDb, id }); it != mOpenDocuments.end() && it->second)
+        it->second->SetBaseTitle(name.trimmed());
     Populate();
 }
 
@@ -704,31 +781,77 @@ void FileManagerWidget::DoOpenDocument(int64_t id) {
     if (!node)
         return;
 
+    PruneDocumentEditors(fs);
+
+    const DocumentKey key { mFsDb, id };
+    if (auto it = mOpenDocuments.find(key); it != mOpenDocuments.end()) {
+        FocusEditor(it->second.data());
+        return;
+    }
+
     std::vector<unsigned char> content;
     fs->ReadFileContent(id, &content);
 
-    QDialog dialog(this);
-    dialog.setWindowTitle(QString::fromStdString(node->Name));
-    dialog.resize(560, 420);
-    auto layout = new QVBoxLayout(&dialog);
-    auto editor = new QPlainTextEdit(&dialog);
-    editor->setPlainText(QString::fromUtf8(reinterpret_cast<const char*>(content.data()), static_cast<int>(content.size())));
-    layout->addWidget(editor);
-    auto buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Close, &dialog);
-    layout->addWidget(buttons);
+    const QString name = QString::fromStdString(node->Name);
+    auto container = new SourceEditorContainer();
+    container->setAttribute(Qt::WA_DeleteOnClose);
+    container->Editor->SetLuaHighlighting(name.endsWith(".lua", Qt::CaseInsensitive) ||
+                                          name.endsWith(".luau", Qt::CaseInsensitive));
+    container->Editor->setPlainText(QString::fromUtf8(reinterpret_cast<const char*>(content.data()),
+                                                     static_cast<int>(content.size())));
+    container->Editor->document()->setModified(false);
+    container->setWindowIcon(NodeIcon(*node));
 
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&]() {
+    auto sdk = dynamic_cast<Sdk*>(parent());
+    Project* project = sdk != nullptr ? sdk->GetFocusedProject() : nullptr;
+
+    QPointer<FileManagerWidget> self(this);
+    QPointer<Sdk> sdkGuard(sdk);
+    CodeEditorWidget* editor = container->Editor;
+    container->OnApply = [self, sdkGuard, project, db = mFsDb, id, editor]() -> bool {
+        if (sdkGuard.isNull() || !sdkGuard->IsProjectOpen(project))
+            return false;
         QByteArray bytes = editor->toPlainText().toUtf8();
         std::vector<unsigned char> data(bytes.begin(), bytes.end());
-        if (fs->WriteFileContent(id, data) != VirtualFileSystem::Response::Success)
-            QMessageBox::warning(&dialog, "Save", "Could not save the document.");
-        else
-            dialog.accept();
-    });
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        DatabaseFileSystem fs(db);
+        if (fs.WriteFileContent(id, data) != VirtualFileSystem::Response::Success) {
+            QMessageBox::warning(editor, "Save", "Could not save the document.");
+            return false;
+        }
+        editor->document()->setModified(false);
+        if (self)
+            self->Populate();
+        return true;
+    };
 
-    dialog.exec();
-    Populate();
+    QTabWidget* tabs = project != nullptr ? project->GetTabWidget() : nullptr;
+    if (tabs != nullptr) {
+        tabs->setCurrentIndex(tabs->addTab(container, NodeIcon(*node), name));
+        container->SetBaseTitle(name);
+    } else {
+        container->setWindowFlag(Qt::Window);
+        container->SetBaseTitle(name);
+        container->resize(560, 420);
+        container->show();
+    }
+
+    mOpenDocuments[key] = container;
+}
+
+void FileManagerWidget::PruneDocumentEditors(DatabaseFileSystem* fs) {
+    for (auto it = mOpenDocuments.begin(); it != mOpenDocuments.end();) {
+        if (it->second.isNull()) {
+            it = mOpenDocuments.erase(it);
+            continue;
+        }
+        if (fs != nullptr && it->first.first == mFsDb && !fs->GetNode(it->first.second)) {
+            SourceEditorContainer* editor = it->second.data();
+            it = mOpenDocuments.erase(it);
+            editor->ForceClose();
+            continue;
+        }
+        ++it;
+    }
 }
 
 void FileManagerWidget::DoProperties(int64_t id) {
