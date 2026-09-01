@@ -32,6 +32,7 @@
 #include <QComboBox>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QVBoxLayout>
 
 #include <curl/curl.h>
 
@@ -54,6 +55,12 @@ InstallationPage::InstallationPage(QWidget *parent) : SettingsPage(parent),
 }
 
 void InstallationPage::InitWidgets() {
+    auto layout = new QVBoxLayout();
+    auto wipLabel = new QLabel("Right now, this page is currently a work in progress. Expect an easy way to see installed engines in here soon.");
+    wipLabel->setWordWrap(true);
+    layout->addWidget(wipLabel);
+    Layout->addLayout(layout); // Yo dawg I heard you were cool so I put a layout in your layout
+    /* TODO: uncomment this out and finish DIS LATER
     HorizontalLayout = new QHBoxLayout();
 
     ListWidget = new QListWidget();
@@ -104,12 +111,13 @@ void InstallationPage::InitWidgets() {
     CannotConnectLabel->setWordWrap(true);
     CannotConnectLabel->setVisible(false);
     Layout->addWidget(CannotConnectLabel);
+    */
 }
 
 void InstallationPage::Refresh() {
-    QString errMsg = "Could not connect to server to retrieve clients; no URL is set!";
-    CannotConnectLabel->setText(errMsg);
-    CannotConnectLabel->setVisible(true);
+    // QString errMsg = "Could not connect to server to retrieve clients; no URL is set!";
+    // CannotConnectLabel->setText(errMsg);
+    // CannotConnectLabel->setVisible(true);
 }
 
 const QString InstallationPage::GetTitle() {
