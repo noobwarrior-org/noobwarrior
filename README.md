@@ -7,7 +7,7 @@ noobWarrior tries its best to not bundle in any copyrighted works by the Roblox 
 The only official website for noobWarrior is at [https://noobwarrior.org](https://noobwarrior.org), you can visit it by clicking the link.
 
 ## Download
-[https://github.com/noobwarrior-org/noobwarrior/releases/latest](The download is here!)
+[The download is here!](https://github.com/noobwarrior-org/noobwarrior/releases/latest)
 
 Do note that if you want to access game and editor functionality, you will have to provide a copy of Roblox versions 0.719.0.7191339, 0.574.0.5740446, or 0.463.0.417004. We cannot provide them ourselves. Sorry.
 
