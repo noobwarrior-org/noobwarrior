@@ -110,7 +110,7 @@ add_executable(NoobWarrior.QtGui)
 target_sources(NoobWarrior.QtGui PRIVATE ${SOURCES})
 set_target_properties(NoobWarrior.QtGui PROPERTIES
     OUTPUT_NAME "noobwarrior"
-#    WIN32_EXECUTABLE ON
+    WIN32_EXECUTABLE ON
 )
 target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets)
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
