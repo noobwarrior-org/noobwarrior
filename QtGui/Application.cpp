@@ -135,9 +135,11 @@ int Application::Run() {
     mTrayMenu = new QMenu();
         QAction* rbxAcc = mTrayMenu->addAction("");
         rbxAcc->setDisabled(true);
+    /* TODO: Comment this out when we get a way to detect how many roblox processes are owned by noobWarrior.
     mTrayMenu->addSeparator();
         QAction* robloxProcessesAction = mTrayMenu->addAction("0 Running Roblox Processes");
         robloxProcessesAction->setDisabled(true);
+    */
     mTrayMenu->addSeparator();
         QAction* openLauncherAction = mTrayMenu->addAction(QIcon(":/images/silk/application_view_list.png"), "Open Launcher", [this]() {
             if (mLauncher == nullptr) {
