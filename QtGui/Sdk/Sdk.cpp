@@ -634,6 +634,7 @@ launchdialog:
 
 void Sdk::InitWidgets() {
     mTabWidget = new QTabWidget(this);
+    mTabWidget->setMovable(true);
     setCentralWidget(mTabWidget);
 
     connect(mTabWidget, &QTabWidget::currentChanged, [this](int index) {
