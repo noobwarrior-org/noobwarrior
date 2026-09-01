@@ -1007,7 +1007,7 @@ int LuaState::Open() {
     coreLib.set_function("ResolveSession", [this](sol::this_state state, const std::string &token) -> sol::object {
         EmuDbManager *mgr = mCore->GetEmuDbManager();
         if (mgr == nullptr)
-            return sol::nil;
+            return sol::lua_nil;
 
         Registry *reg = mCore->GetRegistry();
         int64_t ttlSeconds = 0;
@@ -1016,7 +1016,7 @@ int LuaState::Open() {
 
         std::optional<AuthUtil::SessionUser> user = AuthUtil::ResolveSessionUser(mgr, reg, token, ttlSeconds);
         if (!user.has_value())
-            return sol::nil;
+            return sol::lua_nil;
 
         sol::table result = sol::state_view(state).create_table();
         result["Id"] = user->id;
@@ -1040,7 +1040,7 @@ int LuaState::Open() {
     coreLib.set_function("GetPermissionRank", [this](sol::this_state state, const std::string &permission) -> sol::object {
         std::optional<int64_t> floor = AuthUtil::PermissionFloor(mCore->GetRegistry(), permission);
         if (!floor.has_value())
-            return sol::nil;
+            return sol::lua_nil;
         return sol::make_object(state, *floor);
     });
     // Builds a /v1.1/avatar-fetch body for a local user id from the master DB. Lets the master-server
