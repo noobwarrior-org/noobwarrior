@@ -375,6 +375,8 @@ StudioServerBootstrap Plugin::BuildStudioServerBootstrap(int64_t placeId, int64_
             std::transform(side.begin(), side.end(), side.begin(), [](unsigned char character) {
                 return static_cast<char>(std::tolower(character));
             });
+            // Rn client datamodels cannot really exist because we don't have a script executor at the moment.
+            // Will we ever make one? I'm not sure.
             if (side != "server" && side != "shared")
                 continue;
 
@@ -449,8 +451,6 @@ StudioServerBootstrap Plugin::BuildStudioServerBootstrap(int64_t placeId, int64_
                     "Script",
                     SandboxedEngineAutorun(source),
                     "ServerScriptService",
-                    // The place is fully built before any script runs, so there is nothing
-                    // to wait for and the script can be enabled outright.
                     false,
                 });
             } else {
@@ -467,7 +467,8 @@ StudioServerBootstrap Plugin::BuildStudioServerBootstrap(int64_t placeId, int64_
 
     for (const char *category : std::array<const char *, 2> {"shared", "server"})
         readAutorunCategory(category, true);
-    readAutorunCategory("client", false);
+    for (const char *category : std::array<const char *, 2> {"shared", "client"})
+        readAutorunCategory(category, false);
     return bootstrap;
 }
 
