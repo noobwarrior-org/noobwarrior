@@ -11,21 +11,38 @@ pageTitle = "noobWarrior Documentation"
 include("header.lhp")
 ?>
 
+<?lua
+local indexStr = ""
+local indexHandle = plugin:GetVfs():OpenHandle("/texts/index.lua")
+if indexHandle == 0 then
+    die("Failed to read file /texts/index.lua")
+end
+local isReading = true
+while isReading do
+    isReading, buf = plugin:GetVfs():ReadHandleLine(indexHandle)
+    indexStr = indexStr .. buf .. "\n"
+end
+plugin:GetVfs():CloseHandle(indexHandle)
+local func = loadstring(indexStr)
+if not func then
+    die("failed to compile index.lua. Contact the owner of this website.")
+end
+local tbl = func()
+if type(tbl) ~= "table" then
+    die("index.lua did not return a table. Contact the owner of this website.")
+end
+print(tbl)
+?>
+
 <div class="sidebar">
     <h3>Getting Started</h3>
     <?lua
-    local indexStr = ""
-    local indexHandle = plugin:GetVfs():OpenHandle("/texts/index.lua")
-    if indexHandle == 0 then
-        die("Failed to read file /texts/index.lua")
+    local function Iterate(children)
+        for _, child in ipairs(children) do
+            echo("<a"..(child.File and " href=\"poop\"" or "")..">"..child.Title.."</a>")
+        end
     end
-    local isReading = true
-    while isReading do
-        isReading, buf = plugin:GetVfs():ReadHandleLine(indexHandle)
-        indexStr = indexStr .. buf .. "\n"
-    end
-    plugin:GetVfs():CloseHandle(indexHandle)
-    print(indexStr)
+    Iterate(tbl)
     ?>
 </div>
 <div class="divider"></div>
