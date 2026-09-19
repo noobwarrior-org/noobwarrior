@@ -64,23 +64,88 @@ local function fdate(ts)
 end
 ?>
 
-<div class="profile">
-    <h1><?lua echo(esc(displayname)) ?></h1>
-    <p class="profile-identity"><?lua echo(esc(identity)) ?><?lua if isRemote then echo("  (federated)") end ?></p>
+<template shadowrootmode="open">
+    <style>
+    table {
+        background-color: #454545;
+    }
+    table, th, td {
+        border: 1px solid #202020;
+        border-collapse: collapse;
+    }
+    </style>
 
-    <table class="server-list" style="max-width: 480px;">
-        <tr><th>Username</th><td>@<?lua echo(esc(name)) ?></td></tr>
-        <tr><th>Online identity</th><td><?lua echo(esc(identity)) ?></td></tr>
+    <table style="width: 420px;">
+        <tr>
+            <th colspan="2" style="font-size: 16pt;"><?lua echo(esc(displayname)) ?>'s Profile</th>
+        </tr>
+        <tr>
+            <th colspan="2">Offline</th>
+        </tr>
+        <tr>
+            <td colspan="2"><img src="" /></td>
+        </tr>
         <?lua if not isRemote then ?>
-        <tr><th>Bio</th><td><?lua echo(esc(bio)) ?></td></tr>
-        <tr><th>Joined</th><td><?lua echo(fdate(joindate)) ?></td></tr>
+        <tr>
+            <th colspan="2">Bio</th>
+        </tr>
+        <tr>
+            <td colspan="2" style="text-align: center;"><?lua echo(esc(bio)) ?></td>
+        </tr>
         <?lua end ?>
+        <tr>
+            <th colspan="2">Information</th>
+        </tr>
+        <tr>
+            <td>Username</td>
+            <td>@<?lua echo(esc(name)) ?></td>
+        </tr>
+        <tr>
+            <td>Identity</td>
+            <td><?lua echo(esc(identity)) ?><?lua if isRemote then echo(" (federated)") end ?></td>
+        </tr>
+        <?lua if not isRemote then ?>
+        <tr>
+            <td>Date Joined</td>
+            <td>
+                <?lua echo(fdate(joindate)) ?>
+            </td>
+        </tr>
+        <?lua end ?>
+    </table>
+
+    <table style="width: 420px;">
+        <tr>
+            <th style="font-size: 16pt;">Posts</th>
+        </tr>
+        <?lua
+        if isRemote then
+            echo([[<tr><td>This is a federated user, their statuses live on their home server.</td></tr>]])
+        else
+            local statuses = _G.MASTERSERVER_FEDERATION.StatusesByAuthor(identity, 20)
+            if statuses == nil or #statuses == 0 then
+                echo([[<tr><td>No statuses yet.</td></tr>]])
+            else
+                echo("<tr><td>")
+                for _, s in ipairs(statuses) do
+                    local cls = s.ParentId and " feed-reply" or ""
+                    local meta = fdate(s.Created)
+                    if not s.ParentId then
+                        meta = string.format([[<a href="/feed?origin=local&status=%d">%s</a>]], tonumber(s.Id) or 0, fdate(s.Created))
+                    end
+                    echo(string.format([[<div class="feed-item%s"><div class="feed-body">%s</div><div class="feed-meta">%s</div></div>]],
+                        cls, (esc(s.Body):gsub("\n", "<br>")), meta))
+                end
+                echo("</td></tr>")
+            end
+        end
+        ?>
     </table>
 
     <h2>Recent statuses</h2>
     <?lua
     if isRemote then
-        echo([[<p class="server-list-empty">This is a federated user; their statuses live on their home server.</p>]])
+        echo([[<p class="server-list-empty">This is a federated user, their statuses live on their home server.</p>]])
     else
         local statuses = _G.MASTERSERVER_FEDERATION.StatusesByAuthor(identity, 20)
         if statuses == nil or #statuses == 0 then
@@ -100,6 +165,6 @@ end
         end
     end
     ?>
-</div>
+</template>
 
 <?lua include("footer.lhp") ?>

@@ -2,9 +2,9 @@
 pageTitle = "Control Panel"
 include("header.lhp")
 
-cpBranding = {
+cpGeneral = {
     Prefix = "emu",
-    SaveUrl = "/v1/settings/branding",
+    SaveUrl = "/v1/settings/general",
     IconUrl = "/emu/icon"
 }
 ?>

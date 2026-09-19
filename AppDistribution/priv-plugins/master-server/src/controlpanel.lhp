@@ -46,7 +46,7 @@ local function BuildFederationSection()
 
     local peers = _G.MASTERSERVER_FEDERATION.GetPeers()
     if peers == nil or #peers == 0 then
-        h[#h + 1] = [[<p class="server-list-empty">No peers yet &mdash; add another master server above to federate with it.</p>]]
+        h[#h + 1] = [[<p class="server-list-empty">No peers yet, add another master server above to federate with it.</p>]]
     else
         h[#h + 1] = [[<table class="server-list"><thead><tr><th>Domain</th><th>Name</th><th>Base URL</th><th>Status</th><th>Action</th></tr></thead><tbody>]]
         for _, p in ipairs(peers) do
@@ -68,6 +68,12 @@ end
 
 cpExtraSections = {
     { Key = "federation", Name = "Federation", Html = BuildFederationSection() }
+}
+
+cpGeneral = {
+    Prefix = "master",
+    SaveUrl = "/v1/settings/general",
+    IconUrl = "/emu/icon"
 }
 ?>
 

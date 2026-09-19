@@ -182,15 +182,15 @@ end
         <?lua if _GET["category"] == "general" then ?>
             <!-- General -->
             <?lua
-            local branding = cpBranding
+            local general = cpGeneral
             local gesc = function(v)
                 return (tostring(v):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"):gsub('"',"&quot;"))
             end
 
-            if branding == nil or branding.SaveUrl == nil then
-                echo("<p>This server does not expose its branding settings here.</p>")
+            if general == nil or general.SaveUrl == nil then
+                echo("<p>This server does not expose its general settings here.</p>")
             else
-                local prefix = branding.Prefix or "emu"
+                local prefix = general.Prefix or "emu"
                 if _GET["err"] then
                     echo('<p style="color: red;">' .. gesc(_GET["err"]) .. "</p>")
                 end
@@ -219,8 +219,8 @@ end
                         %s
                         <button type="submit">Save</button>
                     </form>
-                ]], gesc(branding.SaveUrl), gesc(title), gesc(tagline),
-                    gesc(branding.IconUrl or "/emu/icon"),
+                ]], gesc(general.SaveUrl), gesc(title), gesc(tagline),
+                    gesc(general.IconUrl or "/emu/icon"),
                     iconSet and [[<label><input type="checkbox" name="removeIcon" value="1"> Remove the current icon</label><br>]] or ""))
             end
             ?>

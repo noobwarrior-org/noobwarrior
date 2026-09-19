@@ -310,6 +310,7 @@ local sitemap = {
     ["/v1/messages/send"] = "/src/api/messages/send.lhp",
     ["/v1/forums/post"] = "/src/api/forums/post.lhp",
     ["/v1/feed/post"] = "/src/api/feed/post.lhp",
+    ["/v1/settings/general"] = { Page = "/src/api/settings/general.lhp", Permission = "access.control_panel" },
     ["/v1/federation/add-peer"] = { Page = "/src/api/federation/add_peer.lhp", Permission = "federation.manage" },
     ["/v1/federation/set-auto"] = { Page = "/src/api/federation/set_auto.lhp", Permission = "federation.manage" },
     ["/v1/federation/ban-peer"] = { Page = "/src/api/federation/ban_peer.lhp", Permission = "federation.manage" },

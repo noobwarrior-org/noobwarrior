@@ -2,7 +2,7 @@
 -- ////////////////////////////////////////////////////////////////////////////////
 -- noobWarrior
 -- Plugin: Server Emulator Frontend
--- File: api/settings/branding.lhp
+-- File: api/settings/general.lhp
 -- Description: Saves the control panel's General section: the emulator's name, tagline and icon.
 -- Started by: Hattozo
 -- Started on: 8/24/2026
@@ -25,7 +25,7 @@ if _SERVER.REQUEST_METHOD ~= "POST" then
     die("Request method needs to be POST")
 end
 
-local ICON_DIR = "emu-frontend".
+local ICON_DIR = "emu-frontend"
 local ICON_TYPES = {
     { ext = "png",  test = function(b) return b:sub(1, 4) == "\137PNG" end },
     { ext = "jpg",  test = function(b) return b:sub(1, 3) == "\255\216\255" end },
