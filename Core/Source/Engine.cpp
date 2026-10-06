@@ -589,6 +589,8 @@ bool Core::WriteServerRbxl(int64_t placeId, int version,
     SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, NULL, &path);
     std::filesystem::path baseDir(path);
     CoTaskMemFree(path);
+#elif (defined(__unix__) || defined(__APPLE__)) && !defined(__ANDROID__)
+    std::filesystem::path baseDir = GetUserDataDir() / NW_PATH_WINE_PREFIX / "drive_c" / "users" / getenv("USERNAME") / "AppData" / "Local";
 #else
     // placeholder so that it doesnt fail to compile
     std::filesystem::path baseDir(std::filesystem::current_path());
