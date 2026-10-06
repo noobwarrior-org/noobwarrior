@@ -161,7 +161,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
         }
 
         mLua->MarkScriptLoading(resolvedUrl);
-        auto moduleScript = std::make_unique<LuaScript>(mLua, mLua->globals(), url);
+        auto moduleScript = std::make_unique<LuaScript>(mLua, mBaseEnv, url);
         if (moduleScript->Fail()) {
             mLua->UnmarkScriptLoading(resolvedUrl);
             luaL_error(L, "require(): failed to load script: %s", resolvedUrl.c_str());
