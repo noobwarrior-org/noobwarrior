@@ -397,6 +397,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/FileFormat/Tree/RbxObject.cpp
     Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/algorithm/base64.cpp
+    Source/ScreenRecord.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC

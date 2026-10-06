@@ -44,5 +44,5 @@ return {
             end
         }
     },
-    permissions = { PERMISSION_OS_LIBRARY }
+    permissions = { }
 }

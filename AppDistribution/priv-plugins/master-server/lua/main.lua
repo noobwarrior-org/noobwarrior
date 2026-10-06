@@ -223,7 +223,7 @@ local function loadOrGenerateFederationKeypair()
         local h = vfs:OpenHandle(path)
         local _, data = vfs:ReadHandleChunk(h, 256)
         vfs:CloseHandle(h)
-        return (tostring(data or ""):gsub("%s+$", ""))
+        return (tostring(buffer.tostring(data) or ""):gsub("%s+$", ""))
     end
     local priv, pub = readAll(privPath), readAll(pubPath)
     if priv and pub and #priv == 64 and #pub == 64 then

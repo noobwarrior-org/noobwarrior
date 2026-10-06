@@ -44,7 +44,7 @@ end
 local parts = {}
 local isReading, chunk = true, nil
 repeat
-    isReading, chunk = vfs:ReadHandleChunk(handle, 65536)
+    isReading, chunk = vfs:ReadHandleChunkString(handle, 65536)
     if chunk and chunk ~= "" then
         parts[#parts + 1] = chunk
     end

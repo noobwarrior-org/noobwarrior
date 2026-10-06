@@ -25,7 +25,7 @@
 #pragma once
 
 namespace NoobWarrior {
-enum class Permissions {
+enum class Permission {
     AccessAllPluginDataUrl, // Can access plugin data outside of this plugins specialized folder
     AccessAllPluginUrl, // Can access all plugin URLs other than its own
     AccessDbUrl, // Can access EmuDb URLs
@@ -37,6 +37,7 @@ enum class Permissions {
     // Okay this sounds like a horrible idea but I'm making a MCP server plugin
     // where a bot can play games and take screenshots as they play, that's why I added this
     // That makes it sound even worse, actually
-    Screencast // Can take screenshots of the user's desktop
+    ScreenRecord, // Can take screenshots of the user's desktop or a specific program. May add recording later.
+    AudioRecord // Can record audio of the user's desktop or a specific program.
 };
 }

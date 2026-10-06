@@ -48,29 +48,6 @@ function http_base.GetFileExtension(filePath)
     return string.sub(filePath, 1 - pos)
 end
 
-function http_base.ReadFileBinary(vfs, localUrl)
-    if not vfs:EntryExists(localUrl) then
-        return nil
-    end
-    local handle = vfs:OpenHandle(localUrl)
-    if handle == 0 then
-        error("Failed to open handle!")
-    end
-
-    local fullData = ""
-    local isReading, chunkData = true, nil
-    repeat
-        isReading, chunkData = vfs:ReadHandleChunk(handle, 4096)
-        if chunkData and chunkData ~= "" then
-            fullData = fullData .. chunkData
-        end
-    until not isReading
-
-    vfs:CloseHandle(handle)
-
-    return fullData
-end
-
 local function url_decode(str)
     if str == nil then return nil end
     str = string.gsub(str, "+", " ")
@@ -378,15 +355,15 @@ function http_base.AttachToServer(srv, params)
             end
 
             if success then
-                req:SendReply(response_code, nil, result)
+                req:SendReplyString(response_code, nil, result)
             else
                 req:SendError(500, "LHP Error: Failed to render page \""..sitemap_entry.Page.."\"<br>"..result)
             end
         else
             local vfs = srv:GetVfs()
             if vfs:EntryExists(uri_without_params) then
-                local data = http_base.ReadFileBinary(vfs, uri_without_params)
-                if data == nil then
+                local data = vfs:ReadFile(uri_without_params)
+                if buffer.len(data) == 0 then
                     error("Failed to read binary data from "..uri_without_params)
                 end
                 local mimeType = file_extension_map[http_base.GetFileExtension(uri_without_params)]

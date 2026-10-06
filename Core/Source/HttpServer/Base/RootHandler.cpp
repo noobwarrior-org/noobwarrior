@@ -156,7 +156,17 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         evkeyvalq* outHeaders = evhttp_request_get_output_headers(req);
         while (evhttp_remove_header(outHeaders, key.c_str()) == 0) {}
     };
-    reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::optional<std::string> reason, std::string data) {
+    reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::optional<std::string> reason, sol::as_buffer_t<std::span<const uint8_t>> data) {
+        if (sentReply)
+            return;
+        std::span<const uint8_t> val = data.value();
+        evbuffer *reply = evbuffer_new();
+        evbuffer_add(reply, val.data(), val.size());
+        evhttp_send_reply(req, code, reason ? reason->c_str() : nullptr, reply);
+        evbuffer_free(reply);
+        sentReply = true;
+    };
+    reqTbl["SendReplyString"] = [req, &sentReply](sol::table self, int code, std::optional<std::string> reason, std::string data) {
         if (sentReply)
             return;
         evbuffer *reply = evbuffer_new();

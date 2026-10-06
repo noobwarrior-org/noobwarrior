@@ -42,6 +42,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Console/Command/Command.h>
 #include <NoobWarrior/Console/Command/FuncCommand.h>
+#include <NoobWarrior/ScreenRecord.h>
 
 #include <lua.h>
 #include <luacode.h>
@@ -146,7 +147,10 @@ LuaState::LuaState(Core* core) :
         sol::lib::math,
         sol::lib::table,
         sol::lib::debug,
-        sol::lib::bit32
+        sol::lib::bit32,
+        sol::lib::utf8,
+        sol::lib::buffer,
+        sol::lib::vector
     );
 
     do_string(rawget_path_lua);
@@ -290,16 +294,17 @@ int LuaState::Open() {
         "Group", Roblox::CreatorType::Group
     );
 
-    new_enum("Permissions",
-        "AccessAllPluginDataUrl", Permissions::AccessAllPluginDataUrl,
-        "AccessAllPluginUrl", Permissions::AccessAllPluginUrl,
-        "AccessDbUrl", Permissions::AccessDbUrl,
-        "AccessLocalFile", Permissions::AccessLocalFile,
-        "NetServer", Permissions::NetServer,
-        "NetClient", Permissions::NetClient,
-        "OsShell", Permissions::OsShell,
-        "NoobShell", Permissions::NoobShell,
-        "Screencast", Permissions::Screencast
+    new_enum("Permission",
+        "AccessAllPluginDataUrl", Permission::AccessAllPluginDataUrl,
+        "AccessAllPluginUrl", Permission::AccessAllPluginUrl,
+        "AccessDbUrl", Permission::AccessDbUrl,
+        "AccessLocalFile", Permission::AccessLocalFile,
+        "NetServer", Permission::NetServer,
+        "NetClient", Permission::NetClient,
+        "OsShell", Permission::OsShell,
+        "NoobShell", Permission::NoobShell,
+        "ScreenRecord", Permission::ScreenRecord,
+        "AudioRecord", Permission::AudioRecord
     );
 
     auto scriptType = new_usertype<LuaScript>("Script", sol::no_constructor);
@@ -430,7 +435,13 @@ int LuaState::Open() {
     vfsType["OpenHandle"] = &VirtualFileSystem::OpenHandle;
     vfsType["CloseHandle"] = &VirtualFileSystem::CloseHandle;
     vfsType["IsHandleEOF"] = &VirtualFileSystem::IsHandleEOF;
-    vfsType["ReadHandleChunk"] = [](VirtualFileSystem &vfs, FSEntryHandle handle, int size) -> std::tuple<bool, std::string> {
+    vfsType["ReadHandleChunk"] = [](sol::this_state state, VirtualFileSystem &vfs, FSEntryHandle handle, int size) -> std::tuple<bool, sol::object> {
+        std::vector<unsigned char> buf;
+        bool isReading = vfs.ReadHandleChunk(handle, &buf, size);
+        return {isReading, sol::make_object(state, sol::copy_buffer(buf))};
+    };
+    // if you're not a fan of luau's buffer datatype, use this instead. its the old fashioned way
+    vfsType["ReadHandleChunkString"] = [](VirtualFileSystem &vfs, FSEntryHandle handle, int size) -> std::tuple<bool, std::string> {
         std::vector<unsigned char> buf;
         bool isReading = vfs.ReadHandleChunk(handle, &buf, size);
         return {isReading, std::string(buf.begin(), buf.end())};
@@ -439,6 +450,27 @@ int LuaState::Open() {
         std::string buf;
         bool isReading = vfs.ReadHandleLine(handle, &buf);
         return {isReading, buf};
+    };
+    vfsType["ReadFile"] = [](sol::this_state state, VirtualFileSystem &vfs, const std::string &path) -> sol::object {
+        lua_State* L = state;
+        FSEntryInfo info = vfs.GetEntryFromPath(path);
+        if (!info.Exists)
+            return sol::lua_nil;
+        FSEntryHandle h = vfs.OpenHandle(path);
+        auto* out = static_cast<unsigned char*>(lua_newbuffer(L, info.Size));
+        size_t off = 0;
+        std::vector<unsigned char> chunk;
+        bool more = true;
+        while (more && off < info.Size) {
+            more = vfs.ReadHandleChunk(h, &chunk, 65536);
+            size_t n = std::min<size_t>(chunk.size(), info.Size - off);
+            std::memcpy(out + off, chunk.data(), n);
+            off += n;
+        }
+        vfs.CloseHandle(h);
+        sol::object buf(L, -1);
+        lua_pop(L, 1);
+        return buf;
     };
     vfsType["EntryExists"] = &VirtualFileSystem::EntryExists;
     vfsType["DeleteEntry"] = &VirtualFileSystem::DeleteEntry;
@@ -1160,6 +1192,17 @@ int LuaState::Open() {
         return Url(path, ctx).Resolve();
     });
     set("url", urlLib);
+
+    sol::table osTbl = (*this)["os"];
+    osTbl.set_function("Screenshot", [](sol::table opts) {
+        auto filePath = opts.get_or<std::string>("FilePath", "");
+        
+        if (filePath.empty()) {
+
+        }
+        CaptureScreen({ .Destintation = filePath });
+        return sol::lua_nil;
+    });
 
     set("loadstring", [this](sol::this_state state, sol::this_environment tenv, const std::string &src, sol::optional<std::string> chunkName) -> std::tuple<sol::object, sol::object> {
         sol::load_result res = load(src, chunkName.value_or("=loadstring"), sol::load_mode::text);
