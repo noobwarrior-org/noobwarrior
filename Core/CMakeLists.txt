@@ -91,19 +91,13 @@ target_include_directories(sqlite3
 # we need this enabled for full text search
 target_compile_definitions(sqlite3 PRIVATE SQLITE_ENABLE_FTS5=1)
 
-if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-    CPMAddPackage(
-        URI "gh:WohlSoft/LuaJIT#59d961b"
-        OPTIONS "LUAJIT_DISABLE_SSE2 ON"
-    )
-else()
-    CPMAddPackage(
-        URI "gh:WohlSoft/LuaJIT#59d961b"
-    )
-endif()
+CPMAddPackage(
+    URI "gh:luau-lang/luau#0.741"
+    OPTIONS "LUAU_EXTERN_C ON"
+)
 
 CPMAddPackage(
-    URI "gh:ThePhD/sol2#c1f95a7"
+    URI "gh:Nerixyz/sol2#c5ab5cf"
 )
 
 CPMAddPackage("gh:nlohmann/json#v3.11.3")
@@ -414,7 +408,8 @@ target_link_libraries(NoobWarrior.Core PUBLIC
     libcurl
     cpr::cpr
     sqlite3
-    libluajit
+    Luau.Compiler
+    Luau.VM
     sol2
     nlohmann_json
     event_core

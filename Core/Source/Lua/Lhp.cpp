@@ -28,7 +28,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/PluginManager.h>
 
-#include <lua.hpp>
+#include <lua.h>
 
 #include "files/lhp_env_metatable.lua.inc.cpp"
 
@@ -171,7 +171,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             restoreEnv();
             return RenderResponse::ExitCalled;
         }
-        mLua->GetCore()->Out("Lhp", "(Render Failure) {}", err.what());
+        mLua->GetCore()->Out("Lhp", "[{}] (Render Failure) {}", path.Resolve(), err.what());
         restoreEnv();
         return RenderResponse::LuaError;
     }

@@ -28,6 +28,7 @@
 
 #include <cstring>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -155,19 +156,19 @@ void RootHandler::OnRequest(evhttp_request* req, void *userdata) {
         evkeyvalq* outHeaders = evhttp_request_get_output_headers(req);
         while (evhttp_remove_header(outHeaders, key.c_str()) == 0) {}
     };
-    reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::string reason, std::string data) {
+    reqTbl["SendReply"] = [req, &sentReply](sol::table self, int code, std::optional<std::string> reason, std::string data) {
         if (sentReply)
             return;
         evbuffer *reply = evbuffer_new();
         evbuffer_add(reply, data.data(), data.size());
-        evhttp_send_reply(req, code, reason.c_str(), reply);
+        evhttp_send_reply(req, code, reason ? reason->c_str() : nullptr, reply);
         evbuffer_free(reply);
         sentReply = true;
     };
-    reqTbl["SendError"] = [req, &sentReply](sol::table self, int error, std::string reason) {
+    reqTbl["SendError"] = [req, &sentReply](sol::table self, int error, std::optional<std::string> reason) {
         if (sentReply)
             return;
-        evhttp_send_error(req, error, reason.c_str());
+        evhttp_send_error(req, error, reason ? reason->c_str() : nullptr);
         sentReply = true;
     };
     if (method == EVHTTP_REQ_POST) {

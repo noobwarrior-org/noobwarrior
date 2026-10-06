@@ -54,7 +54,7 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Open() {
             switch (chunk.status()) {
                 case sol::load_status::syntax: return RegistryResponse::SyntaxError;
                 case sol::load_status::memory: return RegistryResponse::MemoryError;
-                case sol::load_status::file:   return RegistryResponse::CantReadFile;
+                // case sol::load_status::file:   return RegistryResponse::CantReadFile;
                 default:                       return RegistryResponse::Failed;
             }
         }
@@ -166,7 +166,7 @@ NoobWarrior::RegistryResponse NoobWarrior::BaseRegistry::Save() {
         switch (serpentChunk.status()) {
             case sol::load_status::syntax: return RegistryResponse::SyntaxError;
             case sol::load_status::memory: return RegistryResponse::MemoryError;
-            case sol::load_status::file:   return RegistryResponse::CantReadFile;
+            // case sol::load_status::file:   return RegistryResponse::CantReadFile;
             default:                       return RegistryResponse::Failed;
         }
     }

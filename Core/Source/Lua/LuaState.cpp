@@ -43,7 +43,8 @@
 #include <NoobWarrior/Console/Command/Command.h>
 #include <NoobWarrior/Console/Command/FuncCommand.h>
 
-#include <lua.hpp>
+#include <lua.h>
+#include <luacode.h>
 #include <sol/sol.hpp>
 
 #include <curl/curl.h>
@@ -139,17 +140,13 @@ LuaState::LuaState(Core* core) :
 
     open_libraries(
         sol::lib::base,
-        sol::lib::package,
         sol::lib::coroutine,
         sol::lib::string,
         sol::lib::os,
         sol::lib::math,
         sol::lib::table,
         sol::lib::debug,
-        sol::lib::bit32,
-        sol::lib::io,
-        sol::lib::ffi,
-        sol::lib::jit
+        sol::lib::bit32
     );
 
     do_string(rawget_path_lua);
@@ -1111,35 +1108,40 @@ int LuaState::Open() {
     urlLib.set_function("ResolveFromCaller", [](sol::this_state state, const std::string &path) -> std::string {
         lua_State* L = state;
 
-        auto scriptAtLevel = [L](int level) -> LuaScript* {
+        auto scriptAtLevel = [L](int level, LuaScript** out) -> bool {
             lua_Debug ar;
+#if defined(LUA_UTAG_LIMIT)
+            if (lua_getinfo(L, level, "f", &ar) == 0)
+                return false;
+#else
             if (lua_getstack(L, level, &ar) == 0)
-                return nullptr;
+                return false;
             if (lua_getinfo(L, "f", &ar) == 0)
-                return nullptr; // pushes the function
-            LuaScript* result = nullptr;
+                return false; // pushes the function
+#endif
+            *out = nullptr;
             if (lua_isfunction(L, -1)) {
                 lua_getfenv(L, -1); // pushes the function's environment (sol stores `script` here)
                 if (lua_istable(L, -1)) {
                     sol::table env(L, -1);
-                    result = env["script"].get_or<LuaScript*>(nullptr);
+                    *out = env["script"].get_or<LuaScript*>(nullptr);
                 }
                 lua_pop(L, 1); // env
             }
             lua_pop(L, 1); // function
-            return result;
+            return true;
         };
 
         // Level 1 is the immediate Lua caller (the plugin doing the resolving, e.g. http-base).
-        LuaScript* self = scriptAtLevel(1);
+        LuaScript* self = nullptr;
+        scriptAtLevel(1, &self);
         std::string selfHost = self != nullptr ? self->GetUrl().GetHostName() : std::string();
 
         LuaScript* owner = self;
         for (int level = 2; ; level++) {
-            lua_Debug probe;
-            if (lua_getstack(L, level, &probe) == 0)
+            LuaScript* candidate = nullptr;
+            if (!scriptAtLevel(level, &candidate))
                 break; // hit the bottom of the stack without finding a foreign caller
-            LuaScript* candidate = scriptAtLevel(level);
             if (candidate != nullptr && candidate->GetUrl().GetHostName() != selfHost) {
                 owner = candidate;
                 break;
@@ -1158,6 +1160,20 @@ int LuaState::Open() {
         return Url(path, ctx).Resolve();
     });
     set("url", urlLib);
+
+    set("loadstring", [this](sol::this_state state, sol::this_environment tenv, const std::string &src, sol::optional<std::string> chunkName) -> std::tuple<sol::object, sol::object> {
+        sol::load_result res = load(src, chunkName.value_or("=loadstring"), sol::load_mode::text);
+        if (!res.valid()) {
+            sol::error err = res;
+            return { sol::lua_nil, sol::make_object(state, err.what()) };
+        }
+        sol::protected_function fn = res;
+        if (tenv) {
+            sol::environment &env = tenv;
+            env.set_on(fn);
+        }
+        return { fn, sol::lua_nil };
+    });
     
     mCore->Out("Lua", "Initialized Lua");
     return 1;

@@ -198,7 +198,7 @@ end
 function http_base.AttachToServer(srv, params)
     if params.Sitemap then
         normalize_sitemap(params.Sitemap)
-        warn_about_unguarded_endpoints(params.Sitemap)
+        -- warn_about_unguarded_endpoints(params.Sitemap) annoying
     end
     srv.OnRequest:Connect(function(req)
         local get_tbl = {}

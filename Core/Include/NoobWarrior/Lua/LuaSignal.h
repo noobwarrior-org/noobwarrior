@@ -26,7 +26,7 @@
 #include <functional>
 #include <vector>
 
-#include <lua.hpp>
+#include <lua.h>
 #include <sol/sol.hpp>
 
 #include <NoobWarrior/Log.h>

@@ -52,7 +52,7 @@
 #include "Lua/LuaSignal.h"
 
 #include <event.h>
-#include <lua.hpp>
+#include <lua.h>
 #include <curl/curl.h>
 
 #include <string_view>

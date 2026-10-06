@@ -23,7 +23,7 @@
 // Started on: 12/3/2025
 // Description:
 #pragma once
-#include <lua.hpp>
+#include <lua.h>
 #include <sol/sol.hpp>
 
 #include <NoobWarrior/Lua/LuaScript.h>

@@ -32,7 +32,7 @@
 
 #include "Lua/files/plugin_env_metatable.lua.inc.cpp"
 
-#include <lua.hpp>
+#include <lua.h>
 #include <sol/sol.hpp>
 #include <memory>
 #include <algorithm>
