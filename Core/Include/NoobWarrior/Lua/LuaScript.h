@@ -24,6 +24,7 @@
 // Description:
 #pragma once
 #include <NoobWarrior/Url.h>
+#include <NoobWarrior/Permission.h>
 
 #include <sol/sol.hpp>
 
@@ -58,6 +59,8 @@ public:
     Url& GetUrl();
     std::string GetSource();
     ProtocolType GetLocationContext();
+
+    bool HasPermission(Permission perm);
 private:
     LuaState* mLua;
     Url mUrl;

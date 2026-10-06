@@ -242,7 +242,7 @@ bool PluginListWidget::IsItemLocked(const QListWidgetItem* item) {
     return item != nullptr && item->data(RoleLocked).toBool();
 }
 
-// A plugin is either a .zip archive or a directory holding a plugin.lua, so both are droppable.
+// A plugin is either a .zip archive or a directory holding a manifest.luau, so both are droppable.
 static QStringList ExtractPluginPaths(const QMimeData* mime) {
     QStringList paths;
     if (mime == nullptr || !mime->hasUrls())

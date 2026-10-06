@@ -214,3 +214,7 @@ Url& LuaScript::GetUrl() {
 std::string LuaScript::GetSource() {
     return mSource;
 }
+
+bool LuaScript::HasPermission(Permission perm) {
+    return true;
+}

@@ -22,12 +22,13 @@
 // Started by: Hattozo
 // Started on: 1/10/2026
 // Description: Url class that supports a bunch of cool custom protocols and shit
-#include "NoobWarrior/Paths.h"
+#include <NoobWarrior/Paths.h>
 #include <NoobWarrior/Url.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/PluginManager.h>
+#include <NoobWarrior/Lua/LuaScript.h>
 
 #include <map>
 
@@ -86,6 +87,12 @@ bool Url::IsBlank() const {
             containsNotSlash = true;
     }
     return mStr.empty() || !containsNotSlash;
+}
+
+bool Url::IsAccessAllowed() const {
+    if (GetProtocol() == ProtocolType::Plugin) {
+
+    }
 }
 
 bool Url::DoesStringHaveProtocol() const {

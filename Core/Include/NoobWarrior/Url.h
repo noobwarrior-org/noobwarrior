@@ -29,6 +29,7 @@
 
 namespace NoobWarrior {
 class Core;
+class LuaScript;
 
 enum class ProtocolType {
     Unsupported,
@@ -68,6 +69,12 @@ struct UrlContext {
        This does nothing if DefaultProtocolType is not set to either Plugin or Http/Https.
        It will also do nothing if HostName is an empty string */
     bool EnforceHostName { false };
+
+    /* What Lua script the URL is being requested from.
+       We have a policy where we ask "can the script reach this URL?"
+       And if it can't, it can't.
+       If it is nullptr, there are no restrictions */
+    LuaScript* Caller { nullptr };
 };
 
 class Url {
@@ -86,6 +93,7 @@ public:
 
     bool Fail() const;
     bool IsBlank() const;
+    bool IsAccessAllowed() const;
 
     bool DoesStringHaveProtocol() const;
     bool DoesStringHaveHostName() const;

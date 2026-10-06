@@ -98,15 +98,21 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
         return;
     }
 
-    if (!mVfs->EntryExists("/plugin.lua")) {
-        mCore->Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a plugin.lua file.", GetFileName());
+    std::string manifestFileName = "";
+    if (mVfs->EntryExists("/manifest.lua"))
+        manifestFileName = "/manifest.lua";
+    if (mVfs->EntryExists("/manifest.luau")) // .luau is prioritized over .lua extension
+        manifestFileName = "/manifest.luau";
+
+    if (manifestFileName.empty()) {
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "its root directory does not contain a manifest file.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     std::string pluginLuaString;
 
-    mVfsHandle = mVfs->OpenHandle("/plugin.lua");
+    mVfsHandle = mVfs->OpenHandle(manifestFileName);
     std::string buf;
     while (mVfs->ReadHandleLine(mVfsHandle, &buf))
         pluginLuaString.append(buf + '\n');
@@ -114,12 +120,12 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     sol::protected_function_result res = mCore->GetLuaState()->safe_script(pluginLuaString);
     if (!res.valid()) {
         sol::error err = res;
-        mCore->Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua failed with error: {}", GetFileName(), err.what());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "manifest file failed with error: {}", GetFileName(), err.what());
         mResponse = Response::Failed;
         return;
     }
     if (res.get_type() != sol::type::table) {
-        mCore->Out("Plugin", ERR_LOG_TEMPLATE "plugin.lua did not return a table.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "manifest file did not return a table.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
@@ -129,13 +135,13 @@ Plugin::Plugin(const std::filesystem::path &filePath, Core* core) :
     auto title = mManifestTbl.get<std::optional<std::string>>("title");
 
     if (identifier == std::nullopt) {
-        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in plugin.lua.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have an identifier set in the manifest file.", GetFileName());
         mResponse = Response::Failed;
         return;
     }
 
     if (title == std::nullopt) {
-        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in plugin.lua.", GetFileName());
+        mCore->Out("Plugin", ERR_LOG_TEMPLATE "it does not have a title set in the manifest file.", GetFileName());
         mResponse = Response::Failed;
         return;
     }

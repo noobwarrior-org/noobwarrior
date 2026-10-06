@@ -28,7 +28,7 @@
 #include <NoobWarrior/Lua/LuaSignal.h>
 #include <NoobWarrior/Lua/Lhp.h>
 #include <NoobWarrior/Log.h>
-#include <NoobWarrior/Permissions.h>
+#include <NoobWarrior/Permission.h>
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>

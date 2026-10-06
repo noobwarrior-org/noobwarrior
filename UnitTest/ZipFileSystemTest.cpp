@@ -101,23 +101,23 @@ TEST(ZipFileSystem, ReadsEveryByteOfADeflatedEntry) {
     // entry, so the first character of every line was eaten.
     TempZip zip;
     const std::string contents = "return {\n    identifier = \"x@y.z\",\n    title = \"X\"\n}\n";
-    ASSERT_TRUE(zip.Add("plugin.lua", contents));
+    ASSERT_TRUE(zip.Add("manifest.luau", contents));
 
     ZipFileSystem fs(zip.Path());
     ASSERT_FALSE(fs.Fail());
-    EXPECT_EQ(contents, ReadAllLines(fs, "/plugin.lua"));
+    EXPECT_EQ(contents, ReadAllLines(fs, "/manifest.luau"));
 }
 
 TEST(ZipFileSystem, FindsEntriesStoredWithBackslashSeparators) {
     // Windows' Compress-Archive writes "dir\file" even though the spec mandates "dir/file".
     TempZip zip;
-    ASSERT_TRUE(zip.Add("plugin.lua", "return {}\n"));
+    ASSERT_TRUE(zip.Add("manifest.luau", "return {}\n"));
     ASSERT_TRUE(zip.Add("databases\\content.nwdb", "not really a database"));
 
     ZipFileSystem fs(zip.Path());
     ASSERT_FALSE(fs.Fail());
 
-    EXPECT_TRUE(fs.EntryExists("/plugin.lua"));
+    EXPECT_TRUE(fs.EntryExists("/manifest.luau"));
     EXPECT_TRUE(fs.EntryExists("/databases/content.nwdb"))
         << "a backslash-separated entry must still be reachable by its virtual path";
     EXPECT_FALSE(fs.EntryExists("/databases/nope.nwdb"));
