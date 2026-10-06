@@ -25,7 +25,7 @@
 #pragma once
 
 namespace NoobWarrior {
-enum Permissions {
+enum class Permissions {
     AccessAllPluginDataUrl, // Can access plugin data outside of this plugins specialized folder
     AccessAllPluginUrl, // Can access all plugin URLs other than its own
     AccessDbUrl, // Can access EmuDb URLs
