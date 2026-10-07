@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // V20: fleshes out the FsNode table (the user-facing file manager tree) with creation/modification
-// timestamps and a shortcut target. A node's Type is now one of DatabaseFileSystem::NodeType
+// timestamps and a shortcut target. A node's Type is now one of EmuDbFileSystem::NodeType
 // (0 = Directory, 1 = File, 2 = Shortcut). For a Shortcut, ShortcutItemType holds an ItemType value
 // and ShortcutItemId the referenced item's Id. These are deliberately NOT foreign keys: the target
 // table varies with ShortcutItemType, and a dangling shortcut should simply render as broken rather

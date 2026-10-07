@@ -22,7 +22,7 @@
 // Started by: Hattozo
 // Started on: 6/27/2025
 // Description: A VirtualFileSystem implementation for the filesystem seen in noobWarrior's database system.
-#include <NoobWarrior/FileSystem/DatabaseFileSystem.h>
+#include <NoobWarrior/FileSystem/EmuDbFileSystem.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/SqlDb/Statement.h>

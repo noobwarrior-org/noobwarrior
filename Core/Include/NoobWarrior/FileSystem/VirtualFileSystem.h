@@ -67,7 +67,8 @@ public:
         Invalid,
         Standard,
         Zip,
-        Database
+        EmuDb,
+        ArchiveDb
     };
 
     static Format GetFormatFromPath(const std::filesystem::path &path);

@@ -25,7 +25,11 @@
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/FileSystem/StdFileSystem.h>
 #include <NoobWarrior/FileSystem/ZipFileSystem.h>
+#include <NoobWarrior/FileSystem/ArchiveDbFileSystem.h>
 #include <NoobWarrior/NoobWarrior.h>
+
+#include <algorithm>
+#include <cctype>
 
 using namespace NoobWarrior;
 
@@ -34,10 +38,14 @@ VirtualFileSystem::~VirtualFileSystem() {}
 VirtualFileSystem::Format VirtualFileSystem::GetFormatFromPath(const std::filesystem::path &path) {
     if (std::filesystem::is_directory(path))
         return Format::Standard;
-    else if (std::filesystem::exists(path))
-        return Format::Zip;
-    else
+    else if (!std::filesystem::exists(path))
         return Format::Invalid;
+
+    std::string ext = path.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (ext == ".sqlar" || ext == ".nwp")
+        return Format::ArchiveDb;
+    return Format::Zip;
 }
 
 VirtualFileSystem::Response VirtualFileSystem::New(VirtualFileSystem** vfsPtr, const std::filesystem::path &path) {
@@ -50,6 +58,9 @@ VirtualFileSystem::Response VirtualFileSystem::New(VirtualFileSystem** vfsPtr, c
         break;
     case Format::Zip:
         *vfsPtr = new ZipFileSystem(path);
+        break;
+    case Format::ArchiveDb:
+        *vfsPtr = new ArchiveDbFileSystem(path.string());
         break;
     }
     return !(*vfsPtr)->Fail() ? Response::Success : Response::Failed;

@@ -233,10 +233,10 @@ EmuDb* FileManagerWidget::GetDatabase() {
     return dbProj != nullptr ? dbProj->GetDb() : nullptr;
 }
 
-DatabaseFileSystem* FileManagerWidget::EnsureFileSystem() {
+EmuDbFileSystem* FileManagerWidget::EnsureFileSystem() {
     EmuDb* db = GetDatabase();
     if (db != mFsDb) {
-        mFs.reset(db != nullptr ? new DatabaseFileSystem(db) : nullptr);
+        mFs.reset(db != nullptr ? new EmuDbFileSystem(db) : nullptr);
         mFsDb = db;
         // The focused database changed: drop back to its root and forget history.
         mCurrentPath = "/";
@@ -258,16 +258,16 @@ void FileManagerWidget::Reload() {
 QString FileManagerWidget::ChildPath(const QString &name) const {
     QString base = (mCurrentPath == "/") ? QString() : mCurrentPath;
     std::string joined = (base + "/" + name).toStdString();
-    return QString::fromStdString(DatabaseFileSystem::NormalizePath(joined));
+    return QString::fromStdString(EmuDbFileSystem::NormalizePath(joined));
 }
 
 void FileManagerWidget::NavigateTo(const QString &path, bool pushHistory) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
-    QString norm = QString::fromStdString(DatabaseFileSystem::NormalizePath(path.toStdString()));
+    EmuDbFileSystem* fs = EnsureFileSystem();
+    QString norm = QString::fromStdString(EmuDbFileSystem::NormalizePath(path.toStdString()));
 
     if (fs != nullptr) {
-        std::optional<DatabaseFileSystem::Node> node = fs->GetNodeByPath(norm.toStdString());
-        if (!node || node->Type != DatabaseFileSystem::NodeType::Directory) {
+        std::optional<EmuDbFileSystem::Node> node = fs->GetNodeByPath(norm.toStdString());
+        if (!node || node->Type != EmuDbFileSystem::NodeType::Directory) {
             QMessageBox::warning(this, "Cannot Open Path", QString("\"%1\" is not a folder in this database.").arg(norm));
             AddressBar->setText(mCurrentPath);
             return;
@@ -301,7 +301,7 @@ void FileManagerWidget::GoForward() {
 void FileManagerWidget::GoUp() {
     if (mCurrentPath == "/")
         return;
-    auto [parent, name] = DatabaseFileSystem::SplitParentAndName(mCurrentPath.toStdString());
+    auto [parent, name] = EmuDbFileSystem::SplitParentAndName(mCurrentPath.toStdString());
     NavigateTo(QString::fromStdString(parent));
 }
 
@@ -312,7 +312,7 @@ void FileManagerWidget::UpdateNavButtons() {
 }
 
 void FileManagerWidget::Populate() {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     AddressBar->setText(mCurrentPath);
 
     if (fs == nullptr) {
@@ -325,8 +325,8 @@ void FileManagerWidget::Populate() {
 
     // If the current path vanished (e.g. after a project switch), fall back to the root.
     if (mCurrentPath != "/") {
-        std::optional<DatabaseFileSystem::Node> here = fs->GetNodeByPath(mCurrentPath.toStdString());
-        if (!here || here->Type != DatabaseFileSystem::NodeType::Directory) {
+        std::optional<EmuDbFileSystem::Node> here = fs->GetNodeByPath(mCurrentPath.toStdString());
+        if (!here || here->Type != EmuDbFileSystem::NodeType::Directory) {
             mCurrentPath = "/";
             AddressBar->setText(mCurrentPath);
         }
@@ -340,7 +340,7 @@ void FileManagerWidget::Populate() {
 
     QString filter = mSearchFilter.trimmed();
     QLocale locale;
-    for (const DatabaseFileSystem::Node &node : fs->ListChildrenByPath(mCurrentPath.toStdString())) {
+    for (const EmuDbFileSystem::Node &node : fs->ListChildrenByPath(mCurrentPath.toStdString())) {
         QString name = QString::fromStdString(node.Name);
         if (!filter.isEmpty() && !name.contains(filter, Qt::CaseInsensitive))
             continue;
@@ -349,7 +349,7 @@ void FileManagerWidget::Populate() {
         QString dateText = node.ModifiedAt > 0
             ? QDateTime::fromSecsSinceEpoch(node.ModifiedAt).toString("yyyy-MM-dd hh:mm")
             : QString();
-        QString sizeText = node.Type == DatabaseFileSystem::NodeType::File
+        QString sizeText = node.Type == EmuDbFileSystem::NodeType::File
             ? locale.formattedDataSize(static_cast<qint64>(node.Size))
             : QString();
         QIcon icon = NodeIcon(node);
@@ -473,52 +473,52 @@ std::vector<int64_t> FileManagerWidget::SelectedNodeIds() {
 }
 
 std::optional<int64_t> FileManagerWidget::CurrentDirId() {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr || mCurrentPath == "/")
         return std::nullopt;
     return fs->ResolvePath(mCurrentPath.toStdString());
 }
 
-QString FileManagerWidget::NodeTypeText(const DatabaseFileSystem::Node &node) {
+QString FileManagerWidget::NodeTypeText(const EmuDbFileSystem::Node &node) {
     switch (node.Type) {
-    case DatabaseFileSystem::NodeType::Directory:
+    case EmuDbFileSystem::NodeType::Directory:
         return "File folder";
-    case DatabaseFileSystem::NodeType::Shortcut: {
+    case EmuDbFileSystem::NodeType::Shortcut: {
         if (node.ShortcutItemType)
             return QString("Shortcut (%1)").arg(QString::fromStdString(GetTableNameFromItemType(static_cast<ItemType>(*node.ShortcutItemType))));
         return "Shortcut";
     }
-    case DatabaseFileSystem::NodeType::File:
+    case EmuDbFileSystem::NodeType::File:
     default:
         return "Document";
     }
 }
 
-QIcon FileManagerWidget::NodeIcon(const DatabaseFileSystem::Node &node) {
+QIcon FileManagerWidget::NodeIcon(const EmuDbFileSystem::Node &node) {
     switch (node.Type) {
-    case DatabaseFileSystem::NodeType::Directory:
+    case EmuDbFileSystem::NodeType::Directory:
         return QIcon(":/images/silk/folder.png");
-    case DatabaseFileSystem::NodeType::Shortcut:
+    case EmuDbFileSystem::NodeType::Shortcut:
         return QIcon(":/images/silk/brick_link.png");
-    case DatabaseFileSystem::NodeType::File:
+    case EmuDbFileSystem::NodeType::File:
     default:
         return QIcon(":/images/silk/page_white.png");
     }
 }
 
 void FileManagerWidget::ActivateNode(int64_t id) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
-    std::optional<DatabaseFileSystem::Node> node = fs->GetNode(id);
+    std::optional<EmuDbFileSystem::Node> node = fs->GetNode(id);
     if (!node)
         return;
 
     switch (node->Type) {
-    case DatabaseFileSystem::NodeType::Directory:
+    case EmuDbFileSystem::NodeType::Directory:
         NavigateTo(ChildPath(QString::fromStdString(node->Name)));
         break;
-    case DatabaseFileSystem::NodeType::Shortcut: {
+    case EmuDbFileSystem::NodeType::Shortcut: {
         if (!node->ShortcutItemType || !node->ShortcutItemId) {
             QMessageBox::warning(this, "Broken Shortcut", "This shortcut has no target.");
             return;
@@ -538,14 +538,14 @@ void FileManagerWidget::ActivateNode(int64_t id) {
         dialog.exec();
         break;
     }
-    case DatabaseFileSystem::NodeType::File:
+    case EmuDbFileSystem::NodeType::File:
         DoOpenDocument(id);
         break;
     }
 }
 
 void FileManagerWidget::ShowContextMenu(const QPoint &globalPos, bool onItem) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
 
@@ -553,7 +553,7 @@ void FileManagerWidget::ShowContextMenu(const QPoint &globalPos, bool onItem) {
     QMenu menu(this);
 
     if (onItem && !selected.empty()) {
-        std::optional<DatabaseFileSystem::Node> first = fs->GetNode(selected.front());
+        std::optional<EmuDbFileSystem::Node> first = fs->GetNode(selected.front());
         bool single = selected.size() == 1;
 
         QAction* openAct = menu.addAction("Open");
@@ -569,7 +569,7 @@ void FileManagerWidget::ShowContextMenu(const QPoint &globalPos, bool onItem) {
         QAction* copyAct = menu.addAction(QIcon(":/images/silk/page_copy.png"), "Copy");
         connect(copyAct, &QAction::triggered, this, [this, selected]() { DoCopy(selected, false); });
 
-        if (single && first && first->Type == DatabaseFileSystem::NodeType::Directory && !mClipboardIds.empty()) {
+        if (single && first && first->Type == EmuDbFileSystem::NodeType::Directory && !mClipboardIds.empty()) {
             QAction* pasteIntoAct = menu.addAction("Paste Into Folder");
             connect(pasteIntoAct, &QAction::triggered, this, [this, id = selected.front()]() {
                 DoPaste(std::optional<int64_t>(id));
@@ -636,7 +636,7 @@ void FileManagerWidget::ShowContextMenu(const QPoint &globalPos, bool onItem) {
 }
 
 void FileManagerWidget::DoNewFolder() {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
     bool ok = false;
@@ -651,7 +651,7 @@ void FileManagerWidget::DoNewFolder() {
 }
 
 void FileManagerWidget::DoNewDocument() {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
     bool ok = false;
@@ -666,7 +666,7 @@ void FileManagerWidget::DoNewDocument() {
 }
 
 void FileManagerWidget::DoNewShortcut() {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
     EmuDb* db = fs->GetDatabase();
@@ -705,10 +705,10 @@ void FileManagerWidget::DoNewShortcut() {
 }
 
 void FileManagerWidget::DoRename(int64_t id) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
-    std::optional<DatabaseFileSystem::Node> node = fs->GetNode(id);
+    std::optional<EmuDbFileSystem::Node> node = fs->GetNode(id);
     if (!node)
         return;
     bool ok = false;
@@ -726,7 +726,7 @@ void FileManagerWidget::DoRename(int64_t id) {
 }
 
 void FileManagerWidget::DoDelete(const std::vector<int64_t> &ids) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr || ids.empty())
         return;
     QString prompt = ids.size() == 1
@@ -749,7 +749,7 @@ void FileManagerWidget::DoCopy(const std::vector<int64_t> &ids, bool cut) {
 }
 
 void FileManagerWidget::DoPaste(const std::optional<int64_t> &destDir) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr || mClipboardIds.empty())
         return;
     if (mClipboardDb != GetDatabase()) {
@@ -774,10 +774,10 @@ void FileManagerWidget::DoPaste(const std::optional<int64_t> &destDir) {
 }
 
 void FileManagerWidget::DoOpenDocument(int64_t id) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
-    std::optional<DatabaseFileSystem::Node> node = fs->GetNode(id);
+    std::optional<EmuDbFileSystem::Node> node = fs->GetNode(id);
     if (!node)
         return;
 
@@ -813,7 +813,7 @@ void FileManagerWidget::DoOpenDocument(int64_t id) {
             return false;
         QByteArray bytes = editor->toPlainText().toUtf8();
         std::vector<unsigned char> data(bytes.begin(), bytes.end());
-        DatabaseFileSystem fs(db);
+        EmuDbFileSystem fs(db);
         if (fs.WriteFileContent(id, data) != VirtualFileSystem::Response::Success) {
             QMessageBox::warning(editor, "Save", "Could not save the document.");
             return false;
@@ -838,7 +838,7 @@ void FileManagerWidget::DoOpenDocument(int64_t id) {
     mOpenDocuments[key] = container;
 }
 
-void FileManagerWidget::PruneDocumentEditors(DatabaseFileSystem* fs) {
+void FileManagerWidget::PruneDocumentEditors(EmuDbFileSystem* fs) {
     for (auto it = mOpenDocuments.begin(); it != mOpenDocuments.end();) {
         if (it->second.isNull()) {
             it = mOpenDocuments.erase(it);
@@ -855,10 +855,10 @@ void FileManagerWidget::PruneDocumentEditors(DatabaseFileSystem* fs) {
 }
 
 void FileManagerWidget::DoProperties(int64_t id) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
-    std::optional<DatabaseFileSystem::Node> node = fs->GetNode(id);
+    std::optional<EmuDbFileSystem::Node> node = fs->GetNode(id);
     if (!node)
         return;
 
@@ -867,9 +867,9 @@ void FileManagerWidget::DoProperties(int64_t id) {
     details += QString("Name:\t%1\n").arg(QString::fromStdString(node->Name));
     details += QString("Type:\t%1\n").arg(NodeTypeText(*node));
     details += QString("Location:\t%1\n").arg(mCurrentPath);
-    if (node->Type == DatabaseFileSystem::NodeType::File)
+    if (node->Type == EmuDbFileSystem::NodeType::File)
         details += QString("Size:\t%1 (%2 bytes)\n").arg(locale.formattedDataSize(static_cast<qint64>(node->Size))).arg(node->Size);
-    if (node->Type == DatabaseFileSystem::NodeType::Shortcut && node->ShortcutItemType && node->ShortcutItemId) {
+    if (node->Type == EmuDbFileSystem::NodeType::Shortcut && node->ShortcutItemType && node->ShortcutItemId) {
         ItemType t = static_cast<ItemType>(*node->ShortcutItemType);
         details += QString("Target:\t%1 #%2\n").arg(QString::fromStdString(GetTableNameFromItemType(t))).arg(*node->ShortcutItemId);
         std::optional<std::string> itemName = fs->GetDatabase()->GetItemName(t, *node->ShortcutItemId);
@@ -890,23 +890,23 @@ void FileManagerWidget::DoProperties(int64_t id) {
 }
 
 void FileManagerWidget::ExportNodeToDisk(int64_t id, const QString &destDir) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr)
         return;
-    std::optional<DatabaseFileSystem::Node> node = fs->GetNode(id);
+    std::optional<EmuDbFileSystem::Node> node = fs->GetNode(id);
     if (!node)
         return;
 
     QString target = QDir(destDir).filePath(QString::fromStdString(node->Name));
 
     switch (node->Type) {
-    case DatabaseFileSystem::NodeType::Directory: {
+    case EmuDbFileSystem::NodeType::Directory: {
         QDir().mkpath(target);
-        for (const DatabaseFileSystem::Node &child : fs->ListChildren(id))
+        for (const EmuDbFileSystem::Node &child : fs->ListChildren(id))
             ExportNodeToDisk(child.Id, target);
         break;
     }
-    case DatabaseFileSystem::NodeType::File: {
+    case EmuDbFileSystem::NodeType::File: {
         std::vector<unsigned char> content;
         fs->ReadFileContent(id, &content);
         std::ofstream out(target.toStdString(), std::ios::binary | std::ios::trunc);
@@ -914,22 +914,22 @@ void FileManagerWidget::ExportNodeToDisk(int64_t id, const QString &destDir) {
             out.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(content.size()));
         break;
     }
-    case DatabaseFileSystem::NodeType::Shortcut:
+    case EmuDbFileSystem::NodeType::Shortcut:
         // Shortcuts are database-internal references; there's nothing to write to disk.
         break;
     }
 }
 
 void FileManagerWidget::DoDownload(const std::vector<int64_t> &ids) {
-    DatabaseFileSystem* fs = EnsureFileSystem();
+    EmuDbFileSystem* fs = EnsureFileSystem();
     if (fs == nullptr || ids.empty())
         return;
 
     // A single document downloads via a plain "Save File" dialog; anything else (a folder, or several
     // items) downloads into a chosen destination folder, mirroring the database tree on disk.
     if (ids.size() == 1) {
-        std::optional<DatabaseFileSystem::Node> node = fs->GetNode(ids.front());
-        if (node && node->Type == DatabaseFileSystem::NodeType::File) {
+        std::optional<EmuDbFileSystem::Node> node = fs->GetNode(ids.front());
+        if (node && node->Type == EmuDbFileSystem::NodeType::File) {
             QString path = QFileDialog::getSaveFileName(this, "Download Document", QString::fromStdString(node->Name));
             if (path.isEmpty())
                 return;
@@ -940,7 +940,7 @@ void FileManagerWidget::DoDownload(const std::vector<int64_t> &ids) {
                 out.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(content.size()));
             return;
         }
-        if (node && node->Type == DatabaseFileSystem::NodeType::Shortcut) {
+        if (node && node->Type == EmuDbFileSystem::NodeType::Shortcut) {
             QMessageBox::information(this, "Download", "Shortcuts point at items inside the database and can't be downloaded as files.");
             return;
         }

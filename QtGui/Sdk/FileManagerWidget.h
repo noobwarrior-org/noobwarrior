@@ -26,7 +26,7 @@
 // seeing in the SQLite database. This lets you organize it yourself, just like a traditional file manager: tree
 // views, folders, documents, and shortcuts to Roblox items, all backed by the database's FsNode table.
 #pragma once
-#include <NoobWarrior/FileSystem/DatabaseFileSystem.h>
+#include <NoobWarrior/FileSystem/EmuDbFileSystem.h>
 
 #include <QDockWidget>
 #include <QString>
@@ -84,7 +84,7 @@ private:
     void FitDetailsColumns();
 
     EmuDb* GetDatabase();
-    DatabaseFileSystem* EnsureFileSystem();
+    EmuDbFileSystem* EnsureFileSystem();
 
     void NavigateTo(const QString &path, bool pushHistory = true);
     void Populate();
@@ -111,14 +111,14 @@ private:
     void DoPaste(const std::optional<int64_t> &destDir);
     void DoDownload(const std::vector<int64_t> &ids);
     void DoOpenDocument(int64_t id);
-    void PruneDocumentEditors(DatabaseFileSystem* fs);
+    void PruneDocumentEditors(EmuDbFileSystem* fs);
     void DoProperties(int64_t id);
 
-    QString NodeTypeText(const DatabaseFileSystem::Node &node);
-    QIcon NodeIcon(const DatabaseFileSystem::Node &node);
+    QString NodeTypeText(const EmuDbFileSystem::Node &node);
+    QIcon NodeIcon(const EmuDbFileSystem::Node &node);
     void ExportNodeToDisk(int64_t id, const QString &destDir);
 
-    std::unique_ptr<DatabaseFileSystem> mFs;
+    std::unique_ptr<EmuDbFileSystem> mFs;
     EmuDb* mFsDb { nullptr };
     QString mCurrentPath { "/" };
     QStringList mBackStack;

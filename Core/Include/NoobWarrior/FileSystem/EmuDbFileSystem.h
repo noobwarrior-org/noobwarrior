@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: DatabaseFileSystem.h
+// File: EmuDbFileSystem.h
 // Started by: Hattozo
 // Started on: 12/5/2025
 // Description: A VirtualFileSystem implementation for the filesystem seen in noobWarrior's database system.

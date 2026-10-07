@@ -272,7 +272,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/FileSystem/OverlayFileSystem.cpp
     Source/FileSystem/StdFileSystem.cpp
     Source/FileSystem/ZipFileSystem.cpp
-    Source/FileSystem/DatabaseFileSystem.cpp
+    Source/FileSystem/EmuDbFileSystem.cpp
     Source/Keychain/Keychain.cpp
     Source/Keychain/EmuKeychain.cpp
     Source/Keychain/MasterKeychain.cpp
@@ -398,6 +398,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Roblox/FileFormat/Tree/Instance.cpp
     Source/algorithm/base64.cpp
     Source/ScreenRecord.cpp
+    Source/FileSystem/ArchiveDbFileSystem.cpp
 )
 target_include_directories(NoobWarrior.Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
 target_link_libraries(NoobWarrior.Core PUBLIC
