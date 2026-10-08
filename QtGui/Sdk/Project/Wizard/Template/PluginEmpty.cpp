@@ -24,6 +24,11 @@
 // Description:
 #include "PluginEmpty.h"
 #include "../ProjectWizard.h"
+#include "Application.h"
+#include "Sdk/Project/Plugin/PluginProject.h"
+
+#include <QMessageBox>
+#include <QFileDialog>
 
 using namespace NoobWarrior;
 
@@ -35,6 +40,54 @@ PluginEmptyIntroPage::PluginEmptyIntroPage(QWidget *parent) : TemplatePage(paren
     mFormLayout = new QFormLayout();
     mMainLayout->addLayout(mFormLayout);
 
+    mPathEdit = new QLineEdit();
+    mPathEdit->setText(QString::fromStdString((gApp->GetCore()->GetUserDataDir() / "databases").string()));
+    mFormLayout->addRow(new QLabel("File Path"), mPathEdit);
+
+    mIconFrame = new QFrame();
+    mIconFrame->setFrameShape(QFrame::Box);
+    mIconFrame->setFrameShadow(QFrame::Sunken);
+    mIconFrame->setAutoFillBackground(true);
+
+    mIconFrameLayout = new QVBoxLayout(mIconFrame);
+    mIconFrameLayout->setAlignment(Qt::AlignCenter);
+
+    mIcon = new QLabel();
+    mIcon->setPixmap(QPixmap(":/images/empty_database_96x96.png"));
+    mIcon->setProperty("path", "");
+    mIcon->setAlignment(Qt::AlignCenter);
+
+    mChangeIconButton = new QPushButton("Change Icon");
+
+    connect(mChangeIconButton, &QPushButton::clicked, [this]() {
+        QString filePath = QFileDialog::getOpenFileName(this, "Select Icon", QDir::currentPath(), "Image File (*.png *.jpg *.jpeg *.bmp *.gif)");
+        mIcon->setProperty("path", filePath);
+        
+        std::ifstream file(filePath.toStdString(), std::ios::binary);
+
+        if (!file.is_open()) {
+            QMessageBox::critical(this, "Error", "Unable to open file");
+            return;
+        }
+
+        std::vector<unsigned char> buffer(
+            (std::istreambuf_iterator<char>(file)),
+            std::istreambuf_iterator<char>()
+        );
+
+        QImage image;
+        image.loadFromData(buffer);
+
+        QPixmap pixmap = QPixmap::fromImage(image);
+
+        mIcon->setPixmap(pixmap.scaled(96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    });
+    
+    mIconFrameLayout->addWidget(mIcon);
+    mIconFrameLayout->addWidget(mChangeIconButton);
+
+    mFormLayout->addRow(new QLabel("Icon"), mIconFrame);
+
     mIdentifierEdit = new QLineEdit();
     mIdentifierEdit->setPlaceholderText("plugin@example.com");
     mFormLayout->addRow(new QLabel("Identifier"), mIdentifierEdit);
@@ -43,6 +96,48 @@ PluginEmptyIntroPage::PluginEmptyIntroPage(QWidget *parent) : TemplatePage(paren
     mTitleEdit->setPlaceholderText("Really Cool Plugin");
     mFormLayout->addRow(new QLabel("Title"), mTitleEdit);
 };
+
+bool PluginEmptyIntroPage::validatePage() {
+    if (!isComplete())
+        return false;
+    bool res = TemplatePage::validatePage();
+    if (res) {
+        Sdk* sdk = dynamic_cast<Sdk*>(wizard()->parent());
+        if (sdk == nullptr) {
+            gApp->GetCore()->Out("EmuDbEmptyIntroPage", "Failed to create project: Sdk is not a parent of wizard");
+            return false;
+        }
+        auto project = new PluginProject(mPathEdit->text().toStdString());
+        if (project->Fail()) {
+            auto error = QMessageBox::critical(this,
+                "Cannot Create Project",
+                QString("Failed to create the project.\nMessage received: \"%1\"")
+                    .arg(project->GetFailMsg())
+            );
+        }
+
+        QString iconPath = mIcon->property("path").toString();
+        
+        if (!iconPath.isEmpty()) {
+            std::ifstream file(iconPath.toStdString(), std::ios::binary);
+            if (file.is_open()) {
+                std::vector<unsigned char> buffer(
+                (std::istreambuf_iterator<char>(file)),
+                std::istreambuf_iterator<char>()
+                );
+
+                // project->GetDb()->SetIcon(buffer);
+            }
+        }
+
+        // project->GetDb()->SetTitle(mTitleEdit->text().toStdString());
+        // project->GetDb()->SetDescription(mDescriptionEdit->toPlainText().toStdString());
+        // project->GetDb()->SetAuthor(mAuthorEdit->text().toStdString());
+        // project->GetDb()->SetVersion(mVersionEdit->text().toStdString());
+        sdk->AddProject(project);
+    }
+    return res;
+}
 
 bool PluginEmptyIntroPage::isComplete() const {
     return !mIdentifierEdit->text().isEmpty() && !mTitleEdit->text().isEmpty();

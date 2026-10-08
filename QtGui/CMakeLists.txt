@@ -74,7 +74,7 @@ set(SOURCES
     Sdk/Project/EmuDb/EmuDbProject.cpp
     Sdk/Project/EmuDb/Widget/OverviewWidget.cpp
     Sdk/Project/EmuDb/Widget/ItemPreviewWidget.cpp
-    Sdk/Project/PluginProject.cpp
+    Sdk/Project/Plugin/PluginProject.cpp
     Sdk/Project/Wizard/ProjectWizard.cpp
     Sdk/Project/Wizard/ProjectWizardIntroPage.cpp
     Sdk/Project/Wizard/Template/TemplatePage.cpp

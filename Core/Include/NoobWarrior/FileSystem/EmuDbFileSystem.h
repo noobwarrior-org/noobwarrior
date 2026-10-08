@@ -39,7 +39,7 @@ namespace NoobWarrior {
 class EmuDb;
 class Statement;
 
-class DatabaseFileSystem : public VirtualFileSystem {
+class EmuDbFileSystem : public VirtualFileSystem {
 public:
     // The integer stored in FsNode.Type. Kept in sync with the migration v20 documentation.
     enum class NodeType {
@@ -62,8 +62,8 @@ public:
         std::optional<int64_t>  ShortcutItemId   {};        // referenced item id (shortcuts only)
     };
 
-    DatabaseFileSystem(EmuDb* db);
-    ~DatabaseFileSystem() override;
+    EmuDbFileSystem(EmuDb* db);
+    ~EmuDbFileSystem() override;
 
     EmuDb* GetDatabase() const { return mDb; }
 

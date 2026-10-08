@@ -46,18 +46,18 @@ void BindParent(Statement &stmt, int pos, const std::optional<int64_t> &parentId
 }
 }
 
-DatabaseFileSystem::DatabaseFileSystem(EmuDb* db) : mDb(db) {
+EmuDbFileSystem::EmuDbFileSystem(EmuDb* db) : mDb(db) {
     if (mDb == nullptr || mDb->Fail())
         mFailCode = 1;
 }
 
-DatabaseFileSystem::~DatabaseFileSystem() {}
+EmuDbFileSystem::~EmuDbFileSystem() {}
 
-std::unique_ptr<VirtualFileSystem> DatabaseFileSystem::MakeUnique() const {
-    return std::make_unique<DatabaseFileSystem>(*this);
+std::unique_ptr<VirtualFileSystem> EmuDbFileSystem::MakeUnique() const {
+    return std::make_unique<EmuDbFileSystem>(*this);
 }
 
-std::string DatabaseFileSystem::NormalizePath(const std::string &path) {
+std::string EmuDbFileSystem::NormalizePath(const std::string &path) {
     std::vector<std::string> parts = SplitPath(path);
     if (parts.empty())
         return "/";
@@ -67,7 +67,7 @@ std::string DatabaseFileSystem::NormalizePath(const std::string &path) {
     return out;
 }
 
-std::vector<std::string> DatabaseFileSystem::SplitPath(const std::string &path) {
+std::vector<std::string> EmuDbFileSystem::SplitPath(const std::string &path) {
     std::vector<std::string> parts;
     std::string cur;
     std::stringstream ss(path);
@@ -79,7 +79,7 @@ std::vector<std::string> DatabaseFileSystem::SplitPath(const std::string &path) 
     return parts;
 }
 
-std::pair<std::string, std::string> DatabaseFileSystem::SplitParentAndName(const std::string &path) {
+std::pair<std::string, std::string> EmuDbFileSystem::SplitParentAndName(const std::string &path) {
     std::vector<std::string> parts = SplitPath(path);
     if (parts.empty())
         return { "/", "" };
@@ -91,7 +91,7 @@ std::pair<std::string, std::string> DatabaseFileSystem::SplitParentAndName(const
     return { parent, name };
 }
 
-DatabaseFileSystem::Node DatabaseFileSystem::ReadNodeRow(Statement &stmt) {
+EmuDbFileSystem::Node EmuDbFileSystem::ReadNodeRow(Statement &stmt) {
     Node node;
     node.Id = stmt.GetInt64FromColumnIndex(0);
     if (!stmt.IsColumnIndexNull(1))
@@ -109,7 +109,7 @@ DatabaseFileSystem::Node DatabaseFileSystem::ReadNodeRow(Statement &stmt) {
     return node;
 }
 
-std::optional<DatabaseFileSystem::Node> DatabaseFileSystem::GetNode(int64_t id) {
+std::optional<EmuDbFileSystem::Node> EmuDbFileSystem::GetNode(int64_t id) {
     if (Fail())
         return std::nullopt;
 
@@ -124,7 +124,7 @@ std::optional<DatabaseFileSystem::Node> DatabaseFileSystem::GetNode(int64_t id) 
     return result;
 }
 
-std::optional<int64_t> DatabaseFileSystem::ResolvePath(const std::string &path) {
+std::optional<int64_t> EmuDbFileSystem::ResolvePath(const std::string &path) {
     if (Fail())
         return std::nullopt;
 
@@ -148,7 +148,7 @@ std::optional<int64_t> DatabaseFileSystem::ResolvePath(const std::string &path) 
     return currentParent; // empty when path was "/" (the root has no row)
 }
 
-std::optional<DatabaseFileSystem::Node> DatabaseFileSystem::GetNodeByPath(const std::string &path) {
+std::optional<EmuDbFileSystem::Node> EmuDbFileSystem::GetNodeByPath(const std::string &path) {
     std::string normalized = NormalizePath(path);
     if (normalized == "/") {
         Node root;
@@ -163,7 +163,7 @@ std::optional<DatabaseFileSystem::Node> DatabaseFileSystem::GetNodeByPath(const 
     return GetNode(*id);
 }
 
-std::vector<DatabaseFileSystem::Node> DatabaseFileSystem::ListChildren(const std::optional<int64_t> &parentId) {
+std::vector<EmuDbFileSystem::Node> EmuDbFileSystem::ListChildren(const std::optional<int64_t> &parentId) {
     std::vector<Node> out;
     if (Fail())
         return out;
@@ -182,7 +182,7 @@ std::vector<DatabaseFileSystem::Node> DatabaseFileSystem::ListChildren(const std
     return out;
 }
 
-std::vector<DatabaseFileSystem::Node> DatabaseFileSystem::ListChildrenByPath(const std::string &path) {
+std::vector<EmuDbFileSystem::Node> EmuDbFileSystem::ListChildrenByPath(const std::string &path) {
     std::string normalized = NormalizePath(path);
     if (normalized == "/")
         return ListChildren(std::nullopt);
@@ -192,7 +192,7 @@ std::vector<DatabaseFileSystem::Node> DatabaseFileSystem::ListChildrenByPath(con
     return ListChildren(id);
 }
 
-bool DatabaseFileSystem::NameExistsInDirectory(const std::optional<int64_t> &parentId, const std::string &name,
+bool EmuDbFileSystem::NameExistsInDirectory(const std::optional<int64_t> &parentId, const std::string &name,
                                                std::optional<int64_t> excludeId) {
     if (Fail())
         return false;
@@ -213,7 +213,7 @@ bool DatabaseFileSystem::NameExistsInDirectory(const std::optional<int64_t> &par
     return stmt.Step() == SQLITE_ROW;
 }
 
-std::string DatabaseFileSystem::MakeUniqueName(const std::optional<int64_t> &parentId, const std::string &desired) {
+std::string EmuDbFileSystem::MakeUniqueName(const std::optional<int64_t> &parentId, const std::string &desired) {
     if (!NameExistsInDirectory(parentId, desired))
         return desired;
 
@@ -239,7 +239,7 @@ std::string DatabaseFileSystem::MakeUniqueName(const std::optional<int64_t> &par
 /* Mutations                                                          */
 /* ------------------------------------------------------------------ */
 
-VirtualFileSystem::Response DatabaseFileSystem::CreateDirectory(const std::optional<int64_t> &parentId,
+VirtualFileSystem::Response EmuDbFileSystem::CreateDirectory(const std::optional<int64_t> &parentId,
                                                                 const std::string &name, int64_t *outId) {
     if (Fail())
         return Response::FileSystemFailed;
@@ -264,7 +264,7 @@ VirtualFileSystem::Response DatabaseFileSystem::CreateDirectory(const std::optio
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::CreateDocument(const std::optional<int64_t> &parentId,
+VirtualFileSystem::Response EmuDbFileSystem::CreateDocument(const std::optional<int64_t> &parentId,
                                                               const std::string &name,
                                                               const std::vector<unsigned char> &content,
                                                               int64_t *outId) {
@@ -292,7 +292,7 @@ VirtualFileSystem::Response DatabaseFileSystem::CreateDocument(const std::option
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::CreateShortcut(const std::optional<int64_t> &parentId,
+VirtualFileSystem::Response EmuDbFileSystem::CreateShortcut(const std::optional<int64_t> &parentId,
                                                               const std::string &name,
                                                               int itemType, int64_t itemId, int64_t *outId) {
     if (Fail())
@@ -320,7 +320,7 @@ VirtualFileSystem::Response DatabaseFileSystem::CreateShortcut(const std::option
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::RenameNode(int64_t id, const std::string &newName) {
+VirtualFileSystem::Response EmuDbFileSystem::RenameNode(int64_t id, const std::string &newName) {
     if (Fail())
         return Response::FileSystemFailed;
     if (newName.empty())
@@ -343,7 +343,7 @@ VirtualFileSystem::Response DatabaseFileSystem::RenameNode(int64_t id, const std
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::MoveNode(int64_t id, const std::optional<int64_t> &newParentId) {
+VirtualFileSystem::Response EmuDbFileSystem::MoveNode(int64_t id, const std::optional<int64_t> &newParentId) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -379,7 +379,7 @@ VirtualFileSystem::Response DatabaseFileSystem::MoveNode(int64_t id, const std::
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::CopyNode(int64_t id, const std::optional<int64_t> &destParentId,
+VirtualFileSystem::Response EmuDbFileSystem::CopyNode(int64_t id, const std::optional<int64_t> &destParentId,
                                                          int64_t *outId) {
     if (Fail())
         return Response::FileSystemFailed;
@@ -431,7 +431,7 @@ VirtualFileSystem::Response DatabaseFileSystem::CopyNode(int64_t id, const std::
     return Response::Failed;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::DeleteNode(int64_t id) {
+VirtualFileSystem::Response EmuDbFileSystem::DeleteNode(int64_t id) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -458,7 +458,7 @@ VirtualFileSystem::Response DatabaseFileSystem::DeleteNode(int64_t id) {
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::ReadFileContent(int64_t id, std::vector<unsigned char> *out) {
+VirtualFileSystem::Response EmuDbFileSystem::ReadFileContent(int64_t id, std::vector<unsigned char> *out) {
     if (Fail())
         return Response::FileSystemFailed;
     if (out == nullptr)
@@ -477,7 +477,7 @@ VirtualFileSystem::Response DatabaseFileSystem::ReadFileContent(int64_t id, std:
     return Response::Success;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::WriteFileContent(int64_t id, const std::vector<unsigned char> &content) {
+VirtualFileSystem::Response EmuDbFileSystem::WriteFileContent(int64_t id, const std::vector<unsigned char> &content) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -498,7 +498,7 @@ VirtualFileSystem::Response DatabaseFileSystem::WriteFileContent(int64_t id, con
     return Response::Success;
 }
 
-FSEntryInfo DatabaseFileSystem::GetEntryFromPath(const std::string &path) {
+FSEntryInfo EmuDbFileSystem::GetEntryFromPath(const std::string &path) {
     FSEntryInfo entry {};
     entry.Owner = this;
     std::string normalized = NormalizePath(path);
@@ -516,7 +516,7 @@ FSEntryInfo DatabaseFileSystem::GetEntryFromPath(const std::string &path) {
     return entry;
 }
 
-std::vector<FSEntryInfo> DatabaseFileSystem::GetEntriesInDirectory(const std::string &path) {
+std::vector<FSEntryInfo> EmuDbFileSystem::GetEntriesInDirectory(const std::string &path) {
     std::vector<FSEntryInfo> entries;
     std::string normalized = NormalizePath(path);
     std::string prefix = (normalized == "/") ? "/" : normalized + "/";
@@ -534,7 +534,7 @@ std::vector<FSEntryInfo> DatabaseFileSystem::GetEntriesInDirectory(const std::st
     return entries;
 }
 
-FSEntryHandle DatabaseFileSystem::OpenHandle(const std::string &path) {
+FSEntryHandle EmuDbFileSystem::OpenHandle(const std::string &path) {
     if (Fail())
         return 0;
     std::optional<Node> node = GetNodeByPath(path);
@@ -551,7 +551,7 @@ FSEntryHandle DatabaseFileSystem::OpenHandle(const std::string &path) {
     return id;
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::CloseHandle(FSEntryHandle handle) {
+VirtualFileSystem::Response EmuDbFileSystem::CloseHandle(FSEntryHandle handle) {
     auto it = mHandles.find(handle);
     if (it == mHandles.end())
         return Response::InvalidHandle;
@@ -559,14 +559,14 @@ VirtualFileSystem::Response DatabaseFileSystem::CloseHandle(FSEntryHandle handle
     return Response::Success;
 }
 
-bool DatabaseFileSystem::IsHandleEOF(FSEntryHandle handle) {
+bool EmuDbFileSystem::IsHandleEOF(FSEntryHandle handle) {
     auto it = mHandles.find(handle);
     if (it == mHandles.end())
         return false;
     return it->second.Cursor >= it->second.Data.size();
 }
 
-bool DatabaseFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) {
+bool EmuDbFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsigned char> *buf, unsigned int size) {
     auto it = mHandles.find(handle);
     if (it == mHandles.end() || buf == nullptr)
         return false;
@@ -581,7 +581,7 @@ bool DatabaseFileSystem::ReadHandleChunk(FSEntryHandle handle, std::vector<unsig
     return file.Cursor < file.Data.size();
 }
 
-bool DatabaseFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
+bool EmuDbFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) {
     auto it = mHandles.find(handle);
     if (it == mHandles.end() || buf == nullptr)
         return false;
@@ -601,14 +601,14 @@ bool DatabaseFileSystem::ReadHandleLine(FSEntryHandle handle, std::string *buf) 
     return true;
 }
 
-bool DatabaseFileSystem::EntryExists(const std::string &path) {
+bool EmuDbFileSystem::EntryExists(const std::string &path) {
     std::string normalized = NormalizePath(path);
     if (normalized == "/")
         return true;
     return ResolvePath(normalized).has_value();
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::DeleteEntry(const std::string &path) {
+VirtualFileSystem::Response EmuDbFileSystem::DeleteEntry(const std::string &path) {
     if (Fail())
         return Response::FileSystemFailed;
     std::optional<int64_t> id = ResolvePath(path);
@@ -617,7 +617,7 @@ VirtualFileSystem::Response DatabaseFileSystem::DeleteEntry(const std::string &p
     return DeleteNode(*id);
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::WriteFile(const std::string &path, const std::vector<unsigned char> &data) {
+VirtualFileSystem::Response EmuDbFileSystem::WriteFile(const std::string &path, const std::vector<unsigned char> &data) {
     if (Fail())
         return Response::FileSystemFailed;
 
@@ -639,7 +639,7 @@ VirtualFileSystem::Response DatabaseFileSystem::WriteFile(const std::string &pat
     return CreateDocument(parentId, name, data);
 }
 
-VirtualFileSystem::Response DatabaseFileSystem::CreateDirectories(const std::string &path) {
+VirtualFileSystem::Response EmuDbFileSystem::CreateDirectories(const std::string &path) {
     if (Fail())
         return Response::FileSystemFailed;
 

@@ -48,7 +48,7 @@ void ProjectWizard::InitWidgets() {
     SetPage(PageId::Intro, intro);
     intro->AddTemplate(PageId::EmuDbEmptyIntro, new EmuDbEmptyIntroPage);
     intro->AddTemplate(PageId::EmuDbRobloxBackupIntro, new EmuDbRobloxBackupIntroPage);
-    // intro->AddTemplate(PageId::PluginEmptyIntro, new PluginEmptyIntroPage); // TODO: Comment this out when plugins in SDK are ready.
+    // intro->AddTemplate(PageId::PluginEmptyIntro, new PluginEmptyIntroPage);
     intro->AddTemplate(PageId::PluginEmptyIntro, new WipPage);
 }
 
