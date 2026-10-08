@@ -35,27 +35,54 @@
     font-display: swap;
 }
 
+:root {
+    color-scheme: light dark; 
+    --bg-color: light-dark(rgb(255 254 231), rgb(68, 68, 68));
+    --text-color: light-dark(rgb(0, 0, 0), rgb(200, 200, 200));
+    --logo-color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));
+    --border-color: light-dark(rgb(224 219 175), rgb(50, 50, 50));
+}
+
 body {
-    background-image: url('/img/lightdark-linen.png');
-    background-repeat: repeat;
-    color: rgb(200, 200, 200);
+    /* background-image: url('/img/lightdark-linen.png');
+    background-repeat: repeat; */
+    background-color: var(--bg-color);
+    color: var(--text-color);
     font-family: 'Source Sans Pro', sans-serif;
+    margin: 0;
 }
 
 hr {
     border-style: solid;
     border-bottom: 1px;
+    border-color: var(--border-color);
 }
 
 .main {
-    background-image: url('/img/dark-linen.png');
-    background-repeat: repeat;
+    /* background-image: url('/img/dark-linen.png');
+    background-repeat: repeat; */
     max-width: 1000px;
     margin-left: auto;
     margin-right: auto;
     box-shadow: 0px 0px 8px 2px rgb(10, 10, 10);
     padding: 24px;
     font-size: 1rem;
+}
+
+.header {
+    padding-left: 3em;
+    padding-right: 3em;
+    padding-top: 1em;
+}
+
+.header-links {
+    padding-left: 3em;
+    padding-right: 3em;
+}
+
+.header-links ul {
+    padding: 0;
+    list-style: none;
 }
 
 #header-logo {
@@ -69,12 +96,11 @@ hr {
 
 #logo-text {
     font-family: 'Source Sans Pro', sans-serif;
-    color: rgb(255, 255, 255);
+    color: var(logo-color);
 }
 
 #docs-text {
     transform: translateX(-3.2em) translateY(1em);
-    font-style: italic;
 }
 
 .content {
@@ -82,8 +108,12 @@ hr {
     gap: 20px;
 }
 
+.footer {
+    text-align: center;
+}
+
 .divider {
     flex: 0 0 1px;
     align-self: stretch;
-    background-color: rgb(128, 128, 128);
+    background-color: var(--border-color);
 }

@@ -12,13 +12,19 @@ end
         <title><?lua echo(pageTitle or "noobWarrior Docs") ?></title>
     </head>
     <body>
-        <div class="main">
+        <!-- <div class="main"> -->
             <div class="header">
                 <div id="header-logo">
                     <img src="/img/icon1024.png" alt="Documentation logo" width="64" height="64">
                     <p id="logo-text">noobWarrior</p>
                     <p id="docs-text">Documentation</p>
                 </div>
+            </div>
+            <hr>
+            <div class="header-links">
+                <ul>
+                    <li><a>End-User</a></li>
+                </ul>
             </div>
             <hr>
             <div class="content">

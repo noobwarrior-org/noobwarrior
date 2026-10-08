@@ -50,14 +50,16 @@ print(tbl)
 
 <div class="sidebar">
     <h3>Getting Started</h3>
+    <ul>
     <?lua
     local function Iterate(children)
         for _, child in ipairs(children) do
-            echo("<a"..(child.File and " href=\"poop\"" or "")..">"..child.Title.."</a>")
+            echo("<li><a"..(child.File and " href=\"poop\"" or "")..">"..child.Title.."</a></li>")
         end
     end
     Iterate(index)
     ?>
+    </ul>
 </div>
 <div class="divider"></div>
 <div class="lol">
