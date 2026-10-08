@@ -39,7 +39,7 @@ body {
     background-image: url('/img/lightdark-linen.png');
     background-repeat: repeat;
     color: rgb(200, 200, 200);
-    font-family: 'Liberation Serif', sans-serif;
+    font-family: 'Source Sans Pro', sans-serif;
 }
 
 hr {
@@ -55,7 +55,7 @@ hr {
     margin-right: auto;
     box-shadow: 0px 0px 8px 2px rgb(10, 10, 10);
     padding: 24px;
-    font-size: 1.2rem;
+    font-size: 1rem;
 }
 
 #header-logo {
