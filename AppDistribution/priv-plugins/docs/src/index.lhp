@@ -12,6 +12,19 @@ include("header.lhp")
 ?>
 
 <?lua
+local buf = plugin:GetVfs():ReadFile("/texts/index.luau")
+local tblStr = buffer.tostring(buf)
+local func = loadstring(tblStr)
+if not func then
+    die("failed to compile index.luau. Contact the owner of this website.")
+end
+local index = func()
+if type(index) ~= "table" then
+    die("index.luau did not return a table. Contact the owner of this website.")
+end
+print(index)
+
+--[[
 local indexStr = ""
 local indexHandle = plugin:GetVfs():OpenHandle("/texts/index.lua")
 if indexHandle == 0 then
@@ -32,6 +45,7 @@ if type(tbl) ~= "table" then
     die("index.lua did not return a table. Contact the owner of this website.")
 end
 print(tbl)
+]]
 ?>
 
 <div class="sidebar">
@@ -42,7 +56,7 @@ print(tbl)
             echo("<a"..(child.File and " href=\"poop\"" or "")..">"..child.Title.."</a>")
         end
     end
-    Iterate(tbl)
+    Iterate(index)
     ?>
 </div>
 <div class="divider"></div>
