@@ -107,15 +107,20 @@ print(tbl)
 <div class="sidebar">
     <ul class="tree">
     <?lua
+    local function PageLink(child)
+        return "<a href=\"/"..section.Id.."?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>"
+    end
+
     local function Iterate(children)
         for _, child in ipairs(children) do
             echo("<li>")
             if child.Children then
-                echo("<details open><summary>"..lang.Translate(child.Title, child.Fallback).."</summary><ul>")
+                local label = child.File and PageLink(child) or lang.Translate(child.Title, child.Fallback)
+                echo("<details open><summary>"..label.."</summary><ul>")
                 Iterate(child.Children)
                 echo("</ul></details>")
             elseif child.File then
-                echo("<a href=\"/"..section.Id.."?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>")
+                echo(PageLink(child))
             else
                 echo("<span>"..lang.Translate(child.Title, child.Fallback).."</span>")
             end

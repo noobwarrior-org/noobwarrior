@@ -242,6 +242,13 @@ h1, h2, h3, h4, h5, h6 {
     border-left-color: var(--text-color);
 }
 
+.tree summary > a {
+    display: inline;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
 .tree span {
     color: var(--gray-text-color);
     opacity: 0.6;

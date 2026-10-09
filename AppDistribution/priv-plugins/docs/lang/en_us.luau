@@ -18,7 +18,10 @@ return {
     ["docs.getting_started.introduction"] = "Introduction",
     ["docs.user_guides"] = "User Guides",
     ["docs.api_reference"] = "API Reference",
-    ["docs.api_reference.lua"] = "Lua",
+    ["docs.api_reference.luau"] = "Luau",
     ["docs.api_reference.cpp"] = "C++",
     ["docs.api_reference.c"] = "C",
+    ["docs.api_reference.luau.globals"] = "Globals",
+    ["docs.api_reference.luau.libraries"] = "Libraries",
+    ["docs.api_reference.luau.enums"] = "Enumerations"
 }
