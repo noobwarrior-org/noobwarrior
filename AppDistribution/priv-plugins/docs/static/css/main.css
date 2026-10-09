@@ -251,3 +251,77 @@ h1, h2, h3, h4, h5, h6 {
 .tree > li > span {
     padding-left: calc(7px + 0.6em);
 }
+
+.page {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-bottom: 2em;
+}
+
+.markdown {
+    line-height: 1.6;
+}
+
+.markdown h1,
+.markdown h2 {
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.markdown h1:first-child {
+    margin-top: 0.4em;
+}
+
+.markdown a {
+    color: var(--text-color);
+}
+
+.markdown a:hover {
+    color: var(--gray-text-color);
+}
+
+.markdown img {
+    max-width: 100%;
+}
+
+.markdown code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    padding: 0.1em 0.3em;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+}
+
+.markdown pre {
+    overflow-x: auto;
+    padding: 0.8em 1em;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+}
+
+.markdown pre code {
+    padding: 0;
+    border: none;
+    font-size: 0.85em;
+}
+
+.markdown blockquote {
+    margin: 1em 0;
+    padding-left: 1em;
+    border-left: 2px solid var(--border-color);
+    color: var(--gray-text-color);
+}
+
+.markdown hr {
+    border-width: 1px 0 0 0;
+}
+
+.markdown table {
+    border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+    padding: 0.3em 0.8em;
+    border: 1px solid var(--border-color);
+}

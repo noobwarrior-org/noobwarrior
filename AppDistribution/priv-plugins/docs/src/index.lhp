@@ -7,11 +7,6 @@
 -- Started by: Hattozo
 -- Started on: 8/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
-pageTitle = "noobWarrior Documentation"
-include("header.lhp")
-?>
-
-<?lua
 local buf = plugin:GetVfs():ReadFile("/texts/index.luau")
 local tblStr = buffer.tostring(buf)
 local func = loadstring(tblStr)
@@ -23,6 +18,33 @@ if type(index) ~= "table" then
     die("index.luau did not return a table. Contact the owner of this website.")
 end
 print(index)
+
+local function FindPage(children, file)
+    for _, child in ipairs(children) do
+        if child.File and (file == nil or child.File == file) then
+            return child
+        end
+        local found = child.Children and FindPage(child.Children, file)
+        if found then
+            return found
+        end
+    end
+end
+
+local page = FindPage(index, _GET.page)
+local pageHtml
+if page then
+    local pageBuf = plugin:GetVfs():ReadFile("/texts/" .. page.File)
+    if pageBuf then
+        pageHtml = _G.DOCS_MARKDOWN.ToHtml(buffer.tostring(pageBuf))
+    end
+end
+if not pageHtml then
+    http_response_code(404)
+end
+
+pageTitle = page and (page.Title .. " - noobWarrior Documentation") or "noobWarrior Documentation"
+include("header.lhp")
 
 --[[
 local indexStr = ""
@@ -59,7 +81,7 @@ print(tbl)
                 Iterate(child.Children)
                 echo("</ul></details>")
             elseif child.File then
-                echo("<a href=\"/?page="..child.File.."\""..(_GET.page == child.File and " selected" or "")..">"..child.Title.."</a>")
+                echo("<a href=\"/?page="..child.File.."\""..(child == page and " selected" or "")..">"..child.Title.."</a>")
             else
                 echo("<span>"..child.Title.."</span>")
             end
@@ -71,8 +93,14 @@ print(tbl)
     </ul>
 </div>
 <div class="divider"></div>
-<div class="lol">
-    <p>Hello guys</p>
+<div class="page markdown">
+    <?lua
+    if pageHtml then
+        echo(pageHtml)
+    else
+        echo("<h1>Page not found</h1><p>The page you requested does not exist.</p>")
+    end
+    ?>
 </div>
 
 <?lua include("footer.lhp") ?>

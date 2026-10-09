@@ -16,6 +16,7 @@ reg.SetKeyValueIfNotSet("docs.https_port", 5050)
 reg.SetKeyComment("docs.https_port", "Port the documentation HTTPS webserver binds to.")
 
 _G.DOCS_VER = "0.1"
+_G.DOCS_MARKDOWN = require("plugin://docs@noobwarrior.org/lua/markdown.lua")
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
