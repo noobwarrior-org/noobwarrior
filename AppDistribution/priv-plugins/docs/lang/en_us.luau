@@ -23,5 +23,21 @@ return {
     ["docs.api_reference.c"] = "C",
     ["docs.api_reference.luau.globals"] = "Globals",
     ["docs.api_reference.luau.libraries"] = "Libraries",
-    ["docs.api_reference.luau.enums"] = "Enumerations"
+    ["docs.api_reference.luau.enums"] = "Enumerations",
+    ["docs.api_reference.luau.classes"] = "Classes",
+    ["docs.api_reference.cpp.classes"] = "Classes",
+    ["docs.api_reference.cpp.enums"] = "Enumerations",
+    ["docs.contents"] = "Contents",
+    ["docs.internals.overview"] = "Overview",
+    ["docs.internals.building"] = "Building and testing",
+    ["docs.internals.subsystems"] = "Subsystems",
+    ["docs.internals.engines"] = "Engines",
+    ["docs.internals.server_emulator"] = "Server emulator",
+    ["docs.internals.authentication"] = "Authentication",
+    ["docs.internals.emudb"] = "EmuDb",
+    ["docs.internals.plugins"] = "Plugins",
+    ["docs.internals.lhp"] = "LHP",
+    ["docs.internals.files_and_urls"] = "Files and URLs",
+    ["docs.internals.registry"] = "Registry",
+    ["docs.internals.roblox_files"] = "Roblox files"
 }

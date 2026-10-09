@@ -52,9 +52,9 @@ end)
 
 local createDirSuccess = core.GetPluginDataDir():CreateDirectories("master")
 if not createDirSuccess then
-    print("Failed to create directory \"master\" in plugindata")
+    print("Failed to create directory \"master\" in the data folder")
 end
-_G.MASTERSERVER_PLUGINDATA = "plugindata://master"
+_G.MASTERSERVER_PLUGINDATA = "data://master"
 _G.MASTERSERVER_DB = SqlDb.new(_G.MASTERSERVER_PLUGINDATA .. "/master.nwdb", "MasterServerDb")
 
 function _G.MASTERSERVER_FIRST_ROW(result)

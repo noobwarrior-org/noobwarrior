@@ -194,11 +194,11 @@ int LuaState::Open() {
         "File", ProtocolType::File,
         "Http", ProtocolType::Http,
         "Https", ProtocolType::Https,
-        "InstallData", ProtocolType::InstallData,
-        "UserData", ProtocolType::UserData,
+        "Install", ProtocolType::Install,
+        "User", ProtocolType::User,
         "Database", ProtocolType::Database,
         "Plugin", ProtocolType::Plugin,
-        "PluginData", ProtocolType::PluginData,
+        "Data", ProtocolType::Data,
         "RbxAssetId", ProtocolType::RbxAssetId,
         "RbxThumb", ProtocolType::RbxThumb
     );
@@ -867,10 +867,14 @@ int LuaState::Open() {
         session.SetHeader(h);
         session.SetTimeout(cpr::Timeout{std::chrono::seconds(timeout)});
         curl_easy_setopt(session.GetCurlHolder()->handle, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
-        if (method == "POST") {
+        if (!body.empty())
             session.SetBody(cpr::Body{body});
-            return session.Post();
-        }
+        if (method == "POST")    return session.Post();
+        if (method == "PUT")     return session.Put();
+        if (method == "PATCH")   return session.Patch();
+        if (method == "DELETE")  return session.Delete();
+        if (method == "HEAD")    return session.Head();
+        if (method == "OPTIONS") return session.Options();
         return session.Get();
     };
     auto buildResponse = [this](const cpr::Response &res) -> sol::table {
@@ -889,7 +893,7 @@ int LuaState::Open() {
         return buildResponse(doRequest("POST", url, body, contentType, c.defaultHeaders, c.timeout));
     };
     netClientType["PostJson"] = [this, doRequest, buildResponse](LuaNetClient &c, std::string url, sol::table tbl) -> sol::table {
-        sol::protected_function jsonEncode = (*this)["json"]["encode"];
+        sol::protected_function jsonEncode = (*this)["json"]["stringify"];
         std::string body;
         auto encRes = jsonEncode(tbl);
         if (encRes.valid()) body = encRes.get<std::string>();
@@ -898,6 +902,7 @@ int LuaState::Open() {
     netClientType["Request"] = [doRequest, buildResponse](LuaNetClient &c, sol::table params) -> sol::table {
         std::string url = params.get_or<std::string>("Url", "");
         std::string method = params.get_or<std::string>("Method", "GET");
+        std::transform(method.begin(), method.end(), method.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         std::string body = params.get_or<std::string>("Body", "");
         std::string contentType = params.get_or<std::string>("ContentType", "");
         std::vector<std::pair<std::string, std::string>> headers = c.defaultHeaders;
@@ -1162,12 +1167,15 @@ int LuaState::Open() {
     urlLib.set_function("ResolveAsPath", [this](const std::string &url) -> std::string {
         return Url(url).ResolveAsPath();
     });
-    // Resolves a URL (e.g. plugindata://master-server@.../master.nwdb) to a real local path.
+    urlLib.set_function("ResolveAsVfsPath", [this](const std::string &url) -> std::string {
+        return Url(url).ResolveAsVfsPath();
+    });
+    // Resolves a URL (e.g. data://master-server@.../master.nwdb) to a real local path.
     // Useful for opening a plugin-owned SqlDb by path.
     urlLib.set_function("ResolveAsLocalPath", [this](const std::string &url) -> std::string {
         return Url(url).ResolveAsLocalPath(mCore).string();
     });
-    // Returns the VFS backing a URL (works for plugin:// and plugindata://), or nil.
+    // Returns the VFS backing a URL (works for plugin:// and data://), or nil.
     urlLib.set_function("GetVfs", [this](const std::string &url) -> VirtualFileSystem* {
         return Url(url).GetVfs(mCore);
     });

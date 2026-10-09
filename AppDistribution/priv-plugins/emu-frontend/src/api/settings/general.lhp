@@ -88,7 +88,7 @@ if file and file.data and #file.data > 0 then
     end
 
     -- A previous icon of a different type would otherwise sit there forever, and an operator
-    -- looking in plugindata would have no way to tell which of them is the live one.
+    -- looking in the data folder would have no way to tell which of them is the live one.
     for _, candidate in ipairs(ICON_TYPES) do
         local stale = ICON_DIR .. "/icon." .. candidate.ext
         if candidate.ext ~= ext and pluginData:EntryExists(stale) then
@@ -96,7 +96,7 @@ if file and file.data and #file.data > 0 then
         end
     end
 
-    reg.SetKeyValue("emu.branding.icon", "plugindata://" .. path)
+    reg.SetKeyValue("emu.branding.icon", "data://" .. path)
     messages[#messages + 1] = "Icon updated."
 end
 

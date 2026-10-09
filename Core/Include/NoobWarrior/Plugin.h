@@ -67,7 +67,7 @@ public:
         std::string SourceUrl;        // fully resolved, e.g. plugin://mygame@example.org/databases/x.nwdb
         std::string OwnerIdentifier;  // the declaring plugin's identifier
         bool Required { false };
-        // Writable entries are staged into plugindata so the emulator can write to them (a game
+        // Writable entries are staged into the data folder so the emulator can write to them (a game
         // database needs DataStore and publish writes); everything else mounts read-only, which for
         // a directory plugin means straight off disk with no copy at all.
         bool Writable { false };

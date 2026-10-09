@@ -243,7 +243,7 @@ std::vector<Plugin::DeclaredDatabase> Plugin::GetDeclaredDatabases() {
         }
 
         // Same resolution autorun uses, so a bare "databases/x.nwdb" means this plugin's own file
-        // while a full URL (userdata://...) still addresses whatever it names.
+        // while a full URL (user://...) still addresses whatever it names.
         Url resolved(*url, {
             .DefaultProtocolType = ProtocolType::Plugin,
             .DefaultHostName = identifier

@@ -41,6 +41,19 @@ Lhp::Lhp(LuaState* lua) : mLua(lua) {
 
 }
 
+// Wraps page text in a Luau long string whose closing bracket cannot occur inside the text, so the
+// text is echoed exactly as written whatever brackets it contains.
+static std::string EchoStatement(const std::string &text) {
+    std::string level;
+    while (true) {
+        const std::string closing = "]" + level + "]";
+        if ((text + closing).find(closing) == text.size())
+            break;
+        level += '=';
+    }
+    return std::format("echo([{0}[{1}]{0}]);\n", level, text);
+}
+
 Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, std::string *output, Url path, bool isRecursive) {
     bool luaMode = false;
     std::string textBuffer;
@@ -53,7 +66,7 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             i += std::size(OPENING_TAG) - 2;
 
             if (!textBuffer.empty()) {
-                luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
+                luaBuffer += EchoStatement(textBuffer);
                 textBuffer.clear();
             }
             continue;
@@ -68,20 +81,10 @@ Lhp::RenderResponse Lhp::Render(sol::environment env, const std::string &input, 
             continue;
         }
 
-        // Genuinely dogshit code that prevents string escaping. Never allow me to write again
-        if (
-            input.substr(i, 7).compare("[=====[") == 0 ||
-            input.substr(i, 7).compare("]=====]") == 0
-        )
-        {
-            mLua->GetCore()->Out("Lhp", "Continued");
-            continue;
-        }
-
         (!luaMode ? textBuffer : luaBuffer) += input.at(i);
     }
     if (!textBuffer.empty()) {
-        luaBuffer += std::format("echo([=====[{}]=====]);\n", textBuffer);
+        luaBuffer += EchoStatement(textBuffer);
     }
 
     sol::environment lhpEnv = !isRecursive

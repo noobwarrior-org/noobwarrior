@@ -26,7 +26,7 @@
 #define NW_PATH_DATABASES "databases"
 #define NW_PATH_PLUGINS "plugins"
 #define NW_PATH_PRIVILEGED_PLUGINS "priv-plugins"
-#define NW_PATH_PLUGINDATA "plugindata"
+#define NW_PATH_PLUGINDATA "data"
 
 #define NW_PATH_ENGINES "engines"
 

@@ -35,6 +35,31 @@
     font-display: swap;
 }
 
+/* Fira Mono: SIL OFL, see FiraMono-OFL.txt */
+@font-face {
+    font-family: "Fira Mono";
+    src: url('/fonts/FiraMono-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Fira Mono";
+    src: url('/fonts/FiraMono-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Fira Mono";
+    src: url('/fonts/FiraMono-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     color-scheme: light dark; 
     --bg-color: light-dark(rgb(255, 254, 231), rgb(20, 20, 20));
@@ -42,6 +67,16 @@
     --gray-text-color: light-dark(rgb(50, 50, 50), rgb(150, 150, 150));
     --logo-color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));
     --border-color: light-dark(rgb(224 219 175), rgb(50, 50, 50));
+    --table-header-color: light-dark(rgb(245, 241, 205), rgb(32, 32, 32));
+    --table-stripe-color: light-dark(rgb(251, 249, 222), rgb(25, 25, 25));
+    --code-bg-color: light-dark(rgb(250, 248, 220), rgb(26, 26, 26));
+    --tok-keyword: light-dark(rgb(160, 40, 150), rgb(198, 120, 221));
+    --tok-string: light-dark(rgb(60, 120, 20), rgb(152, 195, 121));
+    --tok-number: light-dark(rgb(175, 85, 0), rgb(209, 154, 102));
+    --tok-comment: light-dark(rgb(125, 122, 100), rgb(115, 120, 130));
+    --tok-function: light-dark(rgb(25, 85, 185), rgb(97, 175, 239));
+    --tok-builtin: light-dark(rgb(0, 115, 125), rgb(86, 182, 194));
+    --tok-type: light-dark(rgb(150, 100, 0), rgb(229, 192, 123));
 }
 
 body {
@@ -298,7 +333,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown code {
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: "Fira Mono", ui-monospace, Menlo, Consolas, monospace;
     font-size: 0.9em;
     padding: 0.1em 0.3em;
     border: 1px solid var(--border-color);
@@ -316,7 +351,21 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0;
     border: none;
     font-size: 0.85em;
+    line-height: 1.5;
 }
+
+.markdown pre {
+    background-color: var(--code-bg-color);
+}
+
+.tok-kw      { color: var(--tok-keyword); font-weight: 500; }
+.tok-str     { color: var(--tok-string); }
+.tok-num,
+.tok-lit     { color: var(--tok-number); }
+.tok-com     { color: var(--tok-comment); font-style: italic; }
+.tok-fn      { color: var(--tok-function); }
+.tok-builtin { color: var(--tok-builtin); }
+.tok-type    { color: var(--tok-type); }
 
 .markdown blockquote {
     margin: 1em 0;
@@ -329,12 +378,168 @@ h1, h2, h3, h4, h5, h6 {
     border-width: 1px 0 0 0;
 }
 
+.markdown .table-wrap {
+    margin: 1em 0;
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+}
+
 .markdown table {
+    width: 100%;
     border-collapse: collapse;
 }
 
 .markdown th,
 .markdown td {
-    padding: 0.3em 0.8em;
-    border: 1px solid var(--border-color);
+    padding: 0.45em 0.9em;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+}
+
+.markdown th {
+    background-color: var(--table-header-color);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.markdown tr:last-child td {
+    border-bottom: none;
+}
+
+.markdown tbody tr:nth-child(even) {
+    background-color: var(--table-stripe-color);
+}
+
+.markdown td:first-child {
+    white-space: nowrap;
+}
+
+.markdown td code {
+    overflow-wrap: anywhere;
+}
+
+.sidebar-toggle,
+.sidebar-toggle-label {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .header,
+    .header-links,
+    .content {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .header {
+        padding-top: 0.5em;
+    }
+
+    #header-logo img {
+        width: 48px;
+        height: 48px;
+    }
+
+    #header-logo p {
+        font-size: 1.3rem;
+    }
+
+    .header-links ul {
+        gap: 1.25em;
+        margin: 0.75em 0;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+    }
+
+    .header-links ul::-webkit-scrollbar {
+        display: none;
+    }
+
+    .content {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .divider {
+        display: none;
+    }
+
+    .sidebar-toggle-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6em;
+        margin-top: 1em;
+        padding: 0.6em 0.9em;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        background-color: var(--table-header-color);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sidebar-toggle-label::after {
+        content: '';
+        flex: 0 0 auto;
+        width: 6px;
+        height: 6px;
+        border: solid var(--gray-text-color);
+        border-width: 0 1px 1px 0;
+        transform: rotate(45deg) translate(-2px, -2px);
+        transition: transform 0.15s;
+    }
+
+    .sidebar-toggle:checked + .sidebar-toggle-label::after {
+        transform: rotate(-135deg) translate(-2px, -2px);
+    }
+
+    .sidebar-toggle:focus-visible + .sidebar-toggle-label {
+        outline: 1px dotted var(--text-color);
+    }
+
+    .sidebar {
+        display: none;
+        flex: none;
+        padding: 0.5em 0.9em;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 3px 3px;
+    }
+
+    .sidebar-toggle:checked + .sidebar-toggle-label {
+        border-radius: 3px 3px 0 0;
+    }
+
+    .sidebar-toggle:checked ~ .sidebar {
+        display: block;
+    }
+
+    .page h1:first-child {
+        margin-top: 0.6em;
+    }
+
+    .markdown h1 {
+        font-size: 1.7em;
+    }
+
+    .markdown code {
+        overflow-wrap: anywhere;
+    }
+
+    .markdown pre code {
+        overflow-wrap: normal;
+    }
+
+    .markdown td code {
+        overflow-wrap: normal;
+        white-space: nowrap;
+    }
+
+    .markdown th,
+    .markdown td {
+        padding: 0.45em 0.6em;
+    }
 }

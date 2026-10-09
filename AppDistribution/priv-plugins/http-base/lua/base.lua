@@ -40,7 +40,11 @@ local file_extension_map = {
     ["ico"] = "image/vnd.microsoft.icon",
     ["svg"] = "image/svg+xml",
     ["mp4"] = "video/mp4",
-    ["webm"] = "video/webm"
+    ["webm"] = "video/webm",
+    ["woff"] = "font/woff",
+    ["woff2"] = "font/woff2",
+    ["ttf"] = "font/ttf",
+    ["otf"] = "font/otf"
 }
 
 function http_base.GetFileExtension(filePath)
@@ -116,30 +120,54 @@ local function parse_multipart(body, boundary)
     return fields, files
 end
 
+local compiled_sitemaps = setmetatable({}, { __mode = "k" })
+
+local function compile_sitemap(sitemap)
+    local routes = {}
+    for pattern, entry in pairs(sitemap) do
+        if pattern:find("[:%*][%a_]") then
+            local names = {}
+            local literal_length = #pattern
+            local lua_pattern = "^"
+                .. pattern
+                    :gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")
+                    :gsub("(%%?[:%*])([%a_][%w_]*)", function(kind, name)
+                        names[#names + 1] = name
+                        literal_length -= #name + 1
+                        return kind == "%*" and "(.+)" or "([^/]+)"
+                    end)
+                .. "$"
+            routes[#routes + 1] = {
+                LuaPattern = lua_pattern,
+                Names = names,
+                Entry = entry,
+                IsCatchAll = pattern:find("%*[%a_]") ~= nil,
+                LiteralLength = literal_length,
+            }
+        end
+    end
+    table.sort(routes, function(a, b)
+        if a.IsCatchAll ~= b.IsCatchAll then
+            return not a.IsCatchAll
+        end
+        return a.LiteralLength > b.LiteralLength
+    end)
+    compiled_sitemaps[sitemap] = routes
+    return routes
+end
+
 local function match_sitemap(sitemap, uri)
     if sitemap[uri] then
         return sitemap[uri], {}
     end
-    for pattern, entry in pairs(sitemap) do
-        if pattern:find(":[%a_]") then
-            local names = {}
-            -- WTF
-            local lua_pattern = "^"
-                .. pattern
-                    :gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")
-                    :gsub(":([%a_][%w_]*)", function(name)
-                        names[#names + 1] = name
-                        return "([^/]+)"
-                    end)
-                .. "$"
-            local captures = { uri:match(lua_pattern) }
-            if #captures > 0 then
-                local params = {}
-                for i, val in ipairs(captures) do
-                    params[names[i]] = path_decode(val)
-                end
-                return entry, params
+    for _, route in ipairs(compiled_sitemaps[sitemap] or compile_sitemap(sitemap)) do
+        local captures = { uri:match(route.LuaPattern) }
+        if #captures > 0 then
+            local params = {}
+            for i, val in ipairs(captures) do
+                params[route.Names[i]] = path_decode(val)
             end
+            return route.Entry, params
         end
     end
     return nil, {}

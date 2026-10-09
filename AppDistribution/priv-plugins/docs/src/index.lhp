@@ -27,9 +27,10 @@ end
 
 sections = LoadTable("/texts/sections.luau")
 section = nil
-if _PARAMS.section then
+local sectionId = _SERVER.LHP_SELF:match("^/([^/]+)")
+if sectionId then
     for _, candidate in ipairs(sections) do
-        if candidate.Id == _PARAMS.section then
+        if candidate.Id == sectionId then
             section = candidate
             break
         end
@@ -38,35 +39,43 @@ else
     section = sections[1]
 end
 
-local index = section and LoadTable("/texts/" .. section.Id .. "/index.luau") or {}
+local index = section and LoadTable("/texts/" .. section.Id .. ".luau") or {}
 
-local function FindPage(children, file)
+local function PagePath(file)
+    return (file:gsub("%.md$", ""))
+end
+
+local function FindPage(children, path)
     for _, child in ipairs(children) do
-        if child.File and (file == nil or child.File == file) then
+        if child.File and (path == nil or PagePath(child.File) == path) then
             return child
         end
-        local found = child.Children and FindPage(child.Children, file)
+        local found = child.Children and FindPage(child.Children, path)
         if found then
             return found
         end
     end
 end
 
-local page = section and FindPage(index, _GET.page)
+local requestedPath = _PARAMS.path and _PARAMS.path:gsub("/+$", "")
+if requestedPath == "" then
+    requestedPath = nil
+end
+
+local page = section and FindPage(index, requestedPath)
 local pageHtml
 local untranslated = false
 if page then
-    local root = "/texts/" .. section.Id .. "/"
-    local pageBuf = vfs:ReadFile(root .. lang.GetCode() .. "/" .. page.File)
+    local pageBuf = vfs:ReadFile("/texts/" .. lang.GetCode() .. "/" .. section.Id .. "/" .. page.File)
     if not pageBuf then
-        pageBuf = vfs:ReadFile(root .. "en_us/" .. page.File)
+        pageBuf = vfs:ReadFile("/texts/en_us/" .. section.Id .. "/" .. page.File)
         untranslated = pageBuf ~= nil and lang.GetCode() ~= "en_us"
     end
     if pageBuf then
         pageHtml = _G.DOCS_MARKDOWN.ToHtml(buffer.tostring(pageBuf))
     end
 end
-local sectionEmpty = section ~= nil and _GET.page == nil and page == nil
+local sectionEmpty = section ~= nil and requestedPath == nil and page == nil
 if not pageHtml and not sectionEmpty then
     http_response_code(404)
 end
@@ -104,11 +113,13 @@ print(tbl)
 ]]
 ?>
 
+<input type="checkbox" id="sidebar-toggle" class="sidebar-toggle">
+<label for="sidebar-toggle" class="sidebar-toggle-label"><?lua echo(page and lang.Translate(page.Title, page.Fallback) or lang.Translate("docs.contents", "Contents")) ?></label>
 <div class="sidebar">
     <ul class="tree">
     <?lua
     local function PageLink(child)
-        return "<a href=\"/"..section.Id.."?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>"
+        return "<a href=\"/"..section.Id.."/"..PagePath(child.File).."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>"
     end
 
     local function Iterate(children)

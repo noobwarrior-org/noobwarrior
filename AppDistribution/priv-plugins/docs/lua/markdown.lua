@@ -41,6 +41,111 @@ local function uniqueId(ids: { [string]: number }, text: string): string
     return id
 end
 
+local function set(words: string): { [string]: boolean }
+    local s = {}
+    for word in words:gmatch("%S+") do
+        s[word] = true
+    end
+    return s
+end
+
+local LUAU_KEYWORDS = set([[
+    and break continue do else elseif end export for function if in local not or repeat return then
+    type typeof until while
+]])
+local LUAU_LITERALS = set("true false nil")
+local LUAU_BUILTINS = set([[
+    assert error getmetatable ipairs next pairs pcall print rawequal rawget rawlen rawset require
+    select setmetatable tonumber tostring unpack xpcall loadstring gcinfo newproxy
+    bit32 buffer coroutine debug math os string table utf8 vector _G
+    core reg url hash crypto lang lhp json serpent emu emu_db_mgr script plugin
+    echo include exit die _GET _POST _COOKIE _SESSION _PARAMS _FILES header http_response_code setcookie
+]])
+local LUAU_TYPES = set("any boolean buffer never nil number string thread unknown userdata vector")
+
+local function highlightLuau(src: string): string
+    local out = {}
+    local pos = 1
+    local len = #src
+    local prevSignificant = ""
+
+    local function emit(class: string?, text: string)
+        out[#out + 1] = if class then `<span class="tok-{class}">{escape(text)}</span>` else escape(text)
+    end
+
+    while pos <= len do
+        local c = src:sub(pos, pos)
+        local token, class
+
+        local longOpen = src:match("^%-%-%[(=*)%[", pos)
+        if longOpen then
+            local _, stop = src:find(`]{longOpen}]`, pos, true)
+            token, class = src:sub(pos, stop or len), "com"
+        elseif src:sub(pos, pos + 1) == "--" then
+            token, class = src:match("^[^\n]*", pos), "com"
+        elseif src:match("^%[=*%[", pos) then
+            local level = src:match("^%[(=*)%[", pos)
+            local _, stop = src:find(`]{level}]`, pos, true)
+            token, class = src:sub(pos, stop or len), "str"
+        elseif c == "\"" or c == "'" or c == "`" then
+            local i = pos + 1
+            while i <= len do
+                local ch = src:sub(i, i)
+                if ch == "\\" then
+                    i += 2
+                elseif ch == c or ch == "\n" then
+                    break
+                else
+                    i += 1
+                end
+            end
+            if src:sub(i, i) == "\n" then
+                i -= 1
+            end
+            token, class = src:sub(pos, math.min(i, len)), "str"
+        elseif c:match("%d") or (c == "." and src:sub(pos + 1, pos + 1):match("%d")) then
+            token = src:match("^0[xX][%x_]+", pos) or src:match("^0[bB][01_]+", pos)
+                or src:match("^[%d_]*%.?[%d_]*[eE][%+%-]?%d+", pos) or src:match("^[%d_]*%.?[%d_]+", pos)
+                or c
+            class = "num"
+        elseif c:match("[%a_]") then
+            token = src:match("^[%a_][%w_]*", pos)
+            local after = src:match("^%s*(.)", pos + #token) or ""
+            if LUAU_KEYWORDS[token] then
+                class = "kw"
+            elseif LUAU_LITERALS[token] then
+                class = "lit"
+            elseif (prevSignificant == ":" or prevSignificant == "->" or prevSignificant == "|" or prevSignificant == "&")
+                and after ~= "(" and after ~= "." and (LUAU_TYPES[token] or token:match("^%u")) then
+                class = "type"
+            elseif after == "(" or after == "\"" or after == "{" then
+                class = if prevSignificant == "." or prevSignificant == ":" or not LUAU_BUILTINS[token] then "fn" else "builtin"
+            elseif LUAU_BUILTINS[token] and prevSignificant ~= "." and prevSignificant ~= ":" then
+                class = "builtin"
+            elseif token:match("^%u") and prevSignificant ~= "." and prevSignificant ~= ":" then
+                class = "type"
+            end
+        elseif c:match("%s") then
+            token = src:match("^%s+", pos)
+        else
+            token = src:match("^%->", pos) or src:match("^%.%.%.?", pos) or c
+        end
+
+        emit(class, token)
+        if not token:match("^%s+$") then
+            prevSignificant = if class == "com" then prevSignificant else token
+        end
+        pos += #token
+    end
+
+    return table.concat(out)
+end
+
+local HIGHLIGHTERS: { [string]: (string) -> string } = {
+    luau = highlightLuau,
+    lua = highlightLuau,
+}
+
 local function inline(text: string): string
     local slots = {}
     local function stash(html)
@@ -225,12 +330,15 @@ renderBlocks = function(lines, tight, ids)
                 end
                 local l = lines[i]
                 local strip = math.min(fenceIndent, indentOf(l))
-                code[#code + 1] = escape(l:sub(strip + 1))
+                code[#code + 1] = l:sub(strip + 1)
                 i += 1
             end
             local lang = info:match("^(%S+)")
             local class = if lang then ` class="language-{escape(lang)}"` else ""
-            out[#out + 1] = `<pre><code{class}>{table.concat(code, "\n")}</code></pre>`
+            local highlighter = lang and HIGHLIGHTERS[lang:lower()]
+            local source = table.concat(code, "\n")
+            local body = if highlighter then highlighter(source) else escape(source)
+            out[#out + 1] = `<pre><code{class}>{body}</code></pre>`
 
         elseif level then
             local id = uniqueId(ids, headingText)
@@ -282,7 +390,7 @@ renderBlocks = function(lines, tight, ids)
                     aligns[n] = ""
                 end
             end
-            local html = { "<table><thead><tr>" }
+            local html = { "<div class=\"table-wrap\"><table><thead><tr>" }
             for n, cell in ipairs(headers) do
                 html[#html + 1] = `<th{aligns[n] or ""}>{inline(cell)}</th>`
             end
@@ -297,7 +405,7 @@ renderBlocks = function(lines, tight, ids)
                 html[#html + 1] = "</tr>"
                 i += 1
             end
-            html[#html + 1] = "</tbody></table>"
+            html[#html + 1] = "</tbody></table></div>"
             out[#out + 1] = table.concat(html)
 
         else

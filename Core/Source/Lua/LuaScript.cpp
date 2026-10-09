@@ -146,7 +146,7 @@ LuaScript::ExecResponse LuaScript::Execute() {
             return sol::lua_nil;
         }
 
-        if (!moduleVfs->EntryExists(url.ResolveAsPath())) {
+        if (!moduleVfs->EntryExists(url.ResolveAsVfsPath())) {
             luaL_error(L, "require(): url \"%s\" doesn't exist on disk", resolvedUrl.c_str());
             return sol::lua_nil;
         }

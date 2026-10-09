@@ -83,9 +83,9 @@ TEST(Url, GetHostNameForPlugin) {
 }
 
 TEST(Url, ResolveAlreadyAbsolutePath) {
-    Url url("userdata://databases/master.nwdb");
-    EXPECT_EQ("userdata://databases/master.nwdb", url.Resolve())
-        << "userdata://databases/master.nwdb did not resolve to the correct URL. Check the quality of Url::Resolve().";
+    Url url("user://databases/master.nwdb");
+    EXPECT_EQ("user://databases/master.nwdb", url.Resolve())
+        << "user://databases/master.nwdb did not resolve to the correct URL. Check the quality of Url::Resolve().";
 }
 
 TEST(Url, ResolveWithoutProtocol) {
@@ -124,6 +124,23 @@ TEST(Url, ResolveUsingContextForWebsiteWithoutHttpsSpecifier) {
     });
     EXPECT_EQ("https://youtube.com/watch?v=jNQXAC9IVRw", url.Resolve())
         << "youtube.com/watch?v=jNQXAC9IVRw did not resolve to the correct URL. Check the quality of Url::Resolve().";
+}
+
+TEST(Url, FolderSchemesUseShortNames) {
+    EXPECT_EQ(ProtocolType::User, Url("user://databases/master.nwdb").GetProtocol());
+    EXPECT_EQ(ProtocolType::Install, Url("install://priv-plugins/loadlist.lua").GetProtocol());
+    EXPECT_EQ(ProtocolType::Data, Url("data://master/master.nwdb").GetProtocol());
+    EXPECT_EQ("data", Url("master/master.nwdb", {
+        .DefaultProtocolType = ProtocolType::Data
+    }).GetProtocolString());
+}
+
+// GetVfs() for a folder scheme returns the whole folder, so the first segment (parsed as the host)
+// has to stay in the path used inside it.
+TEST(Url, ResolveAsVfsPathKeepsTheFolderHost) {
+    EXPECT_EQ("/master/master.nwdb", Url("data://master/master.nwdb").ResolveAsVfsPath());
+    EXPECT_EQ("/databases/master.nwdb", Url("user://databases/master.nwdb").ResolveAsVfsPath());
+    EXPECT_EQ("/lua/main.lua", Url("plugin://docs@noobwarrior.org/lua/main.lua").ResolveAsVfsPath());
 }
 
 TEST(Url, EnforceCorrectProtocol) {
@@ -234,6 +251,34 @@ TEST(Lua, SignalMultiple) {
 
 TEST(Lua, SignalParameter) {
     RUN_LUA("local signal = Signal.new() signal:Connect(function(msg) print('Msg sent from fired signal: \"'..msg..'\"') end) signal:Fire(\"Hello from fired signal!\")")
+}
+
+TEST(Lua, SignalDisconnectStopsListener) {
+    RUN_LUA("local signal = Signal.new() local count = 0 "
+            "local listener = signal:Connect(function() count += 1 end) "
+            "signal:Fire() listener:Disconnect() signal:Fire() return count")
+    EXPECT_EQ(1, lua.GetLastResult().as<int>());
+}
+
+// The listener handed back to Lua is only a handle; losing it must not disconnect anything.
+TEST(Lua, SignalListenerOutlivesItsHandle) {
+    RUN_LUA("local signal = Signal.new() local count = 0 "
+            "signal:Connect(function() count += 1 end) "
+            "signal:Fire() signal:Fire() return count")
+    EXPECT_EQ(2, lua.GetLastResult().as<int>());
+}
+
+TEST(Lua, SignalListenerCanDisconnectItselfWhileFiring) {
+    RUN_LUA("local signal = Signal.new() local count = 0 local listener "
+            "listener = signal:Connect(function() count += 1 listener:Disconnect() end) "
+            "signal:Connect(function() count += 10 end) "
+            "signal:Fire() signal:Fire() return count")
+    EXPECT_EQ(21, lua.GetLastResult().as<int>());
+}
+
+TEST(Lua, LhpEchoesLongBracketsVerbatim) {
+    RUN_LUA("return lhp.Render(\"a]]b[=====[c]=====]d]\")")
+    EXPECT_EQ("a]]b[=====[c]=====]d]", lua.GetLastResult().as<std::string>());
 }
 
 TEST(Database, Open) {

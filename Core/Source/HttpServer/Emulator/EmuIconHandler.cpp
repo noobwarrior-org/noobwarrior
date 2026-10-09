@@ -124,9 +124,9 @@ bool EmuIconHandler::LoadConfiguredIcon(std::vector<unsigned char> *out) {
         VirtualFileSystem* vfs = url.GetVfs(mEmu->GetCore());
         return ReadWholeVfsFile(vfs, url.ResolveAsPath(), out);
     }
-    case ProtocolType::PluginData:
-    case ProtocolType::UserData:
-    case ProtocolType::InstallData:
+    case ProtocolType::Data:
+    case ProtocolType::User:
+    case ProtocolType::Install:
     case ProtocolType::File:
         return ReadWholeLocalFile(url.ResolveAsLocalPath(mEmu->GetCore()), out);
     default:

@@ -188,7 +188,7 @@ static bool StageDatabase(Core *core, Plugin *plugin, const Plugin::DeclaredData
     Url url(declared.SourceUrl);
     const std::string innerPath = url.ResolveAsPath();
 
-    // Anything that is not addressing the plugin's own contents (userdata://, file://, ...) already
+    // Anything that is not addressing the plugin's own contents (user://, file://, ...) already
     // names a real file, so there is nothing to stage.
     if (url.GetProtocol() != ProtocolType::Plugin) {
         std::filesystem::path resolved = url.ResolveAsLocalPath(core);
@@ -358,7 +358,7 @@ Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {
 }
 
 Plugin* PluginManager::GetPluginFromUrl(const Url &url) {
-    if (url.GetProtocol() != ProtocolType::Plugin && url.GetProtocol() != ProtocolType::PluginData)
+    if (url.GetProtocol() != ProtocolType::Plugin && url.GetProtocol() != ProtocolType::Data)
         return nullptr;
     if (url.GetHostName().empty())
         return nullptr;

@@ -25,43 +25,61 @@
 #include <NoobWarrior/Lua/LuaSignal.h>
 #include <NoobWarrior/Log.h>
 
+#include <algorithm>
+
 using namespace NoobWarrior;
 
-LuaSignalListener::LuaSignalListener(LuaSignal& parent) : Parent(parent) {
-    
-}
-
-LuaSignalListener::~LuaSignalListener() {
-    Disconnect();
-}
-
 void LuaSignalListener::Disconnect() {
-    // auto it = std::find(Parent.mListeners.begin(), Parent.mListeners.end(), *this);
-    // if (it != Parent.mListeners.end())
-    //     Parent.mListeners.erase(it);
+    std::shared_ptr<LuaSignalConnectionList> connections = mConnections.lock();
+    if (connections == nullptr)
+        return;
+    std::erase_if(*connections, [this](const LuaSignalConnection &connection) {
+        return connection.Id == mId;
+    });
 }
 
-LuaSignal::LuaSignal() {
+LuaSignal::LuaSignal() : mConnections(std::make_shared<LuaSignalConnectionList>()) {
 
 }
 
 LuaSignalListener LuaSignal::Connect(sol::this_environment tenv, sol::protected_function func) {
     sol::environment env(tenv);
 
-    LuaSignalListener listener(*this);
-    listener.Function = func;
-    listener.OwnerScript = env["script"].get_or<LuaScript*>(nullptr);
+    LuaSignalConnection connection;
+    connection.Id = mNextId++;
+    connection.Function = func;
+    connection.OwnerScript = env["script"].get_or<LuaScript*>(nullptr);
+    mConnections->push_back(std::move(connection));
 
-    mListeners.push_back(std::move(listener));
+    LuaSignalListener listener;
+    listener.mConnections = mConnections;
+    listener.mId = mConnections->back().Id;
     return listener;
 }
 
 void LuaSignal::LuaFire(sol::variadic_args args) {
-    for (LuaSignalListener &listener : mListeners) {
-        listener.Function(args);
+    const LuaSignalConnectionList snapshot = *mConnections;
+    for (const LuaSignalConnection &connection : snapshot) {
+        if (!IsConnected(connection.Id))
+            continue;
+        sol::protected_function_result res = connection.Function(args);
+        if (!res.valid())
+            ReportError(connection, res);
     }
 }
 
 void LuaSignal::DisconnectAll() {
-    mListeners.clear();
+    mConnections->clear();
+}
+
+bool LuaSignal::IsConnected(uint64_t id) const {
+    return std::any_of(mConnections->begin(), mConnections->end(), [id](const LuaSignalConnection &connection) {
+        return connection.Id == id;
+    });
+}
+
+void LuaSignal::ReportError(const LuaSignalConnection &connection, sol::protected_function_result &res) {
+    sol::error err = res;
+    Out("LuaScript", "[{}] (Execution Failure in Signal Listener) {}",
+        connection.OwnerScript != nullptr ? connection.OwnerScript->GetUrl().Resolve() : "unknown", err.what());
 }

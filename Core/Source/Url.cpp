@@ -42,11 +42,11 @@ PROTOCOL_BEGIN()
     PROTOCOL("file", ProtocolType::File)
     PROTOCOL("http", ProtocolType::Http)
     PROTOCOL("https", ProtocolType::Https)
-    PROTOCOL("installdata", ProtocolType::InstallData)
-    PROTOCOL("userdata", ProtocolType::UserData)
+    PROTOCOL("install", ProtocolType::Install)
+    PROTOCOL("user", ProtocolType::User)
     PROTOCOL("db", ProtocolType::Database)
     PROTOCOL("plugin", ProtocolType::Plugin)
-    PROTOCOL("plugindata", ProtocolType::PluginData)
+    PROTOCOL("data", ProtocolType::Data)
     PROTOCOL("rbxassetid", ProtocolType::RbxAssetId)
     PROTOCOL("rbxthumb", ProtocolType::RbxThumb)
 PROTOCOL_END()
@@ -180,8 +180,10 @@ std::string Url::Resolve() const {
 
     if (!foundProtocolInUserString) {
         for (const auto& pair : sProtocolMap) {
-            if (pair.second == mCtx.DefaultProtocolType)
+            if (pair.second == mCtx.DefaultProtocolType) {
                 fullUrl += pair.first;
+                break;
+            }
         }
         fullUrl += "://";
         fullUrl += mCtx.DefaultHostName;
@@ -224,6 +226,19 @@ std::string Url::ResolveAsPath() const {
     return pathName;
 }
 
+std::string Url::ResolveAsVfsPath() const {
+    switch (GetProtocol()) {
+    case ProtocolType::User:
+    case ProtocolType::Data:
+    case ProtocolType::Install: {
+        std::string hostName = GetHostName();
+        return hostName.empty() ? ResolveAsPath() : "/" + hostName + ResolveAsPath();
+    }
+    default:
+        return ResolveAsPath();
+    }
+}
+
 std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
     ProtocolType protocol = GetProtocol();
     if (protocol == ProtocolType::Plugin) {
@@ -239,12 +254,12 @@ std::filesystem::path Url::ResolveAsLocalPath(Core* core) const {
         return ResolveWithoutProtocol();
     } else if (protocol == ProtocolType::Database) {
 
-    } else if (protocol == ProtocolType::InstallData || protocol == ProtocolType::UserData || protocol == ProtocolType::PluginData) {
+    } else if (protocol == ProtocolType::Install || protocol == ProtocolType::User || protocol == ProtocolType::Data) {
         std::filesystem::path dir;
         switch (protocol) {
-        case ProtocolType::InstallData: dir = core->GetInstallDataDir(); break;
-        case ProtocolType::UserData: dir = core->GetUserDataDir(); break;
-        case ProtocolType::PluginData: dir = core->GetUserDataDir() / NW_PATH_PLUGINDATA; break;
+        case ProtocolType::Install: dir = core->GetInstallDataDir(); break;
+        case ProtocolType::User: dir = core->GetUserDataDir(); break;
+        case ProtocolType::Data: dir = core->GetUserDataDir() / NW_PATH_PLUGINDATA; break;
         default: break;
         }
         std::string absPath = (dir / GetHostName()).string() + ResolveAsPath();
@@ -275,10 +290,10 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
         core->Out("Url", "Database protocol URLs are WIP");
         return VirtualFileSystem::Response::Failed;
     case ProtocolType::File: break;
-    case ProtocolType::InstallData: break;
-    case ProtocolType::UserData: break;
+    case ProtocolType::Install: break;
+    case ProtocolType::User: break;
     case ProtocolType::Plugin: break;
-    case ProtocolType::PluginData: break;
+    case ProtocolType::Data: break;
     }
 
 #undef NETWORK_UNSUPPORTED
@@ -294,7 +309,7 @@ VirtualFileSystem::Response Url::OpenHandle(Core* core, VirtualFileSystem **vfsP
     VirtualFileSystem* vfs = GetVfs(core);
     FSEntryHandle handle = 0;
     if (vfs != nullptr)
-        handle = vfs->OpenHandle(ResolveAsPath());
+        handle = vfs->OpenHandle(ResolveAsVfsPath());
     
     *vfsPtr = vfs;
     *handlePtr = handle;
@@ -315,15 +330,15 @@ VirtualFileSystem* Url::GetVfs(Core* core) const {
         if (plugin != nullptr)
             return plugin->GetVfs();
     // fuck u
-    } else if (protocol == ProtocolType::PluginData) {
+    } else if (protocol == ProtocolType::Data) {
         return core->GetPluginDataVfs();
     } else if (protocol == ProtocolType::File) {
         return core->GetFileVfs();
     } else if (protocol == ProtocolType::Database) {
 
-    } else if (protocol == ProtocolType::InstallData) {
+    } else if (protocol == ProtocolType::Install) {
         return core->GetInstallDataVfs();
-    } else if (protocol == ProtocolType::UserData) {
+    } else if (protocol == ProtocolType::User) {
         return core->GetUserDataVfs();
     }
     return nullptr;

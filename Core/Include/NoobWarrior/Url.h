@@ -36,11 +36,11 @@ enum class ProtocolType {
     File,
     Http,
     Https,
-    InstallData,
-    UserData,
+    Install,
+    User,
     Database,
     Plugin,
-    PluginData,
+    Data,
     RbxAssetId,
     RbxThumb
 };
@@ -117,6 +117,11 @@ public:
 
     /* Returns an absolute path to the resource without its host name */
     std::string ResolveAsPath() const;
+
+    /* Returns the path to the resource inside the VirtualFileSystem returned by GetVfs().
+       For user://, data:// and install:// the host is a folder in that file system, so
+       it is kept; for every other protocol this is the same as ResolveAsPath(). */
+    std::string ResolveAsVfsPath() const;
 
     /* Returns the real path of this URL on the computer's filesystem */
     std::filesystem::path ResolveAsLocalPath(Core* core) const;

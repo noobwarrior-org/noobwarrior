@@ -105,7 +105,7 @@ public:
     Plugin* GetPluginFromIdentifier(const std::string &identifier);
 
     /**
-     * @brief Resolves the plugin that owns a plugin:// or plugindata:// url, using the url's host
+     * @brief Resolves the plugin that owns a plugin:// or data:// url, using the url's host
      * name as the plugin identifier. Returns nullptr for any other protocol, or if no plugin with
      * that identifier is mounted.
      */

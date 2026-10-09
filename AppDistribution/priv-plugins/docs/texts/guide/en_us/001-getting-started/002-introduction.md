@@ -1,1 +1,0 @@
-There are a lot of starting points when getting started with noobWarrior. Where do you even begin?

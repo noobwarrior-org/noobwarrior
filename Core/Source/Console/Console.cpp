@@ -78,7 +78,11 @@ int Console::Exec() {
         std::getline(*mIn, input);
 
         CommandContext ctx(this);
-        std::string cmdName = input.substr(0, input.find_first_of(' '));
+        std::istringstream words(input);
+        std::string cmdName;
+        words >> cmdName;
+        for (std::string word; words >> word;)
+            ctx.Args.push_back(word);
         if (mCommands.contains(cmdName))
             mCommands[cmdName]->Main(ctx);
         else if (mAliases.contains(cmdName) && mCommands.contains(mAliases[cmdName]))

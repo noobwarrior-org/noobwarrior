@@ -23,7 +23,9 @@
 // Started on: 2/19/2026
 // Description:
 #pragma once
+#include <cstdint>
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include <lua.h>
@@ -33,34 +35,39 @@
 #include <NoobWarrior/Lua/LuaScript.h>
 
 namespace NoobWarrior {
-class LuaSignal;
-class LuaSignalListener {
-    friend class LuaSignal;
-public:
-    LuaSignalListener(LuaSignal& parent);
-    ~LuaSignalListener();
-
-    void Disconnect();
-protected:
+struct LuaSignalConnection {
+    uint64_t Id { 0 };
     LuaScript* OwnerScript { nullptr };
-    LuaSignal& Parent;
     sol::protected_function Function;
 };
 
+using LuaSignalConnectionList = std::vector<LuaSignalConnection>;
+
+// Handed to Lua by value, so copies of it come and go freely. It only refers to its connection by id
+// and does nothing when it is destroyed; a connection lasts until Disconnect() or the signal's end.
+class LuaSignalListener {
+    friend class LuaSignal;
+public:
+    void Disconnect();
+protected:
+    std::weak_ptr<LuaSignalConnectionList> mConnections;
+    uint64_t mId { 0 };
+};
+
 class LuaSignal {
-    friend class LuaSignalListener;
 public:
     LuaSignal();
 
     template<typename... Args>
     void Fire(Args... args) {
-        for (LuaSignalListener &listener : mListeners) {
-            sol::protected_function_result res = listener.Function(std::forward<Args>(args)...);
-            if (!res.valid()) {
-                sol::error err = res;
-                Out("LuaScript", "[{}] (Execution Failure in Signal Listener) {}",
-                    listener.OwnerScript != nullptr ? listener.OwnerScript->GetUrl().Resolve() : "unknown", err.what());
-            }
+        // Iterate a copy: a listener may connect or disconnect listeners while it runs.
+        const LuaSignalConnectionList snapshot = *mConnections;
+        for (const LuaSignalConnection &connection : snapshot) {
+            if (!IsConnected(connection.Id))
+                continue;
+            sol::protected_function_result res = connection.Function(args...);
+            if (!res.valid())
+                ReportError(connection, res);
         }
     }
 
@@ -68,6 +75,10 @@ public:
     LuaSignalListener Connect(sol::this_environment tenv, sol::protected_function func);
     void DisconnectAll();
 protected:
-    std::vector<LuaSignalListener> mListeners;
+    bool IsConnected(uint64_t id) const;
+    static void ReportError(const LuaSignalConnection &connection, sol::protected_function_result &res);
+
+    std::shared_ptr<LuaSignalConnectionList> mConnections;
+    uint64_t mNextId { 1 };
 };
 }
