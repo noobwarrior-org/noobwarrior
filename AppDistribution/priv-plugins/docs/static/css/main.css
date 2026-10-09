@@ -37,7 +37,7 @@
 
 :root {
     color-scheme: light dark; 
-    --bg-color: light-dark(rgb(255 254 231), rgb(68, 68, 68));
+    --bg-color: light-dark(rgb(255, 254, 231), rgb(20, 20, 20));
     --text-color: light-dark(rgb(0, 0, 0), rgb(200, 200, 200));
     --logo-color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));
     --border-color: light-dark(rgb(224 219 175), rgb(50, 50, 50));
@@ -58,15 +58,18 @@ hr {
     border-color: var(--border-color);
 }
 
-.main {
-    /* background-image: url('/img/dark-linen.png');
-    background-repeat: repeat; */
-    max-width: 1000px;
+h1, h2, h3, h4, h5, h6 {
+  font-weight: normal;
+}
+
+.header,
+.header-links,
+.content,
+.footer {
+    box-sizing: border-box;
+    max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
-    box-shadow: 0px 0px 8px 2px rgb(10, 10, 10);
-    padding: 24px;
-    font-size: 1rem;
 }
 
 .header {
@@ -83,6 +86,8 @@ hr {
 .header-links ul {
     padding: 0;
     list-style: none;
+    display: flex;
+    gap: 2em;
 }
 
 #header-logo {
@@ -96,7 +101,7 @@ hr {
 
 #logo-text {
     font-family: 'Source Sans Pro', sans-serif;
-    color: var(logo-color);
+    color: var(--logo-color);
 }
 
 #docs-text {

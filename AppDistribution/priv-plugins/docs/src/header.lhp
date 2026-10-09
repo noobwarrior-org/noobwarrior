@@ -23,7 +23,10 @@ end
             <hr>
             <div class="header-links">
                 <ul>
-                    <li><a>End-User</a></li>
+                    <li><a>Users</a></li>
+                    <li><a>Moderators</a></li>
+                    <li><a>Administrators</a></li>
+                    <li><a>Developers</a></li>
                 </ul>
             </div>
             <hr>
