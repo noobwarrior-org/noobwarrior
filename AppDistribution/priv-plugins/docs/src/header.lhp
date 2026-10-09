@@ -23,10 +23,10 @@ end
             <hr>
             <div class="header-links">
                 <ul>
-                    <li><a>Users</a></li>
-                    <li><a>Moderators</a></li>
-                    <li><a>Administrators</a></li>
-                    <li><a>Developers</a></li>
+                    <li><a href="/guide" selected>Guide</a></li>
+                    <li><a href="/plugin">Plugins</a></li>
+                    <li><a href="/api">API Reference</a></li>
+                    <li><a href="/internal">Internals</a></li>
                 </ul>
             </div>
             <hr>

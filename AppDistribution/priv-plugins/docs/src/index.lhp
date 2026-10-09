@@ -49,12 +49,21 @@ print(tbl)
 ?>
 
 <div class="sidebar">
-    <h3>Getting Started</h3>
-    <ul>
+    <ul class="tree">
     <?lua
     local function Iterate(children)
         for _, child in ipairs(children) do
-            echo("<li><a"..(child.File and " href=\"poop\"" or "")..">"..child.Title.."</a></li>")
+            echo("<li>")
+            if child.Children then
+                echo("<details open><summary>"..child.Title.."</summary><ul>")
+                Iterate(child.Children)
+                echo("</ul></details>")
+            elseif child.File then
+                echo("<a href=\"/?page="..child.File.."\""..(_GET.page == child.File and " selected" or "")..">"..child.Title.."</a>")
+            else
+                echo("<span>"..child.Title.."</span>")
+            end
+            echo("</li>")
         end
     end
     Iterate(index)

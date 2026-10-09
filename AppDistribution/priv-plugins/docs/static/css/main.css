@@ -39,6 +39,7 @@
     color-scheme: light dark; 
     --bg-color: light-dark(rgb(255, 254, 231), rgb(20, 20, 20));
     --text-color: light-dark(rgb(0, 0, 0), rgb(200, 200, 200));
+    --gray-text-color: light-dark(rgb(50, 50, 50), rgb(150, 150, 150));
     --logo-color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));
     --border-color: light-dark(rgb(224 219 175), rgb(50, 50, 50));
 }
@@ -90,6 +91,28 @@ h1, h2, h3, h4, h5, h6 {
     gap: 2em;
 }
 
+.header-links a {
+    text-decoration: none;
+}
+
+.header-links a:link {
+    color: var(--gray-text-color);
+}
+
+.header-links a:visited {
+    color: var(--gray-text-color);
+}
+
+.header-links a:hover {
+    color: var(--text-color);
+}
+
+.header-links a[selected] {
+    color: var(--text-color);
+    font-weight: bold;
+    border-bottom: 1px solid black;
+}
+
 #header-logo {
     display: flex;
     gap: 4px;
@@ -111,6 +134,8 @@ h1, h2, h3, h4, h5, h6 {
 .content {
     display: flex;
     gap: 20px;
+    padding-left: 3em;
+    padding-right: 3em;
 }
 
 .footer {
@@ -121,4 +146,108 @@ h1, h2, h3, h4, h5, h6 {
     flex: 0 0 1px;
     align-self: stretch;
     background-color: var(--border-color);
+}
+
+.sidebar {
+    flex: 0 0 260px;
+    padding-top: 1em;
+}
+
+.tree,
+.tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.tree {
+    line-height: 1.9;
+}
+
+.tree ul {
+    margin-left: 5px;
+    padding-left: 1em;
+    border-left: 1px solid var(--border-color);
+}
+
+.tree > li + li {
+    margin-top: 0.5em;
+}
+
+.tree summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    cursor: pointer;
+    list-style: none;
+    color: var(--text-color);
+    user-select: none;
+}
+
+.tree summary::-webkit-details-marker {
+    display: none;
+}
+
+.tree summary::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 5px;
+    height: 5px;
+    border: solid var(--gray-text-color);
+    border-width: 0 1px 1px 0;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+}
+
+.tree details[open] > summary::before {
+    transform: rotate(45deg) translate(-2px, -1px);
+}
+
+.tree summary:hover::before {
+    border-color: var(--text-color);
+}
+
+.tree summary:focus {
+    outline: none;
+}
+
+.tree summary:focus-visible {
+    outline: 1px dotted var(--text-color);
+}
+
+.tree > li > details > summary {
+    font-weight: bold;
+}
+
+.tree ul a,
+.tree ul span {
+    display: block;
+    margin-left: calc(-1em - 1px);
+    padding-left: 1em;
+    border-left: 1px solid transparent;
+}
+
+.tree a {
+    color: var(--gray-text-color);
+    text-decoration: none;
+}
+
+.tree a:hover {
+    color: var(--text-color);
+}
+
+.tree a[selected] {
+    color: var(--text-color);
+    font-weight: bold;
+    border-left-color: var(--text-color);
+}
+
+.tree span {
+    color: var(--gray-text-color);
+    opacity: 0.6;
+}
+
+.tree > li > a,
+.tree > li > span {
+    padding-left: calc(7px + 0.6em);
 }
