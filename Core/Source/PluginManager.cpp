@@ -26,6 +26,7 @@
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/EmuDb/EmuDbManager.h>
 #include <NoobWarrior/FileSystem/VirtualFileSystem.h>
+#include <NoobWarrior/Language.h>
 #include <NoobWarrior/Paths.h>
 
 #include <iterator>
@@ -41,6 +42,8 @@ Plugin::Response PluginManager::Mount(Plugin *plugin, int priority) {
     if (res != Plugin::Response::Success)
         return res;
     mMountedPlugins.push_back(plugin);
+    if (Language *language = mCore->GetLanguage())
+        language->AddSource(plugin->GetIdentifier(), plugin->GetVfs());
     return res;
 }
 
@@ -64,6 +67,8 @@ void PluginManager::Unmount(Plugin* plugin) {
     if (it != mMountedPlugins.end()) {
         std::string fileName = plugin->GetFileName();
         mMountedPlugins.erase(it);
+        if (Language *language = mCore->GetLanguage())
+            language->RemoveSource(plugin->GetIdentifier());
         NOOBWARRIOR_FREE_PTR(plugin)
         mCore->Out("PluginManager", "Unmounted plugin \"{}\"", fileName);
     }
@@ -340,9 +345,8 @@ void PluginManager::UnmountPlugins() {
         mCore->Out("PluginManager", "WARNING! noobWarrior tried to unmount all plugins but the Lua subsystem is not open! Perhaps it was closed too early?");
         return;
     }
-    for (Plugin* plugin : mMountedPlugins) {
-        Unmount(plugin);
-    }
+    while (!mMountedPlugins.empty())
+        Unmount(mMountedPlugins.back());
 }
 
 Plugin* PluginManager::GetPluginFromIdentifier(const std::string &identifier) {

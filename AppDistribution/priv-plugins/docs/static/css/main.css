@@ -262,6 +262,12 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.6;
 }
 
+.untranslated {
+    padding: 0.5em 0.8em;
+    border: 1px solid var(--border-color);
+    color: var(--gray-text-color);
+}
+
 .markdown h1,
 .markdown h2 {
     padding-bottom: 0.2em;

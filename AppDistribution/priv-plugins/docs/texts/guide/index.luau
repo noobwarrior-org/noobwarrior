@@ -18,23 +18,5 @@ return {
     {
         Title = "docs.user_guides",
         Fallback = "User Guides"
-    },
-    {
-        Title = "docs.api_reference",
-        Fallback = "API Reference",
-        Children = {
-            {
-                Title = "docs.api_reference.lua",
-                Fallback = "Lua"
-            },
-            {
-                Title = "docs.api_reference.cpp",
-                Fallback = "C++"
-            },
-            {
-                Title = "docs.api_reference.c",
-                Fallback = "C"
-            }
-        }
     }
 }

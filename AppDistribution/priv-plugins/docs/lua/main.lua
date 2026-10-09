@@ -20,7 +20,8 @@ _G.DOCS_MARKDOWN = require("plugin://docs@noobwarrior.org/lua/markdown.lua")
 local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
-    ["/"] = "/src/index.lhp"
+    ["/"] = "/src/index.lhp",
+    ["/:section"] = "/src/index.lhp"
 }
 
 docs = http_base.CreateServer({

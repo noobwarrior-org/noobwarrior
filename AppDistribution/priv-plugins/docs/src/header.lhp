@@ -23,10 +23,11 @@ end
             <hr>
             <div class="header-links">
                 <ul>
-                    <li><a href="/guide" selected><?lua echo(lang.Translate("docs.guide", "Guide")) ?></a></li>
-                    <li><a href="/plugin"><?lua echo(lang.Translate("docs.plugins", "Plugins")) ?></a></li>
-                    <li><a href="/api"><?lua echo(lang.Translate("docs.api_reference", "API Reference")) ?></a></li>
-                    <li><a href="/internal"><?lua echo(lang.Translate("docs.internals", "Internals")) ?></a></li>
+                    <?lua
+                    for _, entry in ipairs(sections or {}) do
+                        echo(string.format([[<li><a href="/%s"%s>%s</a></li>]], entry.Id, entry == section and " selected" or "", lang.Translate(entry.Title, entry.Fallback)))
+                    end
+                    ?>
                 </ul>
             </div>
             <hr>

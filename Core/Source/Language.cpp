@@ -23,12 +23,14 @@
 // Started on: 10/9/2026
 // Description: Translates keys into text for the selected language
 #include <NoobWarrior/Language.h>
+#include <NoobWarrior/FileSystem/VirtualFileSystem.h>
 #include <NoobWarrior/Lua/LuaState.h>
 #include <NoobWarrior/Log.h>
 
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <limits>
 #include <sstream>
 
 using namespace NoobWarrior;
@@ -36,8 +38,11 @@ using namespace NoobWarrior;
 Language::Language(LuaState* lua, std::filesystem::path dir) :
     mLua(lua),
     mDir(std::move(dir)),
-    mCode(NOOBWARRIOR_DEFAULT_LANGUAGE)
-{}
+    mCode(NOOBWARRIOR_DEFAULT_LANGUAGE),
+    mRequestedCode(NOOBWARRIOR_DEFAULT_LANGUAGE)
+{
+    mSources.push_back(Source { .Id = "core" });
+}
 
 std::string Language::NormalizeCode(const std::string &code) {
     std::string out;
@@ -52,22 +57,75 @@ std::string Language::NormalizeCode(const std::string &code) {
     return out;
 }
 
-std::optional<Language::StringMap> Language::ReadLanguageFile(const std::string &code) const {
-    std::filesystem::path path = mDir / (code + ".luau");
-    std::error_code ec;
-    if (code.empty() || !std::filesystem::is_regular_file(path, ec))
+std::optional<std::string> Language::ReadSourceFile(const Source &source, const std::string &code) const {
+    if (code.empty())
         return std::nullopt;
 
-    std::ifstream file(path, std::ios::binary);
-    if (!file)
-        return std::nullopt;
-    std::stringstream ss;
-    ss << file.rdbuf();
+    if (source.Vfs == nullptr) {
+        std::filesystem::path path = mDir / (code + ".luau");
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(path, ec))
+            return std::nullopt;
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+            return std::nullopt;
+        std::stringstream ss;
+        ss << file.rdbuf();
+        return ss.str();
+    }
 
-    sol::load_result chunk = mLua->load(ss.str(), "@lang/" + code + ".luau", sol::load_mode::text);
+    std::string path = "/lang/" + code + ".luau";
+    if (!source.Vfs->EntryExists(path))
+        return std::nullopt;
+    FSEntryInfo info = source.Vfs->GetEntryFromPath(path);
+    if (info.Failed || info.Type != FSEntryInfo::Type::File || info.Size > std::numeric_limits<unsigned int>::max())
+        return std::nullopt;
+
+    FSEntryHandle handle = source.Vfs->OpenHandle(path);
+    if (handle == 0)
+        return std::nullopt;
+    std::vector<unsigned char> bytes;
+    bool read = info.Size == 0 || source.Vfs->ReadHandleChunk(handle, &bytes, static_cast<unsigned int>(info.Size));
+    source.Vfs->CloseHandle(handle);
+    if (!read)
+        return std::nullopt;
+    return std::string(bytes.begin(), bytes.end());
+}
+
+std::vector<std::string> Language::GetSourceCodes(const Source &source) const {
+    std::vector<std::string> codes;
+    if (source.Vfs == nullptr) {
+        std::error_code ec;
+        for (const auto &entry : std::filesystem::directory_iterator(mDir, ec)) {
+            if (entry.is_regular_file(ec) && entry.path().extension() == ".luau")
+                codes.push_back(entry.path().stem().string());
+        }
+        return codes;
+    }
+
+    if (!source.Vfs->EntryExists("/lang"))
+        return codes;
+    for (const FSEntryInfo &entry : source.Vfs->GetEntriesInDirectory("/lang")) {
+        std::filesystem::path name(entry.Name);
+        if (!entry.Failed && entry.Type == FSEntryInfo::Type::File && name.extension() == ".luau")
+            codes.push_back(name.stem().string());
+    }
+    return codes;
+}
+
+std::optional<Language::StringMap> Language::ReadLanguageFile(const Source &source, const std::string &code) const {
+    std::optional<std::string> contents = ReadSourceFile(source, code);
+    if (!contents)
+        return std::nullopt;
+
+    std::string name = source.Vfs == nullptr
+        ? (mDir / (code + ".luau")).string()
+        : "plugin://" + source.Id + "/lang/" + code + ".luau";
+
+    sol::load_result chunk = mLua->load(*contents, "@" + name, sol::load_mode::text);
     if (!chunk.valid()) {
         sol::error err = chunk;
-        Out("Language", "Failed to compile {}: {}", path.string(), err.what());
+        Out("Language", "Failed to compile {}: {}", name, err.what());
         return std::nullopt;
     }
 
@@ -77,13 +135,13 @@ std::optional<Language::StringMap> Language::ReadLanguageFile(const std::string 
     sol::protected_function_result res = fn();
     if (!res.valid()) {
         sol::error err = res;
-        Out("Language", "Failed to execute {}: {}", path.string(), err.what());
+        Out("Language", "Failed to execute {}: {}", name, err.what());
         return std::nullopt;
     }
 
     sol::object ret = res;
     if (ret.get_type() != sol::type::table) {
-        Out("Language", "{} did not return a table", path.string());
+        Out("Language", "{} did not return a table", name);
         return std::nullopt;
     }
 
@@ -95,19 +153,50 @@ std::optional<Language::StringMap> Language::ReadLanguageFile(const std::string 
     return strings;
 }
 
-bool Language::Load(const std::string &code) {
-    std::string normalized = NormalizeCode(code);
-    std::optional<StringMap> strings = ReadLanguageFile(normalized);
-    bool found = strings.has_value();
-    if (!found) {
-        Out("Language", "Language \"{}\" not found, using {}", code, NOOBWARRIOR_DEFAULT_LANGUAGE);
-        normalized = NOOBWARRIOR_DEFAULT_LANGUAGE;
-    }
+void Language::ReloadSource(Source &source) {
+    source.DefaultStrings = ReadLanguageFile(source, NOOBWARRIOR_DEFAULT_LANGUAGE).value_or(StringMap {});
+    source.Strings = mCode == NOOBWARRIOR_DEFAULT_LANGUAGE ? StringMap {} : ReadLanguageFile(source, mCode).value_or(StringMap {});
+}
 
-    mCode = normalized;
-    mDefaultStrings = ReadLanguageFile(NOOBWARRIOR_DEFAULT_LANGUAGE).value_or(StringMap {});
-    mStrings = mCode == NOOBWARRIOR_DEFAULT_LANGUAGE ? StringMap {} : strings.value_or(StringMap {});
+bool Language::SourceHasLanguage(const Source &source, const std::string &code) const {
+    std::vector<std::string> codes = GetSourceCodes(source);
+    return std::find(codes.begin(), codes.end(), code) != codes.end();
+}
+
+bool Language::HasLanguage(const std::string &code) const {
+    std::vector<std::string> codes = GetAvailableLanguages();
+    return std::find(codes.begin(), codes.end(), code) != codes.end();
+}
+
+bool Language::Load(const std::string &code) {
+    mRequestedCode = NormalizeCode(code);
+    bool found = !mRequestedCode.empty() && HasLanguage(mRequestedCode);
+    if (!found)
+        Out("Language", "Language \"{}\" not found, using {}", code, NOOBWARRIOR_DEFAULT_LANGUAGE);
+
+    mCode = found ? mRequestedCode : NOOBWARRIOR_DEFAULT_LANGUAGE;
+    for (Source &source : mSources)
+        ReloadSource(source);
     return found;
+}
+
+void Language::AddSource(const std::string &id, VirtualFileSystem *vfs) {
+    if (vfs == nullptr)
+        return;
+    std::erase_if(mSources, [&id](const Source &source) { return source.Vfs != nullptr && source.Id == id; });
+    mSources.push_back(Source { .Id = id, .Vfs = vfs });
+
+    if (mCode != mRequestedCode && SourceHasLanguage(mSources.back(), mRequestedCode)) {
+        Load(mRequestedCode);
+        return;
+    }
+    ReloadSource(mSources.back());
+}
+
+void Language::RemoveSource(const std::string &id) {
+    size_t removed = std::erase_if(mSources, [&id](const Source &source) { return source.Vfs != nullptr && source.Id == id; });
+    if (removed > 0 && !HasLanguage(mCode))
+        Load(mRequestedCode);
 }
 
 const std::string& Language::GetCode() const {
@@ -116,25 +205,30 @@ const std::string& Language::GetCode() const {
 
 std::vector<std::string> Language::GetAvailableLanguages() const {
     std::vector<std::string> codes;
-    std::error_code ec;
-    for (const auto &entry : std::filesystem::directory_iterator(mDir, ec)) {
-        if (entry.is_regular_file(ec) && entry.path().extension() == ".luau")
-            codes.push_back(entry.path().stem().string());
+    for (const Source &source : mSources) {
+        std::vector<std::string> sourceCodes = GetSourceCodes(source);
+        codes.insert(codes.end(), sourceCodes.begin(), sourceCodes.end());
     }
-    if (std::find(codes.begin(), codes.end(), NOOBWARRIOR_DEFAULT_LANGUAGE) == codes.end())
-        codes.push_back(NOOBWARRIOR_DEFAULT_LANGUAGE);
+    codes.push_back(NOOBWARRIOR_DEFAULT_LANGUAGE);
     std::sort(codes.begin(), codes.end());
+    codes.erase(std::unique(codes.begin(), codes.end()), codes.end());
     return codes;
 }
 
 bool Language::Has(const std::string &key) const {
-    return mStrings.contains(key) || mDefaultStrings.contains(key);
+    return std::any_of(mSources.begin(), mSources.end(), [&key](const Source &source) {
+        return source.Strings.contains(key) || source.DefaultStrings.contains(key);
+    });
 }
 
 std::string Language::Lookup(const std::string &key, const std::string &fallback) const {
-    if (auto it = mStrings.find(key); it != mStrings.end())
-        return it->second;
-    if (auto it = mDefaultStrings.find(key); it != mDefaultStrings.end())
-        return it->second;
+    for (auto source = mSources.rbegin(); source != mSources.rend(); ++source) {
+        if (auto it = source->Strings.find(key); it != source->Strings.end())
+            return it->second;
+    }
+    for (auto source = mSources.rbegin(); source != mSources.rend(); ++source) {
+        if (auto it = source->DefaultStrings.find(key); it != source->DefaultStrings.end())
+            return it->second;
+    }
     return fallback.empty() ? key : fallback;
 }

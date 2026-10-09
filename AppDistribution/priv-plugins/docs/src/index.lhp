@@ -7,17 +7,38 @@
 -- Started by: Hattozo
 -- Started on: 8/3/2026
 -- ////////////////////////////////////////////////////////////////////////////////
-local buf = plugin:GetVfs():ReadFile("/texts/index.luau")
-local tblStr = buffer.tostring(buf)
-local func = loadstring(tblStr)
-if not func then
-    die("failed to compile index.luau. Contact the owner of this website.")
+local vfs = plugin:GetVfs()
+
+local function LoadTable(path)
+    local buf = vfs:ReadFile(path)
+    if not buf then
+        die(string.format("failed to read %s. Contact the owner of this website.", path))
+    end
+    local func = loadstring(buffer.tostring(buf))
+    if not func then
+        die(string.format("failed to compile %s. Contact the owner of this website.", path))
+    end
+    local tbl = func()
+    if type(tbl) ~= "table" then
+        die(string.format("%s did not return a table. Contact the owner of this website.", path))
+    end
+    return tbl
 end
-local index = func()
-if type(index) ~= "table" then
-    die("index.luau did not return a table. Contact the owner of this website.")
+
+sections = LoadTable("/texts/sections.luau")
+section = nil
+if _PARAMS.section then
+    for _, candidate in ipairs(sections) do
+        if candidate.Id == _PARAMS.section then
+            section = candidate
+            break
+        end
+    end
+else
+    section = sections[1]
 end
-print(index)
+
+local index = section and LoadTable("/texts/" .. section.Id .. "/index.luau") or {}
 
 local function FindPage(children, file)
     for _, child in ipairs(children) do
@@ -31,19 +52,32 @@ local function FindPage(children, file)
     end
 end
 
-local page = FindPage(index, _GET.page)
+local page = section and FindPage(index, _GET.page)
 local pageHtml
+local untranslated = false
 if page then
-    local pageBuf = plugin:GetVfs():ReadFile("/texts/" .. page.File)
+    local root = "/texts/" .. section.Id .. "/"
+    local pageBuf = vfs:ReadFile(root .. lang.GetCode() .. "/" .. page.File)
+    if not pageBuf then
+        pageBuf = vfs:ReadFile(root .. "en_us/" .. page.File)
+        untranslated = pageBuf ~= nil and lang.GetCode() ~= "en_us"
+    end
     if pageBuf then
         pageHtml = _G.DOCS_MARKDOWN.ToHtml(buffer.tostring(pageBuf))
     end
 end
-if not pageHtml then
+local sectionEmpty = section ~= nil and _GET.page == nil and page == nil
+if not pageHtml and not sectionEmpty then
     http_response_code(404)
 end
 
-pageTitle = page and lang.Translate("docs.page_title", "{0} - noobWarrior Documentation", lang.Translate(page.Title, page.Fallback)) or lang.Translate("docs.title", "noobWarrior Documentation")
+if page then
+    pageTitle = lang.Translate("docs.page_title", "{0} - noobWarrior Documentation", lang.Translate(page.Title, page.Fallback))
+elseif section then
+    pageTitle = lang.Translate("docs.page_title", "{0} - noobWarrior Documentation", lang.Translate(section.Title, section.Fallback))
+else
+    pageTitle = lang.Translate("docs.title", "noobWarrior Documentation")
+end
 include("header.lhp")
 
 --[[
@@ -81,7 +115,7 @@ print(tbl)
                 Iterate(child.Children)
                 echo("</ul></details>")
             elseif child.File then
-                echo("<a href=\"/?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>")
+                echo("<a href=\"/"..section.Id.."?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>")
             else
                 echo("<span>"..lang.Translate(child.Title, child.Fallback).."</span>")
             end
@@ -96,7 +130,12 @@ print(tbl)
 <div class="page markdown">
     <?lua
     if pageHtml then
+        if untranslated then
+            echo("<p class=\"untranslated\">"..lang.Translate("docs.untranslated", "This page has not been translated into your language yet.").."</p>")
+        end
         echo(pageHtml)
+    elseif sectionEmpty then
+        echo("<h1>"..lang.Translate("docs.section_empty", "Nothing here yet").."</h1><p>"..lang.Translate("docs.section_empty.description", "This section does not have any pages yet.").."</p>")
     else
         echo("<h1>"..lang.Translate("docs.page_not_found", "Page not found").."</h1><p>"..lang.Translate("docs.page_not_found.description", "The page you requested does not exist.").."</p>")
     end

@@ -34,6 +34,7 @@
 
 namespace NoobWarrior {
 class LuaState;
+class VirtualFileSystem;
 
 class Language {
 public:
@@ -42,6 +43,8 @@ public:
     Language(LuaState* lua, std::filesystem::path dir);
 
     bool Load(const std::string &code);
+    void AddSource(const std::string &id, VirtualFileSystem *vfs);
+    void RemoveSource(const std::string &id);
     const std::string& GetCode() const;
     std::vector<std::string> GetAvailableLanguages() const;
 
@@ -60,12 +63,24 @@ public:
 
     static std::string NormalizeCode(const std::string &code);
 private:
-    std::optional<StringMap> ReadLanguageFile(const std::string &code) const;
+    struct Source {
+        std::string         Id;
+        VirtualFileSystem*  Vfs { nullptr };
+        StringMap           Strings;
+        StringMap           DefaultStrings;
+    };
+
+    std::optional<std::string> ReadSourceFile(const Source &source, const std::string &code) const;
+    std::vector<std::string> GetSourceCodes(const Source &source) const;
+    std::optional<StringMap> ReadLanguageFile(const Source &source, const std::string &code) const;
+    void ReloadSource(Source &source);
+    bool HasLanguage(const std::string &code) const;
+    bool SourceHasLanguage(const Source &source, const std::string &code) const;
 
     LuaState*               mLua;
     std::filesystem::path   mDir;
     std::string             mCode;
-    StringMap               mStrings;
-    StringMap               mDefaultStrings;
+    std::string             mRequestedCode;
+    std::vector<Source>     mSources;
 };
 }
