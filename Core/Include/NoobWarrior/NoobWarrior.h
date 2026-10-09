@@ -29,6 +29,7 @@
 #include "Lua/LuaState.h"
 #include "EmuDb/EmuDb.h"
 #include "Registry.h"
+#include "Language.h"
 #include "NoobWarrior/Keychain/RbxKeychain.h"
 #include "PluginManager.h"
 #include "EmuDb/EmuDb.h"
@@ -172,6 +173,7 @@ public:
 
     LuaState *GetLuaState();
     Registry *GetRegistry();
+    Language *GetLanguage();
     EmuDbManager *GetEmuDbManager();
     PluginManager *GetPluginManager();
 
@@ -294,6 +296,7 @@ private:
     Init                            mInit;
     LuaState*                       mLuaState;
     Registry*                       mRegistry;
+    Language*                       mLanguage;
     EmuDbManager                    mEmuDbManager;
     PluginManager                   mPluginManager;
 

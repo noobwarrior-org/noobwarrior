@@ -9,24 +9,24 @@ end
     <head>
         <?lua include("plugin://http-base@noobwarrior.org/src/shared.lhp") ?>
         <!-- <link rel="stylesheet" href="/css/docs.css"> -->
-        <title><?lua echo(pageTitle or "noobWarrior Docs") ?></title>
+        <title><?lua echo(pageTitle or lang.Translate("docs.title", "noobWarrior Documentation")) ?></title>
     </head>
     <body>
         <!-- <div class="main"> -->
             <div class="header">
                 <div id="header-logo">
-                    <img src="/img/icon1024.png" alt="Documentation logo" width="64" height="64">
+                    <img src="/img/icon1024.png" alt="<?lua echo(lang.Translate("docs.logo_alt", "Documentation logo")) ?>" width="64" height="64">
                     <p id="logo-text">noobWarrior</p>
-                    <p id="docs-text">Documentation</p>
+                    <p id="docs-text"><?lua echo(lang.Translate("docs.logo_text", "Documentation")) ?></p>
                 </div>
             </div>
             <hr>
             <div class="header-links">
                 <ul>
-                    <li><a href="/guide" selected>Guide</a></li>
-                    <li><a href="/plugin">Plugins</a></li>
-                    <li><a href="/api">API Reference</a></li>
-                    <li><a href="/internal">Internals</a></li>
+                    <li><a href="/guide" selected><?lua echo(lang.Translate("docs.guide", "Guide")) ?></a></li>
+                    <li><a href="/plugin"><?lua echo(lang.Translate("docs.plugins", "Plugins")) ?></a></li>
+                    <li><a href="/api"><?lua echo(lang.Translate("docs.api_reference", "API Reference")) ?></a></li>
+                    <li><a href="/internal"><?lua echo(lang.Translate("docs.internals", "Internals")) ?></a></li>
                 </ul>
             </div>
             <hr>

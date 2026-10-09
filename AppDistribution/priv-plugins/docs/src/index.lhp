@@ -43,7 +43,7 @@ if not pageHtml then
     http_response_code(404)
 end
 
-pageTitle = page and (page.Title .. " - noobWarrior Documentation") or "noobWarrior Documentation"
+pageTitle = page and lang.Translate("docs.page_title", "{0} - noobWarrior Documentation", lang.Translate(page.Title, page.Fallback)) or lang.Translate("docs.title", "noobWarrior Documentation")
 include("header.lhp")
 
 --[[
@@ -77,13 +77,13 @@ print(tbl)
         for _, child in ipairs(children) do
             echo("<li>")
             if child.Children then
-                echo("<details open><summary>"..child.Title.."</summary><ul>")
+                echo("<details open><summary>"..lang.Translate(child.Title, child.Fallback).."</summary><ul>")
                 Iterate(child.Children)
                 echo("</ul></details>")
             elseif child.File then
-                echo("<a href=\"/?page="..child.File.."\""..(child == page and " selected" or "")..">"..child.Title.."</a>")
+                echo("<a href=\"/?page="..child.File.."\""..(child == page and " selected" or "")..">"..lang.Translate(child.Title, child.Fallback).."</a>")
             else
-                echo("<span>"..child.Title.."</span>")
+                echo("<span>"..lang.Translate(child.Title, child.Fallback).."</span>")
             end
             echo("</li>")
         end
@@ -98,7 +98,7 @@ print(tbl)
     if pageHtml then
         echo(pageHtml)
     else
-        echo("<h1>Page not found</h1><p>The page you requested does not exist.</p>")
+        echo("<h1>"..lang.Translate("docs.page_not_found", "Page not found").."</h1><p>"..lang.Translate("docs.page_not_found.description", "The page you requested does not exist.").."</p>")
     end
     ?>
 </div>

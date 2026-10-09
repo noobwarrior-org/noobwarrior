@@ -94,6 +94,7 @@ Core::Core(Init init) :
     mInitResponse(Response::Failed),
     mInit(std::move(init)),
     mLuaState(nullptr),
+    mLanguage(nullptr),
     mEmuDbManager(this),
     mServerEmulator(nullptr),
     mPluginManager(this)
@@ -165,6 +166,9 @@ Core::Core(Init init) :
         Out("Core", "One of the virtual file systems failed to initialize. Continuing...");
     }
 
+    mLanguage = new Language(mLuaState, GetInstallDataDir() / "lang");
+    mLanguage->Load(mRegistry->GetKeyValue<std::string>("language").value_or(NOOBWARRIOR_DEFAULT_LANGUAGE));
+
     // Manifests are parsed first so a plugin:// entry in databases.mounted can resolve, but plugin
     // databases mount after the user's so none can take index 0 from the master database.
     if (mInit.LoadPlugins)
@@ -230,6 +234,7 @@ Core::~Core() {
 
     RegistryReturnCode = mRegistry->Close();
     NOOBWARRIOR_FREE_PTR(mRegistry)
+    NOOBWARRIOR_FREE_PTR(mLanguage)
 
     // release any Lua refs held by signals owned directly by Core before the Lua state is torn down.
     // without this, ~LuaSignal runs during member destruction (after mLuaState is gone) and
@@ -287,6 +292,10 @@ LuaState *Core::GetLuaState() {
 
 Registry *Core::GetRegistry() {
     return mRegistry;
+}
+
+Language *Core::GetLanguage() {
+    return mLanguage;
 }
 
 EmuDbManager *Core::GetEmuDbManager() {

@@ -1,8 +1,8 @@
             </div>
             <hr>
             <div class="footer">
-                <p>Powered by <a href="https://noobwarrior.org">noobWarrior</a> Documentation Server</p>
-                <p>This page was rendered in <?lua echo(string.format("%.2fms", os.clock() - startRenderTime)) ?></p>
+                <p><?lua echo(lang.Translate("docs.footer.powered_by", "Powered by {0} Documentation Server", [[<a href="https://noobwarrior.org">noobWarrior</a>]])) ?></p>
+                <p><?lua echo(lang.Translate("docs.footer.rendered_in", "This page was rendered in {0}", string.format("%.2fms", os.clock() - startRenderTime))) ?></p>
             </div>
         <!-- </div> -->
     </body>

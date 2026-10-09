@@ -30,6 +30,7 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Permission.h>
 #include <NoobWarrior/Registry.h>
+#include <NoobWarrior/Language.h>
 #include <NoobWarrior/HttpServer/Base/HttpServer.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/HttpServer/Emulator/AvatarAppearance.h>
@@ -57,6 +58,7 @@
 #include <openssl/core_names.h>
 #include <openssl/crypto.h>
 
+#include <array>
 #include <charconv>
 
 #include "NoobWarrior/Url.h"
@@ -1091,6 +1093,46 @@ int LuaState::Open() {
         return AvatarAppearance::BuildAvatarFetchJsonForUser(mCore, userId).dump();
     });
     set("core", coreLib);
+
+    sol::table langLib = create_table();
+    static constexpr size_t MaxTranslateArgs = 16;
+    static constexpr auto translators = []<size_t... N>(std::index_sequence<N...>) {
+        using Translator = std::string (*)(const Language &, const std::string &, const std::string &, const std::vector<std::string> &);
+        return std::array<Translator, sizeof...(N)> {
+            [](const Language &language, const std::string &key, const std::string &fallback, const std::vector<std::string> &args) {
+                return [&]<size_t... I>(std::index_sequence<I...>) {
+                    return language.Translate(key, fallback, args[I]...);
+                }(std::make_index_sequence<N>{});
+            }...
+        };
+    }(std::make_index_sequence<MaxTranslateArgs + 1>{});
+    langLib.set_function("Translate", [this](const std::string &key, sol::optional<std::string> fallback, sol::variadic_args va) -> std::string {
+        Language* language = mCore->GetLanguage();
+        if (language == nullptr)
+            return fallback.value_or(key);
+        std::vector<std::string> args;
+        sol::function tostring = (*this)["tostring"];
+        for (auto arg : va)
+            args.push_back(tostring(arg.get<sol::object>()).get<std::string>());
+        return translators[std::min(args.size(), MaxTranslateArgs)](*language, key, fallback.value_or(""), args);
+    });
+    langLib.set_function("Has", [this](const std::string &key) -> bool {
+        Language* language = mCore->GetLanguage();
+        return language != nullptr && language->Has(key);
+    });
+    langLib.set_function("GetCode", [this]() -> std::string {
+        Language* language = mCore->GetLanguage();
+        return language != nullptr ? language->GetCode() : NOOBWARRIOR_DEFAULT_LANGUAGE;
+    });
+    langLib.set_function("GetAvailableLanguages", [this](sol::this_state state) -> sol::table {
+        sol::state_view lua(state);
+        sol::table codes = lua.create_table();
+        if (Language* language = mCore->GetLanguage())
+            for (const std::string &code : language->GetAvailableLanguages())
+                codes.add(code);
+        return codes;
+    });
+    set("lang", langLib);
 
     sol::table urlLib = create_table();
     urlLib.set_function("GetProtocol", [this](const std::string &url) -> ProtocolType {

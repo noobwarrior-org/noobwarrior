@@ -283,6 +283,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Lua/Lhp.cpp
     Source/BaseRegistry.cpp
     Source/Registry.cpp
+    Source/Language.cpp
     Source/Plugin.cpp
     Source/PluginDataModel.cpp
     Source/PluginTreeMaterializer.cpp
