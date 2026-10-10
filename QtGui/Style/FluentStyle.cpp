@@ -728,31 +728,39 @@ void FluentStyle::polish(QWidget *widget) {
         if (window->contentsMargins().isNull())
             window->setContentsMargins(6, 0, 6, 6);
 #if defined(Q_OS_WIN)
-        if (window->isWindow() && window->menuWidget() != nullptr && !window->property(kFramelessProperty).toBool()) {
-            window->setProperty(kFramelessProperty, true);
+        if (window->isWindow() && window->menuWidget() != nullptr) {
+            // Qt can unpolish and repolish a window that's already showing (probably on a Windows theme change),
+            // so redo everything here except creating the buttons.
+            if (!window->property(kFramelessProperty).toBool()) {
+                window->setProperty(kFramelessProperty, true);
+                AddCaptionButtons(window, kTitleBarHeight, true, true);
+            }
             window->installEventFilter(this);
-            AddCaptionButtons(window, kTitleBarHeight, true, true);
             if (window->testAttribute(Qt::WA_WState_Created))
                 ApplyFrameless(window);
+            LayoutCaptionButtons(window);
         }
 #endif
     }
 
 #if defined(Q_OS_WIN)
     if (auto *dialog = qobject_cast<QDialog*>(widget); dialog != nullptr && dialog->isWindow()
-        && !(dialog->windowFlags() & Qt::FramelessWindowHint) && !dialog->property(kFramelessProperty).toBool()) {
-        dialog->setProperty(kFramelessProperty, true);
+        && !(dialog->windowFlags() & Qt::FramelessWindowHint)) {
+        if (!dialog->property(kFramelessProperty).toBool()) {
+            dialog->setProperty(kFramelessProperty, true);
+            QMargins margins = dialog->contentsMargins();
+            margins.setTop(margins.top() + kDialogTitleHeight);
+            dialog->setContentsMargins(margins);
+            AddDialogTitle(dialog);
+            const Qt::WindowFlags flags = dialog->windowFlags();
+            const bool minimize = (flags & Qt::WindowMinimizeButtonHint)
+                || (dialog->parentWidget() == nullptr && qobject_cast<QMessageBox*>(dialog) == nullptr);
+            AddCaptionButtons(dialog, kDialogTitleHeight, minimize, flags & Qt::WindowMaximizeButtonHint);
+        }
         dialog->installEventFilter(this);
-        QMargins margins = dialog->contentsMargins();
-        margins.setTop(margins.top() + kDialogTitleHeight);
-        dialog->setContentsMargins(margins);
-        AddDialogTitle(dialog);
-        const Qt::WindowFlags flags = dialog->windowFlags();
-        const bool minimize = (flags & Qt::WindowMinimizeButtonHint)
-            || (dialog->parentWidget() == nullptr && qobject_cast<QMessageBox*>(dialog) == nullptr);
-        AddCaptionButtons(dialog, kDialogTitleHeight, minimize, flags & Qt::WindowMaximizeButtonHint);
         if (dialog->testAttribute(Qt::WA_WState_Created))
             ApplyFrameless(dialog);
+        LayoutCaptionButtons(dialog);
     }
 #endif
 
