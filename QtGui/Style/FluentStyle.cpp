@@ -161,6 +161,11 @@ void ApplyToolBarOrientation(QToolBar *toolBar) {
         toolBar->adjustSize();
 }
 
+bool IsLastTab(const QStyleOptionTab *tab) {
+    return (tab->shape == QTabBar::RoundedNorth || tab->shape == QTabBar::TriangularNorth)
+        && (tab->position == QStyleOptionTab::End || tab->position == QStyleOptionTab::OnlyOneTab);
+}
+
 bool IsFlushLeftTab(const QStyleOptionTab *tab) {
     return tab->rect.left() <= 0
         && (tab->position == QStyleOptionTab::Beginning || tab->position == QStyleOptionTab::OnlyOneTab);
@@ -1394,7 +1399,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             const qreal flare = kTabFlare;
             const qreal radius = kCardRadius;
             const bool flushLeft = IsFlushLeftTab(tab);
-            const qreal left = tab->rect.left() + 0.5, right = tab->rect.right() + 0.5;
+            const qreal left = tab->rect.left() + 0.5, right = tab->rect.right() + 0.5 - (IsLastTab(tab) ? flare : 0);
             const qreal top = tab->rect.top() + 0.5, bottom = tab->rect.bottom() + 0.5;
             QPainterPath edge;
             if (flushLeft) {
@@ -1427,7 +1432,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             p->setPen(Qt::NoPen);
             p->setBrush(kRowHover);
             if (north) {
-                const QRectF box = QRectF(tab->rect).adjusted(0, 0, 1, -1);
+                const QRectF box = QRectF(tab->rect).adjusted(0, 0, IsLastTab(tab) ? 1 - kTabFlare : 1, -1);
                 QPainterPath shape;
                 shape.addRoundedRect(box, kCardRadius, kCardRadius);
                 QPainterPath bottom;
@@ -1447,6 +1452,8 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         if (tab == nullptr)
             break;
         QStyleOptionTab copy(*tab);
+        if (IsLastTab(tab))
+            copy.rect.adjust(0, 0, -kTabFlare, 0);
         const QColor color = !enabled ? kTextDisabled : (tab->state & State_Selected) || hover ? kText : kTextSecondary;
         copy.palette.setColor(QPalette::WindowText, color);
         copy.palette.setColor(QPalette::ButtonText, color);
@@ -1677,6 +1684,8 @@ QSize FluentStyle::sizeFromContents(ContentsType ct, const QStyleOption *opt, co
             QFont bold = w->font();
             bold.setBold(true);
             s.rwidth() += QFontMetrics(bold).horizontalAdvance(tab->text) - tab->fontMetrics.horizontalAdvance(tab->text);
+            if (IsLastTab(tab))
+                s.rwidth() += kTabFlare;
         }
         break;
     default:
