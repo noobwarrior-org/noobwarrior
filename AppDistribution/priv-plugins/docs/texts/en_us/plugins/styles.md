@@ -185,7 +185,7 @@ The file is sent as-is after the generated colors, so it can override any rule. 
 A stylesheet can make visitors' browsers fetch from other servers through `url()` or `@import`. Those requests come from the host's visitors, so avoid loading anything from outside the site.
 
 ## Light and dark
-On the web, each visitor's browser decides between light and dark through `prefers-color-scheme`. Your `dark` colors apply to dark visitors and your `light` colors to light ones. A dark-only style still shows its shared `colors` to light visitors, on top of the default light look, so it doesn't force dark mode on anyone.
+On the web, each visitor's browser decides between light and dark through `prefers-color-scheme`. Your `dark` colors apply to dark visitors and your `light` colors to light ones. A style with only one of them shows that mode to every visitor, as it does in the app, so a light-only style stays light in a dark-mode browser. Native controls such as text boxes and scroll bars follow the mode too.
 
 ## Colors that carry over
 These desktop colors set website variables. Colors you don't set leave the website's own defaults alone.

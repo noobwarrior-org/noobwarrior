@@ -1,130 +1,67 @@
 :root {
-    --nw-backdrop-outer: rgb(63, 62, 63);
-    --nw-backdrop-inner: rgb(43, 42, 43);
-    --nw-backdrop-center: rgb(33, 32, 33);
-    --nw-navbar: rgb(16, 16, 16);
-    --nw-content: rgb(53, 53, 54);
-    --nw-surface: #2b2b2b;
-    --nw-surface-raised: #3a3a3a;
-    --nw-surface-strong: #454545;
-    --nw-surface-sunken: #1e1e1e;
-    --nw-inset: #101010;
-    --nw-hover: #555;
-    --nw-selected: lightgray;
-    --nw-selected-text: darkslategray;
+    color-scheme: light dark;
 
-    --nw-border: #1c1c1c;
-    --nw-divider: #2a2a2a;
-    --nw-divider-strong: #505050;
-    --nw-input-border: #ccc;
-    --nw-shadow: black;
-    --nw-shadow-soft: rgba(0, 0, 0, .4);
+    --nw-backdrop-outer: light-dark(#e4ddc8, rgb(63, 62, 63));
+    --nw-backdrop-inner: light-dark(#eee8d5, rgb(43, 42, 43));
+    --nw-backdrop-center: light-dark(#f5efdc, rgb(33, 32, 33));
+    --nw-navbar: light-dark(#e4ddc8, rgb(16, 16, 16));
+    --nw-content: light-dark(#fdf6e3, rgb(53, 53, 54));
+    --nw-surface: light-dark(#eee8d5, #2b2b2b);
+    --nw-surface-raised: light-dark(#e4ddc8, #3a3a3a);
+    --nw-surface-strong: light-dark(#f5efdc, #454545);
+    --nw-surface-sunken: light-dark(#fffcf2, #1e1e1e);
+    --nw-inset: light-dark(#f5efdc, #101010);
+    --nw-hover: light-dark(#e4ddc8, #555);
+    --nw-selected: light-dark(#073642, lightgray);
+    --nw-selected-text: light-dark(#fdf6e3, darkslategray);
 
-    --nw-text: white;
-    --nw-text-soft: #ccc;
-    --nw-text-muted: #aeadac;
-    --nw-text-faint: #888;
-    --nw-text-footer: rgb(100, 100, 100);
+    --nw-border: light-dark(#d9d2bd, #1c1c1c);
+    --nw-divider: light-dark(#e6dfca, #2a2a2a);
+    --nw-divider-strong: light-dark(#c9c2ad, #505050);
+    --nw-input-border: light-dark(#c9c2ad, #ccc);
+    --nw-shadow: light-dark(rgba(0, 43, 54, .18), black);
+    --nw-shadow-soft: light-dark(rgba(0, 43, 54, .15), rgba(0, 0, 0, .4));
 
-    --nw-accent: #d4c00a;
-    --nw-accent-pressed: #b9a80c;
-    --nw-on-accent: white;
+    --nw-text: light-dark(#073642, white);
+    --nw-text-soft: light-dark(#586e75, #ccc);
+    --nw-text-muted: light-dark(#657b83, #aeadac);
+    --nw-text-faint: light-dark(#93a1a1, #888);
+    --nw-text-footer: light-dark(#93a1a1, rgb(100, 100, 100));
+
+    --nw-accent: light-dark(#b58900, #d4c00a);
+    --nw-accent-pressed: light-dark(#9f7300, #b9a80c);
+    --nw-on-accent: light-dark(#fdf6e3, white);
     --nw-link: var(--nw-accent);
-    --nw-link-hover: #fae103;
-    --nw-highlight: #6ea8fe;
+    --nw-link-hover: light-dark(#8f6c00, #fae103);
+    --nw-highlight: light-dark(#268bd2, #6ea8fe);
 
-    --nw-info: #3a6ea5;
-    --nw-info-hover: #4880bd;
-    --nw-info-text: #cfe3f7;
-    --nw-on-info: white;
+    --nw-info: light-dark(#268bd2, #3a6ea5);
+    --nw-info-hover: light-dark(#3a9ae0, #4880bd);
+    --nw-info-text: light-dark(#268bd2, #cfe3f7);
+    --nw-on-info: light-dark(#fdf6e3, white);
 
-    --nw-primary: #2e6f63;
-    --nw-primary-hover: #377e70;
-    --nw-primary-border: #3f8d7d;
-    --nw-primary-text: #7fd0c0;
-    --nw-primary-text-hover: #a7e6da;
-    --nw-focus: #4a9d8e;
+    --nw-primary: light-dark(#2aa198, #2e6f63);
+    --nw-primary-hover: light-dark(#35b0a6, #377e70);
+    --nw-primary-border: light-dark(#23887f, #3f8d7d);
+    --nw-primary-text: light-dark(#2aa198, #7fd0c0);
+    --nw-primary-text-hover: light-dark(#1f7f77, #a7e6da);
+    --nw-focus: light-dark(#2aa198, #4a9d8e);
 
-    --nw-success: #2e7d32;
-    --nw-success-hover: #388e3c;
-    --nw-success-surface: #1e3a1e;
-    --nw-success-border: #2f5d2f;
-    --nw-success-text: #b6e7b6;
+    --nw-success: light-dark(#859900, #2e7d32);
+    --nw-success-hover: light-dark(#95a90f, #388e3c);
+    --nw-success-surface: light-dark(#f1f3d4, #1e3a1e);
+    --nw-success-border: light-dark(#c5cf7a, #2f5d2f);
+    --nw-success-text: light-dark(#5b6a00, #b6e7b6);
 
-    --nw-danger: #7a2f2f;
-    --nw-danger-hover: #8a3838;
-    --nw-danger-border: #9c3c3c;
-    --nw-danger-surface: #3a1e1e;
-    --nw-danger-surface-border: #5d2f2f;
-    --nw-danger-text: #e7b6b6;
-    --nw-danger-link: #c66;
-    --nw-danger-link-hover: #e06666;
-    --nw-error: red;
-}
-
-@media (prefers-color-scheme: light) {
-    :root {
-        --nw-backdrop-outer: #e4ddc8;
-        --nw-backdrop-inner: #eee8d5;
-        --nw-backdrop-center: #f5efdc;
-        --nw-navbar: #e4ddc8;
-        --nw-content: #fdf6e3;
-        --nw-surface: #eee8d5;
-        --nw-surface-raised: #e4ddc8;
-        --nw-surface-strong: #f5efdc;
-        --nw-surface-sunken: #fffcf2;
-        --nw-inset: #f5efdc;
-        --nw-hover: #e4ddc8;
-        --nw-selected: #073642;
-        --nw-selected-text: #fdf6e3;
-
-        --nw-border: #d9d2bd;
-        --nw-divider: #e6dfca;
-        --nw-divider-strong: #c9c2ad;
-        --nw-input-border: #c9c2ad;
-        --nw-shadow: rgba(0, 43, 54, .18);
-        --nw-shadow-soft: rgba(0, 43, 54, .15);
-
-        --nw-text: #073642;
-        --nw-text-soft: #586e75;
-        --nw-text-muted: #657b83;
-        --nw-text-faint: #93a1a1;
-        --nw-text-footer: #93a1a1;
-
-        --nw-accent: #b58900;
-        --nw-accent-pressed: #9f7300;
-        --nw-on-accent: #fdf6e3;
-        --nw-link-hover: #8f6c00;
-        --nw-highlight: #268bd2;
-
-        --nw-info: #268bd2;
-        --nw-info-hover: #3a9ae0;
-        --nw-info-text: #268bd2;
-        --nw-on-info: #fdf6e3;
-
-        --nw-primary: #2aa198;
-        --nw-primary-hover: #35b0a6;
-        --nw-primary-border: #23887f;
-        --nw-primary-text: #2aa198;
-        --nw-primary-text-hover: #1f7f77;
-        --nw-focus: #2aa198;
-
-        --nw-success: #859900;
-        --nw-success-hover: #95a90f;
-        --nw-success-surface: #f1f3d4;
-        --nw-success-border: #c5cf7a;
-        --nw-success-text: #5b6a00;
-
-        --nw-danger: #dc322f;
-        --nw-danger-hover: #e14b48;
-        --nw-danger-border: #b82a27;
-        --nw-danger-surface: #f9e0dc;
-        --nw-danger-surface-border: #e8a9a3;
-        --nw-danger-text: #a8231f;
-        --nw-danger-link: #dc322f;
-        --nw-danger-link-hover: #b02a28;
-        --nw-error: #dc322f;
-    }
+    --nw-danger: light-dark(#dc322f, #7a2f2f);
+    --nw-danger-hover: light-dark(#e14b48, #8a3838);
+    --nw-danger-border: light-dark(#b82a27, #9c3c3c);
+    --nw-danger-surface: light-dark(#f9e0dc, #3a1e1e);
+    --nw-danger-surface-border: light-dark(#e8a9a3, #5d2f2f);
+    --nw-danger-text: light-dark(#a8231f, #e7b6b6);
+    --nw-danger-link: light-dark(#dc322f, #c66);
+    --nw-danger-link-hover: light-dark(#b02a28, #e06666);
+    --nw-error: light-dark(#dc322f, red);
 }
 
 @font-face {

@@ -88,22 +88,39 @@ local function colors_for_scheme(style, scheme)
     return colors
 end
 
-local function variable_block(style, scheme)
-    local mapping = WEB_VARIABLES[style.Base]
-    if mapping == nil then
-        return ""
-    end
+local function variable_lines(style, scheme, indent)
+    local mapping = WEB_VARIABLES[style.Base] or {}
     local lines = {}
     for name, color in pairs(colors_for_scheme(style, scheme)) do
         for _, variable in ipairs(mapping[name] or {}) do
-            table.insert(lines, string.format("        %s: %s;", variable, css_color(color)))
+            table.insert(lines, string.format("%s%s: %s;", indent, variable, css_color(color)))
         end
     end
+    table.sort(lines)
+    return lines
+end
+
+local function scheme_block(style, scheme)
+    local lines = variable_lines(style, scheme, "        ")
     if #lines == 0 then
         return ""
     end
-    table.sort(lines)
     return string.format("@media (prefers-color-scheme: %s) {\n    :root {\n%s\n    }\n}\n", scheme, table.concat(lines, "\n"))
+end
+
+local function forced_scheme_block(style, scheme)
+    local lines = variable_lines(style, scheme, "    ")
+    table.insert(lines, 1, string.format("    color-scheme: %s;", scheme))
+    return string.format(":root {\n%s\n}\n", table.concat(lines, "\n"))
+end
+
+local function only_scheme(style)
+    if style.DarkColors and not style.LightColors then
+        return "dark"
+    elseif style.LightColors and not style.DarkColors then
+        return "light"
+    end
+    return nil
 end
 
 local function read_stylesheet(stylesheet_url)
@@ -170,10 +187,14 @@ function web_theme.BuildStylesheet(target, visitor_choice)
         return ""
     end
 
-    local parts = {
-        variable_block(style, "dark"),
-        variable_block(style, "light"),
-    }
+    local parts = {}
+    local scheme = only_scheme(style)
+    if scheme then
+        table.insert(parts, forced_scheme_block(style, scheme))
+    else
+        table.insert(parts, scheme_block(style, "dark"))
+        table.insert(parts, scheme_block(style, "light"))
+    end
     local stylesheet_url = style.Web[target]
     if stylesheet_url then
         local source = read_stylesheet(stylesheet_url)
