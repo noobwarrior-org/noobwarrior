@@ -42,6 +42,8 @@ RegistryResponse Registry::Open() {
     SetKeyComment("gui.theme", "The look of the desktop app");
     SetKeyValueIfNotSet("gui.color_scheme", "dark");
     SetKeyComment("gui.color_scheme", "Whether the desktop app uses light or dark colors: \"system\", \"light\" or \"dark\"");
+    SetKeyValueIfNotSet("emu.web_style", "");
+    SetKeyComment("emu.web_style", "Style for the server emulator website: \"\" for the default look, \"app\" to match gui.theme, or a plugin style id such as \"plugin/style\"");
 
     sol::table master_servers_tbl = mLua->create_table();
     SetKeyValueIfNotSet("master_servers", master_servers_tbl);

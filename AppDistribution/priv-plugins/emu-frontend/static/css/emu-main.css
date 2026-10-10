@@ -10,7 +10,7 @@
 .asset-preview-card {
     max-width: 75%;
     margin: 0 auto;
-    background-color: #555555;
+    background-color: var(--nw-hover);
     padding: 24px;
     display: flex;
     gap: 16px;

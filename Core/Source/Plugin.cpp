@@ -327,8 +327,20 @@ std::vector<DeclaredStyle> Plugin::GetDeclaredStyles() {
         const bool parsed = ParseStyleTable(result.get<sol::object>(), style, errors);
         for (const std::string &error : errors)
             PLUGIN_OUT("Style \"{}\": {}", *id, error)
-        if (parsed)
-            styles.push_back(std::move(style));
+        if (!parsed)
+            continue;
+
+        for (auto it = style.WebStylesheets.begin(); it != style.WebStylesheets.end();) {
+            Url stylesheet(it->second, { .DefaultProtocolType = ProtocolType::Plugin, .DefaultHostName = identifier });
+            if (stylesheet.Fail()) {
+                PLUGIN_OUT("Style \"{}\": \"web.{}\" is not a valid path", *id, it->first)
+                it = style.WebStylesheets.erase(it);
+                continue;
+            }
+            it->second = stylesheet.Resolve();
+            ++it;
+        }
+        styles.push_back(std::move(style));
     }
 
     return styles;

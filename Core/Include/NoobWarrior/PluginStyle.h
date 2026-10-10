@@ -53,6 +53,7 @@ struct DeclaredStyle {
     StyleColorMap SharedColors;
     std::optional<StyleColorMap> DarkColors;
     std::optional<StyleColorMap> LightColors;
+    std::map<std::string, std::string> WebStylesheets;
 
     std::string GetQualifiedId() const;
     bool SupportsDark() const;

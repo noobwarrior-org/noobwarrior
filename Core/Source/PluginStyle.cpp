@@ -31,7 +31,8 @@
 using namespace NoobWarrior;
 
 namespace {
-const std::set<std::string> kStyleTableKeys { "version", "base", "colors", "dark", "light" };
+const std::set<std::string> kStyleTableKeys { "version", "base", "colors", "dark", "light", "web" };
+const std::set<std::string> kWebStyleTargets { "emu", "master" };
 const std::set<std::string> kStyleVariantKeys { "colors" };
 
 std::optional<int64_t> ParseWholeNumber(const sol::object &value) {
@@ -119,6 +120,30 @@ bool ParseVariant(const sol::table &table, const char *name, std::optional<Style
     colors = ParseStyleColors(variantTable.get<sol::object>("colors"), std::format("{}.colors", name), errors);
     return true;
 }
+
+bool ParseWebStylesheets(const sol::table &table, std::map<std::string, std::string> &stylesheets,
+                         std::vector<std::string> &errors) {
+    const sol::object web = table.get<sol::object>("web");
+    if (web.get_type() == sol::type::lua_nil)
+        return true;
+    if (web.get_type() != sol::type::table) {
+        errors.push_back("\"web\" must be a table of stylesheet paths");
+        return false;
+    }
+    const sol::table webTable = web.as<sol::table>();
+    ReportUnknownKeys(webTable, kWebStyleTargets, "\"web\"", errors);
+    for (const std::string &target : kWebStyleTargets) {
+        const sol::object path = webTable.get<sol::object>(target);
+        if (path.get_type() == sol::type::lua_nil)
+            continue;
+        if (path.get_type() != sol::type::string || path.as<std::string>().empty()) {
+            errors.push_back(std::format("\"web.{}\" must be the path of a stylesheet", target));
+            continue;
+        }
+        stylesheets[target] = path.as<std::string>();
+    }
+    return true;
+}
 }
 
 std::string DeclaredStyle::GetQualifiedId() const {
@@ -200,5 +225,6 @@ bool NoobWarrior::ParseStyleTable(const sol::object &value, DeclaredStyle &style
     ReportUnknownKeys(table, kStyleTableKeys, "the style table", errors);
     style.SharedColors = ParseStyleColors(table.get<sol::object>("colors"), "colors", errors);
     return ParseVariant(table, "dark", style.DarkColors, errors)
-        && ParseVariant(table, "light", style.LightColors, errors);
+        && ParseVariant(table, "light", style.LightColors, errors)
+        && ParseWebStylesheets(table, style.WebStylesheets, errors);
 }

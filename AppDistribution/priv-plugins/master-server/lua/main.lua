@@ -15,6 +15,9 @@ reg.SetKeyComment("master.http_port", "Port the master server HTTP webserver bin
 reg.SetKeyValueIfNotSet("master.https_port", 443)
 reg.SetKeyComment("master.https_port", "Port the master server HTTPS webserver binds to.")
 
+reg.SetKeyValueIfNotSet("master.web_style", "")
+reg.SetKeyComment("master.web_style", "Style for the master server website: \"\" for the default look, \"app\" to match gui.theme, or a plugin style id such as \"plugin/style\"")
+
 reg.SetKeyValueIfNotSet("master.branding.title", "noobWarrior Master Server")
 reg.SetKeyValueIfNotSet("master.branding.icon", "/img/icon1024.png")
 reg.SetKeyValueIfNotSet("master.branding.tagline", "My noobWarrior server")
@@ -284,6 +287,7 @@ local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
     ["/"] = "/src/index.lhp",
+    ["/css/theme.css"] = "/src/theme_css.lhp",
     ["/home"] = "/src/index.lhp",
     ["/servers"] = "/src/servers.lhp",
     ["/join"] = "/src/join.lhp",

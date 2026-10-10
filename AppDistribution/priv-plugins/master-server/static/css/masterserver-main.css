@@ -3,6 +3,7 @@
 }
 
 .workshop-banner {
+    color: white;
     background-image: url("../img/workshop-banner.png");
     background-position: center right;
     background-repeat: no-repeat;
@@ -29,10 +30,10 @@
 .workshop-submission-card {
     width: 220px;
     box-sizing: border-box;
-    background-color: #2b2b2b;
-    color: white;
+    background-color: var(--nw-surface);
+    color: var(--nw-text);
     padding: 12px;
-    border: 1px solid #1c1c1c;
+    border: 1px solid var(--nw-border);
     border-radius: 6px;
     display: flex;
     flex-direction: column;
@@ -41,8 +42,8 @@
 .ws-card-type {
     align-self: flex-start;
     font-size: 11px;
-    background-color: #505050;
-    color: #bbb;
+    background-color: var(--nw-surface-strong);
+    color: var(--nw-text-soft);
     padding: 2px 8px;
     border-radius: 4px;
     margin-bottom: 6px;
@@ -54,13 +55,13 @@
 }
 
 .ws-card-meta {
-    color: #999;
+    color: var(--nw-text-faint);
     font-size: 12px;
     margin: 4px 0;
 }
 
 .ws-card-desc {
-    color: #ccc;
+    color: var(--nw-text-soft);
     font-size: 13px;
     margin: 4px 0 8px 0;
     flex-grow: 1;
@@ -80,8 +81,8 @@
 .ws-button {
     display: inline-block;
     padding: 4px 14px;
-    background-color: #d4c00a;
-    color: white;
+    background-color: var(--nw-accent);
+    color: var(--nw-on-accent);
     border: none;
     border-radius: 4px;
     text-decoration: none;
@@ -90,15 +91,15 @@
 }
 
 .ws-button:hover {
-    background-color: #b9a80c;
+    background-color: var(--nw-accent-pressed);
 }
 
 .ws-button-danger {
-    background-color: #5a1e1e;
+    background-color: var(--nw-danger);
 }
 
 .ws-button-danger:hover {
-    background-color: #7a2a2a;
+    background-color: var(--nw-danger-hover);
 }
 
 .ws-details-container {
@@ -129,9 +130,9 @@
     aspect-ratio: 16 / 9;
     object-fit: cover;
     display: block;
-    border: 1px solid #1c1c1c;
+    border: 1px solid var(--nw-border);
     border-radius: 8px;
-    background-color: #1c1c1c;
+    background-color: var(--nw-surface-sunken);
 }
 
 .ws-details-icon {
@@ -144,8 +145,8 @@
 .ws-details-side {
     flex: 0 0 260px;
     box-sizing: border-box;
-    background-color: #2b2b2b;
-    border: 1px solid #1c1c1c;
+    background-color: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     border-radius: 8px;
     padding: 16px;
 }
@@ -153,8 +154,8 @@
 .ws-details-typebadge {
     display: inline-block;
     font-size: 11px;
-    background-color: #505050;
-    color: #ddd;
+    background-color: var(--nw-surface-strong);
+    color: var(--nw-text-soft);
     padding: 3px 10px;
     border-radius: 4px;
     margin-bottom: 14px;
@@ -165,7 +166,7 @@
 }
 
 .ws-details-meta dt {
-    color: #999;
+    color: var(--nw-text-faint);
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -178,7 +179,7 @@
 
 .ws-details-meta dd {
     margin: 2px 0 0 0;
-    color: #eee;
+    color: var(--nw-text);
     font-size: 14px;
 }
 
@@ -198,24 +199,24 @@
 
 .ws-details-desc h2 {
     font-size: 18px;
-    border-bottom: 1px solid #2a2a2a;
+    border-bottom: 1px solid var(--nw-divider);
     padding-bottom: 6px;
     margin-bottom: 10px;
 }
 
 .ws-details-desc p {
-    color: #ccc;
+    color: var(--nw-text-soft);
     line-height: 1.5;
     word-break: break-word;
 }
 
 .ws-button-secondary {
-    background-color: #3a3a3a;
-    color: #eee;
+    background-color: var(--nw-surface-raised);
+    color: var(--nw-text);
 }
 
 .ws-button-secondary:hover {
-    background-color: #4a4a4a;
+    background-color: var(--nw-surface-strong);
 }
 
 /* Comments */
@@ -226,7 +227,7 @@
 
 .ws-comments h2 {
     font-size: 18px;
-    border-bottom: 1px solid #2a2a2a;
+    border-bottom: 1px solid var(--nw-divider);
     padding-bottom: 6px;
     margin-bottom: 12px;
 }
@@ -250,7 +251,7 @@
 }
 
 .ws-comment {
-    background-color: #101010;
+    background-color: var(--nw-inset);
     border-radius: 6px;
     padding: 10px 12px;
 }
@@ -263,13 +264,13 @@
 }
 
 .ws-comment-author {
-    color: #6ea8fe;
+    color: var(--nw-highlight);
     font-weight: bold;
     font-size: 13px;
 }
 
 .ws-comment-date {
-    color: #999;
+    color: var(--nw-text-faint);
     font-size: 12px;
 }
 
@@ -280,7 +281,7 @@
 .ws-comment-delete button {
     background: none;
     border: none;
-    color: #888;
+    color: var(--nw-text-faint);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
@@ -288,13 +289,13 @@
 }
 
 .ws-comment-delete button:hover {
-    color: #e06666;
+    color: var(--nw-danger-link-hover);
 }
 
 .ws-comment-body {
     white-space: pre-wrap;
     word-break: break-word;
-    color: #ddd;
+    color: var(--nw-text-soft);
 }
 
 /* Edit form */
@@ -304,7 +305,7 @@
 
 .ws-edit-sep {
     border: none;
-    border-top: 1px solid #2a2a2a;
+    border-top: 1px solid var(--nw-divider);
     margin: 20px 0 12px 0;
 }
 
@@ -313,7 +314,7 @@
     max-width: 240px;
     width: 100%;
     border-radius: 6px;
-    border: 1px solid #1c1c1c;
+    border: 1px solid var(--nw-border);
     margin-bottom: 10px;
 }
 
@@ -327,38 +328,38 @@
 .server-list td {
     text-align: left;
     padding: 8px 12px;
-    border-bottom: 1px solid #2a2a2a;
+    border-bottom: 1px solid var(--nw-divider);
 }
 
 .server-list thead th {
-    border-bottom: 2px solid #444;
+    border-bottom: 2px solid var(--nw-divider-strong);
     font-weight: bold;
 }
 
 .server-list tbody tr:hover {
-    background-color: #161616;
+    background-color: var(--nw-inset);
 }
 
 .join-button {
     display: inline-block;
     padding: 4px 14px;
-    background-color: #2e7d32;
-    color: white;
+    background-color: var(--nw-success);
+    color: var(--nw-on-accent);
     border-radius: 4px;
     text-decoration: none;
 }
 
 .join-button:hover {
-    background-color: #388e3c;
+    background-color: var(--nw-success-hover);
 }
 
 .server-list-empty {
-    color: #999;
+    color: var(--nw-text-faint);
 }
 
 .msg-compose {
-    background-color: #2b2b2b;
-    border: 1px solid #1c1c1c;
+    background-color: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     padding: 12px;
     border-radius: 6px;
     margin-bottom: 16px;
@@ -384,13 +385,13 @@
 }
 
 .msg-item {
-    background-color: #101010;
+    background-color: var(--nw-inset);
     border-radius: 6px;
     padding: 10px 12px;
 }
 
 .msg-from {
-    color: #6ea8fe;
+    color: var(--nw-highlight);
     font-weight: bold;
     font-size: 13px;
     margin-bottom: 4px;
@@ -409,19 +410,19 @@
 }
 
 .feed-item {
-    background-color: #2b2b2b;
-    border: 1px solid #1c1c1c;
+    background-color: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     border-radius: 6px;
     padding: 10px 12px;
 }
 
 .feed-reply {
     margin-left: 24px;
-    background-color: #161616;
+    background-color: var(--nw-inset);
 }
 
 .feed-author {
-    color: #6ea8fe;
+    color: var(--nw-highlight);
     font-size: 13px;
 }
 
@@ -432,37 +433,37 @@
 }
 
 .feed-meta {
-    color: #999;
+    color: var(--nw-text-faint);
     font-size: 12px;
 }
 
 .feed-meta a {
-    color: #999;
+    color: var(--nw-text-faint);
 }
 
 .profile-identity {
-    color: #6ea8fe;
+    color: var(--nw-highlight);
     margin-top: -8px;
 }
 
 /* Forum index / listing tables */
 .forum-index {
     width: 100%;
-    background-color: #454545;
+    background-color: var(--nw-surface-strong);
     border-collapse: collapse;
     margin: 8px 0 16px;
 }
 
 .forum-index th,
 .forum-index td {
-    border: 1px solid #202020;
+    border: 1px solid var(--nw-border);
     padding: 4px 8px;
     text-align: left;
     vertical-align: middle;
 }
 
 .forum-index tr.forum-category td {
-    background-color: #303030;
+    background-color: var(--nw-surface-raised);
 }
 
 .forum-index td.forum-icon-cell {

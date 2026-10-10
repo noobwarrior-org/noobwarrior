@@ -1,0 +1,6 @@
+<?lua
+local web_theme = require("plugin://http-base@noobwarrior.org/lua/web_theme.lua")
+header("Content-Type: text/css")
+header("Cache-Control: no-cache")
+echo(web_theme.BuildStylesheet("emu", web_theme.GetVisitorChoice(_COOKIE)))
+?>

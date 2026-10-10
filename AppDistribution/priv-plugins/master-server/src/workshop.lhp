@@ -109,7 +109,7 @@ if viewType == "upload" then
                 <label for="ws-file"><b>File</b></label>
                 <input type="file" id="ws-file" required>
 
-                <label for="ws-thumb"><b>Thumbnail</b> <span style="color:#999;font-weight:normal;">(optional image)</span></label>
+                <label for="ws-thumb"><b>Thumbnail</b> <span style="color:var(--nw-text-faint);font-weight:normal;">(optional image)</span></label>
                 <input type="file" id="ws-thumb" accept="image/png,image/jpeg,image/gif,image/webp">
 
                 <button type="button" id="ws-upload-btn">Upload</button>

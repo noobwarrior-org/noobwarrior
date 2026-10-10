@@ -58,6 +58,8 @@ A plugin database that is out of date and opened read-only fails to mount, and t
 
 `Application::ApplyStyle()` looks up the style named by `gui.theme`, picks a color scheme from `gui.color_scheme` and the variants the style has, and builds a new `QStyle` only when the style or scheme changed. The format plugin authors write is described in [Styles](/plugins/styles).
 
+The websites read styles through `core.GetDeclaredStyle()` and `core.GetDeclaredStyles()`. Each site routes `/css/theme.css` to a small `theme_css.lhp` that calls http-base's `lua/web_theme.lua`. That module picks the visitor's `nw_style` cookie if it names a declared style, otherwise the site's `emu.web_style` or `master.web_style`, then writes CSS variables from the style's colors and appends its `web` stylesheet. The variables and their defaults live at the top of http-base's `static/css/main.css`, and the picker is `src/style_picker.lhp`, included by both footers.
+
 Switching styles while the app runs unpolishes and repolishes every widget while Qt iterates over its widget list, so a style's `unpolish()` must never delete a widget. `FluentStyle` hides its focus rings there and reuses them on the next polish.
 
 # Language strings

@@ -133,6 +133,27 @@ TEST(PluginStyle, RefusesNonTablesAndBadFields) {
     EXPECT_FALSE(Parse("return { dark = \"#000000\" }").Parsed);
 }
 
+TEST(PluginStyle, ReadsWebStylesheets) {
+    ParsedStyle parsed = Parse(R"(return { web = { emu = "web/emu.css", master = "web/master.css" } })");
+    ASSERT_TRUE(parsed.Parsed);
+    EXPECT_TRUE(parsed.Errors.empty());
+    EXPECT_EQ(parsed.Style.WebStylesheets.at("emu"), "web/emu.css");
+    EXPECT_EQ(parsed.Style.WebStylesheets.at("master"), "web/master.css");
+}
+
+TEST(PluginStyle, SkipsUnknownAndMalformedWebEntries) {
+    ParsedStyle parsed = Parse(R"(return { web = { emu = 5, master = "web/master.css", docs = "web/docs.css" } })");
+    ASSERT_TRUE(parsed.Parsed);
+    EXPECT_FALSE(parsed.Style.WebStylesheets.contains("emu"));
+    EXPECT_FALSE(parsed.Style.WebStylesheets.contains("docs"));
+    EXPECT_TRUE(parsed.Style.WebStylesheets.contains("master"));
+    EXPECT_EQ(parsed.Errors.size(), 2u);
+}
+
+TEST(PluginStyle, RefusesAWebFieldThatIsNotATable) {
+    EXPECT_FALSE(Parse(R"(return { web = "web/emu.css" })").Parsed);
+}
+
 TEST(PluginStyle, QualifiedIdJoinsPluginAndStyle) {
     DeclaredStyle style;
     style.OwnerIdentifier = "solarized";

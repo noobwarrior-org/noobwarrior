@@ -9,11 +9,11 @@
 
 table {
     width: 100%;
-    background-color: #454545;
+    background-color: var(--nw-surface-strong);
 }
 
 table, th, td {
-    border: 1px solid #202020;
+    border: 1px solid var(--nw-border);
     border-collapse: collapse;
     padding: 4px 8px;
 }
@@ -69,7 +69,7 @@ td.forum-thread-cell {
     padding: 0;
     background: none;
     border: none;
-    color: #c66;
+    color: var(--nw-danger-link);
     font: inherit;
     cursor: pointer;
 }
@@ -77,8 +77,8 @@ td.forum-thread-cell {
 .forum-form {
     margin-top: 16px;
     padding: 12px;
-    background-color: #3a3a3a;
-    border: 1px solid #202020;
+    background-color: var(--nw-surface-raised);
+    border: 1px solid var(--nw-border);
 }
 
 .forum-form input[type=text],

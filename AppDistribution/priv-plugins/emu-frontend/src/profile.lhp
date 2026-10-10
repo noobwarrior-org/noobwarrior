@@ -39,10 +39,10 @@ include("header.lhp")
 
 <style>
 table {
-    background-color: #454545;
+    background-color: var(--nw-surface-strong);
 }
 table, th, td {
-    border: 1px solid #202020;
+    border: 1px solid var(--nw-border);
     border-collapse: collapse;
 }
 </style>

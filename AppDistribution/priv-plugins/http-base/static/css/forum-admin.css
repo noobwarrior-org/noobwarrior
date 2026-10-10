@@ -12,8 +12,8 @@
 }
 
 #forum-admin .fa-cat {
-    background: #2b2b2b;
-    border: 1px solid #1c1c1c;
+    background: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     border-radius: 8px;
     margin-bottom: 14px;
 }
@@ -24,8 +24,8 @@
     flex-wrap: wrap;
     gap: 10px;
     padding: 10px 12px;
-    background: #333;
-    border-bottom: 1px solid #1c1c1c;
+    background: var(--nw-surface-raised);
+    border-bottom: 1px solid var(--nw-border);
     border-radius: 8px 8px 0 0;
 }
 
@@ -39,7 +39,7 @@
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px 0;
-    border-bottom: 1px solid #242424;
+    border-bottom: 1px solid var(--nw-border);
 }
 
 #forum-admin .fa-forum:last-of-type {
@@ -54,7 +54,7 @@
 
 #forum-admin .fa-empty,
 #forum-admin .fa-noforums {
-    color: #888;
+    color: var(--nw-text-faint);
     font-style: italic;
 }
 
@@ -83,8 +83,8 @@
 }
 
 #forum-admin details.fa-create {
-    background: #262626;
-    border: 1px solid #1c1c1c;
+    background: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     border-radius: 8px;
     margin-bottom: 16px;
 }
@@ -96,7 +96,7 @@
 #forum-admin summary {
     cursor: pointer;
     padding: 8px 12px;
-    color: #7fd0c0;
+    color: var(--nw-primary-text);
     user-select: none;
     list-style: none;
 }
@@ -106,7 +106,7 @@
 }
 
 #forum-admin summary:hover {
-    color: #a7e6da;
+    color: var(--nw-primary-text-hover);
 }
 
 #forum-admin details.fa-create > .fa-create-form {
@@ -129,7 +129,7 @@
     flex-direction: column;
     gap: 3px;
     font-size: .82em;
-    color: #aeadac;
+    color: var(--nw-text-muted);
 }
 
 #forum-admin .fa-sortf input {
@@ -138,23 +138,23 @@
 
 #forum-admin input[type=text],
 #forum-admin input[type=number] {
-    background: #1e1e1e;
-    border: 1px solid #444;
+    background: var(--nw-surface-sunken);
+    border: 1px solid var(--nw-divider-strong);
     border-radius: 4px;
-    color: #e8e8e8;
+    color: var(--nw-text);
     padding: 5px 8px;
     font: inherit;
 }
 
 #forum-admin input:focus {
-    border-color: #4a9d8e;
+    border-color: var(--nw-focus);
     outline: none;
 }
 
 .fa-btn {
-    background: #3a3a3a;
-    border: 1px solid #555;
-    color: #e8e8e8;
+    background: var(--nw-surface-raised);
+    border: 1px solid var(--nw-divider-strong);
+    color: var(--nw-text);
     border-radius: 4px;
     padding: 5px 12px;
     cursor: pointer;
@@ -162,7 +162,7 @@
 }
 
 .fa-btn:hover:not(:disabled) {
-    background: #454545;
+    background: var(--nw-surface-strong);
 }
 
 .fa-btn:disabled {
@@ -171,21 +171,22 @@
 }
 
 .fa-btn-primary {
-    background: #2e6f63;
-    border-color: #3f8d7d;
+    background: var(--nw-primary);
+    border-color: var(--nw-primary-border);
 }
 
 .fa-btn-primary:hover:not(:disabled) {
-    background: #377e70;
+    background: var(--nw-primary-hover);
 }
 
 .fa-btn-danger {
-    background: #7a2f2f;
-    border-color: #9c3c3c;
+    background: var(--nw-danger);
+    border-color: var(--nw-danger-border);
+    color: var(--nw-on-accent);
 }
 
 .fa-btn-danger:hover:not(:disabled) {
-    background: #8a3838;
+    background: var(--nw-danger-hover);
 }
 
 .fa-toasts {
@@ -201,9 +202,9 @@
 .fa-toast {
     max-width: 320px;
     padding: 10px 14px;
-    background: #2b2b2b;
-    border: 1px solid #1c1c1c;
+    background: var(--nw-surface);
+    border: 1px solid var(--nw-border);
     border-radius: 6px;
-    color: #e8e8e8;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+    color: var(--nw-text);
+    box-shadow: 0 4px 16px var(--nw-shadow-soft);
 }

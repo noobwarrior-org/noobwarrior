@@ -918,7 +918,7 @@ TEST(PluginStyleLoading, StyleFilesRunWithoutGlobals) {
             { id = "has/slash", file = "styles/plain.luau" },
         },
     })");
-    write("styles/plain.luau", "return { colors = { accent = { 1, 2, 3 } } }");
+    write("styles/plain.luau", "return { colors = { accent = { 1, 2, 3 } }, web = { emu = \"web/emu.css\" } }");
     write("styles/sneaky.luau", "return { colors = { accent = core and { 4, 5, 6 } or string.format('#%06x', 0) } }");
 
     std::vector<DeclaredStyle> styles;
@@ -933,6 +933,9 @@ TEST(PluginStyleLoading, StyleFilesRunWithoutGlobals) {
     EXPECT_EQ(styles[0].GetQualifiedId(), "styletest/plain");
     EXPECT_EQ(styles[0].Title, "Plain");
     EXPECT_EQ(styles[0].SharedColors.at("accent"), (StyleColor { 1, 2, 3, 255 }));
+    ASSERT_TRUE(styles[0].WebStylesheets.contains("emu"));
+    EXPECT_TRUE(styles[0].WebStylesheets.at("emu").starts_with("plugin://styletest"));
+    EXPECT_TRUE(styles[0].WebStylesheets.at("emu").ends_with("/web/emu.css"));
 }
 
 int main(int argc, char** argv) {

@@ -42,6 +42,8 @@ private:
     QString GetThemeBase(const std::string &themeId);
     QComboBox* mTheme;
     QComboBox* mColorScheme;
+    QComboBox* mEmuWebStyle;
+    QComboBox* mMasterWebStyle;
 };
 }
 

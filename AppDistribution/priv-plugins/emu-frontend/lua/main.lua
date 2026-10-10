@@ -24,6 +24,7 @@ local http_base = require("plugin://http-base@noobwarrior.org/lua/base.lua")
 
 local sitemap = {
     ["/"] = "/src/index.lhp",
+    ["/css/theme.css"] = "/src/theme_css.lhp",
     ["/login"] = "/src/login.lhp",
     ["/register"] = "/src/register.lhp",
     ["/servers"] = "/src/servers.lhp",

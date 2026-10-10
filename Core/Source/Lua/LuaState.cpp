@@ -1097,6 +1097,46 @@ int LuaState::Open() {
     coreLib.set_function("BuildAvatarFetchJson", [this](int64_t userId) -> std::string {
         return AvatarAppearance::BuildAvatarFetchJsonForUser(mCore, userId).dump();
     });
+    coreLib.set_function("GetDeclaredStyle", [this](sol::this_state state, const std::string &qualifiedId) -> sol::object {
+        sol::state_view lua(state);
+        const auto colorTable = [&lua](const StyleColorMap &colors) {
+            sol::table table = lua.create_table();
+            for (const auto &[name, color] : colors) {
+                table[name] = lua.create_table_with("R", static_cast<int>(color.R), "G", static_cast<int>(color.G),
+                                                    "B", static_cast<int>(color.B), "A", static_cast<int>(color.A));
+            }
+            return table;
+        };
+        for (const DeclaredStyle &style : mCore->GetPluginManager()->GetDeclaredStyles()) {
+            if (style.GetQualifiedId() != qualifiedId)
+                continue;
+            sol::table result = lua.create_table_with("Id", style.Id, "QualifiedId", style.GetQualifiedId(), "Title", style.Title,
+                                                      "Owner", style.OwnerIdentifier, "Base", style.Base);
+            result["Colors"] = colorTable(style.SharedColors);
+            if (style.DarkColors)
+                result["DarkColors"] = colorTable(*style.DarkColors);
+            if (style.LightColors)
+                result["LightColors"] = colorTable(*style.LightColors);
+            sol::table web = lua.create_table();
+            for (const auto &[target, url] : style.WebStylesheets)
+                web[target] = url;
+            result["Web"] = web;
+            return result;
+        }
+        return sol::lua_nil;
+    });
+    coreLib.set_function("GetDeclaredStyles", [this](sol::this_state state) -> sol::table {
+        sol::state_view lua(state);
+        sol::table styles = lua.create_table();
+        PluginManager *plugins = mCore->GetPluginManager();
+        for (const DeclaredStyle &style : plugins->GetDeclaredStyles()) {
+            Plugin *owner = plugins->GetPluginFromIdentifier(style.OwnerIdentifier);
+            const std::string ownerTitle = owner != nullptr ? owner->GetProperties().Title : style.OwnerIdentifier;
+            styles.add(lua.create_table_with("QualifiedId", style.GetQualifiedId(), "Title", style.Title,
+                                             "Owner", style.OwnerIdentifier, "OwnerTitle", ownerTitle, "Base", style.Base));
+        }
+        return styles;
+    });
     set("core", coreLib);
 
     sol::table langLib = create_table();

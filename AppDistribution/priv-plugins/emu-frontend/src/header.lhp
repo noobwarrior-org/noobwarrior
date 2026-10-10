@@ -26,6 +26,7 @@ end
     <head>
         <?lua include("plugin://http-base@noobwarrior.org/src/shared.lhp") ?>
         <link rel="stylesheet" href="/css/emu-main.css">
+        <link rel="stylesheet" href="/css/theme.css">
         <title><?lua echo(pageTitle or "Untitled Page") ?></title>
     </head>
     <body>

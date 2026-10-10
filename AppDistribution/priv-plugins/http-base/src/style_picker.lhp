@@ -1,0 +1,35 @@
+<?lua
+-- ////////////////////////////////////////////////////////////////////////////////
+-- noobWarrior
+-- Plugin: HTTP Server Base
+-- File: style_picker.lhp
+-- Description: Lets a visitor pick a website style, remembered in a cookie
+-- Started by: Hattozo
+-- Started on: 10/10/2026
+-- ////////////////////////////////////////////////////////////////////////////////
+local web_theme = require("plugin://http-base@noobwarrior.org/lua/web_theme.lua")
+
+local function escape_html(value)
+    return (tostring(value):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ["\""] = "&quot;", ["'"] = "&#39;"
+    }))
+end
+
+local current_choice = web_theme.GetVisitorChoice(_COOKIE)
+local function option(value, label)
+    local selected = value == current_choice and " selected" or ""
+    echo(string.format("<option value=\"%s\"%s>%s</option>", escape_html(value), selected, escape_html(label)))
+end
+?>
+<div class="style-picker">
+    <label for="nw-style-picker">Style</label>
+    <select id="nw-style-picker" onchange="var v = this.value; document.cookie = '<?lua echo(web_theme.VISITOR_COOKIE) ?>=' + encodeURIComponent(v) + '; path=/; max-age=' + (v ? 31536000 : 0) + '; SameSite=Lax'; location.reload();">
+<?lua
+option("", "Site default")
+option(web_theme.PLAIN, "Plain")
+for _, style in ipairs(core.GetDeclaredStyles()) do
+    option(style.QualifiedId, string.format("%s (%s)", style.Title, style.OwnerTitle))
+end
+?>
+    </select>
+</div>

@@ -40,6 +40,37 @@ using namespace NoobWarrior;
 
 namespace {
 constexpr int kThemeBaseRole = Qt::UserRole + 1;
+
+QString StyleLabel(const DeclaredStyle &style) {
+    Plugin *owner = gApp->GetCore()->GetPluginManager()->GetPluginFromIdentifier(style.OwnerIdentifier);
+    const std::string ownerTitle = owner != nullptr ? owner->GetProperties().Title : style.OwnerIdentifier;
+    return QString::fromStdString(std::format("{} ({})", style.Title, ownerTitle));
+}
+
+QComboBox *CreateWebStyleBox() {
+    auto *box = new QComboBox;
+    box->addItem("Default", "");
+    box->addItem("Match App Theme", "app");
+    for (const DeclaredStyle &style : gApp->GetCore()->GetPluginManager()->GetDeclaredStyles())
+        box->addItem(StyleLabel(style), QString::fromStdString(style.GetQualifiedId()));
+    return box;
+}
+
+void SelectOrAddUnavailable(QComboBox *box, const std::string &value) {
+    const QString data = QString::fromStdString(value);
+    int index = box->findData(data);
+    if (index < 0) {
+        box->addItem(data + " (unavailable)", data);
+        index = box->count() - 1;
+    }
+    box->setCurrentIndex(index);
+}
+
+void SaveIfChanged(Registry *reg, const std::string &key, const QComboBox *box) {
+    const std::string value = box->currentData().toString().toStdString();
+    if (reg->GetKeyValue<std::string>(key) != value)
+        reg->SetKeyValue<std::string>(key, value);
+}
 }
 
 GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
@@ -60,10 +91,7 @@ void GeneralPage::InitWidgets() {
     for (const DeclaredStyle &style : gApp->GetCore()->GetPluginManager()->GetDeclaredStyles()) {
         if (style.Base != FluentTheme::kBaseName && style.Base != DarculaTheme::kBaseName)
             continue;
-        Plugin *owner = gApp->GetCore()->GetPluginManager()->GetPluginFromIdentifier(style.OwnerIdentifier);
-        const std::string ownerTitle = owner != nullptr ? owner->GetProperties().Title : style.OwnerIdentifier;
-        mTheme->addItem(QString::fromStdString(std::format("{} ({})", style.Title, ownerTitle)),
-                        QString::fromStdString(style.GetQualifiedId()));
+        mTheme->addItem(StyleLabel(style), QString::fromStdString(style.GetQualifiedId()));
         mTheme->setItemData(mTheme->count() - 1, QString::fromStdString(style.Base), kThemeBaseRole);
     }
 
@@ -77,6 +105,17 @@ void GeneralPage::InitWidgets() {
     uiLayout->addRow(new QLabel("Color Scheme"), mColorScheme);
 
     Layout->addWidget(uiBox);
+
+    auto webBox = new QGroupBox("Websites");
+    auto webLayout = new QFormLayout(webBox);
+    webBox->setLayout(webLayout);
+
+    mEmuWebStyle = CreateWebStyleBox();
+    webLayout->addRow(new QLabel("Server Emulator"), mEmuWebStyle);
+    mMasterWebStyle = CreateWebStyleBox();
+    webLayout->addRow(new QLabel("Master Server"), mMasterWebStyle);
+
+    Layout->addWidget(webBox);
     Layout->addStretch();
 }
 
@@ -93,16 +132,12 @@ const QIcon GeneralPage::GetIcon() {
 }
 
 void GeneralPage::Deserialize(Registry* reg) {
-    const QString theme = QString::fromStdString(reg->GetKeyValue<std::string>("gui.theme").value_or("fluent"));
-    int index = mTheme->findData(theme);
-    if (index < 0) {
-        mTheme->addItem(theme + " (unavailable)", theme);
-        index = mTheme->count() - 1;
-    }
-    mTheme->setCurrentIndex(index >= 0 ? index : 0);
+    SelectOrAddUnavailable(mTheme, reg->GetKeyValue<std::string>("gui.theme").value_or(FluentTheme::kBaseName));
+    SelectOrAddUnavailable(mEmuWebStyle, reg->GetKeyValue<std::string>("emu.web_style").value_or(""));
+    SelectOrAddUnavailable(mMasterWebStyle, reg->GetKeyValue<std::string>("master.web_style").value_or(""));
 
     std::optional<std::string> colorScheme = reg->GetKeyValue<std::string>("gui.color_scheme");
-    index = mColorScheme->findData(QString::fromStdString(colorScheme.value_or("dark")));
+    const int index = mColorScheme->findData(QString::fromStdString(colorScheme.value_or("dark")));
     mColorScheme->setCurrentIndex(index >= 0 ? index : 0);
 }
 
@@ -113,6 +148,9 @@ QString GeneralPage::GetThemeBase(const std::string &themeId) {
 }
 
 void GeneralPage::Serialize(Registry* reg) {
+    SaveIfChanged(reg, "emu.web_style", mEmuWebStyle);
+    SaveIfChanged(reg, "master.web_style", mMasterWebStyle);
+
     const std::string theme = mTheme->currentData().toString().toStdString();
     const std::string colorScheme = mColorScheme->currentData().toString().toStdString();
     const std::string previousTheme = reg->GetKeyValue<std::string>("gui.theme").value_or("fluent");
