@@ -236,6 +236,10 @@ bool HasShadow(const QWidget *w) {
     return qobject_cast<const QMenu*>(w) != nullptr && w->testAttribute(Qt::WA_TranslucentBackground);
 }
 
+bool IsShadowedComboPopup(const QWidget *w) {
+    return w != nullptr && w->inherits("QComboBoxPrivateContainer") && w->testAttribute(Qt::WA_TranslucentBackground);
+}
+
 void DrawChevron(QPainter *p, const QRectF &box, Qt::ArrowType dir, const QColor &color, qreal size = 3.5) {
     const QPointF c = box.center();
     QPolygonF pts;
@@ -695,11 +699,11 @@ void FluentStyle::polish(QWidget *widget) {
     if (auto *view = qobject_cast<QAbstractItemView*>(widget))
         view->viewport()->setAttribute(Qt::WA_Hover);
 
-    if (widget->inherits("QComboBoxPrivateContainer")) {
-        QPalette pal = widget->palette();
-        pal.setColor(QPalette::Base, kMenu);
-        pal.setColor(QPalette::Window, kMenu);
-        widget->setPalette(pal);
+    if (widget->inherits("QComboBoxPrivateContainer") && widget->isWindow()) {
+        widget->setWindowFlags(widget->windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        widget->setAttribute(Qt::WA_TranslucentBackground);
+        widget->setContentsMargins(kShadowMargin + kMenuHMargin, kShadowMargin + kMenuVMargin, kShadowMargin + kMenuHMargin, kShadowMargin + kMenuVMargin);
+        widget->installEventFilter(this);
     }
 
 #if !defined(Q_OS_MACOS)
@@ -843,6 +847,30 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
         }
     }
 
+    if (event->type() == QEvent::Show && obj->inherits("QComboBoxPrivateContainer")) {
+        // QComboBox overwrites the popup's palette with its own each time it opens.
+        auto *popup = static_cast<QWidget*>(obj);
+        QPalette pal = popup->palette();
+        pal.setColor(QPalette::Base, kMenu);
+        pal.setColor(QPalette::Window, kMenu);
+        popup->setPalette(pal);
+        if (auto *frame = qobject_cast<QFrame*>(popup))
+            frame->setFrameShape(QFrame::NoFrame);
+        if (auto *view = popup->findChild<QAbstractItemView*>())
+            view->setFrameShape(QFrame::NoFrame);
+        if (IsShadowedComboPopup(popup)) {
+            QRect geometry = popup->geometry().adjusted(-kShadowMargin, 0, kShadowMargin, 0);
+            if (QWidget *combo = popup->parentWidget(); combo != nullptr && combo->screen() != nullptr) {
+                const QRect comboRect(combo->mapToGlobal(QPoint(0, 0)), combo->size());
+                int top = comboRect.bottom() + 5 - kShadowMargin;
+                if (top + geometry.height() - kShadowMargin > combo->screen()->availableGeometry().bottom())
+                    top = comboRect.top() - 4 - geometry.height() + kShadowMargin;
+                geometry.moveTop(top);
+            }
+            popup->setGeometry(geometry);
+        }
+    }
+
     if (auto *tabBar = qobject_cast<QTabBar*>(obj)) {
         const QEvent::Type type = event->type();
         if (type == QEvent::HoverEnter || type == QEvent::HoverMove || type == QEvent::HoverLeave) {
@@ -914,10 +942,10 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     case PE_PanelMenu: {
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
-        if (HasShadow(w)) {
+        if (HasShadow(w) || IsShadowedComboPopup(w)) {
             const QRectF panel = QRectF(opt->rect).adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
             DrawMenuShadow(p, panel, opt->rect.size());
-            p->setPen(QPen(kMenuEdge, 1));
+            p->setPen(QPen(IsShadowedComboPopup(w) ? QColor(0, 0, 0, 80) : kMenuEdge, 1));
             p->setBrush(kMenu);
             p->drawRoundedRect(panel.adjusted(0.5, 0.5, -0.5, -0.5), kMenuRadius, kMenuRadius);
         } else {
@@ -1308,6 +1336,8 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         const auto *mi = qstyleoption_cast<const QStyleOptionMenuItem*>(opt);
         if (mi == nullptr)
             break;
+        if (qobject_cast<const QComboBox*>(w) != nullptr)
+            p->fillRect(mi->rect, kMenu);
         if (mi->menuItemType == QStyleOptionMenuItem::Separator && mi->text.isEmpty()) {
             p->fillRect(QRect(mi->rect.left() + 4, mi->rect.center().y(), mi->rect.width() - 8, 1), kBorder);
             return;
