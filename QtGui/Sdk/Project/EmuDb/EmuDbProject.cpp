@@ -52,6 +52,7 @@ EmuDbProject::EmuDbProject(const std::string &path) : Project(),
     auto overviewScrollArea = new QScrollArea;
     mOverviewWidget = new OverviewWidget(mDb);
     overviewScrollArea->setWidget(mOverviewWidget);
+    overviewScrollArea->setWidgetResizable(true);
     const int overviewIndex = mTabWidget->addTab(overviewScrollArea, "Overview");
     // Overview can't be reopened once closed, so it gets no tab X.
     mTabWidget->tabBar()->setTabButton(overviewIndex, QTabBar::LeftSide, nullptr);
