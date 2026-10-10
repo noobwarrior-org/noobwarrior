@@ -875,10 +875,19 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
             QRect geometry = popup->geometry().adjusted(-kShadowMargin, 0, kShadowMargin, 0);
             if (QWidget *combo = popup->parentWidget(); combo != nullptr && combo->screen() != nullptr) {
                 const QRect comboRect(combo->mapToGlobal(QPoint(0, 0)), combo->size());
-                int top = comboRect.bottom() + 5 - kShadowMargin;
-                if (top + geometry.height() - kShadowMargin > combo->screen()->availableGeometry().bottom())
-                    top = comboRect.top() - 4 - geometry.height() + kShadowMargin;
-                geometry.moveTop(top);
+                const QRect screen = combo->screen()->availableGeometry();
+                const int below = screen.bottom() - comboRect.bottom() - 4;
+                const int above = comboRect.top() - screen.top() - 4;
+                int panelHeight = geometry.height() - kShadowMargin * 2;
+                auto *box = qobject_cast<QComboBox*>(combo);
+                auto *view = popup->findChild<QAbstractItemView*>();
+                if (box != nullptr && view != nullptr && view->sizeHintForRow(0) > 0)
+                    panelHeight = qMin(panelHeight, box->maxVisibleItems() * view->sizeHintForRow(0) + kMenuVMargin * 2);
+                const bool placeBelow = panelHeight <= below || below >= above;
+                panelHeight = qMin(panelHeight, placeBelow ? below : above);
+                geometry.setHeight(panelHeight + kShadowMargin * 2);
+                geometry.moveTop(placeBelow ? comboRect.bottom() + 5 - kShadowMargin
+                                            : comboRect.top() - 4 - panelHeight - kShadowMargin);
             }
             popup->setGeometry(geometry);
         }
