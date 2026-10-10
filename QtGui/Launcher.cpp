@@ -44,10 +44,7 @@
 #include <QDesktopServices>
 
 #define ADD_BUTTONS(arr) for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(arr); i++) { \
-    auto *button = new QPushButton(this); \
-    button->setText((char*)arr[i][0]); \
-    button->setIcon(QIcon((const char*)arr[i][2])); \
-    button->setStyleSheet("text-align: left;"); \
+    auto *button = CreateLauncherRow(QIcon((const char*)arr[i][2]), (const char*)arr[i][0], (const char*)arr[i][3], this); \
     QObject::connect(button, &QPushButton::clicked, [&, i]() { if (arr[i][1] != nullptr) ((void(*)(Launcher&))arr[i][1])(*this); else QMessageBox::critical(this, "Error", "This function is currently not supported!"); }); \
     frameGrid->addWidget(button); \
 }
@@ -65,6 +62,45 @@
 }
 
 using namespace NoobWarrior;
+
+static QPushButton *CreateLauncherRow(const QIcon &icon, const QString &title, const QString &description, QWidget *parent) {
+    auto *button = new QPushButton(parent);
+    button->setFlat(true);
+    button->setMinimumSize(240, 42);
+    button->setStyleSheet(
+        "QPushButton {"
+        "    background-color: transparent;"
+        "    border: none;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: rgb(75, 75, 75);"
+        "}"
+    );
+
+    auto *row = new QHBoxLayout(button);
+    row->setContentsMargins(10, 4, 10, 4);
+    row->setSpacing(10);
+
+    auto *iconLabel = new QLabel(button);
+    iconLabel->setPixmap(icon.pixmap(16, 16));
+    iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    row->addWidget(iconLabel);
+
+    auto *text = new QVBoxLayout();
+    text->setSpacing(0);
+    auto *titleLabel = new QLabel(title, button);
+    titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    auto *descriptionLabel = new QLabel(description, button);
+    descriptionLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+    descriptionLabel->setForegroundRole(QPalette::PlaceholderText);
+    QFont small = descriptionLabel->font();
+    small.setPointSizeF(small.pointSizeF() - 1);
+    descriptionLabel->setFont(small);
+    text->addWidget(titleLabel);
+    text->addWidget(descriptionLabel);
+    row->addLayout(text, 1);
+    return button;
+}
 
 // static void ShowStartGame(Launcher &launcher) { gApp->LaunchClient({ .NoobWarriorVersion = 1, .Type = ClientType::Server, .Hash = "version-07b64feec0bd47c1", .Version = "0.463.0.417004" }); }
 static void ShowStartGame(Launcher &launcher) { HANDLE_QDIALOG(launcher.mHostServerDialog, HostServerDialog) }
@@ -162,30 +198,30 @@ static const char* sCategoryNames[] = {
     "Application"
 };
 
-static const void* sPlay[][3] = {
-    {"Online", (void*)&ShowJoinServer, ":/images/silk/world.png"},
-    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png"}
+static const void* sPlay[][4] = {
+    {"Online", (void*)&ShowJoinServer, ":/images/silk/world.png", "Browse and join servers"},
+    {"Start Game Server", (void*)&ShowStartGame, ":/images/silk/controller.png", "Host a place for others to join"}
     // {"Launch Player", (void*)&LaunchPlayer, ":/images/silk/controller.png"} Launching player into desktop app is currently bugged, uncomment when this is more stable
 };
 
-static const void* sTools[][3] = {
-    {"Launch SDK", (void*)&LaunchDatabaseEditor, ":/images/sdk.png"},
-    {"Launch Studio", (void*)&LaunchOfflineStudio, ":/images/silk/application_side_tree.png"}
+static const void* sTools[][4] = {
+    {"Launch SDK", (void*)&LaunchDatabaseEditor, ":/images/sdk.png", "Edit databases and plugins"},
+    {"Launch Studio", (void*)&LaunchOfflineStudio, ":/images/silk/application_side_tree.png", "Open Roblox Studio offline"}
     // {"Download Asset(s)", (void*)&ShowDownloadAssetDialog, ":/images/silk/page_save.png"},
     // {"Model/Place Explorer", nullptr, ":/images/silk/bricks.png"},
     // {"Scan Roblox Clients", nullptr, ":/images/silk/drive_magnify.png"},
     // {"Scan Roblox Cache", nullptr, ":/images/silk/folder_magnify.png"}
 };
 
-static const void* sApplication[][3] = {
+static const void* sApplication[][4] = {
     // WIP, uncomment these when they are completed for later
     // {"Shell", nullptr, ":/images/silk/application_xp_terminal.png"},
     // {"Lua Shell", nullptr, ":/images/lua16.png"},
-    {"Databases", (void*)&ShowDatabaseMenu, ":/images/silk/database.png"},
-    {"Plugins", (void*)&ShowPluginMenu, ":/images/silk/plugin.png"},
-    {"Player", (void*)&ShowLocalPlayer, ":/images/silk/user.png"},
-    {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png"},
-    {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png"}
+    {"Databases", (void*)&ShowDatabaseMenu, ":/images/silk/database.png", "Choose which databases are mounted"},
+    {"Plugins", (void*)&ShowPluginMenu, ":/images/silk/plugin.png", "Enable and order plugins"},
+    {"Player", (void*)&ShowLocalPlayer, ":/images/silk/user.png", "Change your avatar and identity"},
+    {"Settings", (void*)&ShowSettings, ":/images/silk/cog.png", "Configure noobWarrior"},
+    {"About", (void*)&ShowAboutDialog, ":/images/silk/help.png", "Version and credits"}
 };
 
 Launcher::Launcher(QWidget *parent) : QDialog(parent),
@@ -226,7 +262,7 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     }
 
     QImage logoImg(":/images/icon1024.png");
-    QPixmap logoPix = QPixmap::fromImage(logoImg).scaled(64 * static_cast<int>(devicePixelRatio()), 64 * static_cast<int>(devicePixelRatio()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QPixmap logoPix = QPixmap::fromImage(logoImg).scaled(56 * static_cast<int>(devicePixelRatio()), 56 * static_cast<int>(devicePixelRatio()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     logoPix.setDevicePixelRatio(devicePixelRatio());
 
     auto *logoLayout = new QHBoxLayout();
@@ -237,9 +273,12 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     logoLabel->setPixmap(logoPix);
     logoLayout->addWidget(logoLabel);
 
+    auto *headingLayout = new QHBoxLayout();
+    headingLayout->setSpacing(2);
+    logoLayout->addLayout(headingLayout, 1);
+
     auto *titleLabel = new QLabel();
     titleLabel->setText("noobWarrior");
-    titleLabel->setStyleSheet("QLabel { color: white; }");
     titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
 
     QFont font = titleLabel->font();
@@ -249,36 +288,36 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     font.setPointSize(30); // fonts are smaller on Macs for whatever reason so we have to adjust for it
 #endif
     titleLabel->setFont(font);
-    logoLayout->addWidget(titleLabel);
+    headingLayout->addWidget(titleLabel);
+
+    auto *versionLabel = new QLabel(QString("v%1").arg(NOOBWARRIOR_VERSION));
+    versionLabel->setForegroundRole(QPalette::PlaceholderText);
+    versionLabel->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
+    versionLabel->setContentsMargins(4, 0, 0, QFontMetrics(font).descent() - versionLabel->fontMetrics().descent());
+    headingLayout->addWidget(versionLabel, 0, Qt::AlignBottom);
+    headingLayout->addStretch();
 
 #ifdef POC_BUILD
-    auto *pocLabel = new QLabel();
-    pocLabel->setText("PROOF OF CONCEPT");
-    pocLabel->setStyleSheet("QLabel { color: red; }");
-    pocLabel->setAlignment(Qt::AlignLeft);
+    auto *pocLabel = new QLabel("PROOF OF CONCEPT");
+    pocLabel->setStyleSheet("QLabel { background-color: rgb(150, 0, 0); color: rgb(255, 255, 255); border-radius: 4px; padding: 1px 6px; }");
     QFont pocFont = pocLabel->font();
     pocFont.setBold(true);
-    pocFont.setPointSize(14);
     pocLabel->setFont(pocFont);
-    Layout->addWidget(pocLabel);
+    Layout->addWidget(pocLabel, 0, Qt::AlignLeft);
 #endif
 
     auto *frame = new QFrame(this);
-    // QPalette framePalette = frame->palette();
-    // framePalette.setColor(QPalette::Window, framePalette.color(QPalette::Window).darker(175));
-    // frame->setPalette(framePalette);
-    frame->setAutoFillBackground(true); // QFrames usually have invisible backgrounds, turn it on in this case.
-    frame->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
-
     Layout->addWidget(frame);
 
     auto *frameGrid = new QGridLayout(frame);
-    frameGrid->setSpacing(8);
+    frameGrid->setContentsMargins(0, 4, 0, 4);
+    frameGrid->setSpacing(2);
     frame->setLayout(frameGrid);
     for (int i = 0; i < NOOBWARRIOR_ARRAY_SIZE(sCategoryNames); i++) {
         auto *label = new QLabel(this);
         label->setText(sCategoryNames[i]);
-        label->setMaximumHeight(24);
+        label->setForegroundRole(QPalette::PlaceholderText);
+        label->setContentsMargins(10, i == 0 ? 0 : 10, 0, 2);
         frameGrid->addWidget(label);
 
         switch (i) {
@@ -299,10 +338,9 @@ Launcher::Launcher(QWidget *parent) : QDialog(parent),
     frameGrid->addWidget(button);
     */
 
-    auto *versionLabel = new QLabel(QString("noobWarrior v%1").arg(NOOBWARRIOR_VERSION));
-    Layout->addWidget(versionLabel);
-
     AuthenticationStatusLabel = new QLabel("Not logged into Roblox");
+    AuthenticationStatusLabel->setTextFormat(Qt::RichText);
+    AuthenticationStatusLabel->setContentsMargins(10, 0, 0, 0);
     Layout->addWidget(AuthenticationStatusLabel);
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -314,7 +352,9 @@ void Launcher::paintEvent(QPaintEvent *event) {
     QDialog::paintEvent(event);
 
     RbxKeychain *keychain = gApp->GetCore()->GetRbxKeychain();
-    AuthenticationStatusLabel->setText(keychain->IsLoggedIn() ? QString("Roblox Account: %1").arg(QString::fromStdString(keychain->GetActiveAccount()->Name)) : "Not logged into Roblox");
+    AuthenticationStatusLabel->setText(keychain->IsLoggedIn()
+        ? QString("Roblox account: %1").arg(QString::fromStdString(keychain->GetActiveAccount()->Name).toHtmlEscaped())
+        : QString("Not logged into Roblox"));
 
     // ServerEmulatorStatusLabel->setText(QString("Server Emulator: %1").arg(gApp->GetCore()->IsServerEmulatorRunning() ? "Running" : "Stopped"));
 }

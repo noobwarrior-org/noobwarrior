@@ -47,12 +47,14 @@
 #include <QAudioOutput>
 #include <QVideoWidget>
 #include <QTemporaryFile>
+#include <QPointer>
 
 #include <NoobWarrior/EmuDb/EmuDb.h>
 #include <NoobWarrior/EmuDb/ItemType.h>
 
 #include <memory>
 #include <optional>
+#include <vector>
 #include <fstream>
 
 #include "Sdk/Sdk.h"
@@ -69,7 +71,8 @@ protected:
     void OnSave();
 
     // Adds a styled, full-width section heading to the content form to visually group fields.
-    void AddSectionHeader(const QString &title);
+    QLabel *AddSectionHeader(const QString &title);
+    void RebuildSectionList();
 
     void AddOwnedItemFields();
 
@@ -129,6 +132,12 @@ protected:
     QHBoxLayout* mLayout;
     QVBoxLayout* mSidebarLayout;
     QFormLayout* mContentLayout;
+    QScrollArea* mScrollArea { nullptr };
+    QListWidget* mSectionList { nullptr };
+    QLabel* mHeaderName { nullptr };
+    QLabel* mHeaderSubtitle { nullptr };
+    std::vector<QPointer<QLabel>> mSectionHeaders;
+    QLabel* mAsset_PreviewHeader { nullptr };
 
     QLineEdit* mIdInput;
     QLineEdit* mImageIdInput;

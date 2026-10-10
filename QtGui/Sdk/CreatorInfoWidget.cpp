@@ -27,6 +27,9 @@
 
 #include <NoobWarrior/EmuDb/ContentImages.h>
 
+#include <QPainter>
+#include <QPainterPath>
+
 using namespace NoobWarrior;
 
 CreatorInfoWidget::CreatorInfoWidget(QWidget* parent) : QWidget(parent),
@@ -44,14 +47,28 @@ CreatorInfoWidget::CreatorInfoWidget(QWidget* parent) : QWidget(parent),
     mContentLayout->addWidget(mTypeLabel);
     mContentLayout->addWidget(mIdLabel);
 
-    std::vector<unsigned char> data;
-    data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
+    mTypeLabel->setForegroundRole(QPalette::PlaceholderText);
+    mIdLabel->setForegroundRole(QPalette::PlaceholderText);
+    mImageLabel->setPixmap(PlaceholderAvatar());
+}
 
-    QImage image;
-    image.loadFromData(data);
-
-    QPixmap pixmap = QPixmap::fromImage(image);
-    mImageLabel->setPixmap(pixmap.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+QPixmap CreatorInfoWidget::PlaceholderAvatar() const {
+    QPixmap pixmap(64, 64);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(palette().color(QPalette::Button));
+    painter.drawEllipse(QRectF(0, 0, 64, 64));
+    painter.setBrush(palette().color(QPalette::PlaceholderText));
+    painter.drawEllipse(QRectF(22, 14, 20, 20));
+    painter.setClipRect(QRectF(0, 0, 64, 64));
+    QPainterPath body;
+    body.addEllipse(QRectF(12, 38, 40, 34));
+    QPainterPath circle;
+    circle.addEllipse(QRectF(0, 0, 64, 64));
+    painter.drawPath(body.intersected(circle));
+    return pixmap;
 }
 
 void CreatorInfoWidget::Update(EmuDb* db, int64_t id, Roblox::CreatorType type) {
@@ -76,5 +93,6 @@ void CreatorInfoWidget::Update(EmuDb* db, int64_t id, Roblox::CreatorType type) 
     } else {
         mNameLabel->setText("No One!");
         mIdLabel->setText("Id: N/A");
+        mImageLabel->setPixmap(PlaceholderAvatar());
     }
 }

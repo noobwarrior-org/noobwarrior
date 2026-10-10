@@ -27,11 +27,31 @@
 #include "NoobWarrior/EmuDb/ItemType.h"
 #include "Sdk/CreatorInfoWidget.h"
 
+#include <QPainter>
+#include <QPainterPath>
+#include <QScrollBar>
+
 #include <random>
 
 #include <QRegularExpressionValidator>
 
 using namespace NoobWarrior;
+
+static QPixmap RoundedThumbnail(const QPixmap &source) {
+    const QPixmap scaled = source.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QPixmap rounded(scaled.size());
+    rounded.fill(Qt::transparent);
+    QPainter painter(&rounded);
+    painter.setRenderHint(QPainter::Antialiasing);
+    QPainterPath path;
+    path.addRoundedRect(QRectF(rounded.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 6, 6);
+    painter.setClipPath(path);
+    painter.drawPixmap(0, 0, scaled);
+    painter.setClipping(false);
+    painter.setPen(QPen(QColor(255, 255, 255, 40), 1));
+    painter.drawPath(path);
+    return rounded;
+}
 
 ItemDialog::ItemDialog(EmuDb* db, ItemType type, std::optional<int64_t> id, QWidget *parent) :
     QDialog(parent),
@@ -60,6 +80,8 @@ void ItemDialog::RegenWidgets() {
     setWindowTitle(tr("Configure %1").arg(QString::fromStdString(tableName)));
 
     qDeleteAll(findChildren<QWidget*>("", Qt::FindDirectChildrenOnly));
+    mSectionHeaders.clear();
+    mAsset_PreviewHeader = nullptr;
 
     // Root layout: a body row (sidebar + scrollable content) above a fixed button box.
     mRootLayout = new QVBoxLayout(this);
@@ -70,7 +92,7 @@ void ItemDialog::RegenWidgets() {
     mLayout->addLayout(mSidebarLayout);
 
     mContentLayout = new QFormLayout();
-    mContentLayout->setLabelAlignment(Qt::AlignRight);
+    mContentLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     mContentLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     mContentLayout->setHorizontalSpacing(14);
     mContentLayout->setVerticalSpacing(6);
@@ -85,6 +107,7 @@ void ItemDialog::RegenWidgets() {
     scrollArea->setFrameShape(QFrame::NoFrame);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scrollArea->setWidget(contentWidget);
+    mScrollArea = scrollArea;
     mLayout->addWidget(scrollArea, 1);
 
     ////////////////////////////////////////////////////////////////////////
@@ -105,7 +128,21 @@ void ItemDialog::RegenWidgets() {
         data.assign(g_icon_content_deleted, g_icon_content_deleted + g_icon_content_deleted_size);
 
     image.loadFromData(data);
-    mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    mIcon->setPixmap(RoundedThumbnail(QPixmap::fromImage(image)));
+
+    mHeaderName = new QLabel();
+    QFont nameFont = mHeaderName->font();
+    nameFont.setPointSizeF(nameFont.pointSizeF() + 3);
+    nameFont.setBold(true);
+    mHeaderName->setFont(nameFont);
+    mHeaderName->setWordWrap(true);
+    mHeaderName->setMaximumWidth(150);
+    mSidebarLayout->addWidget(mHeaderName);
+
+    mHeaderSubtitle = new QLabel();
+    mHeaderSubtitle->setForegroundRole(QPalette::PlaceholderText);
+    mSidebarLayout->addWidget(mHeaderSubtitle);
+    mSidebarLayout->addSpacing(6);
 
     mUploadImageButton = new QPushButton("Upload Image");
     mUseExistingImageButton = new QPushButton("Use Existing Image");
@@ -128,7 +165,7 @@ void ItemDialog::RegenWidgets() {
 
             QImage newImage(filePath);
             QPixmap newPixmap = QPixmap::fromImage(newImage);
-            mIcon->setPixmap(newPixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            mIcon->setPixmap(RoundedThumbnail(newPixmap));
         }
     });
 
@@ -140,7 +177,7 @@ void ItemDialog::RegenWidgets() {
             std::vector<unsigned char> data = GetDatabase()->RetrieveImageData(ItemType::Asset, id.value());
             QImage image;
             if (image.loadFromData(data))
-                mIcon->setPixmap(QPixmap::fromImage(image).scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                mIcon->setPixmap(RoundedThumbnail(QPixmap::fromImage(image)));
         }
     });
 
@@ -152,7 +189,16 @@ void ItemDialog::RegenWidgets() {
     mUploadImageButton->setVisible(hasSidebarImage);
     mUseExistingImageButton->setVisible(hasSidebarImage);
 
-    mSidebarLayout->addStretch();
+    mSidebarLayout->addSpacing(6);
+    mSectionList = new QListWidget();
+    mSectionList->setFrameShape(QFrame::NoFrame);
+    mSectionList->setFixedWidth(150);
+    mSidebarLayout->addWidget(mSectionList, 1);
+    connect(mSectionList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        const auto index = static_cast<size_t>(item->data(Qt::UserRole).toInt());
+        if (index < mSectionHeaders.size() && mSectionHeaders[index] != nullptr)
+            mScrollArea->verticalScrollBar()->setValue(mSectionHeaders[index]->y());
+    });
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -229,8 +275,23 @@ void ItemDialog::RegenWidgets() {
         break;
     }
 
+    const auto updateName = [this](const QString &name) { mHeaderName->setText(name.isEmpty() ? tr("Untitled") : name); };
+    updateName(mNameInput->text());
+    connect(mNameInput, &QLineEdit::textChanged, mHeaderName, updateName);
+    const QString typeName = QString::fromStdString(tableName);
+    const auto updateSubtitle = [this, typeName](const QString &id) {
+        mHeaderSubtitle->setText(id.isEmpty() ? typeName : QString("%1 %2 %3").arg(typeName, QChar(0x00B7), id));
+    };
+    updateSubtitle(mIdInput->text());
+    connect(mIdInput, &QLineEdit::textChanged, mHeaderSubtitle, updateSubtitle);
+    RebuildSectionList();
+
+    auto *divider = new QFrame(this);
+    divider->setFrameShape(QFrame::HLine);
+    mRootLayout->addWidget(divider);
+
     mButtonBox = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Save, this);
-    mButtonBox->setContentsMargins(14, 0, 14, 8);
+    mButtonBox->setContentsMargins(14, 4, 14, 8);
     mRootLayout->addWidget(mButtonBox);
 
     connect(mButtonBox, &QDialogButtonBox::accepted, this, &ItemDialog::OnSave);
@@ -239,8 +300,8 @@ void ItemDialog::RegenWidgets() {
         close();
     });
 
-    setMinimumWidth(560);
-    resize(620, 760);
+    setMinimumWidth(680);
+    resize(760, 760);
 }
 
 void ItemDialog::OnSave() {
@@ -334,17 +395,32 @@ void ItemDialog::OnSave() {
     }
 }
 
-void ItemDialog::AddSectionHeader(const QString &title) {
-    auto *header = new QLabel(title.toUpper());
+QLabel *ItemDialog::AddSectionHeader(const QString &title) {
+    auto *header = new QLabel(title);
     header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     header->setStyleSheet(
-        "font-size: 16px;"
-        "color: palette(bright-text);"
-        "padding: 8px 0 3px 0;"
-        "margin-top: 4px;"
-        "border-bottom: 1px solid palette(mid);"
+        "font-size: 14px;"
+        "font-weight: 600;"
+        "padding: 12px 0 2px 0;"
     );
     mContentLayout->addRow(header);
+    mSectionHeaders.emplace_back(header);
+    return header;
+}
+
+void ItemDialog::RebuildSectionList() {
+    if (mAsset_PreviewHeader != nullptr && mAsset_MediaFrame != nullptr)
+        mContentLayout->setRowVisible(mAsset_PreviewHeader, !mAsset_MediaFrame->isHidden());
+    if (mSectionList == nullptr)
+        return;
+    mSectionList->clear();
+    for (size_t i = 0; i < mSectionHeaders.size(); i++) {
+        QLabel *header = mSectionHeaders[i];
+        if (header == nullptr || header->isHidden())
+            continue;
+        auto *item = new QListWidgetItem(header->text(), mSectionList);
+        item->setData(Qt::UserRole, static_cast<int>(i));
+    }
 }
 
 void ItemDialog::AddOwnedItemFields() {

@@ -39,6 +39,7 @@ public:
     CreatorInfoWidget(QWidget* parent = nullptr);
     void Update(EmuDb* db, int64_t id, Roblox::CreatorType type);
 private:
+    QPixmap PlaceholderAvatar() const;
     QHBoxLayout* mMainLayout;
     QVBoxLayout* mContentLayout;
     

@@ -640,10 +640,11 @@ void ItemDialog::Asset_SetVisibilityOfAssetTypeWidgets(Roblox::AssetType type) {
             mAsset_MediaPlayer->stop();
         }
     }
+    RebuildSectionList();
 }
 
 void ItemDialog::Asset_AddFields_MediaPreview() {
-    AddSectionHeader("Preview");
+    mAsset_PreviewHeader = AddSectionHeader("Preview");
 
     mAsset_MediaFrame = new QFrame();
     auto *layout = new QVBoxLayout(mAsset_MediaFrame);

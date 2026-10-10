@@ -30,15 +30,18 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QCursor>
+#include <QDialog>
 #include <QDialogButtonBox>
 #include <QDockWidget>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QHoverEvent>
+#include <QLabel>
 #include <QListView>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyleFactory>
@@ -114,6 +117,10 @@ constexpr const char *kFramelessProperty = "_nw_fluent_frameless";
 constexpr const char *kCaptionButtonsName = "_nw_fluent_caption";
 constexpr int kTitleBarHeight = 29;
 constexpr int kCaptionButtonWidth = 46;
+constexpr int kDialogTitleHeight = 32;
+constexpr const char *kDialogTitleName = "_nw_fluent_dialog_title";
+constexpr const char *kDialogTitleIconName = "_nw_fluent_dialog_title_icon";
+constexpr const char *kDialogTitleTextName = "_nw_fluent_dialog_title_text";
 
 constexpr int kToolBarBand = 30;
 constexpr int kToolBarButton = 24;
@@ -191,6 +198,7 @@ void UpdateFocusRing(QWidget *card) {
     if (ring == nullptr)
         return;
     ring->setGeometry(card->rect());
+    ring->setMask(QRegion(ring->rect()).subtracted(QRegion(ring->rect().adjusted(2, 2, -2, -2))));
     ring->show();
     ring->raise();
     ring->update();
@@ -374,7 +382,12 @@ int FrameThickness(HWND hwnd) {
 LRESULT TitleBarHitTest(QWidget *window, const QPoint &pos) {
     QWidget *child = window->childAt(pos);
     if (child == nullptr)
-        return pos.y() < kTitleBarHeight ? HTCAPTION : HTCLIENT;
+        return pos.y() < (qobject_cast<QDialog*>(window) != nullptr ? kDialogTitleHeight : kTitleBarHeight) ? HTCAPTION : HTCLIENT;
+    if (child->objectName() == kDialogTitleIconName)
+        return HTSYSMENU;
+    if (child->objectName() == kDialogTitleName
+        || (child->parentWidget() != nullptr && child->parentWidget()->objectName() == kDialogTitleName))
+        return HTCAPTION;
     if (auto *menuBar = qobject_cast<QMenuBar*>(child)) {
         QAction *action = menuBar->actionAt(menuBar->mapFrom(window, pos));
         if (action != nullptr && !action->isEnabled() && action->text().isEmpty() && !action->icon().isNull())
@@ -382,6 +395,34 @@ LRESULT TitleBarHitTest(QWidget *window, const QPoint &pos) {
         return action == nullptr || !action->isEnabled() ? HTCAPTION : HTCLIENT;
     }
     return HTCLIENT;
+}
+
+LRESULT ConstrainResizeHit(const QWidget *window, LRESULT hit) {
+    const bool fixedWidth = window->minimumWidth() == window->maximumWidth();
+    const bool fixedHeight = window->minimumHeight() == window->maximumHeight();
+    const bool top = hit == HTTOPLEFT || hit == HTTOPRIGHT;
+    const bool left = hit == HTTOPLEFT || hit == HTBOTTOMLEFT;
+    switch (hit) {
+    case HTLEFT:
+    case HTRIGHT:
+        return fixedWidth ? HTNOWHERE : hit;
+    case HTTOP:
+    case HTBOTTOM:
+        return fixedHeight ? HTNOWHERE : hit;
+    case HTTOPLEFT:
+    case HTTOPRIGHT:
+    case HTBOTTOMLEFT:
+    case HTBOTTOMRIGHT:
+        if (fixedWidth && fixedHeight)
+            return HTNOWHERE;
+        if (fixedWidth)
+            return top ? HTTOP : HTBOTTOM;
+        if (fixedHeight)
+            return left ? HTLEFT : HTRIGHT;
+        return hit;
+    default:
+        return hit;
+    }
 }
 
 class FramelessFilter : public QAbstractNativeEventFilter {
@@ -393,12 +434,35 @@ public:
         if (msg->message != WM_NCCALCSIZE && msg->message != WM_NCHITTEST)
             return false;
         QWidget *window = QWidget::find(reinterpret_cast<WId>(msg->hwnd));
-        if (window == nullptr || !window->property(kFramelessProperty).toBool())
+        if (window == nullptr)
+            return false;
+        if (!window->isWindow()) {
+            // Native child windows (Qt can create these, e.g. after a dock or toolbar floats) get the hit test first.
+            // Pass it up wherever the window would answer caption, icon or resize edge.
+            QWidget *top = window->window();
+            if (msg->message != WM_NCHITTEST || !top->property(kFramelessProperty).toBool() || top->internalWinId() == 0)
+                return false;
+            const HWND topHwnd = reinterpret_cast<HWND>(top->internalWinId());
+            POINT pt { GET_X_LPARAM(msg->lParam), GET_Y_LPARAM(msg->lParam) };
+            ScreenToClient(topHwnd, &pt);
+            const bool resizeEdge = !IsZoomed(topHwnd) && pt.y < FrameThickness(topHwnd)
+                && (GetWindowLongW(topHwnd, GWL_STYLE) & WS_THICKFRAME) && top->minimumHeight() != top->maximumHeight();
+            const qreal dpr = top->devicePixelRatioF();
+            if (!resizeEdge && TitleBarHitTest(top, QPoint(qRound(pt.x / dpr), qRound(pt.y / dpr))) == HTCLIENT)
+                return false;
+            *result = HTTRANSPARENT;
+            return true;
+        }
+        if (!window->property(kFramelessProperty).toBool())
             return false;
 
         if (msg->message == WM_NCCALCSIZE) {
             if (msg->wParam == FALSE)
                 return false;
+            if (!(GetWindowLongW(msg->hwnd, GWL_STYLE) & WS_THICKFRAME)) {
+                *result = 0;
+                return true;
+            }
             // Windows keeps the side and bottom borders, so resizing and the DWM shadow still work. Only the
             // title bar becomes client area.
             auto *params = reinterpret_cast<NCCALCSIZE_PARAMS*>(msg->lParam);
@@ -411,17 +475,20 @@ public:
 
         const LRESULT native = DefWindowProcW(msg->hwnd, WM_NCHITTEST, msg->wParam, msg->lParam);
         if (native != HTCLIENT) {
-            *result = native;
+            *result = ConstrainResizeHit(window, native);
             return true;
         }
         POINT pt { GET_X_LPARAM(msg->lParam), GET_Y_LPARAM(msg->lParam) };
         ScreenToClient(msg->hwnd, &pt);
         const int frame = FrameThickness(msg->hwnd);
-        if (!IsZoomed(msg->hwnd) && pt.y < frame) {
+        if (!IsZoomed(msg->hwnd) && pt.y < frame && (GetWindowLongW(msg->hwnd, GWL_STYLE) & WS_THICKFRAME)) {
             RECT rc;
             GetClientRect(msg->hwnd, &rc);
-            *result = pt.x < frame * 2 ? HTTOPLEFT : pt.x >= rc.right - frame * 2 ? HTTOPRIGHT : HTTOP;
-            return true;
+            const LRESULT edge = ConstrainResizeHit(window, pt.x < frame * 2 ? HTTOPLEFT : pt.x >= rc.right - frame * 2 ? HTTOPRIGHT : HTTOP);
+            if (edge != HTNOWHERE) {
+                *result = edge;
+                return true;
+            }
         }
         const qreal dpr = window->devicePixelRatioF();
         *result = TitleBarHitTest(window, QPoint(qRound(pt.x / dpr), qRound(pt.y / dpr)));
@@ -442,7 +509,36 @@ void ApplyFrameless(QWidget *window) {
 }
 #endif
 
-void LayoutCaptionButtons(QMainWindow *window) {
+void UpdateDialogTitle(QWidget *window) {
+    auto *title = window->findChild<QWidget*>(kDialogTitleName, Qt::FindDirectChildrenOnly);
+    if (title == nullptr)
+        return;
+    if (auto *icon = title->findChild<QLabel*>(kDialogTitleIconName)) {
+        QIcon windowIcon = window->windowIcon();
+        if (windowIcon.isNull())
+            windowIcon = QIcon(":/images/icon16_aa.png");
+        icon->setPixmap(windowIcon.pixmap(16, 16));
+    }
+    if (auto *text = title->findChild<QLabel*>(kDialogTitleTextName))
+        text->setText(window->windowTitle());
+}
+
+void AddDialogTitle(QWidget *window) {
+    auto *title = new QWidget(window);
+    title->setObjectName(kDialogTitleName);
+    auto *layout = new QHBoxLayout(title);
+    layout->setContentsMargins(10, 0, 0, 0);
+    layout->setSpacing(8);
+    auto *icon = new QLabel(title);
+    icon->setObjectName(kDialogTitleIconName);
+    auto *text = new QLabel(title);
+    text->setObjectName(kDialogTitleTextName);
+    layout->addWidget(icon);
+    layout->addWidget(text, 1);
+    UpdateDialogTitle(window);
+}
+
+void LayoutCaptionButtons(QWidget *window) {
     auto *box = window->findChild<QWidget*>(kCaptionButtonsName, Qt::FindDirectChildrenOnly);
     if (box == nullptr)
         return;
@@ -450,9 +546,13 @@ void LayoutCaptionButtons(QMainWindow *window) {
     box->raise();
     if (auto *max = box->findChild<QToolButton*>("max"))
         max->setIcon(GlyphIcon(window->isMaximized() ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton));
+    if (auto *title = window->findChild<QWidget*>(kDialogTitleName, Qt::FindDirectChildrenOnly)) {
+        title->setGeometry(0, 0, window->width() - box->width(), kDialogTitleHeight);
+        title->raise();
+    }
 }
 
-void AddCaptionButtons(QMainWindow *window) {
+void AddCaptionButtons(QWidget *window, int height, bool minimize, bool maximize) {
     auto *box = new QWidget(window);
     box->setObjectName(kCaptionButtonsName);
     auto *layout = new QHBoxLayout(box);
@@ -464,11 +564,13 @@ void AddCaptionButtons(QMainWindow *window) {
         { "close", QStyle::SP_TitleBarCloseButton },
     };
     for (const auto &[name, sp] : buttons) {
+        if ((sp == QStyle::SP_TitleBarMinButton && !minimize) || (sp == QStyle::SP_TitleBarMaxButton && !maximize))
+            continue;
         auto *button = new QToolButton(box);
         button->setObjectName(name);
         button->setAutoRaise(true);
         button->setFocusPolicy(Qt::NoFocus);
-        button->setFixedSize(kCaptionButtonWidth, kTitleBarHeight);
+        button->setFixedSize(kCaptionButtonWidth, height);
         button->setIconSize(QSize(16, 16));
         button->setIcon(GlyphIcon(sp));
         layout->addWidget(button);
@@ -615,15 +717,33 @@ void FluentStyle::polish(QWidget *widget) {
         if (window->contentsMargins().isNull())
             window->setContentsMargins(6, 0, 6, 6);
 #if defined(Q_OS_WIN)
-        if (window->menuWidget() != nullptr && !window->property(kFramelessProperty).toBool()) {
+        if (window->isWindow() && window->menuWidget() != nullptr && !window->property(kFramelessProperty).toBool()) {
             window->setProperty(kFramelessProperty, true);
             window->installEventFilter(this);
-            AddCaptionButtons(window);
+            AddCaptionButtons(window, kTitleBarHeight, true, true);
             if (window->testAttribute(Qt::WA_WState_Created))
                 ApplyFrameless(window);
         }
 #endif
     }
+
+#if defined(Q_OS_WIN)
+    if (auto *dialog = qobject_cast<QDialog*>(widget); dialog != nullptr && dialog->isWindow()
+        && !(dialog->windowFlags() & Qt::FramelessWindowHint) && !dialog->property(kFramelessProperty).toBool()) {
+        dialog->setProperty(kFramelessProperty, true);
+        dialog->installEventFilter(this);
+        QMargins margins = dialog->contentsMargins();
+        margins.setTop(margins.top() + kDialogTitleHeight);
+        dialog->setContentsMargins(margins);
+        AddDialogTitle(dialog);
+        const Qt::WindowFlags flags = dialog->windowFlags();
+        const bool minimize = (flags & Qt::WindowMinimizeButtonHint)
+            || (dialog->parentWidget() == nullptr && qobject_cast<QMessageBox*>(dialog) == nullptr);
+        AddCaptionButtons(dialog, kDialogTitleHeight, minimize, flags & Qt::WindowMaximizeButtonHint);
+        if (dialog->testAttribute(Qt::WA_WState_Created))
+            ApplyFrameless(dialog);
+    }
+#endif
 
     if (auto *dock = qobject_cast<QDockWidget*>(widget)) {
         QPalette pal = dock->palette();
@@ -692,7 +812,7 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
         }
     }
 
-    if (auto *window = qobject_cast<QMainWindow*>(obj); window != nullptr && window->property(kFramelessProperty).toBool()) {
+    if (auto *window = qobject_cast<QWidget*>(obj); window != nullptr && window->isWindow() && window->property(kFramelessProperty).toBool()) {
         switch (event->type()) {
 #if defined(Q_OS_WIN)
         case QEvent::WinIdChange:
@@ -706,6 +826,10 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
         case QEvent::Resize:
         case QEvent::WindowStateChange:
             LayoutCaptionButtons(window);
+            break;
+        case QEvent::WindowTitleChange:
+        case QEvent::WindowIconChange:
+            UpdateDialogTitle(window);
             break;
         default:
             break;
@@ -807,8 +931,11 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         const bool isDefault = IsAccentButton(opt, w);
         const bool flat = btn != nullptr && (btn->features & QStyleOptionButton::Flat);
         const bool on = opt->state & State_On;
-        if (flat && !hover && !sunken && !on)
+        if (flat) {
+            if (hover || sunken || on)
+                DrawButtonPanel(p, opt->rect, sunken ? kControlPressed : kRowHover, sunken ? kControlPressed : kRowHover);
             return;
+        }
         if (isDefault) {
             DrawButtonPanel(p, opt->rect, sunken ? kAccentPressed : hover ? kAccentHover : kAccent, sunken ? kAccentPressed : kAccentHover);
         } else if (!enabled) {
