@@ -2,7 +2,7 @@
 A plugin is a folder or `.zip` with a manifest at its root. The loading code is `Plugin` (one plugin) and `PluginManager` (all of them), in `Core/Source/Plugin.cpp` and `PluginManager.cpp`.
 
 # Where plugins come from
-Built-in plugins sit in `priv-plugins/` in the install folder. They load in the order listed by `priv-plugins/loadlist.lua`, which returns an array of folder names: `http-base`, `emu-frontend`, `master-server`, `docs` and `overlay`. A plugin counts as privileged when its parent folder is named `priv-plugins`. That only changes how it's listed: nothing else in the code treats privileged plugins differently yet.
+Built-in plugins sit in `priv-plugins/` in the install folder. They load in the order listed by `priv-plugins/loadlist.lua`, which returns an array of folder names: `http-base`, `emu-frontend`, `master-server`, `docs`, `overlay` and `bundled-styles`. A plugin counts as privileged when its parent folder is named `priv-plugins`. That only changes how it's listed: nothing else in the code treats privileged plugins differently yet.
 
 User plugins load after the built-in ones, in the order of the `plugins.selected` registry key. Each entry is a file name, looked up first in `<userdata>/plugins/` and then in the install folder's `plugins/`. The user's copy wins, which makes it easy to override a shipped plugin. Order matters because later plugins overwrite what earlier ones put into a place, so enabling a plugin adds it to the end of the list and disabling one leaves the others where they were. Read the list by index: iterating a Luau table with `pairs` loses the order.
 

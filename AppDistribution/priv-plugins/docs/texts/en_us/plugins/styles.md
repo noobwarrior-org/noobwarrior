@@ -3,6 +3,8 @@ A plugin can recolor the desktop app by declaring styles. A style is a Luau file
 
 Styles show up in Settings > General > Theme as "Style title (Plugin title)". Choosing one stores `"<plugin identifier>/<style id>"` in the `gui.theme` registry key.
 
+noobWarrior ships ten styles in its Bundled Styles plugin (`priv-plugins/bundled-styles`), from Solarized and Nord to High Contrast. Its style files are a good starting point for your own.
+
 # Declaring styles
 List your styles in the manifest's `styles` array:
 
