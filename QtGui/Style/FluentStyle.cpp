@@ -24,6 +24,8 @@
 // Description: A cool fluent theme
 #include "FluentStyle.h"
 
+#include <NoobWarrior/Macros.h>
+
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QAction>
@@ -459,10 +461,6 @@ public:
         if (msg->message == WM_NCCALCSIZE) {
             if (msg->wParam == FALSE)
                 return false;
-            if (!(GetWindowLongW(msg->hwnd, GWL_STYLE) & WS_THICKFRAME)) {
-                *result = 0;
-                return true;
-            }
             // Windows keeps the side and bottom borders, so resizing and the DWM shadow still work. Only the
             // title bar becomes client area.
             auto *params = reinterpret_cast<NCCALCSIZE_PARAMS*>(msg->lParam);
@@ -503,7 +501,10 @@ void UpdateWindowBorder(QWidget *window) {
 }
 
 void ApplyFrameless(QWidget *window) {
-    SetWindowPos(reinterpret_cast<HWND>(window->winId()), nullptr, 0, 0, 0, 0,
+    const HWND hwnd = reinterpret_cast<HWND>(window->winId());
+    const DWORD corners = DWMWCP_ROUND;
+    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
+    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                  SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
     UpdateWindowBorder(window);
 }
@@ -520,7 +521,7 @@ void UpdateDialogTitle(QWidget *window) {
         icon->setPixmap(windowIcon.pixmap(16, 16));
     }
     if (auto *text = title->findChild<QLabel*>(kDialogTitleTextName))
-        text->setText(window->windowTitle());
+        text->setText(window->windowTitle().isEmpty() ? QStringLiteral(NOOBWARRIOR_BRAND) : window->windowTitle());
 }
 
 void AddDialogTitle(QWidget *window) {

@@ -326,7 +326,7 @@ bool Sdk::TryToRemoveProject(Project* project) {
     if (!project->IsDirty())
         goto close;
     else {
-        res = QMessageBox::question( this, nullptr,
+        res = QMessageBox::question( this, "Save Changes",
             QString("Do you want to save changes to \"%1\"?").arg(project->GetTitle()),
             QMessageBox::Cancel | QMessageBox::No | QMessageBox::Yes,
             QMessageBox::Yes);
