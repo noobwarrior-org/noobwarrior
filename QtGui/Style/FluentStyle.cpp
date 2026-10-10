@@ -129,7 +129,6 @@ constexpr int kToolBarBand = 30;
 constexpr int kToolBarButton = 24;
 constexpr int kToolBarGap = 4;
 constexpr int kToolBarGrip = 4;
-constexpr int kTabLabelDrop = 2;
 constexpr int kTabFlare = 4;
 constexpr int kToolBarTrailingGap = 6;
 constexpr int kMenuBarIconGap = 7;
@@ -1048,6 +1047,18 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     case PE_FrameTabWidget: {
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
+        const auto *twf = qstyleoption_cast<const QStyleOptionTabWidgetFrame*>(opt);
+        if (w != nullptr && twf != nullptr && (twf->shape == QTabBar::RoundedNorth || twf->shape == QTabBar::TriangularNorth)
+            && opt->rect.top() > 0) {
+            const QRectF strip(0, 0, w->width(), opt->rect.top() + 1);
+            QPainterPath band;
+            band.addRoundedRect(strip, kCardRadius, kCardRadius);
+            QPainterPath bottom;
+            bottom.addRect(strip.adjusted(0, kCardRadius, 0, 0));
+            p->setPen(Qt::NoPen);
+            p->setBrush(kToolBar);
+            p->drawPath(band.united(bottom));
+        }
         p->setPen(QPen(IsActiveCard(qobject_cast<const QTabWidget*>(w)) ? kAccent : kBorder, 1));
         p->setBrush(kPane);
         p->drawPath(PanePath(QRectF(opt->rect).adjusted(0.5, 0.5, -0.5, -0.5), kCardRadius));
@@ -1320,7 +1331,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             const qreal radius = kCardRadius;
             const bool flushLeft = IsFlushLeftTab(tab);
             const qreal left = tab->rect.left() + 0.5 + (flushLeft ? 0 : flare), right = tab->rect.right() + 0.5 - flare;
-            const qreal top = tab->rect.top() + 3.5, bottom = tab->rect.bottom() + 0.5;
+            const qreal top = tab->rect.top() + 0.5, bottom = tab->rect.bottom() + 0.5;
             QPainterPath edge;
             if (flushLeft) {
                 edge.moveTo(left, bottom);
@@ -1352,7 +1363,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             p->setPen(Qt::NoPen);
             p->setBrush(kRowHover);
             if (north) {
-                const QRectF box = QRectF(tab->rect).adjusted(IsFlushLeftTab(tab) ? 0 : kTabFlare, 3, -kTabFlare + 1, -1);
+                const QRectF box = QRectF(tab->rect).adjusted(IsFlushLeftTab(tab) ? 0 : kTabFlare, 0, -kTabFlare + 1, -1);
                 QPainterPath shape;
                 shape.addRoundedRect(box, kCardRadius, kCardRadius);
                 QPainterPath bottom;
@@ -1373,7 +1384,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             break;
         QStyleOptionTab copy(*tab);
         if (tab->shape == QTabBar::RoundedNorth || tab->shape == QTabBar::TriangularNorth)
-            copy.rect.adjust(IsFlushLeftTab(tab) ? 0 : kTabFlare, kTabLabelDrop * 2, -kTabFlare, 0);
+            copy.rect.adjust(IsFlushLeftTab(tab) ? 0 : kTabFlare, 0, -kTabFlare, 0);
         const QColor color = !enabled ? kTextDisabled : (tab->state & State_Selected) || hover ? kText : kTextSecondary;
         copy.palette.setColor(QPalette::WindowText, color);
         copy.palette.setColor(QPalette::ButtonText, color);
@@ -1574,16 +1585,6 @@ void FluentStyle::drawComplexControl(ComplexControl cc, const QStyleOptionComple
     QProxyStyle::drawComplexControl(cc, opt, p, w);
 }
 
-QRect FluentStyle::subElementRect(SubElement se, const QStyleOption *opt, const QWidget *w) const {
-    QRect r = QProxyStyle::subElementRect(se, opt, w);
-    if (se == SE_TabBarTabLeftButton || se == SE_TabBarTabRightButton) {
-        const auto *tab = qstyleoption_cast<const QStyleOptionTab*>(opt);
-        if (tab != nullptr && (tab->shape == QTabBar::RoundedNorth || tab->shape == QTabBar::TriangularNorth))
-            r.translate(0, kTabLabelDrop);
-    }
-    return r;
-}
-
 QSize FluentStyle::sizeFromContents(ContentsType ct, const QStyleOption *opt, const QSize &size, const QWidget *w) const {
     QSize s = QProxyStyle::sizeFromContents(ct, opt, size, w);
     switch (ct) {
@@ -1642,7 +1643,7 @@ int FluentStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, con
     case PM_ScrollBarExtent: return 14;
     case PM_ScrollBarSliderMin: return 24;
     case PM_TabBarTabHSpace: return 20;
-    case PM_TabBarTabVSpace: return 14;
+    case PM_TabBarTabVSpace: return 10;
     case PM_TabBarBaseOverlap: return 1;
     case PM_TabBarTabShiftHorizontal:
     case PM_TabBarTabShiftVertical: return 0;
