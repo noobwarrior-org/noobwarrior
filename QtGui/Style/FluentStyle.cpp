@@ -135,6 +135,7 @@ constexpr int kMenuBarIconGap = 7;
 constexpr int kToolBarHandleExtent = 7;
 constexpr int kToolBarHandleRight = 1 + kToolBarHandleExtent;
 constexpr const char *kGripHotProperty = "_nw_fluent_grip_hot";
+constexpr const char *kHoverTabProperty = "_nw_fluent_hover_tab";
 constexpr const char *kToolBarConnectedProperty = "_nw_fluent_toolbar_connected";
 const QColor kToolBarGripColor(0x13, 0x13, 0x13);
 
@@ -686,8 +687,10 @@ void FluentStyle::polish(QWidget *widget) {
         }
     }
 
-    if (qobject_cast<QTabBar*>(widget) != nullptr)
+    if (qobject_cast<QTabBar*>(widget) != nullptr) {
         widget->setAttribute(Qt::WA_Hover);
+        widget->installEventFilter(this);
+    }
 
     if (auto *view = qobject_cast<QAbstractItemView*>(widget))
         view->viewport()->setAttribute(Qt::WA_Hover);
@@ -837,6 +840,18 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
             break;
         default:
             break;
+        }
+    }
+
+    if (auto *tabBar = qobject_cast<QTabBar*>(obj)) {
+        const QEvent::Type type = event->type();
+        if (type == QEvent::HoverEnter || type == QEvent::HoverMove || type == QEvent::HoverLeave) {
+            const int index = type == QEvent::HoverLeave ? -1 : tabBar->tabAt(static_cast<QHoverEvent*>(event)->position().toPoint());
+            const QVariant previous = tabBar->property(kHoverTabProperty);
+            if (!previous.isValid() || previous.toInt() != index) {
+                tabBar->setProperty(kHoverTabProperty, index);
+                tabBar->update();
+            }
         }
     }
 
@@ -1330,7 +1345,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             const qreal flare = kTabFlare;
             const qreal radius = kCardRadius;
             const bool flushLeft = IsFlushLeftTab(tab);
-            const qreal left = tab->rect.left() + 0.5 + (flushLeft ? 0 : flare), right = tab->rect.right() + 0.5 - flare;
+            const qreal left = tab->rect.left() + 0.5, right = tab->rect.right() + 0.5;
             const qreal top = tab->rect.top() + 0.5, bottom = tab->rect.bottom() + 0.5;
             QPainterPath edge;
             if (flushLeft) {
@@ -1363,7 +1378,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             p->setPen(Qt::NoPen);
             p->setBrush(kRowHover);
             if (north) {
-                const QRectF box = QRectF(tab->rect).adjusted(IsFlushLeftTab(tab) ? 0 : kTabFlare, 0, -kTabFlare + 1, -1);
+                const QRectF box = QRectF(tab->rect).adjusted(0, 0, 1, -1);
                 QPainterPath shape;
                 shape.addRoundedRect(box, kCardRadius, kCardRadius);
                 QPainterPath bottom;
@@ -1383,8 +1398,6 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         if (tab == nullptr)
             break;
         QStyleOptionTab copy(*tab);
-        if (tab->shape == QTabBar::RoundedNorth || tab->shape == QTabBar::TriangularNorth)
-            copy.rect.adjust(IsFlushLeftTab(tab) ? 0 : kTabFlare, 0, -kTabFlare, 0);
         const QColor color = !enabled ? kTextDisabled : (tab->state & State_Selected) || hover ? kText : kTextSecondary;
         copy.palette.setColor(QPalette::WindowText, color);
         copy.palette.setColor(QPalette::ButtonText, color);
@@ -1615,8 +1628,6 @@ QSize FluentStyle::sizeFromContents(ContentsType ct, const QStyleOption *opt, co
             QFont bold = w->font();
             bold.setBold(true);
             s.rwidth() += QFontMetrics(bold).horizontalAdvance(tab->text) - tab->fontMetrics.horizontalAdvance(tab->text);
-            if (tab->shape == QTabBar::RoundedNorth || tab->shape == QTabBar::TriangularNorth)
-                s.rwidth() += kTabFlare * 2;
         }
         break;
     default:
