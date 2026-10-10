@@ -87,6 +87,7 @@ const QColor kControlStroke(0x4a, 0x4a, 0x4a);
 const QColor kBorder(0x3d, 0x3d, 0x3d);
 const QColor kSubtleBorder(0x33, 0x33, 0x33);
 const QColor kRowHover(0x2f, 0x2f, 0x2f);
+const QColor kTabHover(0x33, 0x33, 0x33);
 const QColor kSelection(0x35, 0x35, 0x35);
 const QColor kAccent(0xd7, 0xa0, 0x42);
 const QColor kAccentHover(0xe2, 0xb2, 0x5e);
@@ -685,6 +686,9 @@ void FluentStyle::polish(QWidget *widget) {
             connect(toolBar, &QToolBar::topLevelChanged, toolBar, refresh);
         }
     }
+
+    if (qobject_cast<QTabBar*>(widget) != nullptr)
+        widget->setAttribute(Qt::WA_Hover);
 
     if (auto *view = qobject_cast<QAbstractItemView*>(widget))
         view->viewport()->setAttribute(Qt::WA_Hover);
@@ -1347,8 +1351,17 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         } else if (hover) {
             p->setPen(Qt::NoPen);
             p->setBrush(kRowHover);
-            p->drawRoundedRect(north ? QRectF(tab->rect).adjusted(IsFlushLeftTab(tab) ? 1 : kTabFlare, 4, -kTabFlare, -1) : r,
-                               kControlRadius, kControlRadius);
+            if (north) {
+                const QRectF box = QRectF(tab->rect).adjusted(IsFlushLeftTab(tab) ? 0 : kTabFlare, 3, -kTabFlare + 1, -1);
+                QPainterPath shape;
+                shape.addRoundedRect(box, kCardRadius, kCardRadius);
+                QPainterPath bottom;
+                bottom.addRect(box.adjusted(0, kCardRadius, 0, 0));
+                p->setBrush(kTabHover);
+                p->drawPath(shape.united(bottom));
+            } else {
+                p->drawRoundedRect(r, kControlRadius, kControlRadius);
+            }
         }
         p->restore();
         return;
