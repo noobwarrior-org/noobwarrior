@@ -29,7 +29,8 @@
 #include "LoadingDialog.h"
 #include "OnlineWindow/ServerLoginDialog.h"
 #include "OnlineWindow/MasterLoginDialog.h"
-#include "Style/DefaultStyle.h"
+#include "Style/DarculaStyle.h"
+#include "Style/FluentStyle.h"
 
 #include <NoobWarrior/NoobWarrior.h>
 #include <NoobWarrior/Registry.h>
@@ -76,6 +77,10 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv),
 }
 
 int Application::Run() {
+    int ret = 1;
+
+    mCore = new Core(mInit);
+
 #if USE_CUSTOM_STYLE
     /*
     QFile styleFile(":/css/style.css");
@@ -84,16 +89,16 @@ int Application::Run() {
         setStyleSheet(in.readAll());
     }
     */
-    QApplication::setStyle(new DefaultStyle());
+    std::optional<std::string> theme = mCore->GetRegistry() != nullptr ? mCore->GetRegistry()->GetKeyValue<std::string>("gui.theme") : std::nullopt;
+    if (theme == "darcula")
+        QApplication::setStyle(new DarculaStyle());
+    else
+        QApplication::setStyle(new FluentStyle());
 #else
     #if defined(Q_OS_WIN32)
         QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
     #endif
 #endif
-
-    int ret = 1;
-
-    mCore = new Core(mInit);
 
     // Only one instance may run at a time, unless allow_multiple_instances is set
     QSharedMemory sharedMemory("noobWarrior");

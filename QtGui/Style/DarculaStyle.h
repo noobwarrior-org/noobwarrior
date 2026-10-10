@@ -18,7 +18,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: DefaultStyle.h
+// File: DarculaStyle.h
 // Started by: Hattozo
 // Started on: 7/11/2025
 // Description: My style that I like for this program.
@@ -26,9 +26,9 @@
 #include <QProxyStyle>
 
 namespace NoobWarrior {
-class DefaultStyle : public QProxyStyle {
+class DarculaStyle : public QProxyStyle {
 public:
-    DefaultStyle();
+    DarculaStyle();
     void polish(QPalette &pal) override;
     void polish(QWidget *widget) override;
     void drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const override;

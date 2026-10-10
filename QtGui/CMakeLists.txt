@@ -5,7 +5,8 @@ set(CMAKE_AUTORCC ON)
 set(SOURCES
     Application.cpp
     Launcher.cpp
-    Style/DefaultStyle.cpp
+    Style/DarculaStyle.cpp
+    Style/FluentStyle.cpp
     Settings/SettingsDialog.cpp
     Settings/SettingsPage.cpp
     Settings/GeneralPage.cpp
@@ -113,6 +114,9 @@ set_target_properties(NoobWarrior.QtGui PROPERTIES
     WIN32_EXECUTABLE ON
 )
 target_link_libraries(NoobWarrior.QtGui PUBLIC NoobWarrior.Core NoobWarrior.QtShared Qt6::Core Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets)
+if (WIN32)
+    target_link_libraries(NoobWarrior.QtGui PRIVATE dwmapi)
+endif()
 target_include_directories(NoobWarrior.QtGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NoobWarrior.QtGui PUBLIC cxx_std_23)
 target_compile_definitions(NoobWarrior.QtGui PRIVATE POC_BUILD)

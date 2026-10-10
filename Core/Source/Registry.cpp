@@ -38,7 +38,8 @@ RegistryResponse Registry::Open() {
     if (const RegistryResponse res = BaseRegistry::Open(); res != RegistryResponse::Success) return res;
     SetKeyValue("meta.version", NOOBWARRIOR_REGISTRY_VERSION);
     SetKeyValueIfNotSet("language", "en_US");
-    SetKeyValueIfNotSet("gui.theme", "default");
+    SetKeyValueIfNotSet("gui.theme", "fluent");
+    SetKeyComment("gui.theme", "The look of the desktop app");
 
     sol::table master_servers_tbl = mLua->create_table();
     SetKeyValueIfNotSet("master_servers", master_servers_tbl);

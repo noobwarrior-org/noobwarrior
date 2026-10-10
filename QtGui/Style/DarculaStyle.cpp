@@ -18,11 +18,11 @@
  * <https://www.gnu.org/licenses/>.
  */
 // === noobWarrior ===
-// File: DefaultStyle.cpp
+// File: DarculaStyle.cpp
 // Started by: Hattozo
 // Started on: 7/11/2025
 // Description: My style that I like for this program.
-#include "DefaultStyle.h"
+#include "DarculaStyle.h"
 
 #include <NoobWarrior/Log.h>
 
@@ -51,10 +51,10 @@
 
 using namespace NoobWarrior;
 
-DefaultStyle::DefaultStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
+DarculaStyle::DarculaStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
 }
 
-void DefaultStyle::polish(QPalette &pal) {
+void DarculaStyle::polish(QPalette &pal) {
     pal.setColor(QPalette::Window, QColor(60, 63, 65));
 
     pal.setColor(QPalette::Base,              QColor(60,63,65));
@@ -80,7 +80,7 @@ void DefaultStyle::polish(QPalette &pal) {
     QProxyStyle::polish(pal);
 }
 
-void DefaultStyle::polish(QWidget *widget) {
+void DarculaStyle::polish(QWidget *widget) {
     auto *window = qobject_cast<QMainWindow*>(widget);
     if (window != nullptr) {
 #if defined(Q_OS_WIN32)
@@ -161,7 +161,7 @@ void DefaultStyle::polish(QWidget *widget) {
     QProxyStyle::polish(widget);
 }
 
-void DefaultStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+void DarculaStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
 #if !defined(Q_OS_MACOS)
     switch (pe) {
     case QStyle::PE_PanelMenuBar:
@@ -176,7 +176,7 @@ void DefaultStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, Q
     QProxyStyle::drawPrimitive(pe, opt, p, w);
 }
 
-void DefaultStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
+void DarculaStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const {
 #if !defined(Q_OS_MACOS)
     if (ce == QStyle::CE_MenuBarItem) {
         auto menu_opt = qstyleoption_cast<const QStyleOptionMenuItem *>(opt);
@@ -207,7 +207,7 @@ void DefaultStyle::drawControl(QStyle::ControlElement ce, const QStyleOption *op
     QProxyStyle::drawControl(ce, opt, p, w);
 }
 
-int DefaultStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const {
+int DarculaStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const {
     switch (metric) {
     default: return QProxyStyle::pixelMetric(metric, option, widget);
     case QStyle::PM_MessageBoxIconSize: return 32;

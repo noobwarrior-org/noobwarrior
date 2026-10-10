@@ -39,8 +39,6 @@ public:
     void Deserialize(Registry* reg) override;
     void Serialize(Registry* reg) override;
 private:
-    QLabel* mWipLabel;
-    QComboBox* mLanguage;
     QComboBox* mTheme;
 };
 }

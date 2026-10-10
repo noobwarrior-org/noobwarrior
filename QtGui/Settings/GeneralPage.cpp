@@ -29,12 +29,9 @@
 #include <QGroupBox>
 #include <QComboBox>
 #include <QLabel>
+#include <QMessageBox>
 
 using namespace NoobWarrior;
-
-static void SetTheme() {
-
-}
 
 GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
     Init();
@@ -42,24 +39,18 @@ GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
 }
 
 void GeneralPage::InitWidgets() {
-    mWipLabel = new QLabel("Right now, this page is currently a work in progress. Expect a setting to change the language and UI in here soon.");
-    mWipLabel->setWordWrap(true);
-    Layout->addWidget(mWipLabel);
-    /*
     auto uiBox = new QGroupBox("User Interface");
     auto uiLayout = new QFormLayout(uiBox);
     uiBox->setLayout(uiLayout);
 
-    mLanguage = new QComboBox;
     mTheme = new QComboBox;
-    mTheme->addItem("Darcula");
-    mTheme->addItem("System");
+    mTheme->addItem("Fluent", "fluent");
+    mTheme->addItem("Darcula", "darcula");
 
-    uiLayout->addRow(new QLabel("Language"), mLanguage);
     uiLayout->addRow(new QLabel("Theme"), mTheme);
 
     Layout->addWidget(uiBox);
-    */
+    Layout->addStretch();
 }
 
 const QString GeneralPage::GetTitle() {
@@ -76,11 +67,15 @@ const QIcon GeneralPage::GetIcon() {
 
 void GeneralPage::Deserialize(Registry* reg) {
     std::optional<std::string> theme = reg->GetKeyValue<std::string>("gui.theme");
-    if (theme.has_value()) {
-
-    }
+    int index = mTheme->findData(QString::fromStdString(theme.value_or("fluent")));
+    mTheme->setCurrentIndex(index >= 0 ? index : 0);
 }
 
 void GeneralPage::Serialize(Registry* reg) {
-
+    const std::string theme = mTheme->currentData().toString().toStdString();
+    const std::string previous = reg->GetKeyValue<std::string>("gui.theme") == "darcula" ? "darcula" : "fluent";
+    if (previous == theme)
+        return;
+    reg->SetKeyValue<std::string>("gui.theme", theme);
+    QMessageBox::information(this, "Theme Changed", "Restart noobWarrior to switch to the new theme.");
 }

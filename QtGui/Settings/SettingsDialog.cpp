@@ -30,6 +30,7 @@
 #include <QTabWidget>
 #include <QFrame>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <qdialogbuttonbox.h>
 
 #include "GeneralPage.h"
@@ -70,6 +71,11 @@ void SettingsDialog::InitWidgets() {
             if (page != nullptr) {
                 page->Serialize(gApp->GetCore()->GetRegistry());
             }
+        }
+        Registry *reg = gApp->GetCore()->GetRegistry();
+        if (reg->Save() != RegistryResponse::Success) {
+            QMessageBox::critical(this, "Could Not Save Settings", QString::fromStdString(reg->GetLuaError()));
+            return;
         }
         gApp->GetCore()->Out("SettingsDialog", "Saved!");
         close();
