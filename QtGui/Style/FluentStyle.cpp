@@ -893,6 +893,17 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
 
     if (auto *toolBar = qobject_cast<QToolBar*>(obj)) {
         const QEvent::Type type = event->type();
+        if (type == QEvent::Resize && !toolBar->isWindow()) {
+            // Qt sizes an expanded toolbar to fit just its rows, so the trailing gap would cut off the last one.
+            const bool horizontal = toolBar->orientation() == Qt::Horizontal;
+            const int across = horizontal ? toolBar->height() : toolBar->width();
+            const int trailing = across > kToolBarBand + 2 + kToolBarTrailingGap + 4 ? 0 : kToolBarTrailingGap;
+            QMargins margins = toolBar->contentsMargins();
+            if ((horizontal ? margins.bottom() : margins.right()) != trailing) {
+                horizontal ? margins.setBottom(trailing) : margins.setRight(trailing);
+                toolBar->setContentsMargins(margins);
+            }
+        }
         if (type == QEvent::HoverEnter || type == QEvent::HoverMove || type == QEvent::HoverLeave) {
             const bool hot = type != QEvent::HoverLeave && toolBar->isMovable() && !toolBar->isWindow()
                 && (toolBar->orientation() == Qt::Horizontal ? static_cast<QHoverEvent*>(event)->position().x()
@@ -1265,17 +1276,17 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
                     contentEnd = qMax(contentEnd, horizontal ? item->geometry().right() : item->geometry().bottom());
             }
             if (horizontal) {
-                band.adjust(0, 0, -kToolBarGap, -kToolBarTrailingGap);
-                const qreal inset = (band.height() - kToolBarBand) / 2.0;
+                band.adjust(0, 0, -kToolBarGap, -toolBar->contentsMargins().bottom());
+                const qreal inset = band.height() > kToolBarBand + 4 ? 1.0 : (band.height() - kToolBarBand) / 2.0;
                 band.adjust(0, inset, 0, -inset);
                 if (contentEnd > 0)
-                    band.setRight(contentEnd + 4);
+                    band.setRight(qMax(band.left() + kToolBarBand, qreal(contentEnd + 4)));
             } else {
-                band.adjust(0, 0, -kToolBarTrailingGap, -kToolBarGap);
-                const qreal inset = (band.width() - kToolBarBand) / 2.0;
+                band.adjust(0, 0, -toolBar->contentsMargins().right(), -kToolBarGap);
+                const qreal inset = band.width() > kToolBarBand + 4 ? 1.0 : (band.width() - kToolBarBand) / 2.0;
                 band.adjust(inset, 0, -inset, 0);
                 if (contentEnd > 0)
-                    band.setBottom(contentEnd + 4);
+                    band.setBottom(qMax(band.top() + kToolBarBand, qreal(contentEnd + 4)));
             }
         }
         const qreal radius = floating ? 0 : kControlRadius;
