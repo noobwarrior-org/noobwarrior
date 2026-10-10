@@ -82,6 +82,8 @@ public:
      */
     std::vector<Plugin::DeclaredDatabase> GetOfferedDatabases();
 
+    std::vector<DeclaredStyle> GetDeclaredStyles();
+
     /**
      * @brief Where a declared database's file already is on disk, without staging or creating
      * anything. Empty when nothing exists yet -- normal for a zip plugin nobody has mounted from.

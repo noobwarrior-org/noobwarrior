@@ -25,13 +25,22 @@
 #include "GeneralPage.h"
 
 #include "../Application.h"
+#include "../Style/DarculaTheme.h"
+#include "../Style/FluentTheme.h"
 
 #include <QGroupBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QMessageBox>
+#include <QTimer>
+
+#include <format>
 
 using namespace NoobWarrior;
+
+namespace {
+constexpr int kThemeBaseRole = Qt::UserRole + 1;
+}
 
 GeneralPage::GeneralPage(QWidget *parent) : SettingsPage(parent) {
     Init();
@@ -44,10 +53,28 @@ void GeneralPage::InitWidgets() {
     uiBox->setLayout(uiLayout);
 
     mTheme = new QComboBox;
-    mTheme->addItem("Fluent", "fluent");
-    mTheme->addItem("Darcula", "darcula");
+    mTheme->addItem("Fluent", FluentTheme::kBaseName);
+    mTheme->setItemData(0, FluentTheme::kBaseName, kThemeBaseRole);
+    mTheme->addItem("Darcula", DarculaTheme::kBaseName);
+    mTheme->setItemData(1, DarculaTheme::kBaseName, kThemeBaseRole);
+    for (const DeclaredStyle &style : gApp->GetCore()->GetPluginManager()->GetDeclaredStyles()) {
+        if (style.Base != FluentTheme::kBaseName && style.Base != DarculaTheme::kBaseName)
+            continue;
+        Plugin *owner = gApp->GetCore()->GetPluginManager()->GetPluginFromIdentifier(style.OwnerIdentifier);
+        const std::string ownerTitle = owner != nullptr ? owner->GetProperties().Title : style.OwnerIdentifier;
+        mTheme->addItem(QString::fromStdString(std::format("{} ({})", style.Title, ownerTitle)),
+                        QString::fromStdString(style.GetQualifiedId()));
+        mTheme->setItemData(mTheme->count() - 1, QString::fromStdString(style.Base), kThemeBaseRole);
+    }
 
     uiLayout->addRow(new QLabel("Theme"), mTheme);
+
+    mColorScheme = new QComboBox;
+    mColorScheme->addItem("Dark", "dark");
+    mColorScheme->addItem("Light", "light");
+    mColorScheme->addItem("Match System", "system");
+
+    uiLayout->addRow(new QLabel("Color Scheme"), mColorScheme);
 
     Layout->addWidget(uiBox);
     Layout->addStretch();
@@ -66,16 +93,39 @@ const QIcon GeneralPage::GetIcon() {
 }
 
 void GeneralPage::Deserialize(Registry* reg) {
-    std::optional<std::string> theme = reg->GetKeyValue<std::string>("gui.theme");
-    int index = mTheme->findData(QString::fromStdString(theme.value_or("fluent")));
+    const QString theme = QString::fromStdString(reg->GetKeyValue<std::string>("gui.theme").value_or("fluent"));
+    int index = mTheme->findData(theme);
+    if (index < 0) {
+        mTheme->addItem(theme + " (unavailable)", theme);
+        index = mTheme->count() - 1;
+    }
     mTheme->setCurrentIndex(index >= 0 ? index : 0);
+
+    std::optional<std::string> colorScheme = reg->GetKeyValue<std::string>("gui.color_scheme");
+    index = mColorScheme->findData(QString::fromStdString(colorScheme.value_or("dark")));
+    mColorScheme->setCurrentIndex(index >= 0 ? index : 0);
+}
+
+QString GeneralPage::GetThemeBase(const std::string &themeId) {
+    const int index = mTheme->findData(QString::fromStdString(themeId));
+    const QVariant base = index >= 0 ? mTheme->itemData(index, kThemeBaseRole) : QVariant();
+    return base.isValid() ? base.toString() : FluentTheme::kBaseName;
 }
 
 void GeneralPage::Serialize(Registry* reg) {
     const std::string theme = mTheme->currentData().toString().toStdString();
-    const std::string previous = reg->GetKeyValue<std::string>("gui.theme") == "darcula" ? "darcula" : "fluent";
-    if (previous == theme)
+    const std::string colorScheme = mColorScheme->currentData().toString().toStdString();
+    const std::string previousTheme = reg->GetKeyValue<std::string>("gui.theme").value_or("fluent");
+    const bool themeChanged = previousTheme != theme;
+    const bool colorSchemeChanged = reg->GetKeyValue<std::string>("gui.color_scheme") != colorScheme;
+    if (!themeChanged && !colorSchemeChanged)
         return;
+
     reg->SetKeyValue<std::string>("gui.theme", theme);
-    QMessageBox::information(this, "Theme Changed", "Restart noobWarrior to switch to the new theme.");
+    reg->SetKeyValue<std::string>("gui.color_scheme", colorScheme);
+    const bool baseStyleChanged = GetThemeBase(previousTheme) != GetThemeBase(theme);
+    if (themeChanged && baseStyleChanged)
+        QMessageBox::information(this, "Theme Changed", "Restart noobWarrior to switch to the new theme.");
+    else
+        QTimer::singleShot(0, gApp, &Application::ApplyStyle);
 }

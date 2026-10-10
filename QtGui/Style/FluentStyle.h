@@ -23,6 +23,7 @@
 // Started on: 10/9/2026
 // Description: A cool fluent theme
 #pragma once
+#include "FluentTheme.h"
 #include <QProxyStyle>
 #include <QAbstractNativeEventFilter>
 
@@ -31,7 +32,7 @@
 namespace NoobWarrior {
 class FluentStyle : public QProxyStyle {
 public:
-    FluentStyle();
+    explicit FluentStyle(FluentTheme theme = FluentTheme::Dark());
     ~FluentStyle() override;
     QPalette standardPalette() const override;
     void polish(QPalette &pal) override;
@@ -44,9 +45,11 @@ public:
     int pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const override;
     int styleHint(StyleHint hint, const QStyleOption *opt, const QWidget *w, QStyleHintReturn *ret) const override;
     QIcon standardIcon(StandardPixmap sp, const QStyleOption *opt, const QWidget *w) const override;
+    const FluentTheme &Theme() const;
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 private:
     std::unique_ptr<QAbstractNativeEventFilter> mFramelessFilter;
+    FluentTheme mTheme;
 };
 }

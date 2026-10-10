@@ -36,6 +36,7 @@
 #include <NoobWarrior/Registry.h>
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Engine.h>
+#include <NoobWarrior/PluginStyle.h>
 
 #include <QApplication>
 #include <QDir>
@@ -50,6 +51,7 @@
 #include <QSocketNotifier>
 #include <QMessageBox>
 #include <QStyleFactory>
+#include <QStyleHints>
 #include <QSystemTrayIcon>
 #include <QSharedMemory>
 
@@ -58,6 +60,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <format>
 #include <optional>
 #include <thread>
 
@@ -89,16 +92,12 @@ int Application::Run() {
         setStyleSheet(in.readAll());
     }
     */
-    std::optional<std::string> theme = mCore->GetRegistry() != nullptr ? mCore->GetRegistry()->GetKeyValue<std::string>("gui.theme") : std::nullopt;
-    if (theme == "darcula")
-        QApplication::setStyle(new DarculaStyle());
-    else
-        QApplication::setStyle(new FluentStyle());
-#else
-    #if defined(Q_OS_WIN32)
-        QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
-    #endif
+    connect(styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
+        if (mRequestedColorScheme == Qt::ColorScheme::Unknown)
+            QTimer::singleShot(0, this, &Application::ApplyStyle);
+    });
 #endif
+    ApplyStyle();
 
     // Only one instance may run at a time, unless allow_multiple_instances is set
     QSharedMemory sharedMemory("noobWarrior");
@@ -676,6 +675,89 @@ void Application::DoConnect(const std::string &ip, uint16_t port, const std::str
 void Application::ShowSystemNotification(const QString &title, const QString &message) {
     if (mTrayIcon != nullptr && QSystemTrayIcon::supportsMessages())
         mTrayIcon->showMessage(title, message, QSystemTrayIcon::Information, 8000);
+}
+
+std::string Application::GetRegistryString(const std::string &key, const std::string &fallback) {
+    Registry *reg = mCore != nullptr ? mCore->GetRegistry() : nullptr;
+    return reg != nullptr ? reg->GetKeyValue<std::string>(key).value_or(fallback) : fallback;
+}
+
+void Application::RequestColorScheme(Qt::ColorScheme requested) {
+    if (mRequestedColorScheme == requested)
+        return;
+    mRequestedColorScheme = requested;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    styleHints()->setColorScheme(requested);
+#endif
+}
+
+Qt::ColorScheme Application::ResolveColorScheme(const DeclaredStyle *style) {
+    const std::string preference = GetRegistryString("gui.color_scheme", "dark");
+    const bool supportsDark = style == nullptr || style->SupportsDark();
+    const bool supportsLight = style == nullptr || style->SupportsLight();
+    if (preference == "system" && supportsDark && supportsLight) {
+        RequestColorScheme(Qt::ColorScheme::Unknown);
+        return styleHints()->colorScheme() == Qt::ColorScheme::Light ? Qt::ColorScheme::Light : Qt::ColorScheme::Dark;
+    }
+    const Qt::ColorScheme scheme = (preference == "light" && supportsLight) || !supportsDark
+        ? Qt::ColorScheme::Light : Qt::ColorScheme::Dark;
+    RequestColorScheme(scheme);
+    return scheme;
+}
+
+static std::optional<DeclaredStyle> FindPluginStyle(Core *core, const std::string &qualifiedId) {
+    for (DeclaredStyle &style : core->GetPluginManager()->GetDeclaredStyles()) {
+        if (style.GetQualifiedId() == qualifiedId)
+            return std::move(style);
+    }
+    return std::nullopt;
+}
+
+template <class Style, class Theme>
+static QStyle *BuildStyle(Core *core, const std::optional<DeclaredStyle> &pluginStyle, Qt::ColorScheme scheme) {
+    Theme theme = Theme::ForScheme(scheme);
+    if (pluginStyle) {
+        std::vector<std::string> warnings;
+        if (std::optional<Theme> built = Theme::FromPluginStyle(*pluginStyle, scheme, warnings))
+            theme = *built;
+        for (const std::string &warning : warnings)
+            core->Out("Style", "[{}] {}", pluginStyle->GetQualifiedId(), warning);
+    }
+    return new Style(theme);
+}
+
+void Application::ApplyStyle() {
+#if USE_CUSTOM_STYLE
+    const std::string themeId = GetRegistryString("gui.theme", FluentTheme::kBaseName);
+    std::optional<DeclaredStyle> pluginStyle;
+    if (themeId != FluentTheme::kBaseName && themeId != DarculaTheme::kBaseName) {
+        pluginStyle = FindPluginStyle(mCore, themeId);
+        if (!pluginStyle) {
+            mCore->Out("Style", "No mounted plugin offers style \"{}\", so the default style is used", themeId);
+        } else if (pluginStyle->Base != FluentTheme::kBaseName && pluginStyle->Base != DarculaTheme::kBaseName) {
+            mCore->Out("Style", "Style \"{}\" is based on \"{}\", which is not a base style, so the default style is used",
+                       themeId, pluginStyle->Base);
+            pluginStyle.reset();
+        }
+    }
+
+    const bool usesDarcula = pluginStyle ? pluginStyle->Base == DarculaTheme::kBaseName : themeId == DarculaTheme::kBaseName;
+    const Qt::ColorScheme scheme = ResolveColorScheme(pluginStyle ? &*pluginStyle : nullptr);
+    const std::string key = std::format("{}:{}", pluginStyle ? themeId : usesDarcula ? DarculaTheme::kBaseName : FluentTheme::kBaseName,
+                                        scheme == Qt::ColorScheme::Light ? "light" : "dark");
+    const bool currentStyleMatches = usesDarcula ? dynamic_cast<DarculaStyle*>(style()) != nullptr
+                                                 : dynamic_cast<FluentStyle*>(style()) != nullptr;
+    if (key == mAppliedStyleKey && currentStyleMatches)
+        return;
+
+    mAppliedStyleKey = key;
+    QApplication::setStyle(usesDarcula ? BuildStyle<DarculaStyle, DarculaTheme>(mCore, pluginStyle, scheme)
+                                       : BuildStyle<FluentStyle, FluentTheme>(mCore, pluginStyle, scheme));
+#else
+    #if defined(Q_OS_WIN32)
+        QApplication::setStyle(QStyleFactory::create("windowsvista")); // set it to the vista one because the windows 11 theme is fucking disgusting
+    #endif
+#endif
 }
 
 int main(int argc, char **argv) {

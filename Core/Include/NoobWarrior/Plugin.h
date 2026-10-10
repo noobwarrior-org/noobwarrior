@@ -27,6 +27,7 @@
 #include <NoobWarrior/Log.h>
 #include <NoobWarrior/Lua/LuaScript.h>
 #include <NoobWarrior/PluginDataModel.h>
+#include <NoobWarrior/PluginStyle.h>
 
 #include <sol/sol.hpp>
 
@@ -113,6 +114,8 @@ public:
      * than failing the plugin, matching how `datamodel` entries are handled.
      */
     std::vector<DeclaredDatabase> GetDeclaredDatabases();
+
+    std::vector<DeclaredStyle> GetDeclaredStyles();
 
     bool ReadFile(const std::string &path, std::vector<unsigned char> *data);
 

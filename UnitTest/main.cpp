@@ -29,6 +29,7 @@
 #include <NoobWarrior/HttpServer/Emulator/AuthUtil.h>
 #include <NoobWarrior/HttpServer/Emulator/ServerEmulator.h>
 #include <NoobWarrior/Keychain/Keychain.h>
+#include <NoobWarrior/Plugin.h>
 #include <nlohmann/json.hpp>
 
 #include <zlib.h>
@@ -37,6 +38,8 @@
 #include <chrono>
 #include <stdlib.h>
 #include <thread>
+#include <filesystem>
+#include <fstream>
 
 using namespace NoobWarrior;
 
@@ -893,6 +896,43 @@ TEST(Auth, Ed25519SignVerify) {
     // Malformed inputs are rejected, not crashed on.
     EXPECT_FALSE(AuthUtil::Ed25519Verify("notahexkey", msg, sig));
     EXPECT_TRUE(AuthUtil::Ed25519Sign("short", msg).empty());
+}
+
+TEST(PluginStyleLoading, StyleFilesRunWithoutGlobals) {
+    ASSERT_NE(sCore, nullptr);
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() /
+        (std::string("nw_test_") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "styles");
+    const auto write = [&](const std::filesystem::path &path, const std::string &text) {
+        std::ofstream(dir / path, std::ios::binary) << text;
+    };
+    write("manifest.luau", R"(return {
+        identifier = "styletest",
+        title = "Style Test",
+        styles = {
+            { id = "plain", title = "Plain", file = "styles/plain.luau" },
+            { id = "sneaky", file = "styles/sneaky.luau" },
+            { id = "missing", file = "styles/missing.luau" },
+            { id = "plain", file = "styles/plain.luau" },
+            { id = "has/slash", file = "styles/plain.luau" },
+        },
+    })");
+    write("styles/plain.luau", "return { colors = { accent = { 1, 2, 3 } } }");
+    write("styles/sneaky.luau", "return { colors = { accent = core and { 4, 5, 6 } or string.format('#%06x', 0) } }");
+
+    std::vector<DeclaredStyle> styles;
+    {
+        Plugin plugin(dir, sCore);
+        ASSERT_FALSE(plugin.Fail());
+        styles = plugin.GetDeclaredStyles();
+    }
+    std::filesystem::remove_all(dir);
+
+    ASSERT_EQ(styles.size(), 1u);
+    EXPECT_EQ(styles[0].GetQualifiedId(), "styletest/plain");
+    EXPECT_EQ(styles[0].Title, "Plain");
+    EXPECT_EQ(styles[0].SharedColors.at("accent"), (StyleColor { 1, 2, 3, 255 }));
 }
 
 int main(int argc, char** argv) {

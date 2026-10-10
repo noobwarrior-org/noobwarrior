@@ -18,6 +18,7 @@ User plugins load after the built-in ones, in the order of the `plugins.selected
 | `databases` | No | Database mounting. |
 | `datamodel` | No | Studio server place preparation. |
 | `engine_autorun` | No | Studio server place preparation. |
+| `styles` | No | `Plugin::GetDeclaredStyles()`, for the desktop app's Theme list. |
 
 Unknown fields are ignored, and there is no schema or manifest version. `permissions` appears in every shipped manifest, but nothing reads it, and the `Permission` enum has no checks behind it. Adding real permissions means writing both the parsing and the enforcement.
 
@@ -51,6 +52,13 @@ A writable copy is made once and never refreshed, because it holds what players 
 Databases marked `required` mount whenever the plugin is enabled, and the user can't unmount them. Others are offered to the user, and an accepted one is stored in `databases.mounted` as its `plugin://` URL.
 
 A plugin database that is out of date and opened read-only fails to mount, and the log suggests setting `writable = true` or opening it once so it can be upgraded.
+
+# Styles
+`Plugin::GetDeclaredStyles()` reads the `styles` array, loads each file through `ReadFile()` and runs it in an empty `sol::environment`, so a style file can't reach any global. `ParseStyleTable()` in `Core/Source/PluginStyle.cpp` turns the returned table into a `DeclaredStyle`. Core keeps every color name it's given. QtGui checks the names against the base style in `FluentTheme::FromPluginStyle()` and `DarculaTheme::FromPluginStyle()`, because Core doesn't link Qt.
+
+`Application::ApplyStyle()` looks up the style named by `gui.theme`, picks a color scheme from `gui.color_scheme` and the variants the style has, and builds a new `QStyle` only when the style or scheme changed. The format plugin authors write is described in [Styles](/plugins/styles).
+
+Switching styles while the app runs unpolishes and repolishes every widget while Qt iterates over its widget list, so a style's `unpolish()` must never delete a widget. `FluentStyle` hides its focus rings there and reuses them on the next polish.
 
 # Language strings
 `PluginManager::Mount()` registers each plugin with the `Language` system, which then looks for strings in the plugin's `lang/` folder. Sources registered later win when two define the same key, so a plugin can override noobWarrior's own strings.

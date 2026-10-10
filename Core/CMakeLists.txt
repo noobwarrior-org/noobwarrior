@@ -285,6 +285,7 @@ target_sources(NoobWarrior.Core PRIVATE
     Source/Registry.cpp
     Source/Language.cpp
     Source/Plugin.cpp
+    Source/PluginStyle.cpp
     Source/PluginDataModel.cpp
     Source/PluginTreeMaterializer.cpp
     Source/PluginManager.cpp

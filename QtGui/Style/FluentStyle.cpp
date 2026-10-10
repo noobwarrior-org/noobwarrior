@@ -72,40 +72,6 @@
 using namespace NoobWarrior;
 
 namespace {
-const QColor kShell(0x1c, 0x1c, 0x1c);
-const QColor kPane(0x28, 0x28, 0x28);
-const QColor kMenu(0x2c, 0x2c, 0x2c);
-const QColor kMenuEdge(0x14, 0x14, 0x14);
-const QColor kMenuHighlight(0x3d, 0x3d, 0x3d);
-const QColor kMenuBarHover(0x2d, 0x2d, 0x2d);
-const QColor kControl(0x35, 0x35, 0x35);
-const QColor kControlHover(0x3d, 0x3d, 0x3d);
-const QColor kControlPressed(0x2e, 0x2e, 0x2e);
-const QColor kControlDisabled(0x2b, 0x2b, 0x2b);
-const QColor kControlBorder(0x42, 0x42, 0x42);
-const QColor kControlStroke(0x4a, 0x4a, 0x4a);
-const QColor kBorder(0x3d, 0x3d, 0x3d);
-const QColor kSubtleBorder(0x33, 0x33, 0x33);
-const QColor kRowHover(0x2f, 0x2f, 0x2f);
-const QColor kTabHover(0x33, 0x33, 0x33);
-const QColor kSelection(0x35, 0x35, 0x35);
-const QColor kAccent(0xd7, 0xa0, 0x42);
-const QColor kAccentHover(0xe2, 0xb2, 0x5e);
-const QColor kAccentPressed(0xc0, 0x8b, 0x33);
-const QColor kTextSelection(0x6b, 0x51, 0x22);
-const QColor kToolBar(0x26, 0x26, 0x26);
-const QColor kToolBarEdge(0x0e, 0x0e, 0x0e);
-const QColor kCaptionHover(0x2d, 0x2d, 0x2d);
-const QColor kCaptionPressed(0x29, 0x29, 0x29);
-const QColor kCloseHover(0xc4, 0x2b, 0x1c);
-const QColor kClosePressed(0xb2, 0x27, 0x1a);
-const QColor kOnAccent(0x14, 0x14, 0x14);
-const QColor kText(0xf0, 0xf0, 0xf0);
-const QColor kTextSecondary(0xc5, 0xc5, 0xc5);
-const QColor kTextDisabled(0x78, 0x78, 0x78);
-const QColor kScrollThumb(0x6a, 0x6a, 0x6a);
-const QColor kScrollThumbHover(0x9e, 0x9e, 0x9e);
-
 constexpr int kShadowMargin = 12;
 constexpr qreal kMenuRadius = 8;
 constexpr qreal kControlRadius = 4;
@@ -137,7 +103,6 @@ constexpr int kToolBarHandleRight = 1 + kToolBarHandleExtent;
 constexpr const char *kGripHotProperty = "_nw_fluent_grip_hot";
 constexpr const char *kHoverTabProperty = "_nw_fluent_hover_tab";
 constexpr const char *kToolBarConnectedProperty = "_nw_fluent_toolbar_connected";
-const QColor kToolBarGripColor(0x13, 0x13, 0x13);
 
 const QToolBar *DockedToolBarOf(const QWidget *w) {
     auto *toolBar = w != nullptr ? qobject_cast<const QToolBar*>(w->parentWidget()) : nullptr;
@@ -228,13 +193,18 @@ void AddFocusRing(QWidget *card, QObject *filter) {
     else if (card->focusPolicy() == Qt::TabFocus)
         card->setFocusPolicy(Qt::StrongFocus);
     card->installEventFilter(filter);
-    if (qobject_cast<QTabWidget*>(card) != nullptr || card->findChild<QWidget*>(kFocusRingName, Qt::FindDirectChildrenOnly) != nullptr)
+    if (qobject_cast<QTabWidget*>(card) != nullptr)
         return;
-    auto *ring = new QWidget(card);
-    ring->setObjectName(kFocusRingName);
-    ring->setAttribute(Qt::WA_TransparentForMouseEvents);
+    auto *ring = card->findChild<QWidget*>(kFocusRingName, Qt::FindDirectChildrenOnly);
+    if (ring == nullptr) {
+        ring = new QWidget(card);
+        ring->setObjectName(kFocusRingName);
+        ring->setAttribute(Qt::WA_TransparentForMouseEvents);
+        ring->hide();
+    }
     ring->installEventFilter(filter);
-    ring->hide();
+    if (IsActiveCard(card))
+        UpdateFocusRing(card);
 }
 
 bool HasShadow(const QWidget *w) {
@@ -279,7 +249,7 @@ void DrawTriangle(QPainter *p, const QRectF &box, Qt::ArrowType dir, const QColo
     p->restore();
 }
 
-void DrawInputPanel(QPainter *p, const QRect &rect, const QColor &fill, bool focused) {
+void DrawInputPanel(QPainter *p, const QRect &rect, const QColor &fill, bool focused, const FluentTheme &theme) {
     p->save();
     p->setRenderHint(QPainter::Antialiasing);
     QPainterPath shape;
@@ -287,7 +257,7 @@ void DrawInputPanel(QPainter *p, const QRect &rect, const QColor &fill, bool foc
     p->fillPath(shape, fill);
     const int stroke = focused ? 2 : 1;
     p->setClipRect(QRect(rect.left(), rect.bottom() + 1 - stroke, rect.width(), stroke));
-    p->fillPath(shape, focused ? kAccent : kControlStroke);
+    p->fillPath(shape, focused ? theme.Accent : theme.ControlStroke);
     p->restore();
 }
 
@@ -351,7 +321,8 @@ bool IsAccentButton(const QStyleOption *opt, const QWidget *w) {
         && w != nullptr && qobject_cast<const QDialogButtonBox*>(w->parentWidget()) != nullptr;
 }
 
-QIcon GlyphIcon(QStyle::StandardPixmap sp) {
+QIcon GlyphIcon(QStyle::StandardPixmap sp, const FluentTheme &theme) {
+    const QColor hoverColor = sp == QStyle::SP_TitleBarCloseButton ? theme.CloseGlyphHover : theme.CaptionGlyphHover;
     QIcon icon;
     for (QIcon::Mode mode : { QIcon::Normal, QIcon::Active }) {
         for (int scale : { 1, 2 }) {
@@ -360,7 +331,7 @@ QIcon GlyphIcon(QStyle::StandardPixmap sp) {
             pix.fill(Qt::transparent);
             QPainter p(&pix);
             p.setRenderHint(QPainter::Antialiasing);
-            p.setPen(QPen(mode == QIcon::Active ? Qt::white : kTextSecondary, 1.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            p.setPen(QPen(mode == QIcon::Active ? hoverColor : theme.TextSecondary, 1.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
             switch (sp) {
             case QStyle::SP_TitleBarMinButton:
                 p.drawLine(QPointF(3.5, 8.5), QPointF(12.5, 8.5));
@@ -504,19 +475,19 @@ public:
     }
 };
 
-void UpdateWindowBorder(QWidget *window) {
-    const QColor color = window->isActiveWindow() ? kAccent : kBorder;
+void UpdateWindowBorder(QWidget *window, const FluentTheme &theme) {
+    const QColor color = window->isActiveWindow() ? theme.Accent : theme.Border;
     const COLORREF ref = RGB(static_cast<BYTE>(color.red()), static_cast<BYTE>(color.green()), static_cast<BYTE>(color.blue()));
     DwmSetWindowAttribute(reinterpret_cast<HWND>(window->winId()), DWMWA_BORDER_COLOR, &ref, sizeof(ref));
 }
 
-void ApplyFrameless(QWidget *window) {
+void ApplyFrameless(QWidget *window, const FluentTheme &theme) {
     const HWND hwnd = reinterpret_cast<HWND>(window->winId());
     const DWORD corners = DWMWCP_ROUND;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
     SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                  SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
-    UpdateWindowBorder(window);
+    UpdateWindowBorder(window, theme);
 }
 #endif
 
@@ -549,21 +520,31 @@ void AddDialogTitle(QWidget *window) {
     UpdateDialogTitle(window);
 }
 
-void LayoutCaptionButtons(QWidget *window) {
+void LayoutCaptionButtons(QWidget *window, const FluentTheme &theme) {
     auto *box = window->findChild<QWidget*>(kCaptionButtonsName, Qt::FindDirectChildrenOnly);
     if (box == nullptr)
         return;
     box->move(window->width() - box->width(), 0);
     box->raise();
     if (auto *max = box->findChild<QToolButton*>("max"))
-        max->setIcon(GlyphIcon(window->isMaximized() ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton));
+        max->setIcon(GlyphIcon(window->isMaximized() ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton, theme));
     if (auto *title = window->findChild<QWidget*>(kDialogTitleName, Qt::FindDirectChildrenOnly)) {
         title->setGeometry(0, 0, window->width() - box->width(), kDialogTitleHeight);
         title->raise();
     }
 }
 
-void AddCaptionButtons(QWidget *window, int height, bool minimize, bool maximize) {
+void RefreshCaptionGlyphs(QWidget *window, const FluentTheme &theme) {
+    auto *box = window->findChild<QWidget*>(kCaptionButtonsName, Qt::FindDirectChildrenOnly);
+    if (box == nullptr)
+        return;
+    if (auto *min = box->findChild<QToolButton*>("min"))
+        min->setIcon(GlyphIcon(QStyle::SP_TitleBarMinButton, theme));
+    if (auto *close = box->findChild<QToolButton*>("close"))
+        close->setIcon(GlyphIcon(QStyle::SP_TitleBarCloseButton, theme));
+}
+
+void AddCaptionButtons(QWidget *window, int height, bool minimize, bool maximize, const FluentTheme &theme) {
     auto *box = new QWidget(window);
     box->setObjectName(kCaptionButtonsName);
     auto *layout = new QHBoxLayout(box);
@@ -583,7 +564,7 @@ void AddCaptionButtons(QWidget *window, int height, bool minimize, bool maximize
         button->setFocusPolicy(Qt::NoFocus);
         button->setFixedSize(kCaptionButtonWidth, height);
         button->setIconSize(QSize(16, 16));
-        button->setIcon(GlyphIcon(sp));
+        button->setIcon(GlyphIcon(sp, theme));
         layout->addWidget(button);
         QObject::connect(button, &QToolButton::clicked, window, [window, sp]() {
             if (sp == QStyle::SP_TitleBarMinButton)
@@ -595,7 +576,7 @@ void AddCaptionButtons(QWidget *window, int height, bool minimize, bool maximize
         });
     }
     box->adjustSize();
-    LayoutCaptionButtons(window);
+    LayoutCaptionButtons(window, theme);
 }
 
 bool IsTitleAction(const QStyleOptionMenuItem *opt, const QWidget *w) {
@@ -607,10 +588,7 @@ bool IsTitleAction(const QStyleOptionMenuItem *opt, const QWidget *w) {
 }
 }
 
-FluentStyle::FluentStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
-#endif
+FluentStyle::FluentStyle(FluentTheme theme) : QProxyStyle(QStyleFactory::create("Fusion")), mTheme(std::move(theme)) {
     connect(qApp, &QApplication::focusChanged, this, [](QWidget *old, QWidget *now) {
         RefreshFocusVisuals(old);
         RefreshFocusVisuals(now);
@@ -626,38 +604,42 @@ FluentStyle::~FluentStyle() {
         qApp->removeNativeEventFilter(mFramelessFilter.get());
 }
 
+const FluentTheme &FluentStyle::Theme() const {
+    return mTheme;
+}
+
 QPalette FluentStyle::standardPalette() const {
     QPalette pal;
     for (auto group : { QPalette::Active, QPalette::Inactive, QPalette::Disabled }) {
-        pal.setColor(group, QPalette::Window, kShell);
-        pal.setColor(group, QPalette::WindowText, kText);
-        pal.setColor(group, QPalette::Base, kPane);
-        pal.setColor(group, QPalette::AlternateBase, QColor(0x2c, 0x2c, 0x2c));
-        pal.setColor(group, QPalette::ToolTipBase, kMenu);
-        pal.setColor(group, QPalette::ToolTipText, kText);
-        pal.setColor(group, QPalette::PlaceholderText, QColor(0x8a, 0x8a, 0x8a));
-        pal.setColor(group, QPalette::Text, kText);
-        pal.setColor(group, QPalette::Button, kControl);
-        pal.setColor(group, QPalette::ButtonText, kText);
+        pal.setColor(group, QPalette::Window, mTheme.Shell);
+        pal.setColor(group, QPalette::WindowText, mTheme.Text);
+        pal.setColor(group, QPalette::Base, mTheme.Pane);
+        pal.setColor(group, QPalette::AlternateBase, mTheme.AlternateBase);
+        pal.setColor(group, QPalette::ToolTipBase, mTheme.Menu);
+        pal.setColor(group, QPalette::ToolTipText, mTheme.Text);
+        pal.setColor(group, QPalette::PlaceholderText, mTheme.TextPlaceholder);
+        pal.setColor(group, QPalette::Text, mTheme.Text);
+        pal.setColor(group, QPalette::Button, mTheme.Control);
+        pal.setColor(group, QPalette::ButtonText, mTheme.Text);
         pal.setColor(group, QPalette::BrightText, Qt::white);
-        pal.setColor(group, QPalette::Light, QColor(0x40, 0x40, 0x40));
-        pal.setColor(group, QPalette::Midlight, QColor(0x38, 0x38, 0x38));
-        pal.setColor(group, QPalette::Mid, kSubtleBorder);
-        pal.setColor(group, QPalette::Dark, QColor(0x1a, 0x1a, 0x1a));
+        pal.setColor(group, QPalette::Light, mTheme.BevelLight);
+        pal.setColor(group, QPalette::Midlight, mTheme.BevelMidlight);
+        pal.setColor(group, QPalette::Mid, mTheme.SubtleBorder);
+        pal.setColor(group, QPalette::Dark, mTheme.BevelDark);
         pal.setColor(group, QPalette::Shadow, Qt::black);
-        pal.setColor(group, QPalette::Highlight, kTextSelection);
-        pal.setColor(group, QPalette::HighlightedText, Qt::white);
-        pal.setColor(group, QPalette::Link, kAccent);
-        pal.setColor(group, QPalette::LinkVisited, kAccentHover);
+        pal.setColor(group, QPalette::Highlight, mTheme.TextSelection);
+        pal.setColor(group, QPalette::HighlightedText, mTheme.TextOnSelection);
+        pal.setColor(group, QPalette::Link, mTheme.Accent);
+        pal.setColor(group, QPalette::LinkVisited, mTheme.AccentHover);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-        pal.setColor(group, QPalette::Accent, kAccent);
+        pal.setColor(group, QPalette::Accent, mTheme.Accent);
 #endif
     }
-    pal.setColor(QPalette::Disabled, QPalette::WindowText, kTextDisabled);
-    pal.setColor(QPalette::Disabled, QPalette::Text, kTextDisabled);
-    pal.setColor(QPalette::Disabled, QPalette::ButtonText, kTextDisabled);
-    pal.setColor(QPalette::Disabled, QPalette::Button, kControlDisabled);
-    pal.setColor(QPalette::Disabled, QPalette::Highlight, kBorder);
+    pal.setColor(QPalette::Disabled, QPalette::WindowText, mTheme.TextDisabled);
+    pal.setColor(QPalette::Disabled, QPalette::Text, mTheme.TextDisabled);
+    pal.setColor(QPalette::Disabled, QPalette::ButtonText, mTheme.TextDisabled);
+    pal.setColor(QPalette::Disabled, QPalette::Button, mTheme.ControlDisabled);
+    pal.setColor(QPalette::Disabled, QPalette::Highlight, mTheme.Border);
     return pal;
 }
 
@@ -738,12 +720,13 @@ void FluentStyle::polish(QWidget *widget) {
             // so redo everything here except creating the buttons.
             if (!window->property(kFramelessProperty).toBool()) {
                 window->setProperty(kFramelessProperty, true);
-                AddCaptionButtons(window, kTitleBarHeight, true, true);
+                AddCaptionButtons(window, kTitleBarHeight, true, true, mTheme);
             }
             window->installEventFilter(this);
             if (window->testAttribute(Qt::WA_WState_Created))
-                ApplyFrameless(window);
-            LayoutCaptionButtons(window);
+                ApplyFrameless(window, mTheme);
+            RefreshCaptionGlyphs(window, mTheme);
+            LayoutCaptionButtons(window, mTheme);
         }
 #endif
     }
@@ -760,18 +743,19 @@ void FluentStyle::polish(QWidget *widget) {
             const Qt::WindowFlags flags = dialog->windowFlags();
             const bool minimize = (flags & Qt::WindowMinimizeButtonHint)
                 || (dialog->parentWidget() == nullptr && qobject_cast<QMessageBox*>(dialog) == nullptr);
-            AddCaptionButtons(dialog, kDialogTitleHeight, minimize, flags & Qt::WindowMaximizeButtonHint);
+            AddCaptionButtons(dialog, kDialogTitleHeight, minimize, flags & Qt::WindowMaximizeButtonHint, mTheme);
         }
         dialog->installEventFilter(this);
         if (dialog->testAttribute(Qt::WA_WState_Created))
-            ApplyFrameless(dialog);
-        LayoutCaptionButtons(dialog);
+            ApplyFrameless(dialog, mTheme);
+        RefreshCaptionGlyphs(dialog, mTheme);
+        LayoutCaptionButtons(dialog, mTheme);
     }
 #endif
 
     if (auto *dock = qobject_cast<QDockWidget*>(widget)) {
         QPalette pal = dock->palette();
-        pal.setColor(QPalette::Window, kPane);
+        pal.setColor(QPalette::Window, mTheme.Pane);
         dock->setPalette(pal);
         AddFocusRing(dock, this);
     } else if (IsCentralWidget(widget)) {
@@ -780,7 +764,7 @@ void FluentStyle::polish(QWidget *widget) {
 
     if (qobject_cast<QTabWidget*>(widget->parentWidget()) != nullptr && qobject_cast<QTabBar*>(widget) == nullptr) {
         QPalette pal = widget->palette();
-        pal.setColor(QPalette::Window, kPane);
+        pal.setColor(QPalette::Window, mTheme.Pane);
         widget->setPalette(pal);
     }
 
@@ -788,7 +772,7 @@ void FluentStyle::polish(QWidget *widget) {
         const QFrame::Shape shape = frame->frameShape();
         if (shape == QFrame::StyledPanel || shape == QFrame::Panel || shape == QFrame::Box) {
             QPalette pal = frame->palette();
-            pal.setColor(QPalette::Window, kPane);
+            pal.setColor(QPalette::Window, mTheme.Pane);
             frame->setPalette(pal);
         }
     }
@@ -801,7 +785,7 @@ QIcon FluentStyle::standardIcon(StandardPixmap sp, const QStyleOption *opt, cons
     case SP_TitleBarNormalButton:
     case SP_TitleBarCloseButton:
     case SP_DockWidgetCloseButton:
-        return GlyphIcon(sp);
+        return GlyphIcon(sp, mTheme);
     default:
         return QProxyStyle::standardIcon(sp, opt, w);
     }
@@ -809,7 +793,8 @@ QIcon FluentStyle::standardIcon(StandardPixmap sp, const QStyleOption *opt, cons
 
 void FluentStyle::unpolish(QWidget *widget) {
     widget->removeEventFilter(this);
-    delete widget->findChild<QWidget*>(kFocusRingName, Qt::FindDirectChildrenOnly);
+    if (auto *ring = widget->findChild<QWidget*>(kFocusRingName, Qt::FindDirectChildrenOnly))
+        ring->hide();
     QProxyStyle::unpolish(widget);
 }
 
@@ -841,15 +826,15 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
 #if defined(Q_OS_WIN)
         case QEvent::WinIdChange:
         case QEvent::Show:
-            ApplyFrameless(window);
+            ApplyFrameless(window, mTheme);
             break;
         case QEvent::ActivationChange:
-            UpdateWindowBorder(window);
+            UpdateWindowBorder(window, mTheme);
             break;
 #endif
         case QEvent::Resize:
         case QEvent::WindowStateChange:
-            LayoutCaptionButtons(window);
+            LayoutCaptionButtons(window, mTheme);
             break;
         case QEvent::WindowTitleChange:
         case QEvent::WindowIconChange:
@@ -864,8 +849,8 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
         // QComboBox overwrites the popup's palette with its own each time it opens.
         auto *popup = static_cast<QWidget*>(obj);
         QPalette pal = popup->palette();
-        pal.setColor(QPalette::Base, kMenu);
-        pal.setColor(QPalette::Window, kMenu);
+        pal.setColor(QPalette::Base, mTheme.Menu);
+        pal.setColor(QPalette::Window, mTheme.Menu);
         popup->setPalette(pal);
         if (auto *frame = qobject_cast<QFrame*>(popup))
             frame->setFrameShape(QFrame::NoFrame);
@@ -936,7 +921,7 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
         if (auto *ring = qobject_cast<QWidget*>(obj); ring != nullptr && ring->objectName() == kFocusRingName) {
             QPainter p(ring);
             p.setRenderHint(QPainter::Antialiasing);
-            p.setPen(QPen(IsActiveCard(ring->parentWidget()) ? kAccent : kBorder, 1));
+            p.setPen(QPen(IsActiveCard(ring->parentWidget()) ? mTheme.Accent : mTheme.Border, 1));
             p.setBrush(Qt::NoBrush);
             auto *dock = qobject_cast<QDockWidget*>(ring->parentWidget());
             const qreal radius = dock != nullptr && dock->isFloating() ? 0 : kCardRadius;
@@ -947,7 +932,7 @@ bool FluentStyle::eventFilter(QObject *obj, QEvent *event) {
             QPainter p(dock);
             p.setRenderHint(QPainter::Antialiasing);
             p.setPen(Qt::NoPen);
-            p.setBrush(kPane);
+            p.setBrush(mTheme.Pane);
             const qreal radius = dock->isFloating() ? 0 : kCardRadius;
             p.drawRoundedRect(QRectF(dock->rect()), radius, radius);
         }
@@ -978,12 +963,12 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         if (HasShadow(w) || IsShadowedComboPopup(w)) {
             const QRectF panel = QRectF(opt->rect).adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
             DrawMenuShadow(p, panel, opt->rect.size());
-            p->setPen(QPen(IsShadowedComboPopup(w) ? QColor(0, 0, 0, 80) : kMenuEdge, 1));
-            p->setBrush(kMenu);
+            p->setPen(QPen(IsShadowedComboPopup(w) ? QColor(0, 0, 0, 80) : mTheme.MenuEdge, 1));
+            p->setBrush(mTheme.Menu);
             p->drawRoundedRect(panel.adjusted(0.5, 0.5, -0.5, -0.5), kMenuRadius, kMenuRadius);
         } else {
-            p->fillRect(opt->rect, kMenu);
-            p->setPen(QPen(kMenuEdge, 1));
+            p->fillRect(opt->rect, mTheme.Menu);
+            p->setPen(QPen(mTheme.MenuEdge, 1));
             p->setBrush(Qt::NoBrush);
             p->drawRect(QRectF(opt->rect).adjusted(0.5, 0.5, -0.5, -0.5));
         }
@@ -992,17 +977,17 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     }
 
     case PE_PanelTipLabel:
-        p->fillRect(opt->rect, kMenu);
-        p->setPen(kBorder);
+        p->fillRect(opt->rect, mTheme.Menu);
+        p->setPen(mTheme.Border);
         p->drawRect(opt->rect.adjusted(0, 0, -1, -1));
         return;
 
     case PE_IndicatorToolBarSeparator: {
         const QRect r = opt->rect;
         if (opt->state & State_Horizontal)
-            p->fillRect(QRect(r.center().x(), r.top() + (r.height() - 16) / 2, 1, 16), kBorder);
+            p->fillRect(QRect(r.center().x(), r.top() + (r.height() - 16) / 2, 1, 16), mTheme.Border);
         else
-            p->fillRect(QRect(r.left() + (r.width() - 16) / 2, r.center().y(), 16, 1), kBorder);
+            p->fillRect(QRect(r.left() + (r.width() - 16) / 2, r.center().y(), 16, 1), mTheme.Border);
         return;
     }
 
@@ -1013,16 +998,21 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         const bool on = opt->state & State_On;
         if (flat) {
             if (hover || sunken || on)
-                DrawButtonPanel(p, opt->rect, sunken ? kControlPressed : kRowHover, sunken ? kControlPressed : kRowHover);
+                DrawButtonPanel(p, opt->rect, sunken ? mTheme.ControlPressed : mTheme.RowHover, sunken ? mTheme.ControlPressed : mTheme.RowHover);
             return;
         }
         if (isDefault) {
-            DrawButtonPanel(p, opt->rect, sunken ? kAccentPressed : hover ? kAccentHover : kAccent, sunken ? kAccentPressed : kAccentHover);
+            DrawButtonPanel(p, opt->rect, sunken ? mTheme.AccentPressed : hover ? mTheme.AccentHover : mTheme.Accent, sunken ? mTheme.AccentPressed : mTheme.AccentHover);
         } else if (!enabled) {
-            DrawButtonPanel(p, opt->rect, kControlDisabled, kControlDisabled);
+            DrawButtonPanel(p, opt->rect, mTheme.ControlDisabled, mTheme.ControlDisabled);
         } else {
-            const QColor fill = sunken ? kControlPressed : (hover || on) ? kControlHover : kControl;
-            DrawButtonPanel(p, opt->rect, fill, kControlBorder);
+            const QColor base = opt->palette.color(QPalette::Button);
+            QColor fill;
+            if (base == mTheme.Control)
+                fill = sunken ? mTheme.ControlPressed : (hover || on) ? mTheme.ControlHover : mTheme.Control;
+            else
+                fill = sunken ? base.darker(115) : (hover || on) ? base.lighter(125) : base;
+            DrawButtonPanel(p, opt->rect, fill, mTheme.ControlBorder);
         }
         return;
     }
@@ -1034,13 +1024,13 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         if (w != nullptr && w->parentWidget() != nullptr && w->parentWidget()->objectName() == kCaptionButtonsName) {
             const bool close = w->objectName() == "close";
             if (sunken || hover)
-                p->fillRect(opt->rect, close ? (sunken ? kClosePressed : kCloseHover) : (sunken ? kCaptionPressed : kCaptionHover));
+                p->fillRect(opt->rect, close ? (sunken ? mTheme.ClosePressed : mTheme.CloseHover) : (sunken ? mTheme.CaptionPressed : mTheme.CaptionHover));
             return;
         }
         const bool on = opt->state & State_On;
         if (!(opt->state & State_AutoRaise)) {
-            DrawButtonPanel(p, opt->rect, !enabled ? kControlDisabled : sunken ? kControlPressed : hover ? kControlHover : kControl,
-                            enabled ? kControlBorder : kControlDisabled);
+            DrawButtonPanel(p, opt->rect, !enabled ? mTheme.ControlDisabled : sunken ? mTheme.ControlPressed : hover ? mTheme.ControlHover : mTheme.Control,
+                            enabled ? mTheme.ControlBorder : mTheme.ControlDisabled);
             return;
         }
         if (!hover && !sunken && !on)
@@ -1058,7 +1048,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
         p->setPen(Qt::NoPen);
-        p->setBrush(sunken ? kControlPressed : hover ? kControlHover : kControl);
+        p->setBrush(sunken ? mTheme.ControlPressed : hover ? mTheme.ControlHover : mTheme.Control);
         p->drawRoundedRect(box, kControlRadius, kControlRadius);
         p->restore();
         return;
@@ -1072,7 +1062,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
                 p->fillRect(opt->rect, opt->palette.base());
             return;
         }
-        DrawInputPanel(p, opt->rect, enabled ? kControl : kControlDisabled, enabled && (opt->state & State_HasFocus));
+        DrawInputPanel(p, opt->rect, enabled ? mTheme.Control : mTheme.ControlDisabled, enabled && (opt->state & State_HasFocus), mTheme);
         return;
     }
 
@@ -1090,15 +1080,15 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
                 const QWidget *parent = w->parentWidget();
                 QPainterPath corners;
                 corners.addRect(QRectF(opt->rect));
-                p->fillPath(corners.subtracted(card), parent != nullptr ? parent->palette().color(parent->backgroundRole()) : kShell);
+                p->fillPath(corners.subtracted(card), parent != nullptr ? parent->palette().color(parent->backgroundRole()) : mTheme.Shell);
             }
-            p->setPen(QPen(kSubtleBorder, 1));
+            p->setPen(QPen(mTheme.SubtleBorder, 1));
             p->setBrush(Qt::NoBrush);
             p->drawPath(card);
             p->restore();
             return;
         }
-        p->setPen(kSubtleBorder);
+        p->setPen(mTheme.SubtleBorder);
         p->setBrush(Qt::NoBrush);
         p->drawRect(opt->rect.adjusted(0, 0, -1, -1));
         return;
@@ -1107,7 +1097,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     case PE_FrameGroupBox: {
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
-        p->setPen(QPen(kBorder, 1));
+        p->setPen(QPen(mTheme.Border, 1));
         p->setBrush(Qt::NoBrush);
         p->drawRoundedRect(QRectF(opt->rect).adjusted(0.5, 0.5, -0.5, -0.5), kCardRadius, kCardRadius);
         p->restore();
@@ -1115,7 +1105,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     }
 
     case PE_FrameDockWidget:
-        p->setPen(kBorder);
+        p->setPen(mTheme.Border);
         p->setBrush(Qt::NoBrush);
         p->drawRect(opt->rect.adjusted(0, 0, -1, -1));
         return;
@@ -1132,11 +1122,11 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
             QPainterPath bottom;
             bottom.addRect(strip.adjusted(0, kCardRadius, 0, 0));
             p->setPen(Qt::NoPen);
-            p->setBrush(kToolBar);
+            p->setBrush(mTheme.ToolBar);
             p->drawPath(band.united(bottom));
         }
-        p->setPen(QPen(IsActiveCard(qobject_cast<const QTabWidget*>(w)) ? kAccent : kBorder, 1));
-        p->setBrush(kPane);
+        p->setPen(QPen(IsActiveCard(qobject_cast<const QTabWidget*>(w)) ? mTheme.Accent : mTheme.Border, 1));
+        p->setBrush(mTheme.Pane);
         p->drawPath(PanePath(QRectF(opt->rect).adjusted(0.5, 0.5, -0.5, -0.5), kCardRadius));
         p->restore();
         return;
@@ -1152,14 +1142,14 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         if (!inMenu) {
             if (on || partial) {
                 p->setPen(Qt::NoPen);
-                p->setBrush(!enabled ? kTextDisabled : sunken ? kAccentPressed : hover ? kAccentHover : kAccent);
+                p->setBrush(!enabled ? mTheme.TextDisabled : sunken ? mTheme.AccentPressed : hover ? mTheme.AccentHover : mTheme.Accent);
             } else {
-                p->setPen(QPen(!enabled ? kTextDisabled : hover ? kTextSecondary : QColor(0x8a, 0x8a, 0x8a), 1));
-                p->setBrush(sunken ? kControlPressed : hover ? kControlHover : QColor(0x24, 0x24, 0x24));
+                p->setPen(QPen(!enabled ? mTheme.TextDisabled : hover ? mTheme.TextSecondary : mTheme.IndicatorBorder, 1));
+                p->setBrush(sunken ? mTheme.ControlPressed : hover ? mTheme.ControlHover : mTheme.IndicatorFill);
             }
             p->drawRoundedRect(r, 3, 3);
         }
-        const QColor mark = inMenu ? (enabled ? kText : kTextDisabled) : kOnAccent;
+        const QColor mark = inMenu ? (enabled ? mTheme.Text : mTheme.TextDisabled) : mTheme.OnAccent;
         p->setPen(QPen(mark, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         p->setBrush(Qt::NoBrush);
         if (partial) {
@@ -1182,14 +1172,14 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         p->setRenderHint(QPainter::Antialiasing);
         if (on) {
             p->setPen(Qt::NoPen);
-            p->setBrush(!enabled ? kTextDisabled : hover ? kAccentHover : kAccent);
+            p->setBrush(!enabled ? mTheme.TextDisabled : hover ? mTheme.AccentHover : mTheme.Accent);
             p->drawEllipse(r);
-            p->setBrush(kOnAccent);
+            p->setBrush(mTheme.OnAccent);
             const qreal inset = r.width() * (sunken ? 0.34 : hover ? 0.26 : 0.3);
             p->drawEllipse(r.adjusted(inset, inset, -inset, -inset));
         } else {
-            p->setPen(QPen(!enabled ? kTextDisabled : hover ? kTextSecondary : QColor(0x8a, 0x8a, 0x8a), 1));
-            p->setBrush(sunken ? kControlPressed : hover ? kControlHover : QColor(0x24, 0x24, 0x24));
+            p->setPen(QPen(!enabled ? mTheme.TextDisabled : hover ? mTheme.TextSecondary : mTheme.IndicatorBorder, 1));
+            p->setBrush(sunken ? mTheme.ControlPressed : hover ? mTheme.ControlHover : mTheme.IndicatorFill);
             p->drawEllipse(r);
         }
         p->restore();
@@ -1203,7 +1193,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         const Qt::ArrowType dir = pe == PE_IndicatorArrowUp ? Qt::UpArrow
                                 : pe == PE_IndicatorArrowDown ? Qt::DownArrow
                                 : pe == PE_IndicatorArrowLeft ? Qt::LeftArrow : Qt::RightArrow;
-        DrawChevron(p, opt->rect, dir, enabled ? kTextSecondary : kTextDisabled);
+        DrawChevron(p, opt->rect, dir, enabled ? mTheme.TextSecondary : mTheme.TextDisabled);
         return;
     }
 
@@ -1213,11 +1203,11 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
         if (active) {
             p->setRenderHint(QPainter::Antialiasing);
             p->setPen(Qt::NoPen);
-            p->setBrush(sunken ? kControlPressed : kControlHover);
+            p->setBrush(sunken ? mTheme.ControlPressed : mTheme.ControlHover);
             p->drawRoundedRect(QRectF(opt->rect), kControlRadius, kControlRadius);
         }
         p->setRenderHint(QPainter::Antialiasing, false);
-        p->setPen(QPen(active ? kText : kTextSecondary, 1));
+        p->setPen(QPen(active ? mTheme.Text : mTheme.TextSecondary, 1));
         const int size = 8;
         const int x = opt->rect.left() + (opt->rect.width() - size) / 2;
         const int y = opt->rect.top() + (opt->rect.height() - size) / 2;
@@ -1230,7 +1220,7 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
     case PE_IndicatorBranch:
         if (opt->state & State_Children)
             DrawChevron(p, opt->rect, (opt->state & State_Open) ? Qt::DownArrow : Qt::RightArrow,
-                        hover ? kText : kTextSecondary, 3);
+                        hover ? mTheme.Text : mTheme.TextSecondary, 3);
         return;
 
     case PE_PanelItemViewRow:
@@ -1249,17 +1239,17 @@ void FluentStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QP
             p->save();
             p->setRenderHint(QPainter::Antialiasing);
             p->setPen(Qt::NoPen);
-            p->setBrush(selected ? kSelection : kRowHover);
+            p->setBrush(selected ? mTheme.Selection : mTheme.RowHover);
             p->drawRoundedRect(QRectF(opt->rect), kControlRadius, kControlRadius);
             p->restore();
             return;
         }
-        p->fillRect(opt->rect, selected ? kSelection : kRowHover);
+        p->fillRect(opt->rect, selected ? mTheme.Selection : mTheme.RowHover);
         if (selected && qobject_cast<const QAbstractItemView*>(w) != nullptr && opt->rect.left() <= 0) {
             p->save();
             p->setRenderHint(QPainter::Antialiasing);
             p->setPen(Qt::NoPen);
-            p->setBrush(kAccent);
+            p->setBrush(mTheme.Accent);
             const QRectF r(opt->rect);
             p->drawRoundedRect(QRectF(r.left() + 1, r.top() + r.height() * 0.22, 3, r.height() * 0.56), 1.5, 1.5);
             p->restore();
@@ -1308,16 +1298,16 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         shape.addRoundedRect(band.adjusted(0.5, 0.5, -0.5, -0.5), radius, radius);
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
-        p->fillPath(shape, kToolBar);
+        p->fillPath(shape, mTheme.ToolBar);
         if (toolBar != nullptr && toolBar->isMovable() && !floating) {
             p->save();
             p->setClipPath(shape);
             const QRectF grip = horizontal ? QRectF(band.left(), band.top(), kToolBarGrip, band.height())
                                            : QRectF(band.left(), band.top(), band.width(), kToolBarGrip);
-            p->fillRect(grip, toolBar->property(kGripHotProperty).toBool() ? kAccent : kToolBarGripColor);
+            p->fillRect(grip, toolBar->property(kGripHotProperty).toBool() ? mTheme.Accent : mTheme.ToolBarGrip);
             p->restore();
         }
-        p->setPen(QPen(kToolBarEdge, 1));
+        p->setPen(QPen(mTheme.ToolBarEdge, 1));
         p->setBrush(Qt::NoBrush);
         p->drawPath(shape);
         p->restore();
@@ -1341,14 +1331,14 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
         if (IsTitleAction(mbi, w)) {
-            p->setPen(kTextSecondary);
+            p->setPen(mTheme.TextSecondary);
             p->drawText(mbi->rect, Qt::AlignCenter, mbi->text);
             p->restore();
             return;
         }
         if (active) {
             p->setPen(Qt::NoPen);
-            p->setBrush(kMenuBarHover);
+            p->setBrush(mTheme.MenuBarHover);
             p->drawRoundedRect(r, kControlRadius, kControlRadius);
         }
         if (!mbi->icon.isNull()) {
@@ -1357,7 +1347,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             int flags = Qt::AlignCenter | Qt::TextShowMnemonic | Qt::TextDontClip | Qt::TextSingleLine;
             if (!proxy()->styleHint(SH_UnderlineShortcut, mbi, w))
                 flags |= Qt::TextHideMnemonic;
-            p->setPen(enabled ? kText : kTextDisabled);
+            p->setPen(enabled ? mTheme.Text : mTheme.TextDisabled);
             p->drawText(mbi->rect, flags, mbi->text);
         }
         p->restore();
@@ -1370,9 +1360,9 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         if (mi == nullptr)
             break;
         if (qobject_cast<const QComboBox*>(w) != nullptr)
-            p->fillRect(mi->rect, kMenu);
+            p->fillRect(mi->rect, mTheme.Menu);
         if (mi->menuItemType == QStyleOptionMenuItem::Separator && mi->text.isEmpty()) {
-            p->fillRect(QRect(mi->rect.left() + 4, mi->rect.center().y(), mi->rect.width() - 8, 1), kBorder);
+            p->fillRect(QRect(mi->rect.left() + 4, mi->rect.center().y(), mi->rect.width() - 8, 1), mTheme.Border);
             return;
         }
         const bool selected = enabled && (mi->state & State_Selected);
@@ -1380,13 +1370,13 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             p->save();
             p->setRenderHint(QPainter::Antialiasing);
             p->setPen(Qt::NoPen);
-            p->setBrush(kMenuHighlight);
+            p->setBrush(mTheme.MenuHighlight);
             p->drawRoundedRect(QRectF(mi->rect).adjusted(0, 1, 0, -1), kControlRadius, kControlRadius);
             p->restore();
         }
         QStyleOptionMenuItem copy(*mi);
         copy.palette.setColor(QPalette::Highlight, Qt::transparent);
-        copy.palette.setColor(QPalette::HighlightedText, kText);
+        copy.palette.setColor(QPalette::HighlightedText, mTheme.Text);
         QProxyStyle::drawControl(ce, &copy, p, w);
         return;
     }
@@ -1404,7 +1394,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         p->setRenderHint(QPainter::Antialiasing);
         if (selected && north) {
             const QWidget *tabs = w != nullptr ? w->parentWidget() : nullptr;
-            const QColor line = qobject_cast<const QTabWidget*>(tabs) != nullptr && IsActiveCard(tabs) ? kAccent : kBorder;
+            const QColor line = qobject_cast<const QTabWidget*>(tabs) != nullptr && IsActiveCard(tabs) ? mTheme.Accent : mTheme.Border;
             const qreal flare = kTabFlare;
             const qreal radius = kCardRadius;
             const bool flushLeft = IsFlushLeftTab(tab);
@@ -1428,25 +1418,25 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             fill.lineTo(flushLeft ? left : left - flare, bottom + 0.5);
             fill.closeSubpath();
             p->setPen(Qt::NoPen);
-            p->setBrush(kPane);
+            p->setBrush(mTheme.Pane);
             p->drawPath(fill);
             p->setPen(QPen(line, 1));
             p->setBrush(Qt::NoBrush);
             p->drawPath(edge);
         } else if (selected) {
-            p->setPen(QPen(kAccent, 1));
-            p->setBrush(QColor(0x2e, 0x2e, 0x2e));
+            p->setPen(QPen(mTheme.Accent, 1));
+            p->setBrush(mTheme.TabSelected);
             p->drawRoundedRect(r.adjusted(0.5, 0.5, -0.5, -0.5), kControlRadius, kControlRadius);
         } else if (hover) {
             p->setPen(Qt::NoPen);
-            p->setBrush(kRowHover);
+            p->setBrush(mTheme.RowHover);
             if (north) {
                 const QRectF box = QRectF(tab->rect).adjusted(0, 0, IsLastTab(tab) ? 1 - kTabFlare : 1, -1);
                 QPainterPath shape;
                 shape.addRoundedRect(box, kCardRadius, kCardRadius);
                 QPainterPath bottom;
                 bottom.addRect(box.adjusted(0, kCardRadius, 0, 0));
-                p->setBrush(kTabHover);
+                p->setBrush(mTheme.TabHover);
                 p->drawPath(shape.united(bottom));
             } else {
                 p->drawRoundedRect(r, kControlRadius, kControlRadius);
@@ -1463,7 +1453,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         QStyleOptionTab copy(*tab);
         if (IsLastTab(tab))
             copy.rect.adjust(0, 0, -kTabFlare, 0);
-        const QColor color = !enabled ? kTextDisabled : (tab->state & State_Selected) || hover ? kText : kTextSecondary;
+        const QColor color = !enabled ? mTheme.TextDisabled : (tab->state & State_Selected) || hover ? mTheme.Text : mTheme.TextSecondary;
         copy.palette.setColor(QPalette::WindowText, color);
         copy.palette.setColor(QPalette::ButtonText, color);
         p->save();
@@ -1483,22 +1473,22 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
             break;
         const QRect r = dw->rect.adjusted(8, 0, -4, 0);
         const QString text = dw->fontMetrics.elidedText(dw->title, Qt::ElideRight, r.width());
-        p->setPen(enabled ? kText : kTextDisabled);
+        p->setPen(enabled ? mTheme.Text : mTheme.TextDisabled);
         p->drawText(r, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextShowMnemonic | Qt::TextHideMnemonic, text);
         return;
     }
 
     case CE_HeaderSection: {
         const QRect r = opt->rect;
-        p->fillRect(r, hover ? kRowHover : kPane);
-        p->fillRect(QRect(r.left(), r.bottom(), r.width(), 1), kBorder);
-        p->fillRect(QRect(r.right(), r.top() + 4, 1, r.height() - 8), kBorder);
+        p->fillRect(r, hover ? mTheme.RowHover : mTheme.Pane);
+        p->fillRect(QRect(r.left(), r.bottom(), r.width(), 1), mTheme.Border);
+        p->fillRect(QRect(r.right(), r.top() + 4, 1, r.height() - 8), mTheme.Border);
         return;
     }
 
     case CE_HeaderEmptyArea:
-        p->fillRect(opt->rect, kPane);
-        p->fillRect(QRect(opt->rect.left(), opt->rect.bottom(), opt->rect.width(), 1), kBorder);
+        p->fillRect(opt->rect, mTheme.Pane);
+        p->fillRect(QRect(opt->rect.left(), opt->rect.bottom(), opt->rect.width(), 1), mTheme.Border);
         return;
 
     case CE_ShapedFrame: {
@@ -1506,9 +1496,9 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         if (frame != nullptr && (frame->frameShape == QFrame::HLine || frame->frameShape == QFrame::VLine)) {
             const QRect r = frame->rect;
             if (frame->frameShape == QFrame::HLine)
-                p->fillRect(QRect(r.left(), r.center().y(), r.width(), 1), kBorder);
+                p->fillRect(QRect(r.left(), r.center().y(), r.width(), 1), mTheme.Border);
             else
-                p->fillRect(QRect(r.center().x(), r.top(), 1, r.height()), kBorder);
+                p->fillRect(QRect(r.center().x(), r.top(), 1, r.height()), mTheme.Border);
             return;
         }
         break;
@@ -1518,7 +1508,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
         p->setPen(Qt::NoPen);
-        p->setBrush(kControl);
+        p->setBrush(mTheme.Control);
         p->drawRoundedRect(QRectF(opt->rect), kControlRadius, kControlRadius);
         p->restore();
         return;
@@ -1547,7 +1537,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
         p->setPen(Qt::NoPen);
-        p->setBrush(enabled ? kAccent : kTextDisabled);
+        p->setBrush(enabled ? mTheme.Accent : mTheme.TextDisabled);
         p->drawRoundedRect(r, kControlRadius - 1, kControlRadius - 1);
         p->restore();
         return;
@@ -1557,7 +1547,7 @@ void FluentStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPaint
         const auto *btn = qstyleoption_cast<const QStyleOptionButton*>(opt);
         if (btn != nullptr && IsAccentButton(opt, w)) {
             QStyleOptionButton copy(*btn);
-            copy.palette.setColor(QPalette::ButtonText, kOnAccent);
+            copy.palette.setColor(QPalette::ButtonText, mTheme.OnAccent);
             QProxyStyle::drawControl(ce, &copy, p, w);
             return;
         }
@@ -1581,12 +1571,12 @@ void FluentStyle::drawComplexControl(ComplexControl cc, const QStyleOptionComple
             break;
         if (cb->frame) {
             const bool open = cb->state & State_On;
-            QColor fill = !enabled ? kControlDisabled : (!cb->editable && (hover || open)) ? kControlHover : kControl;
-            DrawInputPanel(p, cb->rect, fill, enabled && cb->editable && (cb->state & State_HasFocus));
+            QColor fill = !enabled ? mTheme.ControlDisabled : (!cb->editable && (hover || open)) ? mTheme.ControlHover : mTheme.Control;
+            DrawInputPanel(p, cb->rect, fill, enabled && cb->editable && (cb->state & State_HasFocus), mTheme);
         }
         if (cb->subControls & SC_ComboBoxArrow) {
             const QRect arrow = proxy()->subControlRect(CC_ComboBox, cb, SC_ComboBoxArrow, w);
-            DrawChevron(p, arrow, Qt::DownArrow, enabled ? kTextSecondary : kTextDisabled);
+            DrawChevron(p, arrow, Qt::DownArrow, enabled ? mTheme.TextSecondary : mTheme.TextDisabled);
         }
         return;
     }
@@ -1596,7 +1586,7 @@ void FluentStyle::drawComplexControl(ComplexControl cc, const QStyleOptionComple
         if (sb == nullptr)
             break;
         if (sb->frame)
-            DrawInputPanel(p, sb->rect, enabled ? kControl : kControlDisabled, enabled && (sb->state & State_HasFocus));
+            DrawInputPanel(p, sb->rect, enabled ? mTheme.Control : mTheme.ControlDisabled, enabled && (sb->state & State_HasFocus), mTheme);
         if (sb->buttonSymbols == QAbstractSpinBox::NoButtons)
             return;
         for (SubControl sc : { SC_SpinBoxUp, SC_SpinBoxDown }) {
@@ -1607,20 +1597,20 @@ void FluentStyle::drawComplexControl(ComplexControl cc, const QStyleOptionComple
                 p->save();
                 p->setRenderHint(QPainter::Antialiasing);
                 p->setPen(Qt::NoPen);
-                p->setBrush((sb->state & State_Sunken) ? kControlPressed : kControlHover);
+                p->setBrush((sb->state & State_Sunken) ? mTheme.ControlPressed : mTheme.ControlHover);
                 p->drawRoundedRect(QRectF(r).adjusted(1, 1, -1, -1), 3, 3);
                 p->restore();
             }
             if (sb->buttonSymbols == QAbstractSpinBox::PlusMinus) {
                 p->save();
-                p->setPen(QPen(stepEnabled ? kTextSecondary : kTextDisabled, 1.3));
+                p->setPen(QPen(stepEnabled ? mTheme.TextSecondary : mTheme.TextDisabled, 1.3));
                 const QPointF c = QRectF(r).center();
                 p->drawLine(c - QPointF(3, 0), c + QPointF(3, 0));
                 if (sc == SC_SpinBoxUp)
                     p->drawLine(c - QPointF(0, 3), c + QPointF(0, 3));
                 p->restore();
             } else {
-                DrawChevron(p, r, sc == SC_SpinBoxUp ? Qt::UpArrow : Qt::DownArrow, stepEnabled ? kTextSecondary : kTextDisabled, 3);
+                DrawChevron(p, r, sc == SC_SpinBoxUp ? Qt::UpArrow : Qt::DownArrow, stepEnabled ? mTheme.TextSecondary : mTheme.TextDisabled, 3);
             }
         }
         return;
@@ -1644,12 +1634,12 @@ void FluentStyle::drawComplexControl(ComplexControl cc, const QStyleOptionComple
                 p->save();
                 p->setRenderHint(QPainter::Antialiasing);
                 p->setPen(Qt::NoPen);
-                p->setBrush(dragging || hover ? kScrollThumbHover : kScrollThumb);
+                p->setBrush(dragging || hover ? mTheme.ScrollThumbHover : mTheme.ScrollThumb);
                 p->drawRoundedRect(r, thickness / 2, thickness / 2);
                 p->restore();
             }
         }
-        const QColor arrowColor = !enabled ? kTextDisabled : hover ? kTextSecondary : kScrollThumb;
+        const QColor arrowColor = !enabled ? mTheme.TextDisabled : hover ? mTheme.TextSecondary : mTheme.ScrollThumb;
         if (sb->subControls & SC_ScrollBarSubLine)
             DrawTriangle(p, proxy()->subControlRect(CC_ScrollBar, sb, SC_ScrollBarSubLine, w), horizontal ? Qt::LeftArrow : Qt::UpArrow, arrowColor);
         if (sb->subControls & SC_ScrollBarAddLine)

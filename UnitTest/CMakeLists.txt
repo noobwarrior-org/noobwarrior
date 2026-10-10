@@ -7,6 +7,7 @@ target_sources(NoobWarrior.UnitTest PRIVATE
     main.cpp
     PluginDataModelTest.cpp
     PluginDatabaseTest.cpp
+    PluginStyleTest.cpp
     BinaryFileIoTest.cpp
     BinaryFileChunkTest.cpp
     BinaryRobloxFileTest.cpp

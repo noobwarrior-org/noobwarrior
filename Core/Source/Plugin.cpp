@@ -264,6 +264,76 @@ std::vector<Plugin::DeclaredDatabase> Plugin::GetDeclaredDatabases() {
     return databases;
 }
 
+std::vector<DeclaredStyle> Plugin::GetDeclaredStyles() {
+    std::vector<DeclaredStyle> styles;
+    if (Fail())
+        return styles;
+
+    const std::string identifier = GetIdentifier();
+    auto stylesTbl = mManifestTbl.get<std::optional<sol::table>>("styles");
+    if (!stylesTbl)
+        return styles;
+
+    for (std::size_t i = 1; i <= stylesTbl->size(); i++) {
+        sol::object value = stylesTbl->get<sol::object>(i);
+        if (!value.is<sol::table>()) {
+            PLUGIN_OUT("Value in index {} in styles is not a table!", i)
+            continue;
+        }
+
+        sol::table entry = value.as<sol::table>();
+        auto id = entry.get<std::optional<std::string>>("id");
+        auto file = entry.get<std::optional<std::string>>("file");
+        if (!id || id->empty() || id->find('/') != std::string::npos) {
+            PLUGIN_OUT("Value in index {} in styles needs an id string without slashes!", i)
+            continue;
+        }
+        if (!file || file->empty()) {
+            PLUGIN_OUT("Style \"{}\" has no file string!", *id)
+            continue;
+        }
+        if (std::ranges::any_of(styles, [&](const DeclaredStyle &style) { return style.Id == *id; })) {
+            PLUGIN_OUT("Style \"{}\" is declared more than once!", *id)
+            continue;
+        }
+
+        std::vector<unsigned char> source;
+        if (!ReadFile(*file, &source)) {
+            PLUGIN_OUT("Style \"{}\" could not read its file \"{}\"!", *id, *file)
+            continue;
+        }
+
+        LuaState &lua = *mCore->GetLuaState();
+        sol::load_result chunk = lua.load(std::string(source.begin(), source.end()));
+        if (!chunk.valid()) {
+            sol::error err = chunk;
+            PLUGIN_OUT("Style \"{}\" failed to compile: {}", *id, err.what())
+            continue;
+        }
+        auto evaluate = chunk.get<sol::protected_function>();
+        sol::environment(lua, sol::create).set_on(evaluate);
+        sol::protected_function_result result = evaluate();
+        if (!result.valid()) {
+            sol::error err = result;
+            PLUGIN_OUT("Style \"{}\" failed to run: {}", *id, err.what())
+            continue;
+        }
+
+        DeclaredStyle style;
+        style.Id = *id;
+        style.Title = entry.get<std::optional<std::string>>("title").value_or(*id);
+        style.OwnerIdentifier = identifier;
+        std::vector<std::string> errors;
+        const bool parsed = ParseStyleTable(result.get<sol::object>(), style, errors);
+        for (const std::string &error : errors)
+            PLUGIN_OUT("Style \"{}\": {}", *id, error)
+        if (parsed)
+            styles.push_back(std::move(style));
+    }
+
+    return styles;
+}
+
 bool Plugin::IsDirectoryBacked() {
     // Matches how VirtualFileSystem::GetFormatFromPath picks a backend: a directory gets
     // StdFileSystem (real paths on disk), anything else is treated as a zip.

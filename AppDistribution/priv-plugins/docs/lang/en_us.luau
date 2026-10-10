@@ -5,6 +5,7 @@ return {
     ["docs.logo_text"] = "Documentation",
     ["docs.guide"] = "Guide",
     ["docs.plugins"] = "Plugins",
+    ["docs.plugins.styles"] = "Styles",
     ["docs.internals"] = "Internals",
     ["docs.page_not_found"] = "Page not found",
     ["docs.page_not_found.description"] = "The page you requested does not exist.",

@@ -48,7 +48,12 @@ public:
     void LaunchEngine(EngineStartParameters params);
     void ConnectToServer(const std::string &ip, uint16_t port);
     void ShowSystemNotification(const QString &title, const QString &message);
+    void ApplyStyle();
 private:
+    std::string GetRegistryString(const std::string &key, const std::string &fallback);
+    Qt::ColorScheme ResolveColorScheme(const DeclaredStyle *style);
+    void RequestColorScheme(Qt::ColorScheme requested);
+
     // Connect helpers: ConnectToServer fetches the host's auth-info, PromptAndConnect shows the login
     // dialog when needed, DoConnect runs the actual connect with an optional session token.
     void PromptAndConnect(const std::string &ip, uint16_t port, bool authEnabled, bool passwordBased,
@@ -67,6 +72,8 @@ private:
     Launcher *mLauncher;
     QSystemTrayIcon *mTrayIcon;
     QMenu *mTrayMenu;
+    std::string mAppliedStyleKey;
+    Qt::ColorScheme mRequestedColorScheme { Qt::ColorScheme::Unknown };
 };
 extern Application *gApp;
 }

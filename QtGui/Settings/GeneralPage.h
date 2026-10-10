@@ -39,7 +39,9 @@ public:
     void Deserialize(Registry* reg) override;
     void Serialize(Registry* reg) override;
 private:
+    QString GetThemeBase(const std::string &themeId);
     QComboBox* mTheme;
+    QComboBox* mColorScheme;
 };
 }
 

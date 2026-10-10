@@ -6,7 +6,9 @@ set(SOURCES
     Application.cpp
     Launcher.cpp
     Style/DarculaStyle.cpp
+    Style/DarculaTheme.cpp
     Style/FluentStyle.cpp
+    Style/FluentTheme.cpp
     Settings/SettingsDialog.cpp
     Settings/SettingsPage.cpp
     Settings/GeneralPage.cpp

@@ -40,6 +40,8 @@ RegistryResponse Registry::Open() {
     SetKeyValueIfNotSet("language", "en_US");
     SetKeyValueIfNotSet("gui.theme", "fluent");
     SetKeyComment("gui.theme", "The look of the desktop app");
+    SetKeyValueIfNotSet("gui.color_scheme", "dark");
+    SetKeyComment("gui.color_scheme", "Whether the desktop app uses light or dark colors: \"system\", \"light\" or \"dark\"");
 
     sol::table master_servers_tbl = mLua->create_table();
     SetKeyValueIfNotSet("master_servers", master_servers_tbl);

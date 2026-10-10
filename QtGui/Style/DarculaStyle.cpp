@@ -51,31 +51,39 @@
 
 using namespace NoobWarrior;
 
-DarculaStyle::DarculaStyle() : QProxyStyle(QStyleFactory::create("Fusion")) {
+namespace {
+constexpr const char *kMenuBarDecoratedProperty = "_nw_darcula_menubar";
+}
+
+DarculaStyle::DarculaStyle(DarculaTheme theme) : QProxyStyle(QStyleFactory::create("Fusion")), mTheme(std::move(theme)) {
+}
+
+const DarculaTheme &DarculaStyle::Theme() const {
+    return mTheme;
 }
 
 void DarculaStyle::polish(QPalette &pal) {
-    pal.setColor(QPalette::Window, QColor(60, 63, 65));
+    pal.setColor(QPalette::Window, mTheme.Window);
 
-    pal.setColor(QPalette::Base,              QColor(60,63,65));
-    pal.setColor(QPalette::AlternateBase, QColor(30, 32, 33));
-    pal.setColor(QPalette::Button,            QColor(53, 53, 53));
-    pal.setColor(QPalette::Link,              QColor(42, 130, 218));
-    pal.setColor(QPalette::Highlight,         QColor(42, 130, 218));
-    pal.setColor(QPalette::ToolTipBase,       QColor(71, 73, 74));
-    pal.setColor(QPalette::BrightText, QColor(255, 255, 255));
+    pal.setColor(QPalette::Base, mTheme.Base);
+    pal.setColor(QPalette::AlternateBase, mTheme.AlternateBase);
+    pal.setColor(QPalette::Button, mTheme.Button);
+    pal.setColor(QPalette::Link, mTheme.Link);
+    pal.setColor(QPalette::Highlight, mTheme.Highlight);
+    pal.setColor(QPalette::ToolTipBase, mTheme.ToolTipBase);
+    pal.setColor(QPalette::BrightText, mTheme.BrightText);
 
-    pal.setColor(QPalette::Light,       QColor(80, 81, 80));
-    pal.setColor(QPalette::Midlight,       QColor(60, 63, 65));
-    pal.setColor(QPalette::Dark,       QColor(30, 32, 33));
-    pal.setColor(QPalette::Mid,       QColor(51,50,51));
-    pal.setColor(QPalette::Shadow, QColor(10, 10, 10));
+    pal.setColor(QPalette::Light, mTheme.Light);
+    pal.setColor(QPalette::Midlight, mTheme.Midlight);
+    pal.setColor(QPalette::Dark, mTheme.Dark);
+    pal.setColor(QPalette::Mid, mTheme.Mid);
+    pal.setColor(QPalette::Shadow, mTheme.Shadow);
 
-    pal.setColor(QPalette::WindowText, Qt::lightGray);
-    pal.setColor(QPalette::PlaceholderText, Qt::gray);
-    pal.setColor(QPalette::Text, Qt::lightGray);
-    pal.setColor(QPalette::ButtonText, Qt::lightGray);
-    pal.setColor(QPalette::ToolTipText, Qt::lightGray);
+    pal.setColor(QPalette::WindowText, mTheme.Text);
+    pal.setColor(QPalette::PlaceholderText, mTheme.PlaceholderText);
+    pal.setColor(QPalette::Text, mTheme.Text);
+    pal.setColor(QPalette::ButtonText, mTheme.Text);
+    pal.setColor(QPalette::ToolTipText, mTheme.Text);
 
     QProxyStyle::polish(pal);
 }
@@ -92,7 +100,8 @@ void DarculaStyle::polish(QWidget *widget) {
 
 #if !defined(Q_OS_MACOS)
     auto *menuBar = qobject_cast<QMenuBar*>(widget);
-    if (menuBar != nullptr) {
+    if (menuBar != nullptr && !menuBar->property(kMenuBarDecoratedProperty).toBool()) {
+        menuBar->setProperty(kMenuBarDecoratedProperty, true);
         auto aestheticIcon = new QAction(QIcon(":/images/icon16_aa.png"), "");
         aestheticIcon->setShortcutVisibleInContextMenu(false);
         aestheticIcon->setShortcut(QKeySequence());
@@ -145,7 +154,7 @@ void DarculaStyle::polish(QWidget *widget) {
     if (tabWidget != nullptr && qobject_cast<QTabBar*>(widget) == nullptr) {
         widget->setAutoFillBackground(true);
         QPalette palette = widget->palette();
-        palette.setColor(QPalette::Window, QColor(43, 42, 43));
+        palette.setColor(QPalette::Window, mTheme.TabPane);
         // palette.setColor(widget->backgroundRole(), palette.color(widget->backgroundRole()).darker(128));
         widget->setPalette(palette);
     }
@@ -153,7 +162,7 @@ void DarculaStyle::polish(QWidget *widget) {
     auto *listView = qobject_cast<QListView*>(widget->parentWidget());
     if (listView != nullptr) {
         QPalette palette = listView->viewport()->palette();
-        palette.setColor(QPalette::Base, QColor(43, 42, 43));
+        palette.setColor(QPalette::Base, mTheme.ListBase);
         listView->viewport()->setPalette(palette);
         listView->setAutoFillBackground(true);
     }

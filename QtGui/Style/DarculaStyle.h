@@ -23,16 +23,20 @@
 // Started on: 7/11/2025
 // Description: My style that I like for this program.
 #pragma once
+#include "DarculaTheme.h"
 #include <QProxyStyle>
 
 namespace NoobWarrior {
 class DarculaStyle : public QProxyStyle {
 public:
-    DarculaStyle();
+    explicit DarculaStyle(DarculaTheme theme = DarculaTheme::DarkPreset());
     void polish(QPalette &pal) override;
     void polish(QWidget *widget) override;
     void drawPrimitive(PrimitiveElement pe, const QStyleOption *opt, QPainter *p, const QWidget *w) const override;
     void drawControl(QStyle::ControlElement ce, const QStyleOption *opt, QPainter *p, const QWidget *w) const override;
     int pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const override;
+    const DarculaTheme &Theme() const;
+private:
+    DarculaTheme mTheme;
 };
 }

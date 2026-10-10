@@ -65,17 +65,8 @@ using namespace NoobWarrior;
 
 static QPushButton *CreateLauncherRow(const QIcon &icon, const QString &title, const QString &description, QWidget *parent) {
     auto *button = new QPushButton(parent);
-    button->setFlat(true);
+    // button->setFlat(true);
     button->setMinimumSize(240, 42);
-    button->setStyleSheet(
-        "QPushButton {"
-        "    background-color: transparent;"
-        "    border: none;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: rgb(75, 75, 75);"
-        "}"
-    );
 
     auto *row = new QHBoxLayout(button);
     row->setContentsMargins(10, 4, 10, 4);

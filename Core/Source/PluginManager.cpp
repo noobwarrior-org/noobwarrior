@@ -309,6 +309,15 @@ bool PluginManager::MountDeclaredDatabase(const std::string &sourceUrl, unsigned
     return false;
 }
 
+std::vector<DeclaredStyle> PluginManager::GetDeclaredStyles() {
+    std::vector<DeclaredStyle> styles;
+    for (Plugin *plugin : mMountedPlugins) {
+        std::vector<DeclaredStyle> declared = plugin->GetDeclaredStyles();
+        styles.insert(styles.end(), std::make_move_iterator(declared.begin()), std::make_move_iterator(declared.end()));
+    }
+    return styles;
+}
+
 std::vector<Plugin::DeclaredDatabase> PluginManager::GetOfferedDatabases() {
     std::vector<Plugin::DeclaredDatabase> offered;
     EmuDbManager *manager = mCore->GetEmuDbManager();
